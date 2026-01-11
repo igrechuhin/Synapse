@@ -1,0 +1,35 @@
+{
+  "version": "1.0",
+  "categories": {
+    "general": {
+      "description": "General purpose prompts for common development tasks",
+      "prompts": [
+        {
+          "file": "commit.md",
+          "name": "Commit Changes",
+          "description": "Execute the mandatory commit procedure with all required pre-commit checks",
+          "keywords": ["commit", "git", "pre-commit", "testing", "formatting"]
+        },
+        {
+          "file": "fix-errors.md",
+          "name": "Fix Compiler Errors and Warnings",
+          "description": "Fix all compiler errors and warnings across the entire codebase",
+          "keywords": ["errors", "warnings", "linting", "type-checking", "formatting"]
+        },
+        {
+          "file": "review.md",
+          "name": "Review Code",
+          "description": "Comprehensive code review to find bugs, inconsistencies, and incomplete implementations",
+          "keywords": ["review", "code-quality", "bugs", "consistency", "testing"]
+        },
+        {
+          "file": "run-tests.md",
+          "name": "Run Tests",
+          "description": "Execute build and test suite with pytest-timeout protection",
+          "keywords": ["tests", "pytest", "testing", "coverage", "quality"]
+        }
+      ]
+    }
+  }
+}
+

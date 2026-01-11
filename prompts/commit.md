@@ -1,0 +1,351 @@
+# Commit Changes
+
+**AI EXECUTION COMMAND**: Execute the mandatory commit procedure with all required pre-commit checks, including testing of all runnable project tests.
+
+**CRITICAL**: This command is ONLY executed when explicitly invoked by the user (e.g., `/commit` or user explicitly requests commit). Invoking this command IS an explicit commit request per `no-auto-commit.mdc` rule. Once invoked, execute all steps AUTOMATICALLY without asking for additional permission or confirmation.
+
+**CURSOR COMMANDS**: The commands referenced below (like `run-tests`, etc.) are Cursor commands located in `.cortex/synapse/prompts/` directory. AI MUST read each referenced command file and execute ALL its steps AUTOMATICALLY without asking user permission.
+
+## ⚠️ MANDATORY PRE-ACTION CHECKLIST
+
+**BEFORE executing this command, you MUST:**
+
+1. ✅ **Read relevant memory bank files** - Understand current project context:
+   - Read `.cursor/memory-bank/activeContext.md` to understand current work focus
+   - Read `.cursor/memory-bank/progress.md` to see recent achievements
+   - Read `.cursor/memory-bank/roadmap.md` to understand project priorities
+
+1. ✅ **Read relevant rules** - Understand commit requirements:
+   - Read `.cursor/rules/no-auto-commit.mdc` for commit procedure requirements
+   - Read `.cursor/rules/coding-standards.mdc` and `.cursor/rules/python-coding-standards.mdc` for code quality standards
+   - Read `.cursor/rules/memory-bank-workflow.mdc` for memory bank update requirements
+
+1. ✅ **Read referenced command files** - Understand all sub-commands:
+   - Read `.cortex/synapse/prompts/run-tests.md` before executing it
+   - Read `.cortex/synapse/prompts/update-memory-bank.md` before executing it
+   - Read `.cortex/synapse/prompts/validate-memory-bank-timestamps.md` before executing it
+   - Read `.cortex/synapse/prompts/validate-roadmap-sync.md` before executing it
+
+1. ✅ **Verify prerequisites** - Ensure all prerequisites are met:
+   - Confirm there are changes to commit
+   - Verify build system is accessible
+   - Check that test suite can be executed
+
+**VIOLATION**: Executing this command without following this checklist is a CRITICAL violation that blocks proper commit procedure.
+
+## Steps
+
+1. **Code formatting (Python)** - Run Black and isort:
+   - Execute `./.venv/bin/black .` and `./.venv/bin/isort .`
+   - Verify formatting completes successfully with no errors or warnings
+   - Fix any formatting issues if they occur
+   - Verify no files were left in inconsistent state
+1. **Type checking (Python)** - Run Pyright type checker:
+   - Execute `.venv/bin/pyright src/ tests/` or `python -m pyright src/ tests/`
+   - Verify type checking completes with zero errors (warnings are acceptable but should be reviewed)
+   - Fix any critical type errors before proceeding
+   - Note: Pyright is required for type safety validation
+1. **Test execution (Python)**:
+   - Run `./.venv/bin/pytest --session-timeout=300` (pytest-timeout configured in pytest.ini: 10s per test, 300s session timeout)
+   - Ensure 100% pass rate for all executable tests (zero failures)
+   - Investigate and fix any failures before proceeding
+1. **Memory bank operations** - Execute Cursor command: `update-memory-bank`:
+   - Read `.cortex/synapse/prompts/update-memory-bank.md`
+   - Execute ALL steps from that command automatically
+   - Update all relevant memory bank files with current changes
+1. **Update roadmap** - Update roadmap.md with completed items and new milestones:
+   - Review recent changes and completed work
+   - Mark completed milestones and tasks in roadmap.md
+   - Add new roadmap items if significant new work is identified
+   - Update completion status and progress indicators
+   - Ensure roadmap accurately reflects current project state
+1. **Archive completed plans** - Archive any completed build plans:
+   - Check `.cursor/plans/` directory for completed plan files
+   - Use standard tools (`mv` or equivalent) to move completed plans to `.cursor/plans/archive/` directory
+   - Create `.cursor/plans/archive/` directory with standard tools if it doesn't exist
+   - Update plan status to "archived" if not already done
+   - Ensure no active plans remain in the plans directory
+   - **CRITICAL**: Plan files MUST be archived in `.cursor/plans/archive/`, never in `.cursor/plans/archive/`
+1. **Validate archive locations** - Validate that all archived files are in correct locations:
+   - Check `.cursor/plans/archive/` directory - should contain plan files only
+   - Validate that plan files are archived in `.cursor/plans/archive/`
+   - Report any plan files found outside `.cursor/plans/archive/` and require manual correction
+   - Block commit if archive location violations are found
+1. **Optimize memory bank** - Execute Cursor command: `validate-memory-bank-timestamps`:
+   - Read `.cortex/synapse/prompts/validate-memory-bank-timestamps.md`
+   - Execute ALL steps from that command automatically
+   - Validate timestamp format and optimize memory bank
+   - Ensure all timestamps use YY-MM-DD format (no HH-mm)
+1. **Roadmap synchronization validation** - Execute Cursor command: `validate-roadmap-sync`:
+   - Read `.cortex/synapse/prompts/validate-roadmap-sync.md`
+   - Execute ALL steps from that command automatically
+   - Validate roadmap.md is synchronized with Sources/ directory
+   - Ensure all production TODOs are properly tracked
+   - Verify line numbers and file references are accurate
+1. **Submodule handling** - Commit and push `.cortex/synapse` submodule changes if any:
+   - Check if `.cortex/synapse` submodule has uncommitted changes using `git -C .cortex/synapse status --porcelain`
+   - If submodule has changes:
+     - Stage all changes in the submodule using `git -C .cortex/synapse add .`
+     - Create commit in submodule with descriptive message (use same message format as main commit or append " [synapse submodule]")
+     - Push submodule changes to remote using `git -C .cortex/synapse push`
+     - Verify submodule push completes successfully
+     - Update parent repository's submodule reference using `git add .cortex/synapse`
+     - Note: This stages the updated submodule reference for the main commit
+
+1. **Commit creation** - Create commit with descriptive message:
+
+- Stage ALL changes in the working directory using `git add .` (this includes the updated submodule reference if submodule was committed)
+- Analyze all changes made during the commit procedure
+- Generate comprehensive commit message summarizing:
+  - Features added or modified
+  - Refactors performed
+  - Tests added or updated
+  - Documentation updates
+  - Rules compliance fixes
+  - Memory bank updates
+  - Roadmap updates
+  - Plan archiving
+  - Submodule updates (if `.cortex/synapse` submodule was updated)
+- Create commit with `git commit` using the generated message
+- If user provided custom commit message, use that exact message instead
+
+1. **Push branch** - Push committed changes to remote repository:
+    - Determine current branch name using `git branch --show-current`
+    - Push current branch to remote using `git push`
+    - Verify push completes successfully
+    - Handle any push errors (e.g., remote tracking not set, authentication issues)
+
+## Command Execution Order
+
+The commit procedure executes steps in this specific order to ensure dependencies are met:
+
+1. **Formatting** Ensures code style consistency
+1. **Testing** (Run Tests) - Ensures functionality correctness
+1. **Documentation** (Memory Bank) - Updates project context
+1. **Roadmap Updates** (Roadmap Update) - Ensures roadmap reflects current progress
+1. **Plan Archiving** (Archive Completed Plans) - Cleans up completed build plans
+1. **Archive Validation** (Validate Archive Locations) - Ensures archived files are in correct locations
+1. **Optimization** (Memory Bank Validation) - Validates and optimizes memory bank
+1. **Roadmap Sync** (Roadmap-Codebase Synchronization) - Ensures roadmap.md matches Sources/ codebase
+1. **Submodule Handling** - Commits and pushes `.cortex/synapse` submodule changes if any
+1. **Commit** - Creates the commit with all changes (including updated submodule reference)
+1. **Push** - Pushes committed changes to remote repository
+
+## Output Format
+
+Provide a structured commit procedure report:
+
+### **Commit Procedure Summary**
+
+- **Status**: Success/Failure status of the commit procedure
+- **Steps Completed**: Count and list of steps that completed successfully
+- **Steps Failed**: Count and list of steps that failed (should be 0)
+- **Total Duration**: Time taken for the entire commit procedure
+
+### **Step-by-Step Results**
+
+Use this ordering when numbering results:
+
+- Step 1: Formatting
+- Step 2: Test Execution
+- Step 3: Memory Bank Update
+- Step 4: Roadmap Update
+- Step 5: Plan Archiving
+- Step 6: Archive Validation
+- Step 7: Memory Bank Optimization
+- Step 8: Roadmap Synchronization Validation
+- Step 9: Submodule Handling
+- Step 10: Commit Creation
+- Step 11: Push Branch
+
+#### **1. Formatting**
+
+- **Status**: Success/Failure
+- **Files Formatted**: Count of files formatted
+- **Errors**: Any formatting errors encountered
+- **Warnings**: Any formatting warnings
+
+#### **2. Test Execution**
+
+- **Status**: Success/Failure
+- **Tests Executed**: Count of tests executed
+- **Tests Passed**: Count of passing tests
+- **Tests Failed**: Count of failing tests (must be 0)
+- **Pass Rate**: Percentage pass rate (target: 100%)
+- **Details**: Summary from run-tests command
+
+#### **4. Memory Bank Update**
+
+- **Status**: Success/Failure
+- **Files Updated**: List of memory bank files updated
+- **Entries Added**: Count of new entries added
+- **Details**: Summary from update-memory-bank command
+
+#### **5. Roadmap Update**
+
+- **Status**: Success/Failure
+- **Items Marked Complete**: Count of completed milestones/tasks marked in roadmap.md
+- **New Items Added**: Count of new roadmap items added
+- **Status Updates**: Summary of progress indicator updates
+- **Details**: Summary of roadmap changes made
+
+#### **6. Plan Archiving**
+
+- **Status**: Success/Failure
+- **Plans Archived**: Count of plans moved to archive directory
+- **Plans Processed**: Count of plan files checked
+- **Archive Directory**: Location where plans were archived
+- **Details**: Summary of plan archiving operations
+
+#### **7. Archive Location Validation**
+
+- **Status**: Success/Failure
+- **Plan Archive Checked**: Count of files in `.cursor/plans/archive/`
+- **Violations Found**: Count of plan files outside `.cursor/plans/archive/` (must be 0)
+- **Violations List**: List of any plan files in wrong locations
+- **Details**: Summary of archive location validation results
+
+#### **8. Memory Bank Optimization**
+
+- **Status**: Success/Failure
+- **Timestamp Validation**: Status of timestamp format validation
+- **Optimization**: Summary of optimization performed
+- **Details**: Summary from validate-memory-bank-timestamps command
+
+#### **9. Roadmap Synchronization Validation**
+
+- **Status**: Success/Failure
+- **Roadmap TODOs Validated**: Count of TODOs checked in roadmap.md
+- **Codebase TODOs Scanned**: Count of production TODOs found in Sources/
+- **Synchronization Issues**: Count of issues found (must be 0)
+- **Details**: Summary from validate-roadmap-sync command
+
+#### **10. Submodule Handling**
+
+- **Status**: Success/Failure/Skipped
+- **Submodule Changes Detected**: Whether `.cortex/synapse` submodule had changes
+- **Submodule Committed**: Whether submodule changes were committed
+- **Submodule Pushed**: Whether submodule changes were pushed to remote
+- **Submodule Commit Hash**: Git commit hash of submodule commit (if committed)
+- **Parent Reference Updated**: Whether parent repository's submodule reference was updated
+- **Details**: Summary of submodule operations performed
+
+#### **11. Commit Creation**
+
+- **Status**: Success/Failure
+- **Commit Hash**: Git commit hash if successful
+- **Commit Message**: The commit message used
+- **Files Committed**: Count and list of files in the commit
+- **Submodule Reference Updated**: Whether submodule reference was included in commit
+
+#### **12. Push Branch**
+
+- **Status**: Success/Failure
+- **Branch Name**: Current branch that was pushed
+- **Remote**: Remote repository name (e.g., origin)
+- **Push Result**: Summary of push operation
+- **Errors**: Any push errors encountered and their resolution
+
+### **Issues Encountered**
+
+- **Formatting Issues**: Any Formatting issues and their resolution
+- **Code Quality Issues**: Unused parameters and their handling
+- **Test Failures**: Any test failures and their resolution
+- **Memory Bank Issues**: Any memory bank update issues
+- **Roadmap Update Issues**: Any issues updating roadmap.md with completed items
+- **Plan Archiving Issues**: Any issues archiving completed build plans
+- **Archive Validation Issues**: Any archive location violations found and their resolution
+- **Roadmap Sync Issues**: Any roadmap-codebase synchronization problems and their resolution
+- **Submodule Issues**: Any submodule commit or push errors and their resolution
+- **Push Issues**: Any push errors and their resolution
+
+### **Commit Details**
+
+- **Commit Hash**: Full commit hash
+- **Commit Message**: Complete commit message
+- **Files Changed**: List of all files in the commit
+- **Lines Added**: Count of lines added
+- **Lines Removed**: Count of lines removed
+- **Net Change**: Net lines changed
+
+### **Push Details**
+
+- **Branch Pushed**: Name of the branch that was pushed
+- **Remote**: Remote repository name
+- **Push Status**: Success or failure status
+- **Remote Tracking**: Whether remote tracking branch was set
+
+## Failure Handling
+
+### Test Suite Failure
+
+- **Action**: Investigate and fix issues before proceeding
+- **Process**:
+  1. Analyze test failure messages
+  2. Identify root cause
+  3. Fix the underlying issues
+  4. Re-run tests to verify fixes
+  5. Continue until all tests pass
+- **No Partial Commits**: Do not proceed with commit until all tests pass
+
+### Submodule Failure
+
+- **Action**: Report the issue and block main commit if submodule commit/push fails
+- **Process**:
+  1. Report the specific submodule operation failure
+  2. Provide detailed error information
+  3. Suggest resolution steps (e.g., check submodule remote, authentication)
+  4. Do not proceed with main commit if submodule changes exist but couldn't be committed/pushed
+  5. If submodule has no changes, skip submodule operations and proceed normally
+
+### Push Failure
+
+- **Action**: Report the issue but do not block commit (commit is already created)
+- **Process**:
+  1. Report the specific push failure
+  2. Provide detailed error information
+  3. Suggest resolution steps (e.g., set upstream branch, check authentication)
+  4. Commit remains successful even if push fails
+
+### Other Step Failures
+
+- **Action**: Stop immediately and surface the issue
+- **Process**:
+  1. Report the specific failure
+  2. Provide detailed error information
+  3. Do not proceed with commit
+  4. Fix issues first before attempting commit again
+
+### General Rules
+
+- **No Partial Commits**: All steps must pass before commit creation
+- **Fix Issues First**: Resolve all issues before attempting commit again
+- **Automatic Execution**: Once this command is explicitly invoked by the user, execute all steps automatically without asking for additional permission
+- **Command Execution**: When referencing other Cursor commands, AI MUST immediately read those command files and execute ALL their steps without any user interaction
+
+## Success Criteria
+
+- ✅ Black + isort formatting passes without errors
+- ✅ All executable tests pass (100% pass rate)
+- ✅ Memory bank updated with current information
+- ✅ Roadmap.md updated with completed items and current progress
+- ✅ Completed build plans archived to .cursor/plans/archive/
+- ✅ Plan archive locations validated (no violations)
+- ✅ Memory bank optimized and validated
+- ✅ Roadmap.md synchronized with Sources/ codebase
+- ✅ All production TODOs properly tracked
+- ✅ `.cortex/synapse` submodule changes committed and pushed (if any changes exist)
+- ✅ Parent repository's submodule reference updated (if submodule was committed)
+- ✅ Commit created with descriptive message
+- ✅ All changes committed successfully
+- ✅ Branch pushed to remote repository successfully
+
+## Usage
+
+This command executes the complete commit procedure with all required pre-commit checks, ensuring code quality, documentation completeness, test coverage, and project consistency before creating a commit.
+
+**EXPLICIT INVOCATION REQUIRED**: This command is ONLY executed when explicitly invoked by the user (e.g., `/commit`). Invoking this command IS an explicit commit request per `no-auto-commit.mdc` rule.
+
+**NO ADDITIONAL PROMPTS**: Once explicitly invoked, execute all steps automatically without asking for additional permission
+
+**CURSOR COMMAND EXECUTION**: When this command references other Cursor commands (like `run-tests`), AI MUST immediately read that command file and execute ALL its steps without any user interaction
