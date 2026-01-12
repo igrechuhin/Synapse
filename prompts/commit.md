@@ -58,11 +58,12 @@
    - Fix any critical type errors before proceeding
    - Note: Pyright is required for type safety validation
 3. **Code quality checks (Python)** - Run file size and function length checks:
-   - Execute `./.venv/bin/python scripts/check_file_sizes.py` to verify all files are within 400 line limit
-   - Execute `./.venv/bin/python scripts/check_function_lengths.py` to verify all functions are within 30 line limit
+   - Execute `./.venv/bin/python .cortex/synapse/scripts/python/check_file_sizes.py` to verify all files are within 400 line limit
+   - Execute `./.venv/bin/python .cortex/synapse/scripts/python/check_function_lengths.py` to verify all functions are within 30 line limit
    - Verify both checks complete successfully with no violations
    - Fix any file size or function length violations before proceeding
    - Note: These checks match CI quality gate requirements and MUST pass
+   - Note: Scripts are located in `.cortex/synapse/scripts/python/` and are shared across projects using the same Synapse repository
 4. **Test execution (Python)** - Execute Cursor command: `run-tests`:
    - Read `.cortex/synapse/prompts/run-tests.md`
    - Execute ALL steps from that command automatically
