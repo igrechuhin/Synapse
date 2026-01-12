@@ -8,10 +8,12 @@ alwaysApply: true
 ## Core Principles
 
 - **Readable first**: Prefer clarity over cleverness; minimize hidden state.
+- **DRY (Don't Repeat Yourself)**: Keep all logic DRY; no repeated logic across codebase.
 - **Small units**: Keep functions ≤30 logical lines; files ≤400 lines (production code).
 - **Single responsibility**: One public type per file; helpers colocated with their owner.
 - **Explicit typing**: Full type hints for functions, methods, and public attributes.
 - **Fail loudly**: Validate inputs; avoid silent failure paths.
+- **Simple structures**: Prefer simple, readable structures over complex abstractions.
 
 ## Formatting & Imports
 
