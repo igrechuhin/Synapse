@@ -21,6 +21,7 @@
    - Read `.cursor/rules/memory-bank-workflow.mdc` for memory bank update requirements
 
 1. ✅ **Read referenced command files** - Understand all sub-commands:
+   - Read `.cortex/synapse/prompts/fix-errors.md` before executing it (CRITICAL: Must run before testing)
    - Read `.cortex/synapse/prompts/run-tests.md` before executing it
    - Read `.cortex/synapse/prompts/update-memory-bank.md` before executing it
    - Read `.cortex/synapse/prompts/validate-memory-bank-timestamps.md` before executing it
@@ -35,60 +36,68 @@
 
 ## Steps
 
+0. **Fix errors and warnings (Python)** - Execute Cursor command: `fix-errors`:
+   - Read `.cortex/synapse/prompts/fix-errors.md`
+   - Execute ALL steps from that command automatically
+   - Fix all compiler errors, type errors, formatting issues, and warnings
+   - Verify all fixes are applied and code is error-free
+   - **CRITICAL**: This step MUST run before testing to ensure code contains no errors
+   - **CRITICAL**: This prevents committing/pushing poor code that would fail CI checks
+
 1. **Code formatting (Python)** - Run Black and isort:
    - Execute `./.venv/bin/black .` and `./.venv/bin/isort .`
    - Verify formatting completes successfully with no errors or warnings
    - Fix any formatting issues if they occur
    - Verify no files were left in inconsistent state
-1. **Type checking (Python)** - Run Pyright type checker:
+2. **Type checking (Python)** - Run Pyright type checker:
    - Execute `.venv/bin/pyright src/ tests/` or `python -m pyright src/ tests/`
    - Verify type checking completes with zero errors (warnings are acceptable but should be reviewed)
    - Fix any critical type errors before proceeding
    - Note: Pyright is required for type safety validation
-1. **Code quality checks (Python)** - Run file size and function length checks:
+3. **Code quality checks (Python)** - Run file size and function length checks:
    - Execute `./.venv/bin/python scripts/check_file_sizes.py` to verify all files are within 400 line limit
    - Execute `./.venv/bin/python scripts/check_function_lengths.py` to verify all functions are within 30 line limit
    - Verify both checks complete successfully with no violations
    - Fix any file size or function length violations before proceeding
    - Note: These checks match CI quality gate requirements and MUST pass
-1. **Test execution (Python)**:
+4. **Test execution (Python)**:
    - Run `./.venv/bin/pytest --session-timeout=300` (pytest-timeout configured in pytest.ini: 10s per test, 300s session timeout)
    - Ensure 100% pass rate for all executable tests (zero failures)
    - Investigate and fix any failures before proceeding
-1. **Memory bank operations** - Execute Cursor command: `update-memory-bank`:
+5. **Memory bank operations** - Execute Cursor command: `update-memory-bank`:
    - Read `.cortex/synapse/prompts/update-memory-bank.md`
    - Execute ALL steps from that command automatically
    - Update all relevant memory bank files with current changes
-1. **Update roadmap** - Update roadmap.md with completed items and new milestones:
+6. **Update roadmap** - Update roadmap.md with completed items and new milestones:
    - Review recent changes and completed work
    - Mark completed milestones and tasks in roadmap.md
    - Add new roadmap items if significant new work is identified
    - Update completion status and progress indicators
    - Ensure roadmap accurately reflects current project state
-1. **Archive completed plans** - Archive any completed build plans:
+7. **Archive completed plans** - Archive any completed build plans:
    - Check `.cursor/plans/` directory for completed plan files
    - Use standard tools (`mv` or equivalent) to move completed plans to `.cursor/plans/archive/` directory
    - Create `.cursor/plans/archive/` directory with standard tools if it doesn't exist
    - Update plan status to "archived" if not already done
    - Ensure no active plans remain in the plans directory
    - **CRITICAL**: Plan files MUST be archived in `.cursor/plans/archive/`, never in `.cursor/plans/archive/`
-1. **Validate archive locations** - Validate that all archived files are in correct locations:
+8. **Validate archive locations** - Validate that all archived files are in correct locations:
    - Check `.cursor/plans/archive/` directory - should contain plan files only
    - Validate that plan files are archived in `.cursor/plans/archive/`
    - Report any plan files found outside `.cursor/plans/archive/` and require manual correction
    - Block commit if archive location violations are found
-1. **Optimize memory bank** - Execute Cursor command: `validate-memory-bank-timestamps`:
+9. **Optimize memory bank** - Execute Cursor command: `validate-memory-bank-timestamps`:
    - Read `.cortex/synapse/prompts/validate-memory-bank-timestamps.md`
    - Execute ALL steps from that command automatically
    - Validate timestamp format and optimize memory bank
    - Ensure all timestamps use YY-MM-DD format (no HH-mm)
-1. **Roadmap synchronization validation** - Execute Cursor command: `validate-roadmap-sync`:
+10. **Roadmap synchronization validation** - Execute Cursor command: `validate-roadmap-sync`:
    - Read `.cortex/synapse/prompts/validate-roadmap-sync.md`
    - Execute ALL steps from that command automatically
    - Validate roadmap.md is synchronized with Sources/ directory
    - Ensure all production TODOs are properly tracked
    - Verify line numbers and file references are accurate
-1. **Submodule handling** - Commit and push `.cortex/synapse` submodule changes if any:
+11. **Submodule handling** - Commit and push `.cortex/synapse` submodule changes if any:
    - Check if `.cortex/synapse` submodule has uncommitted changes using `git -C .cortex/synapse status --porcelain`
    - If submodule has changes:
      - Stage all changes in the submodule using `git -C .cortex/synapse add .`
@@ -98,7 +107,7 @@
      - Update parent repository's submodule reference using `git add .cortex/synapse`
      - Note: This stages the updated submodule reference for the main commit
 
-1. **Commit creation** - Create commit with descriptive message:
+12. **Commit creation** - Create commit with descriptive message:
 
 - Stage ALL changes in the working directory using `git add .` (this includes the updated submodule reference if submodule was committed)
 - Analyze all changes made during the commit procedure
@@ -125,18 +134,19 @@
 
 The commit procedure executes steps in this specific order to ensure dependencies are met:
 
+0. **Fix Errors** (Fix Errors) - Fixes all compiler errors, type errors, formatting issues, and warnings BEFORE testing
 1. **Formatting** Ensures code style consistency
-1. **Code Quality Checks** - Validates file size and function length limits (matches CI quality gate)
-1. **Testing** (Run Tests) - Ensures functionality correctness
-1. **Documentation** (Memory Bank) - Updates project context
-1. **Roadmap Updates** (Roadmap Update) - Ensures roadmap reflects current progress
-1. **Plan Archiving** (Archive Completed Plans) - Cleans up completed build plans
-1. **Archive Validation** (Validate Archive Locations) - Ensures archived files are in correct locations
-1. **Optimization** (Memory Bank Validation) - Validates and optimizes memory bank
-1. **Roadmap Sync** (Roadmap-Codebase Synchronization) - Ensures roadmap.md matches Sources/ codebase
-1. **Submodule Handling** - Commits and pushes `.cortex/synapse` submodule changes if any
-1. **Commit** - Creates the commit with all changes (including updated submodule reference)
-1. **Push** - Pushes committed changes to remote repository
+2. **Code Quality Checks** - Validates file size and function length limits (matches CI quality gate)
+3. **Testing** (Run Tests) - Ensures functionality correctness
+4. **Documentation** (Memory Bank) - Updates project context
+5. **Roadmap Updates** (Roadmap Update) - Ensures roadmap reflects current progress
+6. **Plan Archiving** (Archive Completed Plans) - Cleans up completed build plans
+7. **Archive Validation** (Validate Archive Locations) - Ensures archived files are in correct locations
+8. **Optimization** (Memory Bank Validation) - Validates and optimizes memory bank
+9. **Roadmap Sync** (Roadmap-Codebase Synchronization) - Ensures roadmap.md matches Sources/ codebase
+10. **Submodule Handling** - Commits and pushes `.cortex/synapse` submodule changes if any
+11. **Commit** - Creates the commit with all changes (including updated submodule reference)
+12. **Push** - Pushes committed changes to remote repository
 
 ## Output Format
 
@@ -153,6 +163,7 @@ Provide a structured commit procedure report:
 
 Use this ordering when numbering results:
 
+- Step 0: Fix Errors
 - Step 1: Formatting
 - Step 2: Code Quality Checks
 - Step 3: Test Execution
@@ -165,6 +176,16 @@ Use this ordering when numbering results:
 - Step 10: Submodule Handling
 - Step 11: Commit Creation
 - Step 12: Push Branch
+
+#### **0. Fix Errors**
+
+- **Status**: Success/Failure
+- **Errors Fixed**: Count and list of errors fixed
+- **Warnings Fixed**: Count and list of warnings fixed
+- **Formatting Issues Fixed**: Count and list of formatting issues fixed
+- **Type Errors Fixed**: Count and list of type errors fixed
+- **Files Modified**: List of files modified during error fixing
+- **Details**: Summary from fix-errors command
 
 #### **1. Formatting**
 
@@ -265,6 +286,7 @@ Use this ordering when numbering results:
 
 ### **Issues Encountered**
 
+- **Error Fixing Issues**: Any errors or warnings encountered during fix-errors step and their resolution
 - **Formatting Issues**: Any Formatting issues and their resolution
 - **Code Quality Issues**: File size or function length violations and their resolution
 - **Test Failures**: Any test failures and their resolution
@@ -355,6 +377,9 @@ Use this ordering when numbering results:
 
 ## Success Criteria
 
+- ✅ All compiler errors and warnings fixed (fix-errors step passes)
+- ✅ All type errors resolved
+- ✅ All formatting issues fixed
 - ✅ Black + isort formatting passes without errors
 - ✅ File size check passes (all files ≤ 400 lines)
 - ✅ Function length check passes (all functions ≤ 30 lines)
