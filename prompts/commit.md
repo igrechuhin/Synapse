@@ -45,10 +45,13 @@
    - **CRITICAL**: This prevents committing/pushing poor code that would fail CI checks
 
 1. **Code formatting (Python)** - Run Black and isort:
-   - Execute `./.venv/bin/black .` and `./.venv/bin/isort .`
+   - Execute `./.venv/bin/black .` and `./.venv/bin/ruff check --fix --select I .`
+   - **CRITICAL**: After formatting, run `./.venv/bin/black --check .` to verify all files pass Black check
+   - **CRITICAL**: If `black --check` fails, re-run `black .` and verify again until check passes
    - Verify formatting completes successfully with no errors or warnings
    - Fix any formatting issues if they occur
    - Verify no files were left in inconsistent state
+   - **MANDATORY**: Black check MUST pass before proceeding to next step
 2. **Type checking (Python)** - Run Pyright type checker:
    - Execute `.venv/bin/pyright src/ tests/` or `python -m pyright src/ tests/`
    - Verify type checking completes with zero errors (warnings are acceptable but should be reviewed)
@@ -135,7 +138,8 @@
 The commit procedure executes steps in this specific order to ensure dependencies are met:
 
 0. **Fix Errors** (Fix Errors) - Fixes all compiler errors, type errors, formatting issues, and warnings BEFORE testing
-1. **Formatting** Ensures code style consistency
+1. **Formatting** - Ensures code style consistency with Black and ruff import sorting
+   - **CRITICAL**: Must verify with `black --check` after formatting to ensure CI will pass
 2. **Code Quality Checks** - Validates file size and function length limits (matches CI quality gate)
 3. **Testing** (Run Tests) - Ensures functionality correctness
 4. **Documentation** (Memory Bank) - Updates project context
@@ -147,6 +151,14 @@ The commit procedure executes steps in this specific order to ensure dependencie
 10. **Submodule Handling** - Commits and pushes `.cortex/synapse` submodule changes if any
 11. **Commit** - Creates the commit with all changes (including updated submodule reference)
 12. **Push** - Pushes committed changes to remote repository
+
+## ⚠️ MANDATORY CHECKLIST UPDATES
+
+**CRITICAL**: The AI MUST update the todo checklist in real-time as each step completes:
+- Mark each step as `completed` immediately after it finishes successfully
+- Mark steps as `in_progress` when starting them
+- Update status immediately, not at the end
+- This provides transparency and allows tracking progress during execution
 
 ## Output Format
 
@@ -191,8 +203,11 @@ Use this ordering when numbering results:
 
 - **Status**: Success/Failure
 - **Files Formatted**: Count of files formatted
+- **Black Check Status**: Pass/Fail (MUST pass - verified with `black --check`)
+- **Black Check Output**: Output from `black --check` command
 - **Errors**: Any formatting errors encountered
 - **Warnings**: Any formatting warnings
+- **Verification**: Confirmation that `black --check` passed before proceeding
 
 #### **2. Code Quality Checks**
 
@@ -287,7 +302,9 @@ Use this ordering when numbering results:
 ### **Issues Encountered**
 
 - **Error Fixing Issues**: Any errors or warnings encountered during fix-errors step and their resolution
-- **Formatting Issues**: Any Formatting issues and their resolution
+- **Formatting Issues**: Any formatting issues and their resolution
+  - **CRITICAL**: If `black --check` fails after formatting, this indicates files were not properly formatted
+  - Must re-run `black .` and verify `black --check` passes before proceeding
 - **Code Quality Issues**: File size or function length violations and their resolution
 - **Test Failures**: Any test failures and their resolution
 - **Memory Bank Issues**: Any memory bank update issues
@@ -374,13 +391,20 @@ Use this ordering when numbering results:
 - **Fix Issues First**: Resolve all issues before attempting commit again
 - **Automatic Execution**: Once this command is explicitly invoked by the user, execute all steps automatically without asking for additional permission
 - **Command Execution**: When referencing other Cursor commands, AI MUST immediately read those command files and execute ALL their steps without any user interaction
+- **Real-Time Checklist Updates**: AI MUST update the todo checklist immediately as each step completes:
+  - Use `todo_write` tool to mark steps as `completed` right after they finish
+  - Mark steps as `in_progress` when starting them
+  - Update status in real-time, not at the end
+  - This provides transparency and progress tracking during execution
 
 ## Success Criteria
 
 - ✅ All compiler errors and warnings fixed (fix-errors step passes)
 - ✅ All type errors resolved
 - ✅ All formatting issues fixed
-- ✅ Black + isort formatting passes without errors
+- ✅ Black + ruff import sorting formatting passes without errors
+- ✅ **CRITICAL**: `black --check .` MUST pass after formatting (verifies CI will pass)
+- ✅ Real-time checklist updates completed for all steps
 - ✅ File size check passes (all files ≤ 400 lines)
 - ✅ Function length check passes (all functions ≤ 30 lines)
 - ✅ All executable tests pass (100% pass rate)
