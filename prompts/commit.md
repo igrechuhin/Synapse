@@ -45,6 +45,12 @@
    - Verify type checking completes with zero errors (warnings are acceptable but should be reviewed)
    - Fix any critical type errors before proceeding
    - Note: Pyright is required for type safety validation
+1. **Code quality checks (Python)** - Run file size and function length checks:
+   - Execute `./.venv/bin/python scripts/check_file_sizes.py` to verify all files are within 400 line limit
+   - Execute `./.venv/bin/python scripts/check_function_lengths.py` to verify all functions are within 30 line limit
+   - Verify both checks complete successfully with no violations
+   - Fix any file size or function length violations before proceeding
+   - Note: These checks match CI quality gate requirements and MUST pass
 1. **Test execution (Python)**:
    - Run `./.venv/bin/pytest --session-timeout=300` (pytest-timeout configured in pytest.ini: 10s per test, 300s session timeout)
    - Ensure 100% pass rate for all executable tests (zero failures)
@@ -120,6 +126,7 @@
 The commit procedure executes steps in this specific order to ensure dependencies are met:
 
 1. **Formatting** Ensures code style consistency
+1. **Code Quality Checks** - Validates file size and function length limits (matches CI quality gate)
 1. **Testing** (Run Tests) - Ensures functionality correctness
 1. **Documentation** (Memory Bank) - Updates project context
 1. **Roadmap Updates** (Roadmap Update) - Ensures roadmap reflects current progress
@@ -147,16 +154,17 @@ Provide a structured commit procedure report:
 Use this ordering when numbering results:
 
 - Step 1: Formatting
-- Step 2: Test Execution
-- Step 3: Memory Bank Update
-- Step 4: Roadmap Update
-- Step 5: Plan Archiving
-- Step 6: Archive Validation
-- Step 7: Memory Bank Optimization
-- Step 8: Roadmap Synchronization Validation
-- Step 9: Submodule Handling
-- Step 10: Commit Creation
-- Step 11: Push Branch
+- Step 2: Code Quality Checks
+- Step 3: Test Execution
+- Step 4: Memory Bank Update
+- Step 5: Roadmap Update
+- Step 6: Plan Archiving
+- Step 7: Archive Validation
+- Step 8: Memory Bank Optimization
+- Step 9: Roadmap Synchronization Validation
+- Step 10: Submodule Handling
+- Step 11: Commit Creation
+- Step 12: Push Branch
 
 #### **1. Formatting**
 
@@ -165,7 +173,16 @@ Use this ordering when numbering results:
 - **Errors**: Any formatting errors encountered
 - **Warnings**: Any formatting warnings
 
-#### **2. Test Execution**
+#### **2. Code Quality Checks**
+
+- **Status**: Success/Failure
+- **File Size Check**: Status of file size validation (max 400 lines)
+- **Function Length Check**: Status of function length validation (max 30 lines)
+- **Violations Found**: Count of violations found (must be 0)
+- **Violations Fixed**: Count of violations fixed
+- **Details**: Summary of any violations and their resolution
+
+#### **3. Test Execution**
 
 - **Status**: Success/Failure
 - **Tests Executed**: Count of tests executed
@@ -249,7 +266,7 @@ Use this ordering when numbering results:
 ### **Issues Encountered**
 
 - **Formatting Issues**: Any Formatting issues and their resolution
-- **Code Quality Issues**: Unused parameters and their handling
+- **Code Quality Issues**: File size or function length violations and their resolution
 - **Test Failures**: Any test failures and their resolution
 - **Memory Bank Issues**: Any memory bank update issues
 - **Roadmap Update Issues**: Any issues updating roadmap.md with completed items
@@ -276,6 +293,19 @@ Use this ordering when numbering results:
 - **Remote Tracking**: Whether remote tracking branch was set
 
 ## Failure Handling
+
+### Code Quality Check Failure
+
+- **Action**: Report the issue and block commit if violations found
+- **Process**:
+  1. Report the specific code quality violation (file size or function length)
+  2. Provide detailed error information including file path, function name, and violation details
+  3. Fix file size violations by splitting large files or extracting modules
+  4. Fix function length violations by extracting helper functions or refactoring logic
+  5. Re-run checks to verify fixes
+  6. Do not proceed with commit until all checks pass
+  7. **CRITICAL**: These checks match CI quality gate requirements - failures will cause CI to fail
+- **No Partial Commits**: Do not proceed with commit until all code quality checks pass
 
 ### Test Suite Failure
 
@@ -326,6 +356,8 @@ Use this ordering when numbering results:
 ## Success Criteria
 
 - ✅ Black + isort formatting passes without errors
+- ✅ File size check passes (all files ≤ 400 lines)
+- ✅ Function length check passes (all functions ≤ 30 lines)
 - ✅ All executable tests pass (100% pass rate)
 - ✅ Memory bank updated with current information
 - ✅ Roadmap.md updated with completed items and current progress
