@@ -4,11 +4,15 @@
 
 **CRITICAL**: These steps are for the AI to execute AUTOMATICALLY. DO NOT ask the user for permission or confirmation. Execute immediately.
 
+**CRITICAL**: This command MUST be executed AFTER all errors, formatting issues, and code quality violations are fixed. This ensures tests run on clean, properly formatted code that will pass CI checks.
+
 **CURSOR COMMAND**: This is a Cursor command located in `.cortex/synapse/prompts/` directory, NOT a terminal command.
 
 **Tooling Note**: Use standard Cursor tools (`Read`, `ApplyPatch`, `LS`, `Glob`, `Grep`) by default; MCP filesystem tools are optional fallbacks only when standard tools are unavailable or explicitly requested.
 
 **Lint Note**: When using `read_lints`, pass absolute file paths to avoid path resolution errors during lint checks.
+
+**Integration Note**: This command is designed to be reused by other commands (e.g., `commit.md`) to avoid duplication. When called from `commit.md`, it executes as Step 3 after error fixing, formatting, and code quality checks.
 
 ## ⚠️ MANDATORY PRE-ACTION CHECKLIST
 
@@ -33,6 +37,16 @@
    - Check that pytest-timeout is configured in pytest.ini
 
 **VIOLATION**: Executing this command without following this checklist is a CRITICAL violation that blocks proper test execution.
+
+## Prerequisites Check
+
+**BEFORE executing tests, verify that:**
+- ✅ All compiler errors and type errors are fixed (run `fix-errors` command first)
+- ✅ All formatting issues are resolved (Black and ruff import sorting pass)
+- ✅ All code quality violations are fixed (file size and function length checks pass)
+- ✅ Code is in a clean, commit-ready state
+
+**If any of the above are not met, DO NOT proceed with testing. Fix issues first, then re-run this command.**
 
 ## Steps
 

@@ -63,10 +63,13 @@
    - Verify both checks complete successfully with no violations
    - Fix any file size or function length violations before proceeding
    - Note: These checks match CI quality gate requirements and MUST pass
-4. **Test execution (Python)**:
-   - Run `./.venv/bin/pytest --session-timeout=300` (pytest-timeout configured in pytest.ini: 10s per test, 300s session timeout)
-   - Ensure 100% pass rate for all executable tests (zero failures)
-   - Investigate and fix any failures before proceeding
+4. **Test execution (Python)** - Execute Cursor command: `run-tests`:
+   - Read `.cortex/synapse/prompts/run-tests.md`
+   - Execute ALL steps from that command automatically
+   - **CRITICAL**: This step runs AFTER errors, formatting, and code quality checks are fixed
+   - **CRITICAL**: Tests must pass with 100% pass rate before proceeding to commit
+   - If tests fail, fix issues and re-run `run-tests` command until all pass
+   - **DRY Principle**: Reuse `run-tests.md` command instead of duplicating test execution logic
 5. **Memory bank operations** - Execute Cursor command: `update-memory-bank`:
    - Read `.cortex/synapse/prompts/update-memory-bank.md`
    - Execute ALL steps from that command automatically
@@ -138,10 +141,15 @@
 The commit procedure executes steps in this specific order to ensure dependencies are met:
 
 0. **Fix Errors** (Fix Errors) - Fixes all compiler errors, type errors, formatting issues, and warnings BEFORE testing
+   - **CRITICAL**: Must complete successfully before any other step
 1. **Formatting** - Ensures code style consistency with Black and ruff import sorting
    - **CRITICAL**: Must verify with `black --check` after formatting to ensure CI will pass
 2. **Code Quality Checks** - Validates file size and function length limits (matches CI quality gate)
-3. **Testing** (Run Tests) - Ensures functionality correctness
+   - **CRITICAL**: Must pass before testing to ensure code meets quality standards
+3. **Testing** (Run Tests) - Executes `run-tests.md` command to ensure functionality correctness
+   - **CRITICAL**: Reuses `run-tests.md` command (DRY principle) - do not duplicate test logic
+   - **CRITICAL**: Runs AFTER errors, formatting, and code quality are fixed
+   - **CRITICAL**: Tests must pass with 100% pass rate before proceeding
 4. **Documentation** (Memory Bank) - Updates project context
 5. **Roadmap Updates** (Roadmap Update) - Ensures roadmap reflects current progress
 6. **Plan Archiving** (Archive Completed Plans) - Cleans up completed build plans
@@ -151,6 +159,8 @@ The commit procedure executes steps in this specific order to ensure dependencie
 10. **Submodule Handling** - Commits and pushes `.cortex/synapse` submodule changes if any
 11. **Commit** - Creates the commit with all changes (including updated submodule reference)
 12. **Push** - Pushes committed changes to remote repository
+
+**DRY Principle**: Step 3 (Testing) reuses the `run-tests.md` command instead of duplicating test execution logic. This ensures consistency and maintainability.
 
 ## ⚠️ MANDATORY CHECKLIST UPDATES
 
@@ -221,11 +231,14 @@ Use this ordering when numbering results:
 #### **3. Test Execution**
 
 - **Status**: Success/Failure
+- **Command Used**: `run-tests` (reused from `.cortex/synapse/prompts/run-tests.md`)
 - **Tests Executed**: Count of tests executed
 - **Tests Passed**: Count of passing tests
 - **Tests Failed**: Count of failing tests (must be 0)
 - **Pass Rate**: Percentage pass rate (target: 100%)
-- **Details**: Summary from run-tests command
+- **Coverage**: Test coverage percentage (target: 90%+)
+- **Details**: Complete summary from run-tests command (see run-tests.md output format)
+- **Note**: This step reuses `run-tests.md` command to avoid duplication (DRY principle)
 
 #### **4. Memory Bank Update**
 
@@ -350,12 +363,14 @@ Use this ordering when numbering results:
 
 - **Action**: Investigate and fix issues before proceeding
 - **Process**:
-  1. Analyze test failure messages
-  2. Identify root cause
-  3. Fix the underlying issues
-  4. Re-run tests to verify fixes
-  5. Continue until all tests pass
+  1. Review test failure output from `run-tests` command
+  2. Analyze test failure messages and stack traces
+  3. Identify root cause (code issue vs test issue)
+  4. Fix the underlying issues
+  5. Re-run `run-tests` command to verify fixes
+  6. Continue until all tests pass with 100% pass rate
 - **No Partial Commits**: Do not proceed with commit until all tests pass
+- **Reuse Command**: Always use `run-tests.md` command, do not duplicate test execution logic
 
 ### Submodule Failure
 
@@ -391,6 +406,11 @@ Use this ordering when numbering results:
 - **Fix Issues First**: Resolve all issues before attempting commit again
 - **Automatic Execution**: Once this command is explicitly invoked by the user, execute all steps automatically without asking for additional permission
 - **Command Execution**: When referencing other Cursor commands, AI MUST immediately read those command files and execute ALL their steps without any user interaction
+- **DRY Principle**: Reuse existing commands instead of duplicating logic:
+  - Step 3 (Testing) MUST use `run-tests.md` command - do not duplicate test execution logic
+  - Step 0 (Fix Errors) MUST use `fix-errors.md` command - do not duplicate error fixing logic
+  - Step 4 (Memory Bank) MUST use `update-memory-bank.md` command - do not duplicate memory bank update logic
+  - This ensures consistency, maintainability, and single source of truth
 - **Real-Time Checklist Updates**: AI MUST update the todo checklist immediately as each step completes:
   - Use `todo_write` tool to mark steps as `completed` right after they finish
   - Mark steps as `in_progress` when starting them
@@ -407,7 +427,8 @@ Use this ordering when numbering results:
 - ✅ Real-time checklist updates completed for all steps
 - ✅ File size check passes (all files ≤ 400 lines)
 - ✅ Function length check passes (all functions ≤ 30 lines)
-- ✅ All executable tests pass (100% pass rate)
+- ✅ All executable tests pass (100% pass rate) - verified via `run-tests.md` command
+- ✅ Test coverage meets threshold (90%+) - verified via `run-tests.md` command
 - ✅ Memory bank updated with current information
 - ✅ Roadmap.md updated with completed items and current progress
 - ✅ Completed build plans archived to .cursor/plans/archive/
