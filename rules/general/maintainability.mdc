@@ -11,6 +11,7 @@ alwaysApply: true
 2. **Follow Plan → Act workflow** when starting tasks and updating documentation.
 3. **After every significant change** (or when triggered by **update memory bank / umb**), update all memory-bank files.
 4. **Keep synchronized** - Memory bank files must be consistent with each other.
+5. **Link validation** - After ANY file operation (add/move/remove/rename), validate all links in memory bank files using `validate_links()` tool. See [memory-bank-workflow.mdc](memory-bank-workflow.mdc) for details.
 
 ## File / Type Size Limits (ENFORCED)
 
@@ -101,6 +102,8 @@ When completing any plan, the following checklist MUST be followed in order:
    - Update all relevant memory bank files with current changes
    - Focus on `activeContext.md` and `progress.md` for current state
    - Ensure consistency across all memory bank files
+   - **MANDATORY**: Run `validate_links()` after updating memory bank files
+   - Fix any broken links found
 
 4. **Roadmap update** - Update roadmap.md:
    - Review recent changes and completed work
@@ -108,6 +111,8 @@ When completing any plan, the following checklist MUST be followed in order:
    - Add new roadmap items if significant new work is identified
    - Update completion status and progress indicators
    - Ensure roadmap accurately reflects current project state
+   - **MANDATORY**: Run `validate_links(file_name="roadmap.md")` after updating
+   - Fix any broken links found
 
 5. **Plan archival** - Archive completed plans:
    - Check `.cursor/plans/` directory for completed plan files
@@ -116,6 +121,9 @@ When completing any plan, the following checklist MUST be followed in order:
    - Update plan status to "archived" if not already done
    - Ensure no active plans remain in the plans directory
    - **CRITICAL**: Plan files MUST be archived in `.cursor/plans/archive/`, never in `.cursor/plans/`
+   - **MANDATORY**: After moving files, update all links in memory bank files to point to new archive location
+   - **MANDATORY**: Run `validate_links()` to verify all links are valid after archival
+   - Fix any broken links found
 
 **VIOLATION**: Completing a plan without following this checklist is a CRITICAL violation that blocks proper plan closure.
 

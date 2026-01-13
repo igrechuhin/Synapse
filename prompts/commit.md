@@ -4,7 +4,18 @@
 
 **CRITICAL**: This command is ONLY executed when explicitly invoked by the user (e.g., `/commit` or user explicitly requests commit). Invoking this command IS an explicit commit request per `no-auto-commit.mdc` rule. Once invoked, execute all steps AUTOMATICALLY without asking for additional permission or confirmation.
 
-**CURSOR COMMANDS**: The commands referenced below (like `run-tests`, etc.) are Cursor commands located in `.cortex/synapse/prompts/` directory. AI MUST read each referenced command file and execute ALL its steps AUTOMATICALLY without asking user permission.
+**⚠️ ARCHITECTURAL NOTE**: The operations referenced below (like `run-tests`, `fix-errors`, etc.) are currently implemented as markdown prompt files that the agent must read and interpret. **This is suboptimal** - these operations should be structured MCP tools with typed parameters and return values that the agent can call programmatically.
+
+**Current Workaround**: Until proper MCP tools are implemented, the agent must:
+
+- Read the referenced markdown files from `.cortex/synapse/prompts/` directory
+- Execute ALL steps from those files AUTOMATICALLY without asking user permission
+
+**Future Improvement**: These should be converted to MCP tools:
+
+- `run_tests()` - Execute test suite with structured parameters (timeout, coverage threshold, etc.)
+- `fix_errors()` - Fix errors with structured parameters (error types, auto-fix options, etc.)
+- Memory bank operations should use existing MCP tools like `manage_file()` instead of prompt files
 
 ## ⚠️ MANDATORY PRE-ACTION CHECKLIST
 
@@ -20,12 +31,14 @@
    - Read `.cursor/rules/coding-standards.mdc` and language-specific coding standards (e.g., `.cursor/rules/python-coding-standards.mdc` for Python) for code quality standards
    - Read `.cursor/rules/memory-bank-workflow.mdc` for memory bank update requirements
 
-1. ✅ **Read referenced command files** - Understand all sub-commands:
-   - Read `.cortex/synapse/prompts/fix-errors.md` before executing it (CRITICAL: Must run before testing)
-   - Read `.cortex/synapse/prompts/run-tests.md` before executing it
-   - Read `.cortex/synapse/prompts/update-memory-bank.md` before executing it
-   - Read `.cortex/synapse/prompts/validate-memory-bank-timestamps.md` before executing it
-   - Read `.cortex/synapse/prompts/validate-roadmap-sync.md` before executing it
+1. ✅ **Understand operations** - Note that these should be MCP tools, not prompt files:
+   - **Current state**: Operations like `fix-errors` and `run-tests` are implemented as markdown prompt files
+   - **Required operations** (currently as prompts, should be tools):
+     - `fix-errors.md` - Must run before testing (CRITICAL)
+     - `run-tests.md` - Execute test suite
+   - **Memory bank operations**: Use existing MCP tools (`manage_file()`, `get_memory_bank_stats()`) instead of prompt files
+   - **Validation operations**: Use existing MCP tools (`validate()`, `check_structure_health()`) instead of prompt files
+   - **Note**: Until proper MCP tools exist, agent must read and interpret markdown prompt files as a workaround
 
 1. ✅ **Verify prerequisites** - Ensure all prerequisites are met:
    - Confirm there are changes to commit
@@ -39,6 +52,7 @@
 The following error patterns MUST be detected and fixed before commit. These are common issues that have caused problems in the past:
 
 ### Type Errors
+
 - **Pattern**: Type checker reports type errors (not warnings)
 - **Detection**: Parse type checker output for error count (e.g., Pyright for Python, TypeScript compiler for TypeScript)
 - **Action**: Fix all type errors, re-run type checker, verify zero errors
@@ -46,48 +60,56 @@ The following error patterns MUST be detected and fixed before commit. These are
 - **Note**: Only applicable if project uses a type system (Python with type hints, TypeScript, etc.)
 
 ### Test Failures
+
 - **Pattern**: Test suite reports failures (failed count > 0)
 - **Detection**: Parse test output for failure count
 - **Action**: Fix failing tests, re-run tests, verify zero failures
 - **Block Commit**: Yes - test failures will cause CI to fail
 
 ### Test Coverage Below Threshold
+
 - **Pattern**: Coverage percentage < 90%
 - **Detection**: Parse coverage report from test output
 - **Action**: Add tests to increase coverage, re-run tests, verify coverage ≥ 90%
 - **Block Commit**: Yes - coverage below threshold violates project standards
 
 ### File Size Violations
+
 - **Pattern**: Files exceeding 400 lines
 - **Detection**: Parse file size check script output
 - **Action**: Split large files, re-run check, verify zero violations
 - **Block Commit**: Yes - file size violations will cause CI to fail
 
 ### Function Length Violations
+
 - **Pattern**: Functions exceeding 30 lines
 - **Detection**: Parse function length check script output
 - **Action**: Refactor long functions, re-run check, verify zero violations
 - **Block Commit**: Yes - function length violations will cause CI to fail
 
 ### Formatting Violations
+
 - **Pattern**: Formatter check reports formatting issues
 - **Detection**: Parse formatter check output for file count (e.g., `black --check` for Python, `prettier --check` for JavaScript/TypeScript)
 - **Action**: Run formatter, re-run formatter check, verify zero violations
 - **Block Commit**: Yes - formatting violations will cause CI to fail
 
 ### Linter Errors
+
 - **Pattern**: Linter reports errors (not warnings)
 - **Detection**: Parse linter output for error count (e.g., ruff for Python, ESLint for JavaScript/TypeScript)
 - **Action**: Fix linting errors, re-run linter, verify zero errors
 - **Block Commit**: Yes - linter errors will cause CI to fail
 
 ### Integration Test Failures
+
 - **Pattern**: Integration tests fail (specific test category)
 - **Detection**: Parse test output to identify integration test failures
 - **Action**: Fix integration test issues, re-run tests, verify all pass
 - **Block Commit**: Yes - integration test failures indicate broken functionality
 
 ### Type Checker Warnings (Review Required)
+
 - **Pattern**: Type checker reports warnings (not errors)
 - **Detection**: Parse type checker output for warning count
 - **Action**: Review warnings, fix critical ones, document acceptable warnings
@@ -98,9 +120,9 @@ The following error patterns MUST be detected and fixed before commit. These are
 
 ## Steps
 
-0. **Fix errors and warnings** - Execute Cursor command: `fix-errors`:
-   - Read `.cortex/synapse/prompts/fix-errors.md`
-   - Execute ALL steps from that command automatically
+0. **Fix errors and warnings** - **TODO: Should be MCP tool `fix_errors()`**:
+   - **Current workaround**: Read `.cortex/synapse/prompts/fix-errors.md` and execute ALL steps from that file automatically
+   - **Future**: Call MCP tool `fix_errors()` with structured parameters instead
    - Fix all compiler errors, type errors, formatting issues, and warnings
    - Verify all fixes are applied and code is error-free
    - **CRITICAL**: This step MUST run before testing to ensure code contains no errors
@@ -149,9 +171,9 @@ The following error patterns MUST be detected and fixed before commit. These are
    - Re-run checks after fixes to verify zero violations remain
    - Note: These checks match CI quality gate requirements and MUST pass
    - Note: For Python projects, scripts are located in `.cortex/synapse/scripts/python/` and are shared across projects using the same Synapse repository
-4. **Test execution** - Execute Cursor command: `run-tests`:
-   - Read `.cortex/synapse/prompts/run-tests.md`
-   - Execute ALL steps from that command automatically
+4. **Test execution** - **TODO: Should be MCP tool `run_tests()`**:
+   - **Current workaround**: Read `.cortex/synapse/prompts/run-tests.md` and execute ALL steps from that file automatically
+   - **Future**: Call MCP tool `run_tests()` with structured parameters (timeout, coverage_threshold, etc.) instead
    - **CRITICAL**: This step runs AFTER errors, formatting, and code quality checks are fixed
    - **CRITICAL**: Tests must pass with 100% pass rate before proceeding to commit
    - **VALIDATION**: Parse test output to verify:
@@ -164,10 +186,11 @@ The following error patterns MUST be detected and fixed before commit. These are
    - If tests fail, fix issues and re-run `run-tests` command until all pass
    - Re-verify all validation criteria after fixes
    - **DRY Principle**: Reuse `run-tests.md` command instead of duplicating test execution logic
-5. **Memory bank operations** - Execute Cursor command: `update-memory-bank`:
-   - Read `.cortex/synapse/prompts/update-memory-bank.md`
-   - Execute ALL steps from that command automatically
-   - Update all relevant memory bank files with current changes
+5. **Memory bank operations** - **Should use existing MCP tools**:
+   - **Use MCP tool `manage_file()`** to update memory bank files (e.g., `activeContext.md`, `progress.md`, `roadmap.md`)
+   - **Use MCP tool `get_memory_bank_stats()`** to check current state
+   - **Do NOT** read prompt files - use structured MCP tools instead
+   - Update all relevant memory bank files with current changes using `manage_file(operation="write", ...)`
 6. **Update roadmap** - Update roadmap.md with completed items and new milestones:
    - Review recent changes and completed work
    - Mark completed milestones and tasks in roadmap.md
@@ -186,28 +209,41 @@ The following error patterns MUST be detected and fixed before commit. These are
    - Validate that plan files are archived in `.cursor/plans/archive/`
    - Report any plan files found outside `.cursor/plans/archive/` and require manual correction
    - Block commit if archive location violations are found
-9. **Optimize memory bank** - Execute Cursor command: `validate-memory-bank-timestamps`:
-   - Read `.cortex/synapse/prompts/validate-memory-bank-timestamps.md`
-   - Execute ALL steps from that command automatically
-   - Validate timestamp format and optimize memory bank
-   - Ensure all timestamps use YY-MM-DD format (no HH-mm)
-10. **Roadmap synchronization validation** - Execute Cursor command: `validate-roadmap-sync`:
-   - Read `.cortex/synapse/prompts/validate-roadmap-sync.md`
-   - Execute ALL steps from that command automatically
-   - Validate roadmap.md is synchronized with Sources/ directory
-   - Ensure all production TODOs are properly tracked
-   - Verify line numbers and file references are accurate
-11. **Submodule handling** - Commit and push `.cortex/synapse` submodule changes if any:
-   - Check if `.cortex/synapse` submodule has uncommitted changes using `git -C .cortex/synapse status --porcelain`
-   - If submodule has changes:
-     - Stage all changes in the submodule using `git -C .cortex/synapse add .`
-     - Create commit in submodule with descriptive message (use same message format as main commit or append " [synapse submodule]")
-     - Push submodule changes to remote using `git -C .cortex/synapse push`
-     - Verify submodule push completes successfully
-     - Update parent repository's submodule reference using `git add .cortex/synapse`
-     - Note: This stages the updated submodule reference for the main commit
+9. **Optimize memory bank** - Execute Cursor command: `validate-memory-bank-timestamps` (if available):
+   - Check if `.cortex/synapse/prompts/validate-memory-bank-timestamps.md` exists
+   - If file exists:
+     - Read `.cortex/synapse/prompts/validate-memory-bank-timestamps.md`
+     - Execute ALL steps from that command automatically
+     - Validate timestamp format and optimize memory bank
+     - Ensure all timestamps use YY-MM-DD format (no HH-mm)
+   - If file does not exist:
+     - Skip this step (command file not available)
+     - Note: Memory bank optimization can be done manually if needed
+10. **Roadmap synchronization validation** - Execute Cursor command: `validate-roadmap-sync` (if available):
 
-12. **Commit creation** - Create commit with descriptive message:
+- Check if `.cortex/synapse/prompts/validate-roadmap-sync.md` exists
+- If file exists:
+  - Read `.cortex/synapse/prompts/validate-roadmap-sync.md`
+  - Execute ALL steps from that command automatically
+  - Validate roadmap.md is synchronized with Sources/ directory
+  - Ensure all production TODOs are properly tracked
+  - Verify line numbers and file references are accurate
+- If file does not exist:
+  - Skip this step (command file not available)
+  - Note: Roadmap synchronization can be validated manually if needed
+
+11. **Submodule handling** - Commit and push `.cortex/synapse` submodule changes if any:
+
+- Check if `.cortex/synapse` submodule has uncommitted changes using `git -C .cortex/synapse status --porcelain`
+- If submodule has changes:
+  - Stage all changes in the submodule using `git -C .cortex/synapse add .`
+  - Create commit in submodule with descriptive message (use same message format as main commit or append " [synapse submodule]")
+  - Push submodule changes to remote using `git -C .cortex/synapse push`
+  - Verify submodule push completes successfully
+  - Update parent repository's submodule reference using `git add .cortex/synapse`
+  - Note: This stages the updated submodule reference for the main commit
+
+1. **Commit creation** - Create commit with descriptive message:
 
 - Stage ALL changes in the working directory using `git add .` (this includes the updated submodule reference if submodule was committed)
 - Analyze all changes made during the commit procedure
@@ -253,21 +289,22 @@ The commit procedure executes steps in this specific order to ensure dependencie
    - **CRITICAL**: Tests must pass with 100% pass rate before proceeding
    - **VALIDATION**: Must verify zero test failures, 100% pass rate, 90%+ coverage (if applicable), all integration tests pass
    - **BLOCK COMMIT** if any test validation fails
-4. **Documentation** (Memory Bank) - Updates project context
-5. **Roadmap Updates** (Roadmap Update) - Ensures roadmap reflects current progress
-6. **Plan Archiving** (Archive Completed Plans) - Cleans up completed build plans
-7. **Archive Validation** (Validate Archive Locations) - Ensures archived files are in correct locations
-8. **Optimization** (Memory Bank Validation) - Validates and optimizes memory bank
-9. **Roadmap Sync** (Roadmap-Codebase Synchronization) - Ensures roadmap.md matches Sources/ codebase
-10. **Submodule Handling** - Commits and pushes `.cortex/synapse` submodule changes if any
-11. **Commit** - Creates the commit with all changes (including updated submodule reference)
-12. **Push** - Pushes committed changes to remote repository
+5. **Documentation** (Memory Bank) - Updates project context
+6. **Roadmap Updates** (Roadmap Update) - Ensures roadmap reflects current progress
+7. **Plan Archiving** (Archive Completed Plans) - Cleans up completed build plans
+8. **Archive Validation** (Validate Archive Locations) - Ensures archived files are in correct locations
+9. **Optimization** (Memory Bank Validation) - Validates and optimizes memory bank
+10. **Roadmap Sync** (Roadmap-Codebase Synchronization) - Ensures roadmap.md matches Sources/ codebase
+11. **Submodule Handling** - Commits and pushes `.cortex/synapse` submodule changes if any
+12. **Commit** - Creates the commit with all changes (including updated submodule reference)
+13. **Push** - Pushes committed changes to remote repository
 
 **DRY Principle**: Step 3 (Testing) reuses the `run-tests.md` command instead of duplicating test execution logic. This ensures consistency and maintainability.
 
 ## ⚠️ MANDATORY CHECKLIST UPDATES
 
 **CRITICAL**: The AI MUST update the todo checklist in real-time as each step completes:
+
 - Mark each step as `completed` immediately after it finishes successfully
 - Mark steps as `in_progress` when starting them
 - Update status immediately, not at the end
@@ -283,7 +320,7 @@ Before proceeding to commit creation, provide a validation summary confirming al
 - [ ] **Formatting Validation**: Formatter check = 0 violations (parsed from output)
 - [ ] **Type Checking Validation**: Type checker = 0 type errors (parsed from output, skip if not applicable)
 - [ ] **Code Quality Validation**: File size = 0 violations, Function length = 0 violations (parsed from script output)
-- [ ] **Test Execution Validation**: 
+- [ ] **Test Execution Validation**:
   - Test failures = 0 (parsed from test output)
   - Pass rate = 100% (calculated from test output)
   - Coverage ≥ 90% (parsed from test output)
@@ -330,7 +367,7 @@ Use this ordering when numbering results:
 - **Type Errors Fixed**: Count and list of type errors fixed
 - **Files Modified**: List of files modified during error fixing
 - **Details**: Summary from fix-errors command
-- **Validation Results**: 
+- **Validation Results**:
   - Type checker re-check: Pass/Fail with error count (MUST be 0, skip if not applicable)
   - Linter re-check: Pass/Fail with error count (MUST be 0)
 - **Commit Blocked**: Yes/No (blocked if any errors remain)
@@ -380,10 +417,11 @@ Use this ordering when numbering results:
 
 #### **4. Memory Bank Update**
 
-- **Status**: Success/Failure
-- **Files Updated**: List of memory bank files updated
-- **Entries Added**: Count of new entries added
-- **Details**: Summary from update-memory-bank command
+- **Status**: Success/Failure/Skipped
+- **Command File Available**: Whether update-memory-bank.md exists
+- **Files Updated**: List of memory bank files updated (if command executed)
+- **Entries Added**: Count of new entries added (if command executed)
+- **Details**: Summary from update-memory-bank command (if executed) or reason for skipping
 
 #### **5. Roadmap Update**
 
@@ -411,18 +449,20 @@ Use this ordering when numbering results:
 
 #### **8. Memory Bank Optimization**
 
-- **Status**: Success/Failure
-- **Timestamp Validation**: Status of timestamp format validation
-- **Optimization**: Summary of optimization performed
-- **Details**: Summary from validate-memory-bank-timestamps command
+- **Status**: Success/Failure/Skipped
+- **Command File Available**: Whether validate-memory-bank-timestamps.md exists
+- **Timestamp Validation**: Status of timestamp format validation (if command executed)
+- **Optimization**: Summary of optimization performed (if command executed)
+- **Details**: Summary from validate-memory-bank-timestamps command (if executed) or reason for skipping
 
 #### **9. Roadmap Synchronization Validation**
 
-- **Status**: Success/Failure
-- **Roadmap TODOs Validated**: Count of TODOs checked in roadmap.md
-- **Codebase TODOs Scanned**: Count of production TODOs found in Sources/
-- **Synchronization Issues**: Count of issues found (must be 0)
-- **Details**: Summary from validate-roadmap-sync command
+- **Status**: Success/Failure/Skipped
+- **Command File Available**: Whether validate-roadmap-sync.md exists
+- **Roadmap TODOs Validated**: Count of TODOs checked in roadmap.md (if command executed)
+- **Codebase TODOs Scanned**: Count of production TODOs found in Sources/ (if command executed)
+- **Synchronization Issues**: Count of issues found (must be 0 if command executed)
+- **Details**: Summary from validate-roadmap-sync command (if executed) or reason for skipping
 
 #### **10. Submodule Handling**
 
@@ -558,7 +598,10 @@ Use this ordering when numbering results:
 - **DRY Principle**: Reuse existing commands instead of duplicating logic:
   - Step 3 (Testing) MUST use `run-tests.md` command - do not duplicate test execution logic
   - Step 0 (Fix Errors) MUST use `fix-errors.md` command - do not duplicate error fixing logic
-  - Step 4 (Memory Bank) MUST use `update-memory-bank.md` command - do not duplicate memory bank update logic
+  - Step 4 (Memory Bank) MUST use `update-memory-bank.md` command if it exists - do not duplicate memory bank update logic
+  - Step 8 (Memory Bank Optimization) MUST use `validate-memory-bank-timestamps.md` command if it exists
+  - Step 9 (Roadmap Sync) MUST use `validate-roadmap-sync.md` command if it exists
+  - If optional command files don't exist, skip those steps gracefully without searching for alternatives
   - This ensures consistency, maintainability, and single source of truth
 - **Real-Time Checklist Updates**: AI MUST update the todo checklist immediately as each step completes:
   - Use `todo_write` tool to mark steps as `completed` right after they finish
@@ -572,6 +615,11 @@ Use this ordering when numbering results:
   - Parse test output to count failures (must be 0), calculate pass rate (must be 100%), extract coverage (must be ≥ 90% if applicable)
   - Parse code quality check output to count violations (must be 0)
   - Do not rely on exit codes alone - verify actual results from output
+- **Avoid Unnecessary Searches**:
+  - Do not perform codebase searches for command files that are referenced but don't exist
+  - Check file existence directly using file system tools (read_file, list_dir) before attempting to read
+  - If a referenced command file doesn't exist, skip that step gracefully without searching for alternatives
+  - Do not search codebase for "how to update memory bank" or similar - if command file doesn't exist, skip the step
 
 ## Success Criteria
 

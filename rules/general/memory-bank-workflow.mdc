@@ -1,0 +1,170 @@
+---
+alwaysApply: true
+---
+# Memory Bank Workflow & Link Validation (MANDATORY)
+
+**ENFORCEMENT**: CI MUST fail on violations. All rules are MANDATORY. NO exceptions.
+
+## Link Validation Requirements (ENFORCED)
+
+**CRITICAL**: Links in Memory Bank files MUST be validated after ANY file operation that could affect link integrity.
+
+### When Link Validation is Required
+
+Link validation MUST be performed immediately after:
+
+1. **File Addition** - When adding new files to the project:
+   - New memory bank files (e.g., new roadmap entries, new context files)
+   - New plan files referenced in roadmap.md
+   - New documentation files linked from memory bank files
+   - Any file that is referenced by links in memory bank files
+
+2. **File Move** - When moving files:
+   - Moving plan files to archive directories
+   - Reorganizing memory bank structure
+   - Moving documentation files
+   - Any file move that could break relative links
+
+3. **File Removal** - When removing files:
+   - Deleting plan files
+   - Removing memory bank files
+   - Removing documentation files
+   - Any file deletion that could create broken links
+
+4. **File Rename** - When renaming files:
+   - Renaming plan files
+   - Renaming memory bank files
+   - Renaming documentation files
+   - Any file rename that could break links
+
+### Link Validation Process (MANDATORY)
+
+**After any of the above operations, you MUST:**
+
+1. **Run link validation** - Execute Cortex MCP tool `validate_links`:
+   - Use `validate_links()` tool to check all memory bank files
+   - Or validate specific file if only one file was modified: `validate_links(file_name="roadmap.md")`
+   - Verify all links are valid and point to existing files
+
+2. **Fix broken links immediately**:
+   - Update broken links to point to correct file paths
+   - Remove links to deleted files
+   - Update relative paths after file moves
+   - Update file references after renames
+
+3. **Verify validation passes**:
+   - Re-run `validate_links()` to confirm all links are valid
+   - Ensure zero broken links remain
+   - Ensure zero validation errors
+
+**VIOLATION**: Performing file operations (add/move/remove/rename) without validating links is a CRITICAL violation that blocks merge.
+
+## Memory Bank File Operations Checklist
+
+**BEFORE performing any file operation that affects Memory Bank links:**
+
+1. ✅ **Identify affected links** - Determine which memory bank files contain links to the file being modified
+2. ✅ **Plan link updates** - Determine how links will need to be updated after the operation
+3. ✅ **Execute file operation** - Perform the add/move/remove/rename operation
+4. ✅ **Update links immediately** - Fix all affected links in memory bank files
+5. ✅ **Validate links** - Run `validate_links()` tool to verify all links are valid
+6. ✅ **Fix any broken links** - Resolve any validation errors found
+7. ✅ **Re-validate** - Run `validate_links()` again to confirm all links are valid
+
+**VIOLATION**: Completing file operations without following this checklist is a CRITICAL violation.
+
+## Common Link Validation Scenarios
+
+### Scenario 1: Adding New Plan File
+
+**When**: Adding a new plan file referenced in roadmap.md
+
+**Required Actions**:
+1. Add the plan file to `.cortex/plans/` or `.cursor/plans/`
+2. Add link to roadmap.md: `[Phase X: Description](../plans/phase-x-description.md)`
+3. Run `validate_links(file_name="roadmap.md")` to verify link is valid
+4. Fix any broken links if validation fails
+
+### Scenario 2: Moving Plan to Archive
+
+**When**: Archiving a completed plan file
+
+**Required Actions**:
+1. Move plan file: `mv .cursor/plans/phase-x.md .cursor/plans/archive/PhaseX/phase-x.md`
+2. Update all links in memory bank files to point to new location
+3. Run `validate_links()` to check all memory bank files
+4. Fix any broken links found
+
+### Scenario 3: Renaming Plan File
+
+**When**: Renaming a plan file (e.g., `phase-11-tool-verification.md` → `phase-11-mcp-tool-verification.md`)
+
+**Required Actions**:
+1. Rename the file
+2. Update all links in memory bank files to use new filename
+3. Run `validate_links()` to verify all links are valid
+4. Fix any broken links found
+
+### Scenario 4: Removing Plan File
+
+**When**: Deleting an obsolete plan file
+
+**Required Actions**:
+1. Remove all links to the file from memory bank files
+2. Delete the plan file
+3. Run `validate_links()` to verify no broken links remain
+4. Fix any broken links found
+
+## Link Validation Tool Usage
+
+**Preferred Method**: Use Cortex MCP `validate_links` tool:
+
+```python
+# Validate all memory bank files
+validate_links(project_root="/path/to/project")
+
+# Validate specific file
+validate_links(file_name="roadmap.md", project_root="/path/to/project")
+```
+
+**Fallback Method**: If MCP tool is unavailable, manually verify:
+- All markdown links `[text](path)` point to existing files
+- All relative paths are correct from the source file location
+- All transclusion directives `{{include:path}}` point to existing files
+
+## Integration with Other Workflows
+
+### Memory Bank Update Workflow
+
+When executing `update-memory-bank` command:
+1. Update memory bank files with current changes
+2. **MANDATORY**: Run `validate_links()` after updating
+3. Fix any broken links found
+4. Re-validate to confirm all links are valid
+
+### Plan Completion Workflow
+
+When completing a plan (see `maintainability.mdc` Plan Completion Checklist):
+1. After step 4 (Roadmap update), run `validate_links(file_name="roadmap.md")`
+2. After step 5 (Plan archival), run `validate_links()` to check all memory bank files
+3. Fix any broken links before considering plan complete
+
+### Commit Workflow
+
+When executing commit workflow:
+1. After memory bank operations, run `validate_links()` as part of validation
+2. Block commit if any broken links are found
+3. Fix broken links before proceeding with commit
+
+## CI Integration (MANDATORY)
+
+**CI MUST**:
+1. Run `validate_links()` on all memory bank files in CI pipeline
+2. Fail the build if any broken links are detected
+3. Report broken links with file paths and line numbers
+4. Block merge requests/pull requests with broken links
+
+## See Also
+
+- [maintainability.mdc](maintainability.mdc) - Memory Bank adoption and plan completion workflow
+- [markdown-formatting.mdc](../markdown/markdown-formatting.mdc) - Markdown file formatting rules
