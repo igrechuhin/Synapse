@@ -21,11 +21,11 @@ from typing import TypedDict
 
 # Import shared utilities
 try:
-    from _utils import get_project_root, find_src_directory, get_config_path
+    from _utils import find_src_directory, get_config_path, get_project_root
 except ImportError:
     # Fallback if running from different location
     sys.path.insert(0, str(Path(__file__).parent))
-    from _utils import get_project_root, find_src_directory, get_config_path
+    from _utils import find_src_directory, get_config_path, get_project_root
 
 
 class PerformanceIssue(TypedDict):

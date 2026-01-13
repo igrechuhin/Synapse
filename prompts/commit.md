@@ -17,7 +17,7 @@
 
 1. ✅ **Read relevant rules** - Understand commit requirements:
    - Read `.cursor/rules/no-auto-commit.mdc` for commit procedure requirements
-   - Read `.cursor/rules/coding-standards.mdc` and `.cursor/rules/python-coding-standards.mdc` for code quality standards
+   - Read `.cursor/rules/coding-standards.mdc` and language-specific coding standards (e.g., `.cursor/rules/python-coding-standards.mdc` for Python) for code quality standards
    - Read `.cursor/rules/memory-bank-workflow.mdc` for memory bank update requirements
 
 1. ✅ **Read referenced command files** - Understand all sub-commands:
@@ -34,42 +34,135 @@
 
 **VIOLATION**: Executing this command without following this checklist is a CRITICAL violation that blocks proper commit procedure.
 
+## ⚠️ COMMON ERRORS TO CATCH BEFORE COMMIT
+
+The following error patterns MUST be detected and fixed before commit. These are common issues that have caused problems in the past:
+
+### Type Errors
+- **Pattern**: Type checker reports type errors (not warnings)
+- **Detection**: Parse type checker output for error count (e.g., Pyright for Python, TypeScript compiler for TypeScript)
+- **Action**: Fix all type errors, re-run type checker, verify zero errors
+- **Block Commit**: Yes - type errors will cause CI to fail
+- **Note**: Only applicable if project uses a type system (Python with type hints, TypeScript, etc.)
+
+### Test Failures
+- **Pattern**: Test suite reports failures (failed count > 0)
+- **Detection**: Parse test output for failure count
+- **Action**: Fix failing tests, re-run tests, verify zero failures
+- **Block Commit**: Yes - test failures will cause CI to fail
+
+### Test Coverage Below Threshold
+- **Pattern**: Coverage percentage < 90%
+- **Detection**: Parse coverage report from test output
+- **Action**: Add tests to increase coverage, re-run tests, verify coverage ≥ 90%
+- **Block Commit**: Yes - coverage below threshold violates project standards
+
+### File Size Violations
+- **Pattern**: Files exceeding 400 lines
+- **Detection**: Parse file size check script output
+- **Action**: Split large files, re-run check, verify zero violations
+- **Block Commit**: Yes - file size violations will cause CI to fail
+
+### Function Length Violations
+- **Pattern**: Functions exceeding 30 lines
+- **Detection**: Parse function length check script output
+- **Action**: Refactor long functions, re-run check, verify zero violations
+- **Block Commit**: Yes - function length violations will cause CI to fail
+
+### Formatting Violations
+- **Pattern**: Formatter check reports formatting issues
+- **Detection**: Parse formatter check output for file count (e.g., `black --check` for Python, `prettier --check` for JavaScript/TypeScript)
+- **Action**: Run formatter, re-run formatter check, verify zero violations
+- **Block Commit**: Yes - formatting violations will cause CI to fail
+
+### Linter Errors
+- **Pattern**: Linter reports errors (not warnings)
+- **Detection**: Parse linter output for error count (e.g., ruff for Python, ESLint for JavaScript/TypeScript)
+- **Action**: Fix linting errors, re-run linter, verify zero errors
+- **Block Commit**: Yes - linter errors will cause CI to fail
+
+### Integration Test Failures
+- **Pattern**: Integration tests fail (specific test category)
+- **Detection**: Parse test output to identify integration test failures
+- **Action**: Fix integration test issues, re-run tests, verify all pass
+- **Block Commit**: Yes - integration test failures indicate broken functionality
+
+### Type Checker Warnings (Review Required)
+- **Pattern**: Type checker reports warnings (not errors)
+- **Detection**: Parse type checker output for warning count
+- **Action**: Review warnings, fix critical ones, document acceptable warnings
+- **Block Commit**: No - warnings don't block commit but should be reviewed
+- **Note**: Only applicable if project uses a type system
+
+**CRITICAL**: All error patterns above MUST be validated by parsing command output, not just checking exit codes. Exit codes can be misleading - always parse actual output to verify results.
+
 ## Steps
 
-0. **Fix errors and warnings (Python)** - Execute Cursor command: `fix-errors`:
+0. **Fix errors and warnings** - Execute Cursor command: `fix-errors`:
    - Read `.cortex/synapse/prompts/fix-errors.md`
    - Execute ALL steps from that command automatically
    - Fix all compiler errors, type errors, formatting issues, and warnings
    - Verify all fixes are applied and code is error-free
    - **CRITICAL**: This step MUST run before testing to ensure code contains no errors
    - **CRITICAL**: This prevents committing/pushing poor code that would fail CI checks
+   - **VALIDATION**: After fix-errors completes, verify zero errors remain:
+     - Re-run type checker (if applicable for project language) - MUST show zero errors
+     - Re-run linter - MUST show zero errors
+     - Use `read_lints` tool to verify no linter errors remain
+     - **BLOCK COMMIT** if any errors remain after fix-errors step
+   - **Note**: Specific tools depend on project language (e.g., Pyright/ruff for Python, TypeScript compiler/ESLint for TypeScript)
 
-1. **Code formatting (Python)** - Run Black and isort:
-   - Execute `./.venv/bin/black .` and `./.venv/bin/ruff check --fix --select I .`
-   - **CRITICAL**: After formatting, run `./.venv/bin/black --check .` to verify all files pass Black check
-   - **CRITICAL**: If `black --check` fails, re-run `black .` and verify again until check passes
+1. **Code formatting** - Run project formatter:
+   - Execute project-specific formatter (e.g., `black .` for Python, `prettier --write .` for JavaScript/TypeScript)
+   - Execute import sorting if applicable (e.g., `ruff check --fix --select I .` for Python, `prettier` handles imports for JS/TS)
+   - **CRITICAL**: After formatting, run formatter check command to verify all files pass formatting check
+     - Example for Python: `./.venv/bin/black --check .`
+     - Example for JS/TS: `prettier --check .`
+   - **CRITICAL**: If formatter check fails, re-run formatter and verify again until check passes
    - Verify formatting completes successfully with no errors or warnings
    - Fix any formatting issues if they occur
    - Verify no files were left in inconsistent state
-   - **MANDATORY**: Black check MUST pass before proceeding to next step
-2. **Type checking (Python)** - Run Pyright type checker:
-   - Execute `.venv/bin/pyright src/ tests/` or `python -m pyright src/ tests/`
-   - Verify type checking completes with zero errors (warnings are acceptable but should be reviewed)
+   - **MANDATORY**: Formatter check MUST pass before proceeding to next step
+   - **VALIDATION**: Parse formatter check output to verify zero violations - **BLOCK COMMIT** if any violations remain
+2. **Type checking** - Run type checker (if applicable):
+   - **Conditional**: Only execute if project uses a type system (Python with type hints, TypeScript, etc.)
+   - Execute project-specific type checker:
+     - Python: `.venv/bin/pyright src/ tests/` or `python -m pyright src/ tests/`
+     - TypeScript: `tsc --noEmit` or `tsc --build`
+     - Other languages: Use appropriate type checker command
+   - **CRITICAL**: Capture and parse type checker output to verify zero errors
+   - **VALIDATION**: Verify type checking completes with zero errors (warnings are acceptable but should be reviewed)
+   - **BLOCK COMMIT** if type checker reports any type errors (not warnings)
    - Fix any critical type errors before proceeding
-   - Note: Pyright is required for type safety validation
-3. **Code quality checks (Python)** - Run file size and function length checks:
-   - Execute `./.venv/bin/python .cortex/synapse/scripts/python/check_file_sizes.py` to verify all files are within 400 line limit
-   - Execute `./.venv/bin/python .cortex/synapse/scripts/python/check_function_lengths.py` to verify all functions are within 30 line limit
+   - Re-run type checker after fixes to verify zero errors remain
+   - **Skip if**: Project does not use a type system
+3. **Code quality checks** - Run file size and function/method length checks:
+   - Execute project-specific code quality checks:
+     - Python: `./.venv/bin/python .cortex/synapse/scripts/python/check_file_sizes.py` and `./.venv/bin/python .cortex/synapse/scripts/python/check_function_lengths.py`
+     - Other languages: Use appropriate code quality tools or scripts
+   - Verify all files are within project's line limit (typically 400 lines)
+   - **VALIDATION**: Parse check output to verify zero violations - **BLOCK COMMIT** if any files exceed limit
+   - Verify all functions/methods are within project's length limit (typically 30 lines)
+   - **VALIDATION**: Parse check output to verify zero violations - **BLOCK COMMIT** if any functions/methods exceed limit
    - Verify both checks complete successfully with no violations
-   - Fix any file size or function length violations before proceeding
+   - Fix any file size or function/method length violations before proceeding
+   - Re-run checks after fixes to verify zero violations remain
    - Note: These checks match CI quality gate requirements and MUST pass
-   - Note: Scripts are located in `.cortex/synapse/scripts/python/` and are shared across projects using the same Synapse repository
-4. **Test execution (Python)** - Execute Cursor command: `run-tests`:
+   - Note: For Python projects, scripts are located in `.cortex/synapse/scripts/python/` and are shared across projects using the same Synapse repository
+4. **Test execution** - Execute Cursor command: `run-tests`:
    - Read `.cortex/synapse/prompts/run-tests.md`
    - Execute ALL steps from that command automatically
    - **CRITICAL**: This step runs AFTER errors, formatting, and code quality checks are fixed
    - **CRITICAL**: Tests must pass with 100% pass rate before proceeding to commit
+   - **VALIDATION**: Parse test output to verify:
+     - Zero test failures (failed tests count MUST be 0)
+     - 100% pass rate for all executable tests
+     - Test coverage meets or exceeds 90% threshold
+     - All integration tests pass (verify integration test results explicitly)
+     - No test timeouts or hangs occurred
+   - **BLOCK COMMIT** if any of the above validations fail
    - If tests fail, fix issues and re-run `run-tests` command until all pass
+   - Re-verify all validation criteria after fixes
    - **DRY Principle**: Reuse `run-tests.md` command instead of duplicating test execution logic
 5. **Memory bank operations** - Execute Cursor command: `update-memory-bank`:
    - Read `.cortex/synapse/prompts/update-memory-bank.md`
@@ -143,14 +236,23 @@ The commit procedure executes steps in this specific order to ensure dependencie
 
 0. **Fix Errors** (Fix Errors) - Fixes all compiler errors, type errors, formatting issues, and warnings BEFORE testing
    - **CRITICAL**: Must complete successfully before any other step
-1. **Formatting** - Ensures code style consistency with Black and ruff import sorting
-   - **CRITICAL**: Must verify with `black --check` after formatting to ensure CI will pass
-2. **Code Quality Checks** - Validates file size and function length limits (matches CI quality gate)
+   - **VALIDATION**: Verify zero errors remain after fix-errors completes (type checker, linter checks)
+   - **BLOCK COMMIT** if any errors remain
+1. **Formatting** - Ensures code style consistency with project formatter
+   - **CRITICAL**: Must verify with formatter check after formatting to ensure CI will pass
+   - **VALIDATION**: Formatter check MUST pass - **BLOCK COMMIT** if it fails
+2. **Type Checking** - Validates type safety with type checker (if applicable)
+   - **CRITICAL**: Must pass with zero type errors before proceeding (skip if project doesn't use types)
+   - **VALIDATION**: Type checker MUST report zero errors - **BLOCK COMMIT** if type errors exist
+3. **Code Quality Checks** - Validates file size and function/method length limits (matches CI quality gate)
    - **CRITICAL**: Must pass before testing to ensure code meets quality standards
-3. **Testing** (Run Tests) - Executes `run-tests.md` command to ensure functionality correctness
+   - **VALIDATION**: Both checks MUST show zero violations - **BLOCK COMMIT** if violations exist
+4. **Testing** (Run Tests) - Executes `run-tests.md` command to ensure functionality correctness
    - **CRITICAL**: Reuses `run-tests.md` command (DRY principle) - do not duplicate test logic
    - **CRITICAL**: Runs AFTER errors, formatting, and code quality are fixed
    - **CRITICAL**: Tests must pass with 100% pass rate before proceeding
+   - **VALIDATION**: Must verify zero test failures, 100% pass rate, 90%+ coverage (if applicable), all integration tests pass
+   - **BLOCK COMMIT** if any test validation fails
 4. **Documentation** (Memory Bank) - Updates project context
 5. **Roadmap Updates** (Roadmap Update) - Ensures roadmap reflects current progress
 6. **Plan Archiving** (Archive Completed Plans) - Cleans up completed build plans
@@ -170,6 +272,25 @@ The commit procedure executes steps in this specific order to ensure dependencie
 - Mark steps as `in_progress` when starting them
 - Update status immediately, not at the end
 - This provides transparency and allows tracking progress during execution
+
+## Pre-Commit Validation Summary
+
+Before proceeding to commit creation, provide a validation summary confirming all checks passed:
+
+### **Pre-Commit Validation Checklist**
+
+- [ ] **Fix Errors Validation**: Type checker = 0 errors (if applicable), Linter = 0 errors
+- [ ] **Formatting Validation**: Formatter check = 0 violations (parsed from output)
+- [ ] **Type Checking Validation**: Type checker = 0 type errors (parsed from output, skip if not applicable)
+- [ ] **Code Quality Validation**: File size = 0 violations, Function length = 0 violations (parsed from script output)
+- [ ] **Test Execution Validation**: 
+  - Test failures = 0 (parsed from test output)
+  - Pass rate = 100% (calculated from test output)
+  - Coverage ≥ 90% (parsed from test output)
+  - Integration tests = all pass (explicitly verified)
+- [ ] **All Validations Passed**: All above validations confirmed successful
+
+**If any validation fails, BLOCK COMMIT and fix issues before proceeding.**
 
 ## Output Format
 
@@ -209,16 +330,20 @@ Use this ordering when numbering results:
 - **Type Errors Fixed**: Count and list of type errors fixed
 - **Files Modified**: List of files modified during error fixing
 - **Details**: Summary from fix-errors command
+- **Validation Results**: 
+  - Type checker re-check: Pass/Fail with error count (MUST be 0, skip if not applicable)
+  - Linter re-check: Pass/Fail with error count (MUST be 0)
+- **Commit Blocked**: Yes/No (blocked if any errors remain)
 
 #### **1. Formatting**
 
 - **Status**: Success/Failure
 - **Files Formatted**: Count of files formatted
-- **Black Check Status**: Pass/Fail (MUST pass - verified with `black --check`)
-- **Black Check Output**: Output from `black --check` command
+- **Formatter Check Status**: Pass/Fail (MUST pass - verified with formatter check command)
+- **Formatter Check Output**: Output from formatter check command
 - **Errors**: Any formatting errors encountered
 - **Warnings**: Any formatting warnings
-- **Verification**: Confirmation that `black --check` passed before proceeding
+- **Verification**: Confirmation that formatter check passed before proceeding
 
 #### **2. Code Quality Checks**
 
@@ -227,7 +352,12 @@ Use this ordering when numbering results:
 - **Function Length Check**: Status of function length validation (max 30 lines)
 - **Violations Found**: Count of violations found (must be 0)
 - **Violations Fixed**: Count of violations fixed
+- **Validation Results**:
+  - File size violations after fixes: Count (MUST be 0)
+  - Function length violations after fixes: Count (MUST be 0)
+  - Script output parsed: Yes/No
 - **Details**: Summary of any violations and their resolution
+- **Commit Blocked**: Yes/No (blocked if any violations remain)
 
 #### **3. Test Execution**
 
@@ -238,7 +368,14 @@ Use this ordering when numbering results:
 - **Tests Failed**: Count of failing tests (must be 0)
 - **Pass Rate**: Percentage pass rate (target: 100%)
 - **Coverage**: Test coverage percentage (target: 90%+)
+- **Validation Results**:
+  - Zero failures confirmed: Yes/No (parsed from test output)
+  - 100% pass rate confirmed: Yes/No (calculated from test output)
+  - Coverage threshold met: Yes/No (coverage ≥ 90% confirmed)
+  - Integration tests passed: Yes/No (explicitly verified)
+  - Test output parsed: Yes/No
 - **Details**: Complete summary from run-tests command (see run-tests.md output format)
+- **Commit Blocked**: Yes/No (blocked if any validation fails)
 - **Note**: This step reuses `run-tests.md` command to avoid duplication (DRY principle)
 
 #### **4. Memory Bank Update**
@@ -317,8 +454,8 @@ Use this ordering when numbering results:
 
 - **Error Fixing Issues**: Any errors or warnings encountered during fix-errors step and their resolution
 - **Formatting Issues**: Any formatting issues and their resolution
-  - **CRITICAL**: If `black --check` fails after formatting, this indicates files were not properly formatted
-  - Must re-run `black .` and verify `black --check` passes before proceeding
+  - **CRITICAL**: If formatter check fails after formatting, this indicates files were not properly formatted
+  - Must re-run formatter and verify formatter check passes before proceeding
 - **Code Quality Issues**: File size or function length violations and their resolution
 - **Test Failures**: Any test failures and their resolution
 - **Memory Bank Issues**: Any memory bank update issues
@@ -353,25 +490,34 @@ Use this ordering when numbering results:
 - **Process**:
   1. Report the specific code quality violation (file size or function length)
   2. Provide detailed error information including file path, function name, and violation details
-  3. Fix file size violations by splitting large files or extracting modules
-  4. Fix function length violations by extracting helper functions or refactoring logic
-  5. Re-run checks to verify fixes
-  6. Do not proceed with commit until all checks pass
-  7. **CRITICAL**: These checks match CI quality gate requirements - failures will cause CI to fail
-- **No Partial Commits**: Do not proceed with commit until all code quality checks pass
+  3. Parse script output to extract exact violation counts and details
+  4. Fix file size violations by splitting large files or extracting modules
+  5. Fix function length violations by extracting helper functions or refactoring logic
+  6. Re-run checks to verify fixes
+  7. **VALIDATION**: Re-parse script output to confirm zero violations remain
+  8. Do not proceed with commit until all checks pass and validation confirms zero violations
+  9. **CRITICAL**: These checks match CI quality gate requirements - failures will cause CI to fail
+- **No Partial Commits**: Do not proceed with commit until all code quality checks pass and validation confirms zero violations
 
 ### Test Suite Failure
 
 - **Action**: Investigate and fix issues before proceeding
 - **Process**:
   1. Review test failure output from `run-tests` command
-  2. Analyze test failure messages and stack traces
-  3. Identify root cause (code issue vs test issue)
-  4. Fix the underlying issues
-  5. Re-run `run-tests` command to verify fixes
-  6. Continue until all tests pass with 100% pass rate
-- **No Partial Commits**: Do not proceed with commit until all tests pass
+  2. Parse test output to extract exact failure counts, test names, and error messages
+  3. Analyze test failure messages and stack traces
+  4. Identify root cause (code issue vs test issue)
+  5. Fix the underlying issues
+  6. Re-run `run-tests` command to verify fixes
+  7. **VALIDATION**: Re-parse test output to verify:
+     - Zero test failures (failed count = 0)
+     - 100% pass rate for executable tests
+     - Coverage meets 90%+ threshold
+     - All integration tests pass
+  8. Continue until all tests pass with 100% pass rate and all validations pass
+- **No Partial Commits**: Do not proceed with commit until all tests pass and all validations confirm success
 - **Reuse Command**: Always use `run-tests.md` command, do not duplicate test execution logic
+- **BLOCK COMMIT**: If any test validation fails, do not proceed with commit
 
 ### Submodule Failure
 
@@ -404,6 +550,8 @@ Use this ordering when numbering results:
 ### General Rules
 
 - **No Partial Commits**: All steps must pass before commit creation
+- **Validation Required**: All critical steps MUST include explicit validation that confirms success (parsing output, checking exit codes, verifying counts)
+- **Block on Validation Failure**: If any validation step fails, **BLOCK COMMIT** and do not proceed
 - **Fix Issues First**: Resolve all issues before attempting commit again
 - **Automatic Execution**: Once this command is explicitly invoked by the user, execute all steps automatically without asking for additional permission
 - **Command Execution**: When referencing other Cursor commands, AI MUST immediately read those command files and execute ALL their steps without any user interaction
@@ -417,19 +565,34 @@ Use this ordering when numbering results:
   - Mark steps as `in_progress` when starting them
   - Update status in real-time, not at the end
   - This provides transparency and progress tracking during execution
+- **Output Parsing**: For all validation steps, parse command output to extract exact counts, percentages, and status:
+  - Parse type checker output to count type errors (must be 0, skip if not applicable)
+  - Parse linter output to count linting errors (must be 0)
+  - Parse formatter check output to count formatting violations (must be 0)
+  - Parse test output to count failures (must be 0), calculate pass rate (must be 100%), extract coverage (must be ≥ 90% if applicable)
+  - Parse code quality check output to count violations (must be 0)
+  - Do not rely on exit codes alone - verify actual results from output
 
 ## Success Criteria
 
 - ✅ All compiler errors and warnings fixed (fix-errors step passes)
-- ✅ All type errors resolved
+- ✅ **VALIDATION**: Zero errors confirmed via type checker (if applicable) and linter re-checks after fix-errors
+- ✅ All type errors resolved (if applicable)
+- ✅ **VALIDATION**: Type checker reports zero type errors (parsed from output, skip if not applicable)
 - ✅ All formatting issues fixed
-- ✅ Black + ruff import sorting formatting passes without errors
-- ✅ **CRITICAL**: `black --check .` MUST pass after formatting (verifies CI will pass)
+- ✅ Project formatter + import sorting (if applicable) formatting passes without errors
+- ✅ **CRITICAL**: Formatter check MUST pass after formatting (verifies CI will pass)
+- ✅ **VALIDATION**: Formatter check output confirms zero formatting violations
 - ✅ Real-time checklist updates completed for all steps
 - ✅ File size check passes (all files ≤ 400 lines)
+- ✅ **VALIDATION**: File size check script output confirms zero violations
 - ✅ Function length check passes (all functions ≤ 30 lines)
+- ✅ **VALIDATION**: Function length check script output confirms zero violations
 - ✅ All executable tests pass (100% pass rate) - verified via `run-tests.md` command
+- ✅ **VALIDATION**: Test output parsed to confirm zero failures, 100% pass rate
 - ✅ Test coverage meets threshold (90%+) - verified via `run-tests.md` command
+- ✅ **VALIDATION**: Coverage percentage parsed from test output and confirmed ≥ 90%
+- ✅ All integration tests pass - explicitly verified from test output
 - ✅ Memory bank updated with current information
 - ✅ Roadmap.md updated with completed items and current progress
 - ✅ Completed build plans archived to .cursor/plans/archive/

@@ -13,7 +13,6 @@ Configuration:
 """
 
 import ast
-import os
 import sys
 from dataclasses import dataclass
 from pathlib import Path
@@ -21,19 +20,19 @@ from pathlib import Path
 # Import shared utilities
 try:
     from _utils import (
-        get_project_root,
         find_src_directory,
         get_config_int,
         get_config_path,
+        get_project_root,
     )
 except ImportError:
     # Fallback if running from different location
     sys.path.insert(0, str(Path(__file__).parent))
     from _utils import (
-        get_project_root,
         find_src_directory,
         get_config_int,
         get_config_path,
+        get_project_root,
     )
 
 MAX_FUNCTION_LINES = get_config_int("MAX_FUNCTION_LINES", 30)
