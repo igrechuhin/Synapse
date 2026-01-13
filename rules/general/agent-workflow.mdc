@@ -137,6 +137,28 @@ Always respond with:
 - Never skip the self-audit loop.
 - When unsure, ask. When sure, act.
 
+## MCP Tool Error Handling (CRITICAL)
+
+**MANDATORY**: When encountering unexpected results from Cortex MCP tools:
+
+1. **Immediately create investigation plan**:
+   - Create a plan file at `.cortex/plans/` with descriptive name (e.g., `phase-X-investigate-issue-name.md`)
+   - Include problem statement, root cause analysis, investigation tasks, and expected outcomes
+   - Mark as **BLOCKER** status with **ASAP** priority
+
+2. **Link in roadmap**:
+   - Add plan to `.cortex/memory-bank/roadmap.md` under "Blockers (ASAP Priority)" section
+   - Include in "Active Work" section if blocking current work
+   - Add to "Recent Findings" with critical bug indicator (🔴)
+
+3. **Document the issue**:
+   - Describe the unexpected behavior
+   - Note what was expected vs. what actually happened
+   - Include any error messages or tool responses
+   - List affected tools and operations
+
+**VIOLATION**: Encountering MCP tool errors without creating investigation plan and linking in roadmap is a CRITICAL violation.
+
 ## Violations (BLOCKED)
 
 - ❌ Skipping the self-audit loop
@@ -145,3 +167,4 @@ Always respond with:
 - ❌ Using non-US English
 - ❌ Proceeding without fetching rules first
 - ❌ Ignoring rule hierarchy (Commands > Rules > Memory Bank)
+- ❌ Encountering MCP tool errors without creating investigation plan and linking in roadmap
