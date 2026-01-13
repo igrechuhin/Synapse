@@ -11,22 +11,16 @@
           "keywords": ["commit", "git", "pre-commit", "testing", "formatting"]
         },
         {
-          "file": "fix-errors.md",
-          "name": "Fix Compiler Errors and Warnings",
-          "description": "Fix all compiler errors and warnings across the entire codebase",
-          "keywords": ["errors", "warnings", "linting", "type-checking", "formatting"]
-        },
-        {
           "file": "review.md",
           "name": "Review Code",
           "description": "Comprehensive code review to find bugs, inconsistencies, and incomplete implementations",
           "keywords": ["review", "code-quality", "bugs", "consistency", "testing"]
         },
         {
-          "file": "run-tests.md",
-          "name": "Run Tests",
-          "description": "Execute build and test suite with pytest-timeout protection",
-          "keywords": ["tests", "pytest", "testing", "coverage", "quality"]
+          "file": "implement-next-roadmap-step.md",
+          "name": "Implement Next Roadmap Step",
+          "description": "Read the roadmap, identify the next pending step, and implement it completely",
+          "keywords": ["roadmap", "implementation", "tasks", "planning", "progress"]
         }
       ]
     }

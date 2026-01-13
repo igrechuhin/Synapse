@@ -4,41 +4,32 @@
 
 **CRITICAL**: This command is ONLY executed when explicitly invoked by the user (e.g., `/commit` or user explicitly requests commit). Invoking this command IS an explicit commit request per `no-auto-commit.mdc` rule. Once invoked, execute all steps AUTOMATICALLY without asking for additional permission or confirmation.
 
-**⚠️ ARCHITECTURAL NOTE**: The operations referenced below (like `run-tests`, `fix-errors`, etc.) are currently implemented as markdown prompt files that the agent must read and interpret. **This is suboptimal** - these operations should be structured MCP tools with typed parameters and return values that the agent can call programmatically.
+**Tooling Note**: Use standard Cursor tools (`Read`, `ApplyPatch`, `Write`, `LS`, `Glob`, `Grep`) by default; MCP filesystem tools are optional fallbacks only when standard tools are unavailable or explicitly requested. **Use Cortex MCP tools for memory bank operations** (e.g., `manage_file()`, `get_memory_bank_stats()`, `validate()`, `check_structure_health()`).
 
-**Current Workaround**: Until proper MCP tools are implemented, the agent must:
-
-- Read the referenced markdown files from `.cortex/synapse/prompts/` directory
-- Execute ALL steps from those files AUTOMATICALLY without asking user permission
-
-**Future Improvement**: These should be converted to MCP tools:
-
-- `run_tests()` - Execute test suite with structured parameters (timeout, coverage threshold, etc.)
-- `fix_errors()` - Fix errors with structured parameters (error types, auto-fix options, etc.)
-- Memory bank operations should use existing MCP tools like `manage_file()` instead of prompt files
+**Pre-Commit Checks**: Use the `execute_pre_commit_checks()` MCP tool for all pre-commit operations (fix errors, format, type check, quality, tests). This tool provides:
+- Language auto-detection
+- Structured parameters and return values
+- Consistent error handling
+- Type safety
 
 ## ⚠️ MANDATORY PRE-ACTION CHECKLIST
 
 **BEFORE executing this command, you MUST:**
 
 1. ✅ **Read relevant memory bank files** - Understand current project context:
-   - Read `.cursor/memory-bank/activeContext.md` to understand current work focus
-   - Read `.cursor/memory-bank/progress.md` to see recent achievements
-   - Read `.cursor/memory-bank/roadmap.md` to understand project priorities
+   - **Use Cortex MCP tool `manage_file()`** to read `.cursor/memory-bank/activeContext.md` to understand current work focus
+   - **Use Cortex MCP tool `manage_file()`** to read `.cursor/memory-bank/progress.md` to see recent achievements
+   - **Use Cortex MCP tool `manage_file()`** to read `.cursor/memory-bank/roadmap.md` to understand project priorities
 
 1. ✅ **Read relevant rules** - Understand commit requirements:
    - Read `.cursor/rules/no-auto-commit.mdc` for commit procedure requirements
    - Read `.cursor/rules/coding-standards.mdc` and language-specific coding standards (e.g., `.cursor/rules/python-coding-standards.mdc` for Python) for code quality standards
    - Read `.cursor/rules/memory-bank-workflow.mdc` for memory bank update requirements
 
-1. ✅ **Understand operations** - Note that these should be MCP tools, not prompt files:
-   - **Current state**: Operations like `fix-errors` and `run-tests` are implemented as markdown prompt files
-   - **Required operations** (currently as prompts, should be tools):
-     - `fix-errors.md` - Must run before testing (CRITICAL)
-     - `run-tests.md` - Execute test suite
+1. ✅ **Understand operations** - Use MCP tools for all operations:
+   - **Pre-commit checks**: Use `execute_pre_commit_checks()` MCP tool for fix_errors, format, type_check, quality, and tests
    - **Memory bank operations**: Use existing MCP tools (`manage_file()`, `get_memory_bank_stats()`) instead of prompt files
    - **Validation operations**: Use existing MCP tools (`validate()`, `check_structure_health()`) instead of prompt files
-   - **Note**: Until proper MCP tools exist, agent must read and interpret markdown prompt files as a workaround
 
 1. ✅ **Verify prerequisites** - Ensure all prerequisites are met:
    - Confirm there are changes to commit
@@ -120,19 +111,18 @@ The following error patterns MUST be detected and fixed before commit. These are
 
 ## Steps
 
-0. **Fix errors and warnings** - **TODO: Should be MCP tool `fix_errors()`**:
-   - **Current workaround**: Read `.cortex/synapse/prompts/fix-errors.md` and execute ALL steps from that file automatically
-   - **Future**: Call MCP tool `fix_errors()` with structured parameters instead
-   - Fix all compiler errors, type errors, formatting issues, and warnings
-   - Verify all fixes are applied and code is error-free
+0. **Fix errors and warnings** - Use `execute_pre_commit_checks()` MCP tool:
+   - **Call MCP tool**: `execute_pre_commit_checks(checks=["fix_errors"], strict_mode=False)`
+   - The tool will automatically:
+     - Detect project language
+     - Fix all compiler errors, type errors, formatting issues, and warnings
+     - Return structured results with error counts and files modified
    - **CRITICAL**: This step MUST run before testing to ensure code contains no errors
    - **CRITICAL**: This prevents committing/pushing poor code that would fail CI checks
-   - **VALIDATION**: After fix-errors completes, verify zero errors remain:
-     - Re-run type checker (if applicable for project language) - MUST show zero errors
-     - Re-run linter - MUST show zero errors
-     - Use `read_lints` tool to verify no linter errors remain
+   - **VALIDATION**: Parse tool response to verify:
+     - `total_errors` = 0 (MUST be zero)
+     - `results.fix_errors.success` = true
      - **BLOCK COMMIT** if any errors remain after fix-errors step
-   - **Note**: Specific tools depend on project language (e.g., Pyright/ruff for Python, TypeScript compiler/ESLint for TypeScript)
 
 1. **Code formatting** - Run project formatter:
    - Execute project-specific formatter (e.g., `black .` for Python, `prettier --write .` for JavaScript/TypeScript)
@@ -171,29 +161,32 @@ The following error patterns MUST be detected and fixed before commit. These are
    - Re-run checks after fixes to verify zero violations remain
    - Note: These checks match CI quality gate requirements and MUST pass
    - Note: For Python projects, scripts are located in `.cortex/synapse/scripts/python/` and are shared across projects using the same Synapse repository
-4. **Test execution** - **TODO: Should be MCP tool `run_tests()`**:
-   - **Current workaround**: Read `.cortex/synapse/prompts/run-tests.md` and execute ALL steps from that file automatically
-   - **Future**: Call MCP tool `run_tests()` with structured parameters (timeout, coverage_threshold, etc.) instead
+4. **Test execution** - Use `execute_pre_commit_checks()` MCP tool:
+   - **Call MCP tool**: `execute_pre_commit_checks(checks=["tests"], timeout=300, coverage_threshold=0.90)`
+   - The tool will automatically:
+     - Detect project language and test framework
+     - Execute test suite with timeout protection
+     - Calculate coverage and verify threshold
+     - Return structured results with test counts and coverage
    - **CRITICAL**: This step runs AFTER errors, formatting, and code quality checks are fixed
    - **CRITICAL**: Tests must pass with 100% pass rate before proceeding to commit
-   - **VALIDATION**: Parse test output to verify:
-     - Zero test failures (failed tests count MUST be 0)
-     - 100% pass rate for all executable tests
-     - Test coverage meets or exceeds 90% threshold
-     - All integration tests pass (verify integration test results explicitly)
-     - No test timeouts or hangs occurred
-   - **BLOCK COMMIT** if any of the above validations fail
-   - If tests fail, fix issues and re-run `run-tests` command until all pass
+   - **VALIDATION**: Parse tool response to verify:
+     - `results.tests.success` = true
+     - `results.tests.tests_failed` = 0 (MUST be zero)
+     - `results.tests.pass_rate` = 100.0 (MUST be 100%)
+     - `results.tests.coverage` ≥ 0.90 (MUST meet threshold)
+     - **BLOCK COMMIT** if any of the above validations fail
+   - If tests fail, fix issues and re-run tool until all pass
    - Re-verify all validation criteria after fixes
-   - **DRY Principle**: Reuse `run-tests.md` command instead of duplicating test execution logic
 5. **Memory bank operations** - **Should use existing MCP tools**:
    - **Use MCP tool `manage_file()`** to update memory bank files (e.g., `activeContext.md`, `progress.md`, `roadmap.md`)
    - **Use MCP tool `get_memory_bank_stats()`** to check current state
    - **Do NOT** read prompt files - use structured MCP tools instead
    - Update all relevant memory bank files with current changes using `manage_file(operation="write", ...)`
 6. **Update roadmap** - Update roadmap.md with completed items and new milestones:
+   - **Use Cortex MCP tool `manage_file()`** to read and update roadmap.md
    - Review recent changes and completed work
-   - Mark completed milestones and tasks in roadmap.md
+   - Mark completed milestones and tasks in roadmap.md using `manage_file(operation="write", ...)`
    - Add new roadmap items if significant new work is identified
    - Update completion status and progress indicators
    - Ensure roadmap accurately reflects current project state
@@ -299,7 +292,7 @@ The commit procedure executes steps in this specific order to ensure dependencie
 12. **Commit** - Creates the commit with all changes (including updated submodule reference)
 13. **Push** - Pushes committed changes to remote repository
 
-**DRY Principle**: Step 3 (Testing) reuses the `run-tests.md` command instead of duplicating test execution logic. This ensures consistency and maintainability.
+**MCP Tools**: Steps 0 (Fix Errors) and 4 (Testing) use the `execute_pre_commit_checks()` MCP tool instead of reading prompt files. This provides structured parameters, type safety, and consistent error handling.
 
 ## ⚠️ MANDATORY CHECKLIST UPDATES
 
@@ -595,14 +588,14 @@ Use this ordering when numbering results:
 - **Fix Issues First**: Resolve all issues before attempting commit again
 - **Automatic Execution**: Once this command is explicitly invoked by the user, execute all steps automatically without asking for additional permission
 - **Command Execution**: When referencing other Cursor commands, AI MUST immediately read those command files and execute ALL their steps without any user interaction
-- **DRY Principle**: Reuse existing commands instead of duplicating logic:
-  - Step 3 (Testing) MUST use `run-tests.md` command - do not duplicate test execution logic
-  - Step 0 (Fix Errors) MUST use `fix-errors.md` command - do not duplicate error fixing logic
-  - Step 4 (Memory Bank) MUST use `update-memory-bank.md` command if it exists - do not duplicate memory bank update logic
+- **MCP Tools**: Use structured MCP tools instead of reading prompt files:
+  - Step 0 (Fix Errors) MUST use `execute_pre_commit_checks(checks=["fix_errors"])` MCP tool
+  - Step 4 (Testing) MUST use `execute_pre_commit_checks(checks=["tests"])` MCP tool
+  - Step 4 (Memory Bank) MUST use `manage_file()` MCP tool for memory bank operations
   - Step 8 (Memory Bank Optimization) MUST use `validate-memory-bank-timestamps.md` command if it exists
   - Step 9 (Roadmap Sync) MUST use `validate-roadmap-sync.md` command if it exists
   - If optional command files don't exist, skip those steps gracefully without searching for alternatives
-  - This ensures consistency, maintainability, and single source of truth
+  - This ensures consistency, maintainability, type safety, and single source of truth
 - **Real-Time Checklist Updates**: AI MUST update the todo checklist immediately as each step completes:
   - Use `todo_write` tool to mark steps as `completed` right after they finish
   - Mark steps as `in_progress` when starting them

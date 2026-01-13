@@ -6,18 +6,18 @@
 
 **CURSOR COMMAND**: This is a Cursor command located in `.cortex/synapse/prompts/` directory, NOT a terminal command.
 
-**Tooling Note**: Use standard Cursor tools (`Read`, `ApplyPatch`, `LS`, `Glob`, `Grep`) by default; MCP filesystem tools are optional fallbacks only when standard tools are unavailable or explicitly requested.
+**Tooling Note**: Use standard Cursor tools (`Read`, `ApplyPatch`, `Write`, `LS`, `Glob`, `Grep`) by default; MCP filesystem tools are optional fallbacks only when standard tools are unavailable or explicitly requested. Use Cortex MCP tools for memory bank operations when appropriate (e.g., `manage_file()` for reading memory bank files, `validate()` for validation checks).
 
 ## ⚠️ MANDATORY PRE-ACTION CHECKLIST
 
 **BEFORE executing this command, you MUST:**
 
 1. ✅ **Read relevant memory bank files** - Understand current project context:
-   - Read `.cursor/memory-bank/activeContext.md` to understand current work focus
-   - Read `.cursor/memory-bank/progress.md` to see recent achievements
-   - Read `.cursor/memory-bank/roadmap.md` to understand project priorities
-   - Read `.cursor/memory-bank/systemPatterns.md` to understand architectural patterns
-   - Read `.cursor/memory-bank/techContext.md` to understand technical context
+   - **Use Cortex MCP tool `manage_file()`** to read `.cursor/memory-bank/activeContext.md` to understand current work focus
+   - **Use Cortex MCP tool `manage_file()`** to read `.cursor/memory-bank/progress.md` to see recent achievements
+   - **Use Cortex MCP tool `manage_file()`** to read `.cursor/memory-bank/roadmap.md` to understand project priorities
+   - **Use Cortex MCP tool `manage_file()`** to read `.cursor/memory-bank/systemPatterns.md` to understand architectural patterns
+   - **Use Cortex MCP tool `manage_file()`** to read `.cursor/memory-bank/techContext.md` to understand technical context
 
 2. ✅ **Read relevant rules** - Understand project requirements:
    - Read `.cursor/rules/coding-standards.mdc` for core coding standards
