@@ -123,13 +123,19 @@ The following error patterns MUST be detected and fixed before commit. These are
      - `total_errors` = 0 (MUST be zero)
      - `results.fix_errors.success` = true
      - **BLOCK COMMIT** if any errors remain after fix-errors step
+   - **CRITICAL**: After fix-errors, run linter check script to verify all linting issues are resolved
+     - Execute language-specific linting check script: `.cortex/synapse/scripts/{language}/check_linting.py` (or equivalent for non-Python)
+     - The script runs linter in check-only mode (without --fix flag) to catch non-fixable errors
+     - **CRITICAL**: If linter check fails, fix remaining issues and re-run fix-errors until check passes
+     - **MANDATORY**: Linter check MUST pass before proceeding to next step
+     - **VALIDATION**: Parse linter check output to verify zero errors - **BLOCK COMMIT** if any linting errors remain
+     - **Note**: The fix-errors step runs linter with --fix which fixes auto-fixable issues, but some errors (like undefined names) cannot be auto-fixed and must be manually resolved
 
 1. **Code formatting** - Run project formatter:
-   - Execute project-specific formatter (e.g., `black .` for Python, `prettier --write .` for JavaScript/TypeScript)
-   - Execute import sorting if applicable (e.g., `ruff check --fix --select I .` for Python, `prettier` handles imports for JS/TS)
-   - **CRITICAL**: After formatting, run formatter check command to verify all files pass formatting check
-     - Example for Python: `./.venv/bin/black --check .`
-     - Example for JS/TS: `prettier --check .`
+   - Execute language-specific formatting script: `.cortex/synapse/scripts/{language}/format_code.py` (or equivalent)
+   - The script should run the project formatter and import sorting tools
+   - **CRITICAL**: After formatting, run formatter check script to verify all files pass formatting check
+     - Execute language-specific formatter check script: `.cortex/synapse/scripts/{language}/check_formatting.py` (or equivalent)
    - **CRITICAL**: If formatter check fails, re-run formatter and verify again until check passes
    - Verify formatting completes successfully with no errors or warnings
    - Fix any formatting issues if they occur
@@ -138,20 +144,18 @@ The following error patterns MUST be detected and fixed before commit. These are
    - **VALIDATION**: Parse formatter check output to verify zero violations - **BLOCK COMMIT** if any violations remain
 2. **Type checking** - Run type checker (if applicable):
    - **Conditional**: Only execute if project uses a type system (Python with type hints, TypeScript, etc.)
-   - Execute project-specific type checker:
-     - Python: `.venv/bin/pyright src/ tests/` or `python -m pyright src/ tests/`
-     - TypeScript: `tsc --noEmit` or `tsc --build`
-     - Other languages: Use appropriate type checker command
+   - Execute language-specific type checker script: `.cortex/synapse/scripts/{language}/check_types.py` (or equivalent)
+   - The script should run the appropriate type checker for the language
    - **CRITICAL**: Capture and parse type checker output to verify zero errors
    - **VALIDATION**: Verify type checking completes with zero errors (warnings are acceptable but should be reviewed)
    - **BLOCK COMMIT** if type checker reports any type errors (not warnings)
    - Fix any critical type errors before proceeding
    - Re-run type checker after fixes to verify zero errors remain
-   - **Skip if**: Project does not use a type system
+   - **Skip if**: Project does not use a type system or script does not exist
 3. **Code quality checks** - Run file size and function/method length checks:
-   - Execute project-specific code quality checks:
-     - Python: `./.venv/bin/python .cortex/synapse/scripts/python/check_file_sizes.py` and `./.venv/bin/python .cortex/synapse/scripts/python/check_function_lengths.py`
-     - Other languages: Use appropriate code quality tools or scripts
+   - Execute language-specific code quality check scripts:
+     - File size check: `.cortex/synapse/scripts/{language}/check_file_sizes.py` (or equivalent)
+     - Function length check: `.cortex/synapse/scripts/{language}/check_function_lengths.py` (or equivalent)
    - Verify all files are within project's line limit (typically 400 lines)
    - **VALIDATION**: Parse check output to verify zero violations - **BLOCK COMMIT** if any files exceed limit
    - Verify all functions/methods are within project's length limit (typically 30 lines)
@@ -160,7 +164,7 @@ The following error patterns MUST be detected and fixed before commit. These are
    - Fix any file size or function/method length violations before proceeding
    - Re-run checks after fixes to verify zero violations remain
    - Note: These checks match CI quality gate requirements and MUST pass
-   - Note: For Python projects, scripts are located in `.cortex/synapse/scripts/python/` and are shared across projects using the same Synapse repository
+   - Note: Scripts are located in `.cortex/synapse/scripts/{language}/` and are shared across projects using the same Synapse repository
 4. **Test execution** - Use `execute_pre_commit_checks()` MCP tool:
    - **Call MCP tool**: `execute_pre_commit_checks(checks=["tests"], timeout=300, coverage_threshold=0.90)`
    - The tool will automatically:
@@ -310,6 +314,7 @@ Before proceeding to commit creation, provide a validation summary confirming al
 ### **Pre-Commit Validation Checklist**
 
 - [ ] **Fix Errors Validation**: Type checker = 0 errors (if applicable), Linter = 0 errors
+- [ ] **Linter Check Validation**: Linter check (without --fix) = 0 errors (parsed from output, CRITICAL - catches non-fixable errors)
 - [ ] **Formatting Validation**: Formatter check = 0 violations (parsed from output)
 - [ ] **Type Checking Validation**: Type checker = 0 type errors (parsed from output, skip if not applicable)
 - [ ] **Code Quality Validation**: File size = 0 violations, Function length = 0 violations (parsed from script output)
@@ -362,7 +367,8 @@ Use this ordering when numbering results:
 - **Details**: Summary from fix-errors command
 - **Validation Results**:
   - Type checker re-check: Pass/Fail with error count (MUST be 0, skip if not applicable)
-  - Linter re-check: Pass/Fail with error count (MUST be 0)
+  - Linter re-check (after fix): Pass/Fail with error count (MUST be 0)
+  - Linter check (without --fix): Pass/Fail with error count (MUST be 0, CRITICAL - catches non-fixable errors)
 - **Commit Blocked**: Yes/No (blocked if any errors remain)
 
 #### **1. Formatting**
