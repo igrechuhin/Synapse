@@ -91,6 +91,7 @@ The following error patterns MUST be detected and fixed before commit. These are
 - **Detection**: Parse linter output for error count (e.g., ruff for Python, ESLint for JavaScript/TypeScript)
 - **Action**: Fix linting errors, re-run linter, verify zero errors
 - **Block Commit**: Yes - linter errors will cause CI to fail
+- **Note**: For Python, ensure code is compatible with Python 3.10+ (CI checks Python 3.10 compatibility). Use `TypeAlias` from `typing` instead of `type` alias statement (Python 3.12+ only). Use language-agnostic scripts from `.cortex/synapse/scripts/{language}/` instead of hardcoded commands
 
 ### Integration Test Failures
 
@@ -123,19 +124,23 @@ The following error patterns MUST be detected and fixed before commit. These are
      - `total_errors` = 0 (MUST be zero)
      - `results.fix_errors.success` = true
      - **BLOCK COMMIT** if any errors remain after fix-errors step
-   - **CRITICAL**: After fix-errors, run linter check script to verify all linting issues are resolved
+   - **CRITICAL**: After fix-errors, run linter check script in check-only mode to verify all linting issues are resolved
      - Execute language-specific linting check script: `.cortex/synapse/scripts/{language}/check_linting.py` (or equivalent for non-Python)
      - The script runs linter in check-only mode (without --fix flag) to catch non-fixable errors
+     - Scripts auto-detect directories (src/, tests/, .cortex/synapse/scripts/) matching CI workflow
      - **CRITICAL**: If linter check fails, fix remaining issues and re-run fix-errors until check passes
      - **MANDATORY**: Linter check MUST pass before proceeding to next step
      - **VALIDATION**: Parse linter check output to verify zero errors - **BLOCK COMMIT** if any linting errors remain
-     - **Note**: The fix-errors step runs linter with --fix which fixes auto-fixable issues, but some errors (like undefined names) cannot be auto-fixed and must be manually resolved
+     - **Note**: The fix-errors step runs linter with --fix which fixes auto-fixable issues, but some errors (like syntax errors, undefined names, Python version compatibility) cannot be auto-fixed and must be manually resolved
 
 1. **Code formatting** - Run project formatter:
    - Execute language-specific formatting script: `.cortex/synapse/scripts/{language}/format_code.py` (or equivalent)
    - The script should run the project formatter and import sorting tools
+   - Scripts auto-detect directories (src/, tests/, .cortex/synapse/scripts/) matching CI workflow
    - **CRITICAL**: After formatting, run formatter check script to verify all files pass formatting check
      - Execute language-specific formatter check script: `.cortex/synapse/scripts/{language}/check_formatting.py` (or equivalent)
+     - If script doesn't exist, run formatter in check-only mode manually (e.g., `black --check` for Python)
+     - Scripts auto-detect directories matching CI workflow
    - **CRITICAL**: If formatter check fails, re-run formatter and verify again until check passes
    - Verify formatting completes successfully with no errors or warnings
    - Fix any formatting issues if they occur
@@ -145,13 +150,14 @@ The following error patterns MUST be detected and fixed before commit. These are
 2. **Type checking** - Run type checker (if applicable):
    - **Conditional**: Only execute if project uses a type system (Python with type hints, TypeScript, etc.)
    - Execute language-specific type checker script: `.cortex/synapse/scripts/{language}/check_types.py` (or equivalent)
-   - The script should run the appropriate type checker for the language
+   - If script doesn't exist, run type checker manually (e.g., `pyright src/` for Python - matches CI which only checks src/, not tests/)
+   - Scripts auto-detect directories matching CI workflow
    - **CRITICAL**: Capture and parse type checker output to verify zero errors
    - **VALIDATION**: Verify type checking completes with zero errors (warnings are acceptable but should be reviewed)
    - **BLOCK COMMIT** if type checker reports any type errors (not warnings)
    - Fix any critical type errors before proceeding
    - Re-run type checker after fixes to verify zero errors remain
-   - **Skip if**: Project does not use a type system or script does not exist
+   - **Skip if**: Project does not use a type system
 3. **Code quality checks** - Run file size and function/method length checks:
    - Execute language-specific code quality check scripts:
      - File size check: `.cortex/synapse/scripts/{language}/check_file_sizes.py` (or equivalent)
