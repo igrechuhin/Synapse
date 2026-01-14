@@ -7,6 +7,7 @@
 **Tooling Note**: Use standard Cursor tools (`Read`, `ApplyPatch`, `Write`, `LS`, `Glob`, `Grep`) by default; MCP filesystem tools are optional fallbacks only when standard tools are unavailable or explicitly requested. **Use Cortex MCP tools for memory bank operations** (e.g., `manage_file()`, `get_memory_bank_stats()`, `validate()`, `check_structure_health()`).
 
 **Pre-Commit Checks**: Use the `execute_pre_commit_checks()` MCP tool for all pre-commit operations (fix errors, format, type check, quality, tests). This tool provides:
+
 - Language auto-detection
 - Structured parameters and return values
 - Consistent error handling
@@ -235,7 +236,7 @@ The following error patterns MUST be detected and fixed before commit. These are
   - Skip this step (command file not available)
   - Note: Roadmap synchronization can be validated manually if needed
 
-11. **Submodule handling** - Commit and push `.cortex/synapse` submodule changes if any:
+1. **Submodule handling** - Commit and push `.cortex/synapse` submodule changes if any:
 
 - Check if `.cortex/synapse` submodule has uncommitted changes using `git -C .cortex/synapse status --porcelain`
 - If submodule has changes:
