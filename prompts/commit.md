@@ -61,9 +61,14 @@ The following error patterns MUST be detected and fixed before commit. These are
 ### Test Coverage Below Threshold
 
 - **Pattern**: Coverage percentage < 90%
-- **Detection**: Parse coverage report from test output
+- **Detection**: Parse coverage report from test output (MANDATORY - must extract exact percentage)
 - **Action**: Add tests to increase coverage, re-run tests, verify coverage ≥ 90%
 - **Block Commit**: Yes - coverage below threshold violates project standards
+- **CRITICAL**: Coverage MUST be parsed from test output, not estimated or assumed
+- **CRITICAL**: If coverage is below 90%, DO NOT proceed with commit - fix coverage first
+- **CRITICAL**: Coverage validation is MANDATORY - there are NO exceptions or "slightly below" allowances
+- **Validation**: Coverage percentage MUST be explicitly extracted and verified ≥ 90.0% before proceeding
+- **Enforcement**: If coverage < 90.0%, the commit procedure MUST stop immediately and coverage MUST be fixed before continuing
 
 ### File Size Violations
 
@@ -185,10 +190,16 @@ The following error patterns MUST be detected and fixed before commit. These are
      - `results.tests.success` = true
      - `results.tests.tests_failed` = 0 (MUST be zero)
      - `results.tests.pass_rate` = 100.0 (MUST be 100%)
-     - `results.tests.coverage` ≥ 0.90 (MUST meet threshold)
+     - `results.tests.coverage` ≥ 0.90 (MUST meet threshold - NO exceptions)
      - **BLOCK COMMIT** if any of the above validations fail
-   - If tests fail, fix issues and re-run tool until all pass
-   - Re-verify all validation criteria after fixes
+   - **CRITICAL COVERAGE VALIDATION**: 
+     - Coverage MUST be extracted from `results.tests.coverage` field
+     - Coverage MUST be compared to 0.90 threshold
+     - If coverage < 0.90, commit procedure MUST STOP immediately
+     - DO NOT proceed with "slightly below" or "close enough" - threshold is absolute
+     - Coverage must be fixed by adding tests before commit can proceed
+   - If tests fail or coverage is below threshold, fix issues and re-run tool until all pass
+   - Re-verify all validation criteria after fixes, including coverage threshold
 5. **Memory bank operations** - **Should use existing MCP tools**:
    - **Use MCP tool `manage_file()`** to update memory bank files (e.g., `activeContext.md`, `progress.md`, `roadmap.md`)
    - **Use MCP tool `get_memory_bank_stats()`** to check current state
@@ -292,12 +303,17 @@ The commit procedure executes steps in this specific order to ensure dependencie
 3. **Code Quality Checks** - Validates file size and function/method length limits (matches CI quality gate)
    - **CRITICAL**: Must pass before testing to ensure code meets quality standards
    - **VALIDATION**: Both checks MUST show zero violations - **BLOCK COMMIT** if violations exist
-4. **Testing** (Run Tests) - Executes `run-tests.md` command to ensure functionality correctness
-   - **CRITICAL**: Reuses `run-tests.md` command (DRY principle) - do not duplicate test logic
+4. **Testing** (Run Tests) - Executes test suite to ensure functionality correctness
+   - **CRITICAL**: Uses `execute_pre_commit_checks()` MCP tool for structured test execution
    - **CRITICAL**: Runs AFTER errors, formatting, and code quality are fixed
    - **CRITICAL**: Tests must pass with 100% pass rate before proceeding
-   - **VALIDATION**: Must verify zero test failures, 100% pass rate, 90%+ coverage (if applicable), all integration tests pass
-   - **BLOCK COMMIT** if any test validation fails
+   - **VALIDATION**: Must verify zero test failures, 100% pass rate, 90%+ coverage (MANDATORY), all integration tests pass
+   - **CRITICAL COVERAGE ENFORCEMENT**: 
+     - Coverage threshold of 90% is MANDATORY and absolute
+     - Coverage MUST be parsed from test output and verified ≥ 90.0%
+     - If coverage < 90.0%, commit procedure MUST STOP and coverage MUST be fixed
+     - NO exceptions, NO "close enough", NO proceeding with coverage below threshold
+   - **BLOCK COMMIT** if any test validation fails, including coverage below threshold
 5. **Documentation** (Memory Bank) - Updates project context
 6. **Roadmap Updates** (Roadmap Update) - Ensures roadmap reflects current progress
 7. **Plan Archiving** (Archive Completed Plans) - Cleans up completed build plans
@@ -410,21 +426,24 @@ Use this ordering when numbering results:
 #### **3. Test Execution**
 
 - **Status**: Success/Failure
-- **Command Used**: `run-tests` (reused from `.cortex/synapse/prompts/run-tests.md`)
+- **Command Used**: `execute_pre_commit_checks(checks=["tests"])` MCP tool
 - **Tests Executed**: Count of tests executed
 - **Tests Passed**: Count of passing tests
 - **Tests Failed**: Count of failing tests (must be 0)
 - **Pass Rate**: Percentage pass rate (target: 100%)
 - **Coverage**: Test coverage percentage (target: 90%+)
+- **Coverage Value**: Exact coverage percentage extracted from test output (e.g., 90.46%)
+- **Coverage Threshold**: 90.0% (absolute minimum, no exceptions)
 - **Validation Results**:
   - Zero failures confirmed: Yes/No (parsed from test output)
   - 100% pass rate confirmed: Yes/No (calculated from test output)
-  - Coverage threshold met: Yes/No (coverage ≥ 90% confirmed)
+  - Coverage threshold met: Yes/No (coverage ≥ 90.0% confirmed - MANDATORY)
+  - Coverage value extracted: Yes/No (exact percentage must be shown)
   - Integration tests passed: Yes/No (explicitly verified)
   - Test output parsed: Yes/No
-- **Details**: Complete summary from run-tests command (see run-tests.md output format)
-- **Commit Blocked**: Yes/No (blocked if any validation fails)
-- **Note**: This step reuses `run-tests.md` command to avoid duplication (DRY principle)
+- **Details**: Complete summary from test execution
+- **Commit Blocked**: Yes/No (blocked if any validation fails, including coverage < 90.0%)
+- **CRITICAL**: If coverage < 90.0%, commit MUST be blocked regardless of other results
 
 #### **4. Memory Bank Update**
 
@@ -571,12 +590,12 @@ Use this ordering when numbering results:
   7. **VALIDATION**: Re-parse test output to verify:
      - Zero test failures (failed count = 0)
      - 100% pass rate for executable tests
-     - Coverage meets 90%+ threshold
+     - Coverage meets 90%+ threshold (MANDATORY - extract exact percentage and verify ≥ 90.0%)
      - All integration tests pass
-  8. Continue until all tests pass with 100% pass rate and all validations pass
+  8. Continue until all tests pass with 100% pass rate and all validations pass, including coverage ≥ 90.0%
 - **No Partial Commits**: Do not proceed with commit until all tests pass and all validations confirm success
-- **Reuse Command**: Always use `run-tests.md` command, do not duplicate test execution logic
-- **BLOCK COMMIT**: If any test validation fails, do not proceed with commit
+- **Coverage Enforcement**: Coverage threshold of 90% is absolute - if coverage < 90.0%, commit MUST be blocked
+- **BLOCK COMMIT**: If any test validation fails, including coverage below 90.0%, do not proceed with commit
 
 ### Submodule Failure
 
@@ -655,10 +674,11 @@ Use this ordering when numbering results:
 - ✅ **VALIDATION**: File size check script output confirms zero violations
 - ✅ Function length check passes (all functions ≤ 30 lines)
 - ✅ **VALIDATION**: Function length check script output confirms zero violations
-- ✅ All executable tests pass (100% pass rate) - verified via `run-tests.md` command
+- ✅ All executable tests pass (100% pass rate) - verified via test execution
 - ✅ **VALIDATION**: Test output parsed to confirm zero failures, 100% pass rate
-- ✅ Test coverage meets threshold (90%+) - verified via `run-tests.md` command
-- ✅ **VALIDATION**: Coverage percentage parsed from test output and confirmed ≥ 90%
+- ✅ Test coverage meets threshold (90%+) - verified via test execution
+- ✅ **VALIDATION**: Coverage percentage parsed from test output and confirmed ≥ 90.0% (MANDATORY)
+- ✅ **COVERAGE ENFORCEMENT**: Coverage threshold validation is absolute - no exceptions allowed
 - ✅ All integration tests pass - explicitly verified from test output
 - ✅ Memory bank updated with current information
 - ✅ Roadmap.md updated with completed items and current progress
