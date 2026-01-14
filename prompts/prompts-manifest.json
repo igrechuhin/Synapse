@@ -6,19 +6,19 @@
       "prompts": [
         {
           "file": "commit.md",
-          "name": "Commit Changes",
+          "name": "Commit",
           "description": "Execute the mandatory commit procedure with all required pre-commit checks",
           "keywords": ["commit", "git", "pre-commit", "testing", "formatting"]
         },
         {
           "file": "review.md",
-          "name": "Review Code",
+          "name": "Review",
           "description": "Comprehensive code review to find bugs, inconsistencies, and incomplete implementations",
           "keywords": ["review", "code-quality", "bugs", "consistency", "testing"]
         },
         {
           "file": "implement-next-roadmap-step.md",
-          "name": "Implement Next Roadmap Step",
+          "name": "Implement",
           "description": "Read the roadmap, identify the next pending step, and implement it completely",
           "keywords": ["roadmap", "implementation", "tasks", "planning", "progress"]
         }
