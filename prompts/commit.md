@@ -213,16 +213,21 @@ The following error patterns MUST be detected and fixed before commit. These are
    - Validate that plan files are archived in `.cursor/plans/archive/`
    - Report any plan files found outside `.cursor/plans/archive/` and require manual correction
    - Block commit if archive location violations are found
-9. **Optimize memory bank** - Execute Cursor command: `validate-memory-bank-timestamps` (if available):
-   - Check if `.cortex/synapse/prompts/validate-memory-bank-timestamps.md` exists
-   - If file exists:
-     - Read `.cortex/synapse/prompts/validate-memory-bank-timestamps.md`
-     - Execute ALL steps from that command automatically
-     - Validate timestamp format and optimize memory bank
-     - Ensure all timestamps use YY-MM-DD format (no HH-mm)
-   - If file does not exist:
-     - Skip this step (command file not available)
-     - Note: Memory bank optimization can be done manually if needed
+9. **Validate memory bank timestamps** - Use MCP tool `validate(check_type="timestamps")`:
+   - **Call MCP tool**: `validate(check_type="timestamps", project_root="<project_root>")`
+   - The tool will automatically:
+     - Scan all Memory Bank files for timestamps
+     - Validate that all timestamps use YYYY-MM-DD date-only format (no time components)
+     - Report any violations with file names, line numbers, and issue descriptions
+     - Return structured results with violation counts and details
+   - **CRITICAL**: This step runs as part of pre-commit validation
+   - **VALIDATION**: Parse tool response to verify:
+     - `valid` = true (MUST be true)
+     - `total_invalid_format` = 0 (MUST be zero)
+     - `total_invalid_with_time` = 0 (MUST be zero)
+     - **BLOCK COMMIT** if any timestamp violations are found
+   - If violations are found, fix timestamp formats and re-run validation until all pass
+   - Re-verify all validation criteria after fixes
 10. **Roadmap synchronization validation** - Execute Cursor command: `validate-roadmap-sync` (if available):
 
 - Check if `.cortex/synapse/prompts/validate-roadmap-sync.md` exists
@@ -357,7 +362,7 @@ Use this ordering when numbering results:
 - Step 5: Roadmap Update
 - Step 6: Plan Archiving
 - Step 7: Archive Validation
-- Step 8: Memory Bank Optimization
+- Step 8: Memory Bank Timestamp Validation
 - Step 9: Roadmap Synchronization Validation
 - Step 10: Submodule Handling
 - Step 11: Commit Creation
@@ -453,13 +458,21 @@ Use this ordering when numbering results:
 - **Violations List**: List of any plan files in wrong locations
 - **Details**: Summary of archive location validation results
 
-#### **8. Memory Bank Optimization**
+#### **8. Memory Bank Timestamp Validation**
 
-- **Status**: Success/Failure/Skipped
-- **Command File Available**: Whether validate-memory-bank-timestamps.md exists
-- **Timestamp Validation**: Status of timestamp format validation (if command executed)
-- **Optimization**: Summary of optimization performed (if command executed)
-- **Details**: Summary from validate-memory-bank-timestamps command (if executed) or reason for skipping
+- **Status**: Success/Failure
+- **Command Used**: `validate(check_type="timestamps")` MCP tool
+- **Total Valid Timestamps**: Count of valid YYYY-MM-DD timestamps found
+- **Total Invalid Format**: Count of invalid date format violations (must be 0)
+- **Total Invalid With Time**: Count of timestamps with time components (must be 0)
+- **Files Valid**: Whether all files passed validation
+- **Validation Results**:
+  - Zero invalid format violations confirmed: Yes/No (parsed from tool output)
+  - Zero invalid with time violations confirmed: Yes/No (parsed from tool output)
+  - All files valid confirmed: Yes/No (parsed from tool output)
+  - Tool output parsed: Yes/No
+- **Details**: Summary of timestamp validation results, including any violations found
+- **Commit Blocked**: Yes/No (blocked if any violations found)
 
 #### **9. Roadmap Synchronization Validation**
 
@@ -605,7 +618,7 @@ Use this ordering when numbering results:
   - Step 0 (Fix Errors) MUST use `execute_pre_commit_checks(checks=["fix_errors"])` MCP tool
   - Step 4 (Testing) MUST use `execute_pre_commit_checks(checks=["tests"])` MCP tool
   - Step 4 (Memory Bank) MUST use `manage_file()` MCP tool for memory bank operations
-  - Step 8 (Memory Bank Optimization) MUST use `validate-memory-bank-timestamps.md` command if it exists
+  - Step 8 (Memory Bank Timestamp Validation) MUST use `validate(check_type="timestamps")` MCP tool
   - Step 9 (Roadmap Sync) MUST use `validate-roadmap-sync.md` command if it exists
   - If optional command files don't exist, skip those steps gracefully without searching for alternatives
   - This ensures consistency, maintainability, type safety, and single source of truth
@@ -651,7 +664,7 @@ Use this ordering when numbering results:
 - ✅ Roadmap.md updated with completed items and current progress
 - ✅ Completed build plans archived to .cursor/plans/archive/
 - ✅ Plan archive locations validated (no violations)
-- ✅ Memory bank optimized and validated
+- ✅ Memory bank timestamps validated (all use YYYY-MM-DD format, no time components)
 - ✅ Roadmap.md synchronized with Sources/ codebase
 - ✅ All production TODOs properly tracked
 - ✅ `.cortex/synapse` submodule changes committed and pushed (if any changes exist)
