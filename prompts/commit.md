@@ -106,13 +106,13 @@ The following error patterns MUST be detected and fixed before commit. These are
 - **Action**: Fix integration test issues, re-run tests, verify all pass
 - **Block Commit**: Yes - integration test failures indicate broken functionality
 
-### Type Checker Warnings (Review Required)
+### Type Checker Warnings
 
 - **Pattern**: Type checker reports warnings (not errors)
 - **Detection**: Parse type checker output for warning count
-- **Action**: Review warnings, fix critical ones, document acceptable warnings
-- **Block Commit**: No - warnings don't block commit but should be reviewed
-- **Note**: Only applicable if project uses a type system
+- **Action**: Fix all warnings, re-run type checker, verify zero warnings
+- **Block Commit**: Yes - warnings must be resolved before commit
+- **Note**: Only applicable if project uses a type system (Python with type hints, TypeScript, etc.)
 
 **CRITICAL**: All error patterns above MUST be validated by parsing command output, not just checking exit codes. Exit codes can be misleading - always parse actual output to verify results.
 
@@ -158,11 +158,11 @@ The following error patterns MUST be detected and fixed before commit. These are
    - Execute language-specific type checker script: `.cortex/synapse/scripts/{language}/check_types.py` (or equivalent)
    - If script doesn't exist, run type checker manually (e.g., `pyright src/` for Python - matches CI which only checks src/, not tests/)
    - Scripts auto-detect directories matching CI workflow
-   - **CRITICAL**: Capture and parse type checker output to verify zero errors
-   - **VALIDATION**: Verify type checking completes with zero errors (warnings are acceptable but should be reviewed)
-   - **BLOCK COMMIT** if type checker reports any type errors (not warnings)
-   - Fix any critical type errors before proceeding
-   - Re-run type checker after fixes to verify zero errors remain
+   - **CRITICAL**: Capture and parse type checker output to verify zero errors AND zero warnings
+   - **VALIDATION**: Verify type checking completes with zero errors AND zero warnings
+   - **BLOCK COMMIT** if type checker reports any type errors OR warnings
+   - Fix any type errors and warnings before proceeding
+   - Re-run type checker after fixes to verify zero errors AND zero warnings remain
    - **Skip if**: Project does not use a type system
 3. **Code quality checks** - Run file size and function/method length checks:
    - Execute language-specific code quality check scripts:
@@ -298,8 +298,8 @@ The commit procedure executes steps in this specific order to ensure dependencie
    - **CRITICAL**: Must verify with formatter check after formatting to ensure CI will pass
    - **VALIDATION**: Formatter check MUST pass - **BLOCK COMMIT** if it fails
 2. **Type Checking** - Validates type safety with type checker (if applicable)
-   - **CRITICAL**: Must pass with zero type errors before proceeding (skip if project doesn't use types)
-   - **VALIDATION**: Type checker MUST report zero errors - **BLOCK COMMIT** if type errors exist
+   - **CRITICAL**: Must pass with zero type errors AND zero warnings before proceeding (skip if project doesn't use types)
+   - **VALIDATION**: Type checker MUST report zero errors AND zero warnings - **BLOCK COMMIT** if type errors OR warnings exist
 3. **Code Quality Checks** - Validates file size and function/method length limits (matches CI quality gate)
    - **CRITICAL**: Must pass before testing to ensure code meets quality standards
    - **VALIDATION**: Both checks MUST show zero violations - **BLOCK COMMIT** if violations exist
@@ -344,7 +344,7 @@ Before proceeding to commit creation, provide a validation summary confirming al
 - [ ] **Fix Errors Validation**: Type checker = 0 errors (if applicable), Linter = 0 errors
 - [ ] **Linter Check Validation**: Linter check (without --fix) = 0 errors (parsed from output, CRITICAL - catches non-fixable errors)
 - [ ] **Formatting Validation**: Formatter check = 0 violations (parsed from output)
-- [ ] **Type Checking Validation**: Type checker = 0 type errors (parsed from output, skip if not applicable)
+- [ ] **Type Checking Validation**: Type checker = 0 type errors AND 0 warnings (parsed from output, skip if not applicable)
 - [ ] **Code Quality Validation**: File size = 0 violations, Function length = 0 violations (parsed from script output)
 - [ ] **Test Execution Validation**:
   - Test failures = 0 (parsed from test output)
@@ -394,10 +394,10 @@ Use this ordering when numbering results:
 - **Files Modified**: List of files modified during error fixing
 - **Details**: Summary from fix-errors command
 - **Validation Results**:
-  - Type checker re-check: Pass/Fail with error count (MUST be 0, skip if not applicable)
+  - Type checker re-check: Pass/Fail with error count AND warning count (MUST be 0 errors AND 0 warnings, skip if not applicable)
   - Linter re-check (after fix): Pass/Fail with error count (MUST be 0)
   - Linter check (without --fix): Pass/Fail with error count (MUST be 0, CRITICAL - catches non-fixable errors)
-- **Commit Blocked**: Yes/No (blocked if any errors remain)
+- **Commit Blocked**: Yes/No (blocked if any errors OR warnings remain)
 
 #### **1. Formatting**
 
@@ -409,7 +409,23 @@ Use this ordering when numbering results:
 - **Warnings**: Any formatting warnings
 - **Verification**: Confirmation that formatter check passed before proceeding
 
-#### **2. Code Quality Checks**
+#### **2. Type Checking**
+
+- **Status**: Success/Failure
+- **Command Used**: Type checker command (e.g., `pyright src/` for Python)
+- **Type Errors Found**: Count of type errors found (must be 0)
+- **Type Warnings Found**: Count of type warnings found (must be 0)
+- **Errors Fixed**: Count of type errors fixed
+- **Warnings Fixed**: Count of type warnings fixed
+- **Validation Results**:
+  - Zero type errors confirmed: Yes/No (parsed from output, MUST be 0)
+  - Zero type warnings confirmed: Yes/No (parsed from output, MUST be 0)
+  - Tool output parsed: Yes/No
+- **Details**: Summary of any type errors/warnings and their resolution
+- **Commit Blocked**: Yes/No (blocked if any type errors OR warnings remain)
+- **Skip if**: Project does not use a type system
+
+#### **3. Code Quality Checks**
 
 - **Status**: Success/Failure
 - **File Size Check**: Status of file size validation (max 400 lines)
@@ -423,7 +439,7 @@ Use this ordering when numbering results:
 - **Details**: Summary of any violations and their resolution
 - **Commit Blocked**: Yes/No (blocked if any violations remain)
 
-#### **3. Test Execution**
+#### **4. Test Execution**
 
 - **Status**: Success/Failure
 - **Command Used**: `execute_pre_commit_checks(checks=["tests"])` MCP tool
@@ -662,9 +678,9 @@ Use this ordering when numbering results:
 ## Success Criteria
 
 - ✅ All compiler errors and warnings fixed (fix-errors step passes)
-- ✅ **VALIDATION**: Zero errors confirmed via type checker (if applicable) and linter re-checks after fix-errors
-- ✅ All type errors resolved (if applicable)
-- ✅ **VALIDATION**: Type checker reports zero type errors (parsed from output, skip if not applicable)
+- ✅ **VALIDATION**: Zero errors AND zero warnings confirmed via type checker (if applicable) and linter re-checks after fix-errors
+- ✅ All type errors and warnings resolved (if applicable)
+- ✅ **VALIDATION**: Type checker reports zero type errors AND zero warnings (parsed from output, skip if not applicable)
 - ✅ All formatting issues fixed
 - ✅ Project formatter + import sorting (if applicable) formatting passes without errors
 - ✅ **CRITICAL**: Formatter check MUST pass after formatting (verifies CI will pass)

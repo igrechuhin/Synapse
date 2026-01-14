@@ -21,6 +21,12 @@
           "name": "Implement",
           "description": "Read the roadmap, identify the next pending step, and implement it completely",
           "keywords": ["roadmap", "implementation", "tasks", "planning", "progress"]
+        },
+        {
+          "file": "create-plan.md",
+          "name": "Plan",
+          "description": "Create a development plan based on user description, add it to plans directory, and update roadmap",
+          "keywords": ["plan", "planning", "roadmap", "development", "tasks", "milestones"]
         }
       ]
     }
