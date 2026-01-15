@@ -126,10 +126,12 @@ The following error patterns MUST be detected and fixed before commit. These are
      - Return structured results with error counts and files modified
    - **CRITICAL**: This step MUST run before testing to ensure code contains no errors
    - **CRITICAL**: This prevents committing/pushing poor code that would fail CI checks
+   - **PRIMARY FOCUS**: If errors are detected, fix them immediately
    - **VALIDATION**: Parse tool response to verify:
      - `total_errors` = 0 (MUST be zero)
      - `results.fix_errors.success` = true
      - **BLOCK COMMIT** if any errors remain after fix-errors step
+   - **CONTEXT ASSESSMENT**: After fixing errors, if insufficient context remains, provide comprehensive summary and advise re-running commit pipeline
    - **CRITICAL**: After fix-errors, run linter check script in check-only mode to verify all linting issues are resolved
      - Execute language-specific linting check script: `.cortex/synapse/scripts/{language}/check_linting.py` (or equivalent for non-Python)
      - The script runs linter in check-only mode (without --fix flag) to catch non-fixable errors
@@ -147,12 +149,14 @@ The following error patterns MUST be detected and fixed before commit. These are
      - Execute language-specific formatter check script: `.cortex/synapse/scripts/{language}/check_formatting.py` (or equivalent)
      - If script doesn't exist, run formatter in check-only mode manually (e.g., `black --check` for Python)
      - Scripts auto-detect directories matching CI workflow
+   - **PRIMARY FOCUS**: If formatting violations are detected, fix them immediately
    - **CRITICAL**: If formatter check fails, re-run formatter and verify again until check passes
    - Verify formatting completes successfully with no errors or warnings
    - Fix any formatting issues if they occur
    - Verify no files were left in inconsistent state
    - **MANDATORY**: Formatter check MUST pass before proceeding to next step
    - **VALIDATION**: Parse formatter check output to verify zero violations - **BLOCK COMMIT** if any violations remain
+   - **CONTEXT ASSESSMENT**: After fixing formatting issues, if insufficient context remains, provide comprehensive summary and advise re-running commit pipeline
 2. **Type checking** - Run type checker (if applicable):
    - **Conditional**: Only execute if project uses a type system (Python with type hints, TypeScript, etc.)
    - Execute language-specific type checker script: `.cortex/synapse/scripts/{language}/check_types.py` (or equivalent)
@@ -161,8 +165,10 @@ The following error patterns MUST be detected and fixed before commit. These are
    - **CRITICAL**: Capture and parse type checker output to verify zero errors AND zero warnings
    - **VALIDATION**: Verify type checking completes with zero errors AND zero warnings
    - **BLOCK COMMIT** if type checker reports any type errors OR warnings
+   - **PRIMARY FOCUS**: If type errors/warnings are detected, fix them immediately
    - Fix any type errors and warnings before proceeding
    - Re-run type checker after fixes to verify zero errors AND zero warnings remain
+   - **CONTEXT ASSESSMENT**: After fixing type issues, if insufficient context remains, provide comprehensive summary and advise re-running commit pipeline
    - **Skip if**: Project does not use a type system
 3. **Code quality checks** - Run file size and function/method length checks:
    - Execute language-specific code quality check scripts:
@@ -172,9 +178,11 @@ The following error patterns MUST be detected and fixed before commit. These are
    - **VALIDATION**: Parse check output to verify zero violations - **BLOCK COMMIT** if any files exceed limit
    - Verify all functions/methods are within project's length limit (typically 30 lines)
    - **VALIDATION**: Parse check output to verify zero violations - **BLOCK COMMIT** if any functions/methods exceed limit
+   - **PRIMARY FOCUS**: If violations are detected, fix them immediately (split files, extract functions)
    - Verify both checks complete successfully with no violations
    - Fix any file size or function/method length violations before proceeding
    - Re-run checks after fixes to verify zero violations remain
+   - **CONTEXT ASSESSMENT**: After fixing violations, if insufficient context remains, provide comprehensive summary and advise re-running commit pipeline
    - Note: These checks match CI quality gate requirements and MUST pass
    - Note: Scripts are located in `.cortex/synapse/scripts/{language}/` and are shared across projects using the same Synapse repository
 4. **Test execution** - Use `execute_pre_commit_checks()` MCP tool:
@@ -576,39 +584,64 @@ Use this ordering when numbering results:
 - **Push Status**: Success or failure status
 - **Remote Tracking**: Whether remote tracking branch was set
 
+## Error/Violation Handling Strategy
+
+**PRIMARY FOCUS**: When any error or violation is detected during the commit procedure, the agent's PRIMARY FOCUS must be to fix it immediately.
+
+**After Fixing**:
+1. **If sufficient free context remains**: Continue with the commit pipeline automatically
+   - Re-run the validation check that detected the issue
+   - Verify the fix resolved the issue
+   - Proceed to the next step in the commit pipeline
+2. **If free context is insufficient**: Stop the commit pipeline and provide:
+   - **Comprehensive Changes Summary**: Document all fixes made, files modified, and changes applied
+   - **Re-run Recommendation**: Advise the user to re-run the commit pipeline (`/commit` or equivalent)
+   - **Status Report**: Clearly indicate which step was completed and which step should be executed next
+
+**Context Assessment**: The agent should assess available context after each fix:
+- Consider remaining token budget
+- Consider complexity of remaining steps
+- Consider number of additional fixes that may be needed
+- If uncertain, err on the side of providing a summary and recommending re-run
+
 ## Failure Handling
 
 ### Code Quality Check Failure
 
-- **Action**: Report the issue and block commit if violations found
+- **Action**: **PRIMARY FOCUS** - Fix violations immediately, then assess context to continue or summarize
 - **Process**:
-  1. Report the specific code quality violation (file size or function length)
+  1. **IMMEDIATE FIX**: Report the specific code quality violation (file size or function length)
   2. Provide detailed error information including file path, function name, and violation details
   3. Parse script output to extract exact violation counts and details
-  4. Fix file size violations by splitting large files or extracting modules
-  5. Fix function length violations by extracting helper functions or refactoring logic
+  4. **FIX**: Fix file size violations by splitting large files or extracting modules
+  5. **FIX**: Fix function length violations by extracting helper functions or refactoring logic
   6. Re-run checks to verify fixes
   7. **VALIDATION**: Re-parse script output to confirm zero violations remain
-  8. Do not proceed with commit until all checks pass and validation confirms zero violations
+  8. **CONTEXT ASSESSMENT**: After fixing, assess if sufficient free context remains:
+     - If YES: Continue with commit pipeline (re-run check, verify, proceed to next step)
+     - If NO: Provide comprehensive changes summary and advise re-running commit pipeline
   9. **CRITICAL**: These checks match CI quality gate requirements - failures will cause CI to fail
 - **No Partial Commits**: Do not proceed with commit until all code quality checks pass and validation confirms zero violations
 
 ### Test Suite Failure
 
-- **Action**: Investigate and fix issues before proceeding
+- **Action**: **PRIMARY FOCUS** - Fix test failures immediately, then assess context to continue or summarize
 - **Process**:
-  1. Review test failure output from `run-tests` command
+  1. **IMMEDIATE FIX**: Review test failure output from `run-tests` command
   2. Parse test output to extract exact failure counts, test names, and error messages
   3. Analyze test failure messages and stack traces
   4. Identify root cause (code issue vs test issue)
-  5. Fix the underlying issues
+  5. **FIX**: Fix the underlying issues
   6. Re-run `run-tests` command to verify fixes
   7. **VALIDATION**: Re-parse test output to verify:
      - Zero test failures (failed count = 0)
      - 100% pass rate for executable tests
      - Coverage meets 90%+ threshold (MANDATORY - extract exact percentage and verify ≥ 90.0%)
      - All integration tests pass
-  8. Continue until all tests pass with 100% pass rate and all validations pass, including coverage ≥ 90.0%
+  8. **CONTEXT ASSESSMENT**: After fixing, assess if sufficient free context remains:
+     - If YES: Continue with commit pipeline (re-run tests, verify, proceed to next step)
+     - If NO: Provide comprehensive changes summary and advise re-running commit pipeline
+  9. Continue until all tests pass with 100% pass rate and all validations pass, including coverage ≥ 90.0%
 - **No Partial Commits**: Do not proceed with commit until all tests pass and all validations confirm success
 - **Coverage Enforcement**: Coverage threshold of 90% is absolute - if coverage < 90.0%, commit MUST be blocked
 - **BLOCK COMMIT**: If any test validation fails, including coverage below 90.0%, do not proceed with commit
@@ -634,20 +667,32 @@ Use this ordering when numbering results:
 
 ### Other Step Failures
 
-- **Action**: Stop immediately and surface the issue
+- **Action**: **PRIMARY FOCUS** - Fix the failure immediately, then assess context to continue or summarize
 - **Process**:
-  1. Report the specific failure
+  1. **IMMEDIATE FIX**: Report the specific failure
   2. Provide detailed error information
-  3. Do not proceed with commit
-  4. Fix issues first before attempting commit again
+  3. **FIX**: Fix the underlying issue
+  4. **CONTEXT ASSESSMENT**: After fixing, assess if sufficient free context remains:
+     - If YES: Continue with commit pipeline (re-run step, verify, proceed to next step)
+     - If NO: Provide comprehensive changes summary and advise re-running commit pipeline
+  5. Do not proceed with commit until all issues are fixed and validated
 
 ### General Rules
 
+- **Error/Violation Priority**: When any error or violation is detected, **PRIMARY FOCUS** is to fix it immediately
+- **Context-Aware Continuation**: After fixing errors/violations:
+  - If sufficient free context remains: Continue automatically with commit pipeline
+  - If free context is insufficient: Provide comprehensive changes summary and advise re-running commit pipeline
 - **No Partial Commits**: All steps must pass before commit creation
 - **Validation Required**: All critical steps MUST include explicit validation that confirms success (parsing output, checking exit codes, verifying counts)
-- **Block on Validation Failure**: If any validation step fails, **BLOCK COMMIT** and do not proceed
+- **Block on Validation Failure**: If any validation step fails, **BLOCK COMMIT** and do not proceed until fixed
 - **Fix Issues First**: Resolve all issues before attempting commit again
 - **Automatic Execution**: Once this command is explicitly invoked by the user, execute all steps automatically without asking for additional permission
+- **Comprehensive Summary Format**: When advising re-run due to context limits, provide:
+  - List of all fixes applied (errors fixed, violations resolved)
+  - Files modified with brief description of changes
+  - Current status (which step completed, which step to run next)
+  - Clear instruction to re-run commit pipeline
 - **Command Execution**: When referencing other Cursor commands, AI MUST immediately read those command files and execute ALL their steps without any user interaction
 - **MCP Tools**: Use structured MCP tools instead of reading prompt files:
   - Step 0 (Fix Errors) MUST use `execute_pre_commit_checks(checks=["fix_errors"])` MCP tool

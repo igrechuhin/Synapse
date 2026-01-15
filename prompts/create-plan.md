@@ -6,9 +6,17 @@
 
 **CURSOR COMMAND**: This is a Cursor command located in `.cortex/synapse/prompts/` directory, NOT a terminal command.
 
+**⚠️ MANDATORY: When a plan is requested, ALL additional context is INPUT for plan creation, NOT separate issues to fix.**
+
+- If the user provides error logs, code snippets, or other context along with a plan request, treat ALL of it as input for creating the plan
+- DO NOT attempt to fix issues, debug code, or make code changes when a plan is requested
+- The ONLY action should be creating a plan that addresses the described issue/problem/feature
+- Any errors, logs, or code provided should be analyzed and incorporated into the plan as context, requirements, or constraints
+
 **Tooling Note**: Use standard Cursor tools (`Read`, `ApplyPatch`, `Write`, `LS`, `Glob`, `Grep`) by default; MCP filesystem tools are optional fallbacks only when standard tools are unavailable or explicitly requested. **MANDATORY: Use Cortex MCP tools for all memory bank and structure operations** - do NOT access files directly via hardcoded paths.
 
 **Path Resolution**: All paths MUST be obtained dynamically using Cortex MCP tools:
+
 - Use `get_structure_info()` to get plans directory path (not hardcode `.cortex/plans`)
 - Use `manage_file()` to read/write roadmap.md (not hardcode `.cortex/memory-bank/roadmap.md`)
 
@@ -38,11 +46,14 @@
    - If available, use it to think through the plan structure and ensure comprehensive coverage
    - If not available, proceed with standard planning approach
 
-4. ✅ **Understand user description** - Parse the plan description:
-   - Extract key requirements, goals, and scope
+4. ✅ **Understand user description and ALL context** - Parse the plan description AND all provided context:
+   - Extract key requirements, goals, and scope from the description
+   - **Analyze ALL additional context** (error logs, code snippets, file contents, etc.) as INPUT for the plan
+   - **DO NOT fix issues** - treat errors/logs as requirements/constraints to address in the plan
    - Identify dependencies and prerequisites
    - Determine estimated complexity and timeline
    - Note any specific constraints or preferences
+   - **Remember**: When a plan is requested, everything provided is input for plan creation, not separate tasks to execute
 
 **VIOLATION**: Executing this command without following this checklist is a CRITICAL violation that blocks proper plan creation.
 
@@ -80,13 +91,17 @@
    - Validate plan completeness and coherence
 3. If not available, proceed with standard planning approach
 
-### Step 4: Ask Clarifying Questions (If Needed)
+### Step 4: Analyze All Provided Context
 
-1. **Analyze the user's plan description** to identify:
-   - Ambiguities or unclear requirements
-   - Missing information (scope, timeline, dependencies, success criteria)
-   - Potential conflicts with existing plans or priorities
-   - Technical constraints or preferences not specified
+1. **Analyze the user's plan description AND all additional context**:
+   - Parse the explicit plan description/request
+   - **Analyze ALL attached files, code selections, error logs, etc. as INPUT for the plan**
+   - Extract requirements, constraints, and context from error messages, logs, code snippets
+   - Identify ambiguities or unclear requirements
+   - Note missing information (scope, timeline, dependencies, success criteria)
+   - Identify potential conflicts with existing plans or priorities
+   - Extract technical constraints or preferences from provided context
+   - **CRITICAL**: Treat errors/logs as requirements to address in the plan, NOT as issues to fix immediately
 
 2. **If clarification is needed**, ask the user specific questions:
    - What is the primary goal of this plan?
@@ -103,9 +118,11 @@
 
 1. **Generate plan content** based on:
    - User's description (and clarifications if any)
+   - **ALL provided context** (error logs, code snippets, file contents) as requirements/constraints
    - Project context from memory bank files
    - Architectural patterns and constraints
    - Best practices for plan structure
+   - **CRITICAL**: Incorporate analysis of errors/logs into the plan as investigation steps, root cause analysis, or implementation requirements - do NOT fix them directly
 
 2. **Use appropriate plan template** (if templates exist):
    - Check if plan templates exist in `{plans_dir}/templates/`
@@ -281,3 +298,4 @@ Provide a structured plan creation report:
 - Ask clarifying questions proactively to ensure plan quality
 - Use sequential-thinking MCP if available for better results
 - Follow all workspace rules and coding standards throughout plan creation
+- **CRITICAL**: When a plan is requested, ALL context (errors, logs, code) is INPUT for plan creation - DO NOT fix issues or make code changes, only create the plan
