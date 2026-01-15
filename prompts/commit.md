@@ -175,7 +175,7 @@ The following error patterns MUST be detected and fixed before commit. These are
        - Execute: `markdownlint-cli2 "**/*.md" "**/*.mdc" --config .markdownlint.json 2>&1` (or equivalent)
        - Parse output to extract error codes (MD024, MD032, MD031, MD036, etc.) and file paths
      - **Step 3**: Categorize errors by severity:
-       - **Critical errors** (BLOCK COMMIT for memory bank files): 
+       - **Critical errors** (BLOCK COMMIT for memory bank files):
          - MD024 (duplicate headings) - especially in `.cortex/memory-bank/*.md` files
          - MD032 (blanks around lists) - formatting issue
          - MD031 (blanks around fences) - formatting issue
