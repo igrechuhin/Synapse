@@ -130,6 +130,31 @@
 
 **ALWAYS provide a detailed report** with comprehensive analysis. Every review must include either improvement suggestions or code quality estimates (or both).
 
+**CRITICAL: Report File Location**
+- All review reports MUST be saved to `.cortex/reviews/` directory
+- File naming: `code-review-report-YYYY-MM-DD.md` (e.g., `code-review-report-2026-01-15.md`)
+- Create the `.cortex/reviews/` directory if it doesn't exist
+- Do NOT save review reports in `.cortex/` root or other locations
+
+**CRITICAL: Report Structure for Plan Creation**
+The report structure MUST be optimized for use by `create-plan.md` prompt. Each issue and improvement MUST include:
+- Clear, actionable implementation steps (numbered list)
+- Dependencies and prerequisites
+- Estimated effort and timeline
+- Technical design considerations
+- Success criteria (measurable)
+- Risk assessment and mitigation
+- File locations and code examples
+
+This structure enables `create-plan.md` to automatically extract:
+- Requirements and goals
+- Implementation tasks
+- Dependencies and prerequisites
+- Estimated complexity and timeline
+- Technical constraints
+- Success criteria
+- Risk mitigation strategies
+
 Provide a structured report with:
 
 ### Code Quality Assessment
@@ -155,10 +180,33 @@ Every report MUST include a detailed breakdown with scores (0-10) for each metri
 
 ### Critical Issues (Must-Fix)
 
-- **Bugs**: List of critical bugs with severity levels (Critical/High/Medium/Low)
+For each critical issue, provide the following structure to enable efficient plan creation:
+
+**Issue Template:**
+- **Title**: Clear, descriptive issue name
+- **Severity**: Critical/High/Medium/Low
+- **Priority**: ASAP/High/Medium/Low
+- **Impact**: Description of impact on system, users, or development
+- **Location**: Specific file paths and line numbers
+- **Current State**: What the code currently does (with code examples)
+- **Expected State**: What the code should do (with code examples)
+- **Root Cause**: Analysis of why this issue exists
+- **Dependencies**: Other issues, files, or work that must be completed first
+- **Prerequisites**: Required knowledge, tools, or setup
+- **Implementation Steps**: Detailed, actionable steps to fix (numbered list)
+- **Technical Design**: Architecture changes, refactoring approach, data model changes
+- **Testing Strategy**: How to verify the fix (unit tests, integration tests, manual testing)
+- **Success Criteria**: Measurable outcomes (e.g., "All tests pass", "File size < 400 lines")
+- **Estimated Effort**: Time estimate (Low: 1-4h, Medium: 4-16h, High: 16-40h, Very High: 40h+)
+- **Risks**: Potential risks during implementation and mitigation strategies
+- **Related Issues**: Links to other issues that should be addressed together
+
+**Issue Categories:**
+- **Bugs**: Critical bugs with severity levels (Critical/High/Medium/Low)
 - **Security Vulnerabilities**: Security issues with severity levels
 - **Data Loss Risks**: Issues that could cause data loss
 - **System Crashes**: Issues that could cause system failures
+- **Rules Violations**: Mandatory rule violations that must be fixed
 
 ### Consistency Issues
 
@@ -169,6 +217,22 @@ Every report MUST include a detailed breakdown with scores (0-10) for each metri
 
 ### Rules Violations
 
+For each rules violation, provide the following structure to enable efficient plan creation:
+
+**Violation Template:**
+- **Rule**: Specific rule being violated (with reference to rule file)
+- **Severity**: Critical/High/Medium/Low (based on rule importance)
+- **Location**: File paths and line numbers
+- **Current State**: What violates the rule (with code examples)
+- **Required State**: What complies with the rule (with code examples)
+- **Impact**: Impact of violation (maintainability, performance, security, etc.)
+- **Implementation Steps**: Detailed steps to fix (numbered list)
+- **Dependencies**: Other work that must be completed first
+- **Estimated Effort**: Time estimate (Low: 1-4h, Medium: 4-16h, High: 16-40h, Very High: 40h+)
+- **Success Criteria**: Measurable compliance (e.g., "File size ≤ 400 lines", "All functions ≤ 30 lines")
+- **Risks**: Potential risks during fix and mitigation
+
+**Violation Categories:**
 - **Coding Standards**: SOLID, DRY, YAGNI violations with references
 - **File Organization**: File size, function length, one-type-per-file violations
 - **Performance Rules**: O(n²) algorithms, blocking I/O violations
@@ -178,19 +242,58 @@ Every report MUST include a detailed breakdown with scores (0-10) for each metri
 
 ### Completeness Issues
 
-- **TODO/FIXME Comments**: List with locations and context
-- **Placeholder Implementations**: Unimplemented code with impact
-- **Missing Error Handling**: Operations without error handling
-- **Incomplete Test Coverage**: APIs without tests with coverage gaps
-- **Missing Documentation**: APIs without documentation
+For each completeness issue, provide the following structure to enable efficient plan creation:
+
+**Completeness Issue Template:**
+- **Type**: TODO/FIXME/Placeholder/Missing Error Handling/Missing Tests/Missing Documentation/Unimplemented Protocol
+- **Severity**: Critical/High/Medium/Low
+- **Location**: File paths and line numbers
+- **Current State**: What's missing or incomplete (with code examples)
+- **Required State**: What needs to be implemented (with code examples or specifications)
+- **Impact**: Impact of incomplete implementation
+- **Implementation Steps**: Detailed steps to complete (numbered list)
+- **Dependencies**: Other work that must be completed first
+- **Prerequisites**: Required knowledge, tools, or setup
+- **Technical Design**: What needs to be implemented (architecture, API design, etc.)
+- **Testing Strategy**: How to verify completion
+- **Success Criteria**: Measurable completion criteria
+- **Estimated Effort**: Time estimate (Low: 1-4h, Medium: 4-16h, High: 16-40h, Very High: 40h+)
+- **Risks**: Potential risks and mitigation
+
+**Issue Categories:**
+- **TODO/FIXME Comments**: List with locations, context, and completion plan
+- **Placeholder Implementations**: Unimplemented code with impact and implementation plan
+- **Missing Error Handling**: Operations without error handling with implementation plan
+- **Incomplete Test Coverage**: APIs without tests with coverage gaps and test plan
+- **Missing Documentation**: APIs without documentation with documentation plan
+- **Unimplemented Protocol Requirements**: Missing protocol implementations with implementation plan
 
 ### Improvement Suggestions
 
-- **Specific Recommendations**: Actionable suggestions with examples
-- **Before/After Examples**: Code examples showing improvements
-- **Estimated Effort**: Time estimate for each improvement (Low/Medium/High)
-- **Impact Assessment**: Expected impact of each improvement (Low/Medium/High)
-- **Priority**: Suggested priority order for improvements
+For each improvement suggestion, provide the following structure to enable efficient plan creation:
+
+**Improvement Template:**
+- **Title**: Clear, descriptive improvement name
+- **Category**: Architecture/Security/Performance/Documentation/Maintainability/etc.
+- **Priority**: High/Medium/Low
+- **Current State**: What exists now (with examples)
+- **Proposed State**: What should be improved (with examples)
+- **Benefits**: Expected benefits (performance, maintainability, security, etc.)
+- **Implementation Approach**: High-level strategy
+- **Implementation Steps**: Detailed, actionable steps (numbered list)
+- **Dependencies**: Other work that must be completed first
+- **Prerequisites**: Required knowledge, tools, or setup
+- **Technical Design**: Architecture changes, refactoring approach
+- **Testing Strategy**: How to verify the improvement
+- **Success Criteria**: Measurable outcomes
+- **Estimated Effort**: Time estimate (Low: 1-4h, Medium: 4-16h, High: 16-40h, Very High: 40h+)
+- **Risks**: Potential risks and mitigation strategies
+- **Impact Assessment**: Expected impact (Low/Medium/High) with reasoning
+
+**Grouping:**
+- Group related improvements together
+- Suggest implementation order based on dependencies
+- Identify quick wins (low effort, high impact)
 
 ## Success Criteria
 
@@ -202,6 +305,16 @@ Every report MUST include a detailed breakdown with scores (0-10) for each metri
 - ✅ **Detailed metrics scoring included** - All 9 metrics scored (0-10) with reasoning
 - ✅ Overall score calculated as average of metric scores
 - ✅ Actionable recommendations provided
+- ✅ **Report saved to `.cortex/reviews/code-review-report-YYYY-MM-DD.md`** - Report file location is correct
+- ✅ **All issues include plan-ready structure** - Each issue/improvement has:
+  - Implementation steps (numbered, actionable)
+  - Dependencies and prerequisites
+  - Estimated effort and timeline
+  - Technical design considerations
+  - Success criteria (measurable)
+  - Risk assessment and mitigation
+  - File locations and code examples
+- ✅ **Report structure optimized for `create-plan.md`** - Report can be directly used to create comprehensive plans
 
 ## Failure Handling
 
@@ -215,5 +328,30 @@ Every report MUST include a detailed breakdown with scores (0-10) for each metri
 ## Usage
 
 This command provides comprehensive code quality assurance before commits and releases, ensuring high code quality, consistency, and completeness.
+
+**Report Output:**
+- Save all review reports to `.cortex/reviews/code-review-report-YYYY-MM-DD.md`
+- Use format: `code-review-report-2026-01-15.md` (date in YYYY-MM-DD format)
+- Create `.cortex/reviews/` directory if it doesn't exist
+- Never save reports in `.cortex/` root or other locations
+
+**Report Structure for Plan Creation:**
+The review report MUST be structured to enable efficient plan creation by `create-plan.md`. Each section should provide:
+
+1. **Actionable Information**: Every issue/improvement must have clear implementation steps
+2. **Dependencies**: Clearly identify what must be done first
+3. **Effort Estimates**: Provide time estimates for planning
+4. **Success Criteria**: Define measurable outcomes
+5. **Technical Details**: Include architecture, design, and code examples
+6. **Risk Assessment**: Identify risks and mitigation strategies
+
+When `create-plan.md` processes a review report, it should be able to:
+- Extract requirements and goals from issues
+- Create implementation steps from detailed issue breakdowns
+- Identify dependencies and prerequisites
+- Estimate timeline from effort estimates
+- Define success criteria from measurable outcomes
+- Assess risks from risk assessments
+- Generate technical design from technical details
 
 **NO USER PROMPTS**: Execute all steps automatically without asking for permission
