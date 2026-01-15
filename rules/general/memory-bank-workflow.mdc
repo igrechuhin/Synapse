@@ -80,6 +80,7 @@ Link validation MUST be performed immediately after:
 **When**: Adding a new plan file referenced in roadmap.md
 
 **Required Actions**:
+
 1. Add the plan file to `.cortex/plans/` or `.cursor/plans/`
 2. Add link to roadmap.md: `[Phase X: Description](../plans/phase-x-description.md)`
 3. Run `validate_links(file_name="roadmap.md")` to verify link is valid
@@ -90,6 +91,7 @@ Link validation MUST be performed immediately after:
 **When**: Archiving a completed plan file
 
 **Required Actions**:
+
 1. Move plan file: `mv .cursor/plans/phase-x.md .cursor/plans/archive/PhaseX/phase-x.md`
 2. Update all links in memory bank files to point to new location
 3. Run `validate_links()` to check all memory bank files
@@ -100,6 +102,7 @@ Link validation MUST be performed immediately after:
 **When**: Renaming a plan file (e.g., `phase-11-tool-verification.md` → `phase-11-mcp-tool-verification.md`)
 
 **Required Actions**:
+
 1. Rename the file
 2. Update all links in memory bank files to use new filename
 3. Run `validate_links()` to verify all links are valid
@@ -110,6 +113,7 @@ Link validation MUST be performed immediately after:
 **When**: Deleting an obsolete plan file
 
 **Required Actions**:
+
 1. Remove all links to the file from memory bank files
 2. Delete the plan file
 3. Run `validate_links()` to verify no broken links remain
@@ -128,6 +132,7 @@ validate_links(file_name="roadmap.md", project_root="/path/to/project")
 ```
 
 **Fallback Method**: If MCP tool is unavailable, manually verify:
+
 - All markdown links `[text](path)` point to existing files
 - All relative paths are correct from the source file location
 - All transclusion directives `{{include:path}}` point to existing files
@@ -137,6 +142,7 @@ validate_links(file_name="roadmap.md", project_root="/path/to/project")
 ### Memory Bank Update Workflow
 
 When executing `update-memory-bank` command:
+
 1. Update memory bank files with current changes
 2. **MANDATORY**: Run `validate_links()` after updating
 3. Fix any broken links found
@@ -145,6 +151,7 @@ When executing `update-memory-bank` command:
 ### Plan Completion Workflow
 
 When completing a plan (see `maintainability.mdc` Plan Completion Checklist):
+
 1. After step 4 (Roadmap update), run `validate_links(file_name="roadmap.md")`
 2. After step 5 (Plan archival), run `validate_links()` to check all memory bank files
 3. Fix any broken links before considering plan complete
@@ -152,6 +159,7 @@ When completing a plan (see `maintainability.mdc` Plan Completion Checklist):
 ### Commit Workflow
 
 When executing commit workflow:
+
 1. After memory bank operations, run `validate_links()` as part of validation
 2. Block commit if any broken links are found
 3. Fix broken links before proceeding with commit
@@ -159,6 +167,7 @@ When executing commit workflow:
 ## CI Integration (MANDATORY)
 
 **CI MUST**:
+
 1. Run `validate_links()` on all memory bank files in CI pipeline
 2. Fail the build if any broken links are detected
 3. Report broken links with file paths and line numbers

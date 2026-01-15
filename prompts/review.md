@@ -131,6 +131,7 @@
 **ALWAYS provide a detailed report** with comprehensive analysis. Every review must include either improvement suggestions or code quality estimates (or both).
 
 **CRITICAL: Report File Location**
+
 - All review reports MUST be saved to `.cortex/reviews/` directory
 - File naming: `code-review-report-YYYY-MM-DD.md` (e.g., `code-review-report-2026-01-15.md`)
 - Create the `.cortex/reviews/` directory if it doesn't exist
@@ -138,6 +139,7 @@
 
 **CRITICAL: Report Structure for Plan Creation**
 The report structure MUST be optimized for use by `create-plan.md` prompt. Each issue and improvement MUST include:
+
 - Clear, actionable implementation steps (numbered list)
 - Dependencies and prerequisites
 - Estimated effort and timeline
@@ -147,6 +149,7 @@ The report structure MUST be optimized for use by `create-plan.md` prompt. Each 
 - File locations and code examples
 
 This structure enables `create-plan.md` to automatically extract:
+
 - Requirements and goals
 - Implementation tasks
 - Dependencies and prerequisites
@@ -183,6 +186,7 @@ Every report MUST include a detailed breakdown with scores (0-10) for each metri
 For each critical issue, provide the following structure to enable efficient plan creation:
 
 **Issue Template:**
+
 - **Title**: Clear, descriptive issue name
 - **Severity**: Critical/High/Medium/Low
 - **Priority**: ASAP/High/Medium/Low
@@ -202,6 +206,7 @@ For each critical issue, provide the following structure to enable efficient pla
 - **Related Issues**: Links to other issues that should be addressed together
 
 **Issue Categories:**
+
 - **Bugs**: Critical bugs with severity levels (Critical/High/Medium/Low)
 - **Security Vulnerabilities**: Security issues with severity levels
 - **Data Loss Risks**: Issues that could cause data loss
@@ -220,6 +225,7 @@ For each critical issue, provide the following structure to enable efficient pla
 For each rules violation, provide the following structure to enable efficient plan creation:
 
 **Violation Template:**
+
 - **Rule**: Specific rule being violated (with reference to rule file)
 - **Severity**: Critical/High/Medium/Low (based on rule importance)
 - **Location**: File paths and line numbers
@@ -233,6 +239,7 @@ For each rules violation, provide the following structure to enable efficient pl
 - **Risks**: Potential risks during fix and mitigation
 
 **Violation Categories:**
+
 - **Coding Standards**: SOLID, DRY, YAGNI violations with references
 - **File Organization**: File size, function length, one-type-per-file violations
 - **Performance Rules**: O(n²) algorithms, blocking I/O violations
@@ -245,6 +252,7 @@ For each rules violation, provide the following structure to enable efficient pl
 For each completeness issue, provide the following structure to enable efficient plan creation:
 
 **Completeness Issue Template:**
+
 - **Type**: TODO/FIXME/Placeholder/Missing Error Handling/Missing Tests/Missing Documentation/Unimplemented Protocol
 - **Severity**: Critical/High/Medium/Low
 - **Location**: File paths and line numbers
@@ -261,6 +269,7 @@ For each completeness issue, provide the following structure to enable efficient
 - **Risks**: Potential risks and mitigation
 
 **Issue Categories:**
+
 - **TODO/FIXME Comments**: List with locations, context, and completion plan
 - **Placeholder Implementations**: Unimplemented code with impact and implementation plan
 - **Missing Error Handling**: Operations without error handling with implementation plan
@@ -273,6 +282,7 @@ For each completeness issue, provide the following structure to enable efficient
 For each improvement suggestion, provide the following structure to enable efficient plan creation:
 
 **Improvement Template:**
+
 - **Title**: Clear, descriptive improvement name
 - **Category**: Architecture/Security/Performance/Documentation/Maintainability/etc.
 - **Priority**: High/Medium/Low
@@ -291,6 +301,7 @@ For each improvement suggestion, provide the following structure to enable effic
 - **Impact Assessment**: Expected impact (Low/Medium/High) with reasoning
 
 **Grouping:**
+
 - Group related improvements together
 - Suggest implementation order based on dependencies
 - Identify quick wins (low effort, high impact)
@@ -330,6 +341,7 @@ For each improvement suggestion, provide the following structure to enable effic
 This command provides comprehensive code quality assurance before commits and releases, ensuring high code quality, consistency, and completeness.
 
 **Report Output:**
+
 - Save all review reports to `.cortex/reviews/code-review-report-YYYY-MM-DD.md`
 - Use format: `code-review-report-2026-01-15.md` (date in YYYY-MM-DD format)
 - Create `.cortex/reviews/` directory if it doesn't exist
@@ -346,6 +358,7 @@ The review report MUST be structured to enable efficient plan creation by `creat
 6. **Risk Assessment**: Identify risks and mitigation strategies
 
 When `create-plan.md` processes a review report, it should be able to:
+
 - Extract requirements and goals from issues
 - Create implementation steps from detailed issue breakdowns
 - Identify dependencies and prerequisites

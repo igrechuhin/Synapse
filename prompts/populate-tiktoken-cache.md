@@ -9,6 +9,7 @@
 ## When This Prompt Appears
 
 This prompt is conditionally registered and only appears when:
+
 - Bundled tiktoken cache is not available or empty
 - Token counting may be slower or less accurate without cached encoding files
 - Network access may be restricted (VPN, offline environments)
@@ -55,12 +56,14 @@ After successful cache population:
 ## Error Handling
 
 If download fails:
+
 - Check network connectivity
 - Verify URLs are accessible
 - Try downloading encodings one at a time
 - Report which encodings failed and why
 
 If cache directory creation fails:
+
 - Check file system permissions
 - Verify project structure is correct
 - Report specific error message

@@ -157,11 +157,12 @@ The following error patterns MUST be detected and fixed before commit. These are
    - **MANDATORY**: Formatter check MUST pass before proceeding to next step
    - **VALIDATION**: Parse formatter check output to verify zero violations - **BLOCK COMMIT** if any violations remain
    - **CONTEXT ASSESSMENT**: After fixing formatting issues, if insufficient context remains, provide comprehensive summary and advise re-running commit pipeline
-1.5. **Markdown linting** - Fix markdown lint errors in modified markdown files:
+1.5. **Markdown linting** - Fix markdown lint errors in all markdown files:
    - **MANDATORY**: Run markdown lint fix tool to automatically fix markdownlint errors
-   - Execute: `python3 scripts/fix_markdown_lint.py --include-untracked` (or equivalent)
+   - **CRITICAL**: Check ALL markdown files, not just modified ones, to catch existing errors
+   - Execute: `python3 scripts/fix_markdown_lint.py --check-all` (or equivalent)
    - The script automatically:
-     - Finds all modified markdown files (`.md` and `.mdc`) using git
+     - Finds all markdown files (`.md` and `.mdc`) in the project when `--check-all` is used
      - Runs markdownlint-cli2 with `--fix` to auto-fix errors
      - Reports files fixed and errors resolved
    - **CRITICAL**: markdownlint-cli2 is a REQUIRED dependency for Cortex MCP. If not installed:
@@ -169,11 +170,17 @@ The following error patterns MUST be detected and fixed before commit. These are
      - Installation is required because `fix_markdown_lint` MCP tool depends on it
      - See README.md for installation instructions
    - **VALIDATION**: After fixing, verify markdown lint errors are resolved:
-     - Check script output for files fixed count
-     - If errors remain, manually fix non-auto-fixable errors
-     - **BLOCK COMMIT** if critical markdown lint errors remain (trailing spaces, list formatting, etc.)
+     - Check script output for files fixed count and files_with_errors count
+     - If files_with_errors > 0, review the error list and determine if errors are critical:
+       - **Critical errors** (block commit): MD024 (duplicate headings), MD032 (blanks around lists), MD031 (blanks around fences)
+       - **Non-critical errors** (warn but don't block): MD036 (emphasis as heading) - may be intentional formatting
+     - For critical errors, manually fix non-auto-fixable errors or add markdownlint disable comments if appropriate
+     - Re-run the tool to verify fixes: `python3 scripts/fix_markdown_lint.py --check-all`
+     - **BLOCK COMMIT** if critical markdown lint errors remain after manual fixes
+     - **Note**: Some errors (like duplicate headings) require changing heading text, not just formatting
    - **PRIMARY FOCUS**: If markdown lint errors are detected, fix them immediately
    - **Note**: This step runs after code formatting to ensure markdown files are also properly formatted
+   - **Note**: Using `--check-all` ensures all markdown files are checked, not just those modified in the current commit
 2. **Type checking** - Run type checker (if applicable):
    - **Conditional**: Only execute if project uses a type system (Python with type hints, TypeScript, etc.)
    - Execute language-specific type checker script: `.cortex/synapse/scripts/{language}/check_types.py` (or equivalent)
@@ -681,6 +688,7 @@ Use this ordering when numbering results:
    - **Status Report**: Clearly indicate which step was completed and which step should be executed next
 
 **Context Assessment**: The agent should assess available context after each fix:
+
 - Consider remaining token budget
 - Consider complexity of remaining steps
 - Consider number of additional fixes that may be needed
