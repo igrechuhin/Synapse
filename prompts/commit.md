@@ -73,14 +73,14 @@ The following error patterns MUST be detected and fixed before commit. These are
 ### File Size Violations
 
 - **Pattern**: Files exceeding 400 lines
-- **Detection**: Parse file size check script output
+- **Detection**: Parse MCP tool response (`results.quality.file_size_violations`) or file size check output
 - **Action**: Split large files, re-run check, verify zero violations
 - **Block Commit**: Yes - file size violations will cause CI to fail
 
 ### Function Length Violations
 
 - **Pattern**: Functions exceeding 30 lines
-- **Detection**: Parse function length check script output
+- **Detection**: Parse MCP tool response (`results.quality.function_length_violations`) or function length check output
 - **Action**: Refactor long functions, re-run check, verify zero violations
 - **Block Commit**: Yes - function length violations will cause CI to fail
 
@@ -97,7 +97,7 @@ The following error patterns MUST be detected and fixed before commit. These are
 - **Detection**: Parse linter output for error count (e.g., ruff for Python, ESLint for JavaScript/TypeScript)
 - **Action**: Fix linting errors, re-run linter, verify zero errors
 - **Block Commit**: Yes - linter errors will cause CI to fail
-- **Note**: For Python, ensure code is compatible with Python 3.10+ (CI checks Python 3.10 compatibility). Use `TypeAlias` from `typing` instead of `type` alias statement (Python 3.12+ only). Use language-agnostic scripts from `.cortex/synapse/scripts/{language}/` instead of hardcoded commands
+- **Note**: For Python, ensure code is compatible with Python 3.13+ (CI checks Python 3.13 compatibility). Use `TypeAlias` from `typing` instead of `type` alias statement (Python 3.13+ only). **Use `execute_pre_commit_checks()` MCP tool for all pre-commit operations** - scripts are fallbacks only if MCP tool is unavailable
 
 ### Integration Test Failures
 
@@ -132,35 +132,35 @@ The following error patterns MUST be detected and fixed before commit. These are
      - `results.fix_errors.success` = true
      - **BLOCK COMMIT** if any errors remain after fix-errors step
    - **CONTEXT ASSESSMENT**: After fixing errors, if insufficient context remains, provide comprehensive summary and advise re-running commit pipeline
-   - **CRITICAL**: After fix-errors, run linter check script in check-only mode to verify all linting issues are resolved
-     - Execute language-specific linting check script: `.cortex/synapse/scripts/{language}/check_linting.py` (or equivalent for non-Python)
-     - The script runs linter in check-only mode (without --fix flag) to catch non-fixable errors
-     - Scripts auto-detect directories (src/, tests/, .cortex/synapse/scripts/) matching CI workflow
-     - **CRITICAL**: If linter check fails, fix remaining issues and re-run fix-errors until check passes
+   - **CRITICAL**: After fix-errors, verify all linting issues are resolved by checking the tool response:
+     - The `execute_pre_commit_checks()` tool already runs linter checks as part of fix_errors
+     - Parse tool response: `results.fix_errors.errors` must be empty list
+     - **CRITICAL**: If linting errors remain, fix remaining issues and re-run fix-errors until check passes
      - **MANDATORY**: Linter check MUST pass before proceeding to next step
-     - **VALIDATION**: Parse linter check output to verify zero errors - **BLOCK COMMIT** if any linting errors remain
+     - **VALIDATION**: Parse tool response to verify zero errors - **BLOCK COMMIT** if any linting errors remain
      - **Note**: The fix-errors step runs linter with --fix which fixes auto-fixable issues, but some errors (like syntax errors, undefined names, Python version compatibility) cannot be auto-fixed and must be manually resolved
+     - **Fallback**: If MCP tool is unavailable, run linter manually: `.venv/bin/ruff check src/ tests/` (for Python) or equivalent for other languages
 
-1. **Code formatting** - Run project formatter:
-   - Execute language-specific formatting script: `.cortex/synapse/scripts/{language}/format_code.py` (or equivalent)
-   - The script should run the project formatter and import sorting tools
-   - Scripts auto-detect directories (src/, tests/, .cortex/synapse/scripts/) matching CI workflow
-   - **CRITICAL**: After formatting, run formatter check script to verify all files pass formatting check
-     - Execute language-specific formatter check script: `.cortex/synapse/scripts/{language}/check_formatting.py` (or equivalent)
-     - If script doesn't exist, run formatter in check-only mode manually (e.g., `black --check` for Python)
-     - Scripts auto-detect directories matching CI workflow
-   - **PRIMARY FOCUS**: If formatting violations are detected, fix them immediately
-   - **CRITICAL**: If formatter check fails, re-run formatter and verify again until check passes
-   - Verify formatting completes successfully with no errors or warnings
-   - Fix any formatting issues if they occur
-   - Verify no files were left in inconsistent state
-   - **MANDATORY**: Formatter check MUST pass before proceeding to next step
-   - **VALIDATION**: Parse formatter check output to verify zero violations - **BLOCK COMMIT** if any violations remain
-   - **CONTEXT ASSESSMENT**: After fixing formatting issues, if insufficient context remains, provide comprehensive summary and advise re-running commit pipeline
+1. **Code formatting** - Use `execute_pre_commit_checks()` MCP tool:
+   - **Call MCP tool**: `execute_pre_commit_checks(checks=["format"], strict_mode=False)`
+   - The tool will automatically:
+     - Detect project language
+     - Run project formatter (e.g., Black for Python) and import sorting tools
+     - Auto-detect directories (src/, tests/) matching CI workflow
+     - Return structured results with files formatted count
+   - **CRITICAL**: After formatting, verify all files pass formatting check:
+     - Parse tool response: `results.format.status` must be "passed"
+     - Parse tool response: `results.format.files_formatted` shows count of files formatted
+     - **PRIMARY FOCUS**: If formatting violations are detected, fix them immediately
+     - **CRITICAL**: If formatter check fails, re-run format check until it passes
+     - **MANDATORY**: Formatter check MUST pass before proceeding to next step
+     - **VALIDATION**: Parse tool response to verify formatting passed - **BLOCK COMMIT** if formatting fails
+     - **CONTEXT ASSESSMENT**: After fixing formatting issues, if insufficient context remains, provide comprehensive summary and advise re-running commit pipeline
+   - **Fallback**: If MCP tool is unavailable, run formatter manually: `.venv/bin/black src/ tests/` (for Python) or equivalent for other languages
 1.5. **Markdown linting** - Fix markdown lint errors in all markdown files:
    - **MANDATORY**: Run markdown lint fix tool to automatically fix markdownlint errors
    - **CRITICAL**: Check ALL markdown files, not just modified ones, to catch existing errors
-   - Execute: `python3 scripts/fix_markdown_lint.py --check-all` (or equivalent)
+   - Execute: `.venv/bin/python scripts/fix_markdown_lint.py --check-all` (or equivalent)
    - The script automatically:
      - Finds all markdown files (`.md` and `.mdc`) in the project when `--check-all` is used
      - Runs markdownlint-cli2 with `--fix` to auto-fix errors
@@ -170,45 +170,77 @@ The following error patterns MUST be detected and fixed before commit. These are
      - Installation is required because `fix_markdown_lint` MCP tool depends on it
      - See README.md for installation instructions
    - **VALIDATION**: After fixing, verify markdown lint errors are resolved:
-     - Check script output for files fixed count and files_with_errors count
-     - If files_with_errors > 0, review the error list and determine if errors are critical:
-       - **Critical errors** (block commit): MD024 (duplicate headings), MD032 (blanks around lists), MD031 (blanks around fences)
-       - **Non-critical errors** (warn but don't block): MD036 (emphasis as heading) - may be intentional formatting
-     - For critical errors, manually fix non-auto-fixable errors or add markdownlint disable comments if appropriate
-     - Re-run the tool to verify fixes: `python3 scripts/fix_markdown_lint.py --check-all`
-     - **BLOCK COMMIT** if critical markdown lint errors remain after manual fixes
+     - **Step 1**: Check tool response for `files_with_errors` count
+     - **Step 2**: If `files_with_errors > 0`, run markdownlint in check-only mode to get detailed error report:
+       - Execute: `markdownlint-cli2 "**/*.md" "**/*.mdc" --config .markdownlint.json 2>&1` (or equivalent)
+       - Parse output to extract error codes (MD024, MD032, MD031, MD036, etc.) and file paths
+     - **Step 3**: Categorize errors by severity:
+       - **Critical errors** (BLOCK COMMIT for memory bank files): 
+         - MD024 (duplicate headings) - especially in `.cortex/memory-bank/*.md` files
+         - MD032 (blanks around lists) - formatting issue
+         - MD031 (blanks around fences) - formatting issue
+       - **Critical errors** (BLOCK COMMIT for all files):
+         - MD001 (heading increment) - structural issue
+         - MD003 (heading style) - consistency issue
+         - MD009 (trailing spaces) - formatting issue
+       - **Non-critical errors** (warn but don't block):
+         - MD036 (emphasis as heading) - may be intentional formatting
+         - MD013 (line length) - may be acceptable for code blocks
+     - **Step 4**: For each file with critical errors:
+       - If file is in `.cortex/memory-bank/` directory: **BLOCK COMMIT** - memory bank files must be error-free
+       - If file is in `.cortex/plans/` directory: **BLOCK COMMIT** - plan files must be error-free
+       - For other files: Review and fix manually or add markdownlint disable comments if appropriate
+     - **Step 5**: Re-run validation after manual fixes:
+       - Run fix tool again: `.venv/bin/python scripts/fix_markdown_lint.py --check-all`
+       - Run check-only mode again: `markdownlint-cli2 "**/*.md" "**/*.mdc" --config .markdownlint.json 2>&1`
+       - Verify zero critical errors remain
+     - **BLOCK COMMIT** if:
+       - Any critical errors remain in `.cortex/memory-bank/*.md` files
+       - Any critical errors remain in `.cortex/plans/*.md` files
+       - More than 5 critical errors remain in other markdown files
      - **Note**: Some errors (like duplicate headings) require changing heading text, not just formatting
+     - **Note**: Memory bank files (progress.md, activeContext.md, roadmap.md, etc.) must be error-free
    - **PRIMARY FOCUS**: If markdown lint errors are detected, fix them immediately
    - **Note**: This step runs after code formatting to ensure markdown files are also properly formatted
    - **Note**: Using `--check-all` ensures all markdown files are checked, not just those modified in the current commit
-2. **Type checking** - Run type checker (if applicable):
+2. **Type checking** - Use `execute_pre_commit_checks()` MCP tool (if applicable):
    - **Conditional**: Only execute if project uses a type system (Python with type hints, TypeScript, etc.)
-   - Execute language-specific type checker script: `.cortex/synapse/scripts/{language}/check_types.py` (or equivalent)
-   - If script doesn't exist, run type checker manually (e.g., `pyright src/` for Python - matches CI which only checks src/, not tests/)
-   - Scripts auto-detect directories matching CI workflow
+   - **Call MCP tool**: `execute_pre_commit_checks(checks=["type_check"], strict_mode=False)`
+   - The tool will automatically:
+     - Detect project language and type checker (e.g., pyright for Python, tsc for TypeScript)
+     - Run type checker on appropriate directories (e.g., src/ for Python, matches CI workflow)
+     - Return structured results with error and warning counts
    - **CRITICAL**: Capture and parse type checker output to verify zero errors AND zero warnings
-   - **VALIDATION**: Verify type checking completes with zero errors AND zero warnings
+   - **VALIDATION**: Parse tool response to verify:
+     - `results.type_check.status` = "passed"
+     - `results.type_check.errors` = 0 (MUST be zero)
+     - `results.type_check.warnings` = 0 (MUST be zero)
    - **BLOCK COMMIT** if type checker reports any type errors OR warnings
    - **PRIMARY FOCUS**: If type errors/warnings are detected, fix them immediately
    - Fix any type errors and warnings before proceeding
    - Re-run type checker after fixes to verify zero errors AND zero warnings remain
    - **CONTEXT ASSESSMENT**: After fixing type issues, if insufficient context remains, provide comprehensive summary and advise re-running commit pipeline
    - **Skip if**: Project does not use a type system
-3. **Code quality checks** - Run file size and function/method length checks:
-   - Execute language-specific code quality check scripts:
-     - File size check: `.cortex/synapse/scripts/{language}/check_file_sizes.py` (or equivalent)
-     - Function length check: `.cortex/synapse/scripts/{language}/check_function_lengths.py` (or equivalent)
-   - Verify all files are within project's line limit (typically 400 lines)
-   - **VALIDATION**: Parse check output to verify zero violations - **BLOCK COMMIT** if any files exceed limit
-   - Verify all functions/methods are within project's length limit (typically 30 lines)
-   - **VALIDATION**: Parse check output to verify zero violations - **BLOCK COMMIT** if any functions/methods exceed limit
+   - **Fallback**: If MCP tool is unavailable, run type checker manually: `.venv/bin/pyright src/` (for Python) or equivalent for other languages
+3. **Code quality checks** - Use `execute_pre_commit_checks()` MCP tool:
+   - **Call MCP tool**: `execute_pre_commit_checks(checks=["quality"], strict_mode=False)`
+   - The tool will automatically:
+     - Detect project language
+     - Run file size checks (verifies all files ≤ 400 lines)
+     - Run function/method length checks (verifies all functions ≤ 30 lines)
+     - Auto-detect directories (src/, tests/) matching CI workflow
+     - Return structured results with violation counts
+   - **VALIDATION**: Parse tool response to verify:
+     - `results.quality.status` = "passed"
+     - `results.quality.file_size_violations` = 0 (MUST be zero)
+     - `results.quality.function_length_violations` = 0 (MUST be zero)
+   - **BLOCK COMMIT** if any violations are found
    - **PRIMARY FOCUS**: If violations are detected, fix them immediately (split files, extract functions)
-   - Verify both checks complete successfully with no violations
    - Fix any file size or function/method length violations before proceeding
-   - Re-run checks after fixes to verify zero violations remain
+   - Re-run quality check after fixes to verify zero violations remain
    - **CONTEXT ASSESSMENT**: After fixing violations, if insufficient context remains, provide comprehensive summary and advise re-running commit pipeline
    - Note: These checks match CI quality gate requirements and MUST pass
-   - Note: Scripts are located in `.cortex/synapse/scripts/{language}/` and are shared across projects using the same Synapse repository
+   - **Fallback**: If MCP tool is unavailable, run quality checks manually using scripts: `.cortex/synapse/scripts/{language}/check_file_sizes.py` and `.cortex/synapse/scripts/{language}/check_function_lengths.py` (or equivalent)
 4. **Test execution** - Use `execute_pre_commit_checks()` MCP tool:
    - **Call MCP tool**: `execute_pre_commit_checks(checks=["tests"], timeout=300, coverage_threshold=0.90)`
    - The tool will automatically:
@@ -379,7 +411,7 @@ The commit procedure executes steps in this specific order to ensure dependencie
 12. **Commit** - Creates the commit with all changes (including updated submodule reference)
 13. **Push** - Pushes committed changes to remote repository
 
-**MCP Tools**: Steps 0 (Fix Errors) and 4 (Testing) use the `execute_pre_commit_checks()` MCP tool instead of reading prompt files. This provides structured parameters, type safety, and consistent error handling.
+**MCP Tools**: Steps 0 (Fix Errors), 1 (Formatting), 2 (Type Checking), 3 (Code Quality), and 4 (Testing) use the `execute_pre_commit_checks()` MCP tool instead of scripts. This provides structured parameters, type safety, and consistent error handling. Scripts are fallbacks only if the MCP tool is unavailable.
 
 ## ⚠️ MANDATORY CHECKLIST UPDATES
 
@@ -397,10 +429,10 @@ Before proceeding to commit creation, provide a validation summary confirming al
 ### **Pre-Commit Validation Checklist**
 
 - [ ] **Fix Errors Validation**: Type checker = 0 errors (if applicable), Linter = 0 errors
-- [ ] **Linter Check Validation**: Linter check (without --fix) = 0 errors (parsed from output, CRITICAL - catches non-fixable errors)
-- [ ] **Formatting Validation**: Formatter check = 0 violations (parsed from output)
-- [ ] **Type Checking Validation**: Type checker = 0 type errors AND 0 warnings (parsed from output, skip if not applicable)
-- [ ] **Code Quality Validation**: File size = 0 violations, Function length = 0 violations (parsed from script output)
+- [ ] **Linter Check Validation**: Linter check = 0 errors (parsed from MCP tool response: `results.fix_errors.errors`, CRITICAL - catches non-fixable errors)
+- [ ] **Formatting Validation**: Formatter check = 0 violations (parsed from MCP tool response)
+- [ ] **Type Checking Validation**: Type checker = 0 type errors AND 0 warnings (parsed from MCP tool response, skip if not applicable)
+- [ ] **Code Quality Validation**: File size = 0 violations, Function length = 0 violations (parsed from MCP tool response)
 - [ ] **Test Execution Validation**:
   - Test failures = 0 (parsed from test output)
   - Pass rate = 100% (calculated from test output)
@@ -428,123 +460,157 @@ Use this ordering when numbering results:
 - Step 0: Fix Errors
 - Step 1: Formatting
 - Step 1.5: Markdown Linting
-- Step 2: Code Quality Checks
-- Step 3: Test Execution
-- Step 4: Memory Bank Update
-- Step 5: Roadmap Update
-- Step 6: Plan Archiving
-- Step 7: Archive Validation
-- Step 8: Memory Bank Timestamp Validation
-- Step 9: Roadmap Synchronization Validation
-- Step 10: Submodule Handling
-- Step 11: Commit Creation
-- Step 12: Push Branch
+- Step 2: Type Checking
+- Step 3: Code Quality Checks
+- Step 4: Test Execution
+- Step 5: Memory Bank Update
+- Step 6: Roadmap Update
+- Step 7: Plan Archiving
+- Step 8: Archive Validation
+- Step 9: Memory Bank Timestamp Validation
+- Step 10: Roadmap Synchronization Validation
+- Step 11: Submodule Handling
+- Step 12: Commit Creation
+- Step 13: Push Branch
 
 #### **0. Fix Errors**
 
 - **Status**: Success/Failure
-- **Errors Fixed**: Count and list of errors fixed
-- **Warnings Fixed**: Count and list of warnings fixed
-- **Formatting Issues Fixed**: Count and list of formatting issues fixed
-- **Type Errors Fixed**: Count and list of type errors fixed
-- **Files Modified**: List of files modified during error fixing
-- **Details**: Summary from fix-errors command
+- **Command Used**: `execute_pre_commit_checks(checks=["fix_errors"])` MCP tool
+- **Errors Fixed**: Count and list of errors fixed (from tool response: `results.fix_errors.errors`)
+- **Warnings Fixed**: Count and list of warnings fixed (from tool response: `results.fix_errors.warnings`)
+- **Formatting Issues Fixed**: Count and list of formatting issues fixed (from tool response)
+- **Type Errors Fixed**: Count and list of type errors fixed (from tool response)
+- **Files Modified**: List of files modified during error fixing (from tool response: `stats.files_modified`)
+- **Tool Response Parsed**: Yes/No (MUST be Yes)
+- **Details**: Summary from fix-errors tool response
 - **Validation Results**:
-  - Type checker re-check: Pass/Fail with error count AND warning count (MUST be 0 errors AND 0 warnings, skip if not applicable)
-  - Linter re-check (after fix): Pass/Fail with error count (MUST be 0)
-  - Linter check (without --fix): Pass/Fail with error count (MUST be 0, CRITICAL - catches non-fixable errors)
+  - Tool executed: Yes/No (MUST be Yes)
+  - Fix errors status: Pass/Fail (from tool response: `results.fix_errors.status`, MUST be "passed")
+  - Zero errors confirmed: Yes/No (parsed from tool response: `results.fix_errors.errors`, MUST be empty list)
+  - Zero warnings confirmed: Yes/No (parsed from tool response: `results.fix_errors.warnings`, MUST be empty list or acceptable)
+  - Total errors = 0: Yes/No (from tool response: `stats.total_errors`, MUST be 0)
 - **Commit Blocked**: Yes/No (blocked if any errors OR warnings remain)
+- **Fallback Used**: Yes/No (only if MCP tool was unavailable)
 
 #### **1. Formatting**
 
 - **Status**: Success/Failure
-- **Files Formatted**: Count of files formatted
-- **Formatter Check Status**: Pass/Fail (MUST pass - verified with formatter check command)
-- **Formatter Check Output**: Output from formatter check command
-- **Errors**: Any formatting errors encountered
-- **Warnings**: Any formatting warnings
+- **Command Used**: `execute_pre_commit_checks(checks=["format"])` MCP tool
+- **Files Formatted**: Count of files formatted (from tool response: `results.format.files_formatted`)
+- **Formatter Check Status**: Pass/Fail (from tool response: `results.format.status`, MUST be "passed")
+- **Tool Response Parsed**: Yes/No (MUST be Yes)
+- **Errors**: Any formatting errors encountered (from tool response)
+- **Warnings**: Any formatting warnings (from tool response)
+- **Validation Results**:
+  - Tool executed: Yes/No (MUST be Yes)
+  - Formatting status confirmed: Yes/No (parsed from tool response, MUST be "passed")
+  - Zero violations confirmed: Yes/No (parsed from tool response)
 - **Verification**: Confirmation that formatter check passed before proceeding
+- **Fallback Used**: Yes/No (only if MCP tool was unavailable)
 
 #### **1.5. Markdown Linting**
 
 - **Status**: Success/Failure/Skipped
-- **Command Used**: `python3 scripts/fix_markdown_lint.py --include-untracked`
+- **Command Used**: `.venv/bin/python scripts/fix_markdown_lint.py --check-all`
 - **Tool Available**: Whether markdownlint-cli2 is installed
 - **Files Processed**: Count of markdown files processed
 - **Files Fixed**: Count of markdown files with errors fixed
 - **Files Unchanged**: Count of markdown files with no errors
+- **Files With Errors**: Count of files with non-auto-fixable errors
+- **Check-Only Validation**: Whether markdownlint check-only mode was run
+- **Critical Errors Found**: Count of critical errors found (MD024, MD032, MD031, MD001, MD003, MD009)
+- **Critical Errors in Memory Bank**: Count of critical errors in `.cortex/memory-bank/*.md` files (MUST be 0)
+- **Critical Errors in Plans**: Count of critical errors in `.cortex/plans/*.md` files (MUST be 0)
+- **Critical Errors in Other Files**: Count of critical errors in other markdown files
+- **Non-Critical Errors**: Count of non-critical errors (MD036, MD013, etc.)
 - **Errors Fixed**: List of markdown lint errors fixed
-- **Errors Remaining**: List of non-auto-fixable errors (if any)
+- **Errors Remaining**: List of non-auto-fixable errors with file paths and error codes
 - **Validation Results**:
   - Tool executed: Yes/No (MUST be Yes if tool available)
+  - Check-only validation run: Yes/No (MUST be Yes if files_with_errors > 0)
   - All auto-fixable errors fixed: Yes/No (MUST be Yes if tool available)
-  - Critical errors remaining: Yes/No (MUST be No)
-  - Script output parsed: Yes/No
-- **Details**: Summary of markdown lint fixing operations
-- **Commit Blocked**: Yes/No (blocked if critical markdown lint errors remain)
+  - Zero critical errors in memory bank: Yes/No (MUST be Yes - parsed from check-only output)
+  - Zero critical errors in plans: Yes/No (MUST be Yes - parsed from check-only output)
+  - Critical errors in other files ≤ 5: Yes/No (MUST be Yes or commit blocked)
+  - Tool response parsed: Yes/No
+  - Check-only output parsed: Yes/No (MUST be Yes if files_with_errors > 0)
+- **Details**: Summary of markdown lint fixing operations, including critical error breakdown
+- **Commit Blocked**: Yes/No (blocked if critical markdown lint errors remain in memory bank/plans, or >5 in other files)
 - **REQUIRED**: markdownlint-cli2 must be installed (required dependency for Cortex MCP)
 
 #### **2. Type Checking**
 
-- **Status**: Success/Failure
-- **Command Used**: Type checker command (e.g., `pyright src/` for Python)
-- **Type Errors Found**: Count of type errors found (must be 0)
-- **Type Warnings Found**: Count of type warnings found (must be 0)
-- **Errors Fixed**: Count of type errors fixed
-- **Warnings Fixed**: Count of type warnings fixed
+- **Status**: Success/Failure/Skipped
+- **Command Used**: `execute_pre_commit_checks(checks=["type_check"])` MCP tool
+- **Type Errors Found**: Count of type errors found (from tool response: `results.type_check.errors`, must be 0)
+- **Type Warnings Found**: Count of type warnings found (from tool response: `results.type_check.warnings`, must be 0)
+- **Type Check Status**: Pass/Fail (from tool response: `results.type_check.status`, MUST be "passed")
+- **Tool Response Parsed**: Yes/No (MUST be Yes)
 - **Validation Results**:
-  - Zero type errors confirmed: Yes/No (parsed from output, MUST be 0)
-  - Zero type warnings confirmed: Yes/No (parsed from output, MUST be 0)
+  - Tool executed: Yes/No (MUST be Yes if project uses type system)
+  - Zero type errors confirmed: Yes/No (parsed from tool response, MUST be 0)
+  - Zero type warnings confirmed: Yes/No (parsed from tool response, MUST be 0)
   - Tool output parsed: Yes/No
 - **Details**: Summary of any type errors/warnings and their resolution
 - **Commit Blocked**: Yes/No (blocked if any type errors OR warnings remain)
 - **Skip if**: Project does not use a type system
+- **Fallback Used**: Yes/No (only if MCP tool was unavailable)
 
 #### **3. Code Quality Checks**
 
 - **Status**: Success/Failure
-- **File Size Check**: Status of file size validation (max 400 lines)
-- **Function Length Check**: Status of function length validation (max 30 lines)
+- **Command Used**: `execute_pre_commit_checks(checks=["quality"])` MCP tool
+- **File Size Check**: Status of file size validation (from tool response: `results.quality.file_size_violations`, max 400 lines, MUST be 0)
+- **Function Length Check**: Status of function length validation (from tool response: `results.quality.function_length_violations`, max 30 lines, MUST be 0)
+- **Quality Check Status**: Pass/Fail (from tool response: `results.quality.status`, MUST be "passed")
+- **Tool Response Parsed**: Yes/No (MUST be Yes)
 - **Violations Found**: Count of violations found (must be 0)
 - **Violations Fixed**: Count of violations fixed
 - **Validation Results**:
-  - File size violations after fixes: Count (MUST be 0)
-  - Function length violations after fixes: Count (MUST be 0)
-  - Script output parsed: Yes/No
+  - Tool executed: Yes/No (MUST be Yes)
+  - File size violations after fixes: Count (MUST be 0, parsed from tool response)
+  - Function length violations after fixes: Count (MUST be 0, parsed from tool response)
+  - Tool output parsed: Yes/No
 - **Details**: Summary of any violations and their resolution
 - **Commit Blocked**: Yes/No (blocked if any violations remain)
+- **Fallback Used**: Yes/No (only if MCP tool was unavailable)
 
 #### **4. Test Execution**
 
 - **Status**: Success/Failure
-- **Command Used**: `execute_pre_commit_checks(checks=["tests"])` MCP tool
-- **Tests Executed**: Count of tests executed
-- **Tests Passed**: Count of passing tests
-- **Tests Failed**: Count of failing tests (must be 0)
-- **Pass Rate**: Percentage pass rate (target: 100%)
-- **Coverage**: Test coverage percentage (target: 90%+)
-- **Coverage Value**: Exact coverage percentage extracted from test output (e.g., 90.46%)
+- **Command Used**: `execute_pre_commit_checks(checks=["tests"], timeout=300, coverage_threshold=0.90)` MCP tool
+- **Tests Executed**: Count of tests executed (from tool response: `results.tests.tests_run`)
+- **Tests Passed**: Count of passing tests (from tool response: `results.tests.tests_passed`)
+- **Tests Failed**: Count of failing tests (from tool response: `results.tests.tests_failed`, must be 0)
+- **Pass Rate**: Percentage pass rate (from tool response: `results.tests.pass_rate`, target: 100%)
+- **Coverage**: Test coverage percentage (from tool response: `results.tests.coverage`, target: 90%+)
+- **Coverage Value**: Exact coverage percentage extracted from tool response (e.g., 90.32%)
 - **Coverage Threshold**: 90.0% (absolute minimum, no exceptions)
+- **Tool Response Parsed**: Yes/No (MUST be Yes)
 - **Validation Results**:
-  - Zero failures confirmed: Yes/No (parsed from test output)
-  - 100% pass rate confirmed: Yes/No (calculated from test output)
-  - Coverage threshold met: Yes/No (coverage ≥ 90.0% confirmed - MANDATORY)
-  - Coverage value extracted: Yes/No (exact percentage must be shown)
-  - Integration tests passed: Yes/No (explicitly verified)
-  - Test output parsed: Yes/No
-- **Details**: Complete summary from test execution
+  - Tool executed: Yes/No (MUST be Yes)
+  - Tests status: Pass/Fail (from tool response: `results.tests.status`, MUST be "passed")
+  - Zero failures confirmed: Yes/No (parsed from tool response: `results.tests.tests_failed`, MUST be 0)
+  - 100% pass rate confirmed: Yes/No (parsed from tool response: `results.tests.pass_rate`, MUST be 100.0)
+  - Coverage threshold met: Yes/No (parsed from tool response: `results.tests.coverage`, MUST be ≥ 90.0%)
+  - Coverage value extracted: Yes/No (exact percentage must be shown from tool response)
+  - Integration tests passed: Yes/No (explicitly verified from tool response)
+  - Tool output parsed: Yes/No
+- **Details**: Complete summary from test execution tool response
 - **Commit Blocked**: Yes/No (blocked if any validation fails, including coverage < 90.0%)
 - **CRITICAL**: If coverage < 90.0%, commit MUST be blocked regardless of other results
+- **Fallback Used**: Yes/No (only if MCP tool was unavailable)
 
-#### **4. Memory Bank Update**
+#### **5. Memory Bank Update**
 
 - **Status**: Success/Failure/Skipped
-- **Command File Available**: Whether update-memory-bank.md exists
-- **Files Updated**: List of memory bank files updated (if command executed)
-- **Entries Added**: Count of new entries added (if command executed)
-- **Details**: Summary from update-memory-bank command (if executed) or reason for skipping
+- **MCP Tool Used**: `manage_file()` MCP tool for memory bank operations
+- **Files Updated**: List of memory bank files updated (activeContext.md, progress.md, roadmap.md)
+- **Entries Added**: Count of new entries added (if any)
+- **Details**: Summary of memory bank updates made
 
-#### **5. Roadmap Update**
+#### **6. Roadmap Update**
 
 - **Status**: Success/Failure
 - **Items Marked Complete**: Count of completed milestones/tasks marked in roadmap.md
@@ -552,7 +618,7 @@ Use this ordering when numbering results:
 - **Status Updates**: Summary of progress indicator updates
 - **Details**: Summary of roadmap changes made
 
-#### **6. Plan Archiving**
+#### **7. Plan Archiving**
 
 - **Status**: Success/Failure
 - **Plans Found**: Count of completed plans detected (must show detection was performed)
@@ -571,7 +637,7 @@ Use this ordering when numbering results:
 - **Details**: Summary of plan archiving operations including detection method and results
 - **Commit Blocked**: Yes/No (blocked if completed plans found but not archived, or if link validation fails)
 
-#### **7. Archive Location Validation**
+#### **8. Archive Location Validation**
 
 - **Status**: Success/Failure
 - **Completed Plans Re-check**: Count of completed plans found in `.cursor/plans/` (must be 0)
@@ -588,7 +654,7 @@ Use this ordering when numbering results:
 - **Details**: Summary of archive location validation results
 - **Commit Blocked**: Yes/No (blocked if any completed plans remain unarchived or if archive structure is invalid)
 
-#### **8. Memory Bank Timestamp Validation**
+#### **9. Memory Bank Timestamp Validation**
 
 - **Status**: Success/Failure
 - **Command Used**: `validate(check_type="timestamps")` MCP tool
@@ -604,7 +670,7 @@ Use this ordering when numbering results:
 - **Details**: Summary of timestamp validation results, including any violations found
 - **Commit Blocked**: Yes/No (blocked if any violations found)
 
-#### **9. Roadmap Synchronization Validation**
+#### **10. Roadmap Synchronization Validation**
 
 - **Status**: Success/Failure/Skipped
 - **Command File Available**: Whether validate-roadmap-sync.md exists
@@ -613,7 +679,7 @@ Use this ordering when numbering results:
 - **Synchronization Issues**: Count of issues found (must be 0 if command executed)
 - **Details**: Summary from validate-roadmap-sync command (if executed) or reason for skipping
 
-#### **10. Submodule Handling**
+#### **11. Submodule Handling**
 
 - **Status**: Success/Failure/Skipped
 - **Submodule Changes Detected**: Whether `.cortex/synapse` submodule had changes
@@ -623,7 +689,7 @@ Use this ordering when numbering results:
 - **Parent Reference Updated**: Whether parent repository's submodule reference was updated
 - **Details**: Summary of submodule operations performed
 
-#### **11. Commit Creation**
+#### **12. Commit Creation**
 
 - **Status**: Success/Failure
 - **Commit Hash**: Git commit hash if successful
@@ -631,7 +697,7 @@ Use this ordering when numbering results:
 - **Files Committed**: Count and list of files in the commit
 - **Submodule Reference Updated**: Whether submodule reference was included in commit
 
-#### **12. Push Branch**
+#### **13. Push Branch**
 
 - **Status**: Success/Failure
 - **Branch Name**: Current branch that was pushed
@@ -702,11 +768,11 @@ Use this ordering when numbering results:
 - **Process**:
   1. **IMMEDIATE FIX**: Report the specific code quality violation (file size or function length)
   2. Provide detailed error information including file path, function name, and violation details
-  3. Parse script output to extract exact violation counts and details
+  3. Parse MCP tool response or check output to extract exact violation counts and details
   4. **FIX**: Fix file size violations by splitting large files or extracting modules
   5. **FIX**: Fix function length violations by extracting helper functions or refactoring logic
   6. Re-run checks to verify fixes
-  7. **VALIDATION**: Re-parse script output to confirm zero violations remain
+  7. **VALIDATION**: Re-parse MCP tool response or check output to confirm zero violations remain
   8. **CONTEXT ASSESSMENT**: After fixing, assess if sufficient free context remains:
      - If YES: Continue with commit pipeline (re-run check, verify, proceed to next step)
      - If NO: Provide comprehensive changes summary and advise re-running commit pipeline
@@ -824,13 +890,13 @@ Use this ordering when numbering results:
 - ✅ **VALIDATION**: Markdown lint fix tool executed and verified (if tool available)
 - ✅ Real-time checklist updates completed for all steps
 - ✅ File size check passes (all files ≤ 400 lines)
-- ✅ **VALIDATION**: File size check script output confirms zero violations
+- ✅ **VALIDATION**: File size check confirms zero violations (parsed from MCP tool response)
 - ✅ Function length check passes (all functions ≤ 30 lines)
-- ✅ **VALIDATION**: Function length check script output confirms zero violations
+- ✅ **VALIDATION**: Function length check confirms zero violations (parsed from MCP tool response)
 - ✅ All executable tests pass (100% pass rate) - verified via test execution
-- ✅ **VALIDATION**: Test output parsed to confirm zero failures, 100% pass rate
+- ✅ **VALIDATION**: Test output parsed to confirm zero failures, 100% pass rate (from MCP tool response)
 - ✅ Test coverage meets threshold (90%+) - verified via test execution
-- ✅ **VALIDATION**: Coverage percentage parsed from test output and confirmed ≥ 90.0% (MANDATORY)
+- ✅ **VALIDATION**: Coverage percentage parsed from MCP tool response (`results.tests.coverage`) and confirmed ≥ 90.0% (MANDATORY)
 - ✅ **COVERAGE ENFORCEMENT**: Coverage threshold validation is absolute - no exceptions allowed
 - ✅ All integration tests pass - explicitly verified from test output
 - ✅ Memory bank updated with current information
