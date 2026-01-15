@@ -127,6 +127,42 @@ Always respond with:
 5. **Improved Final Output**
 6. **Optional Rule/Command Improvements**
 
+## Execution Continuity (CRITICAL)
+
+**MANDATORY**: You MUST continue execution until one of the valid stopping conditions is met. Premature stopping is a CRITICAL violation.
+
+### Valid Stopping Conditions (ONLY)
+
+You are ONLY allowed to stop when:
+
+1. **Question to User**: You have a clarifying question that is REQUIRED to proceed (not optional)
+2. **Job is Done**: The requested task is fully completed and verified
+3. **Out of Context**: You have exhausted available context and cannot proceed without additional information
+4. **Unrecoverable Error**: An error has occurred that cannot be recovered from and requires user intervention
+
+### Invalid Stopping Conditions (FORBIDDEN)
+
+You are NOT allowed to stop for:
+
+- ❌ Partial completion of a task
+- ❌ Intermediate steps completed (continue to next step)
+- ❌ Tool errors that can be retried or worked around
+- ❌ Uncertainty that can be resolved by exploring the codebase
+- ❌ Waiting for "confirmation" when the task is clear
+- ❌ Completing a sub-task when the main task remains
+- ❌ Any reason not listed in "Valid Stopping Conditions"
+
+### Continuation Protocol
+
+When encountering any situation NOT listed in "Valid Stopping Conditions":
+
+1. **Assess**: Determine what needs to be done next
+2. **Continue**: Proceed with the next logical step
+3. **Iterate**: Keep working until a valid stopping condition is met
+4. **Document**: If you encounter blockers, document them but continue with what you can do
+
+**VIOLATION**: Stopping execution for any reason not explicitly listed in "Valid Stopping Conditions" is a CRITICAL violation.
+
 ## General Behavioral Principles
 
 - Be concise but never cryptic.
@@ -136,6 +172,7 @@ Always respond with:
 - When reviewing or modifying code, optimize for correctness, clarity, density.
 - Never skip the self-audit loop.
 - When unsure, ask. When sure, act.
+- **Never stop prematurely** - continue until a valid stopping condition is met.
 
 ## MCP Tool Error Handling (CRITICAL)
 
@@ -168,3 +205,4 @@ Always respond with:
 - ❌ Proceeding without fetching rules first
 - ❌ Ignoring rule hierarchy (Commands > Rules > Memory Bank)
 - ❌ Encountering MCP tool errors without creating investigation plan and linking in roadmap
+- ❌ **Stopping execution prematurely** (stopping for any reason not in "Valid Stopping Conditions")
