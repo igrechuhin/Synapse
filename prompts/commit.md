@@ -164,7 +164,10 @@ The following error patterns MUST be detected and fixed before commit. These are
      - Finds all modified markdown files (`.md` and `.mdc`) using git
      - Runs markdownlint-cli2 with `--fix` to auto-fix errors
      - Reports files fixed and errors resolved
-   - **CRITICAL**: If markdownlint-cli2 is not installed, report error but DO NOT block commit (tool may not be available in all environments)
+   - **CRITICAL**: markdownlint-cli2 is a REQUIRED dependency for Cortex MCP. If not installed:
+     - **BLOCK COMMIT** and report error: "markdownlint-cli2 not found. Install it with: npm install -g markdownlint-cli2"
+     - Installation is required because `fix_markdown_lint` MCP tool depends on it
+     - See README.md for installation instructions
    - **VALIDATION**: After fixing, verify markdown lint errors are resolved:
      - Check script output for files fixed count
      - If errors remain, manually fix non-auto-fixable errors
@@ -472,7 +475,7 @@ Use this ordering when numbering results:
   - Script output parsed: Yes/No
 - **Details**: Summary of markdown lint fixing operations
 - **Commit Blocked**: Yes/No (blocked if critical markdown lint errors remain)
-- **Skip if**: markdownlint-cli2 is not installed (report warning but don't block)
+- **REQUIRED**: markdownlint-cli2 must be installed (required dependency for Cortex MCP)
 
 #### **2. Type Checking**
 
