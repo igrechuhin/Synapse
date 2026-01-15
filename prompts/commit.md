@@ -157,6 +157,20 @@ The following error patterns MUST be detected and fixed before commit. These are
    - **MANDATORY**: Formatter check MUST pass before proceeding to next step
    - **VALIDATION**: Parse formatter check output to verify zero violations - **BLOCK COMMIT** if any violations remain
    - **CONTEXT ASSESSMENT**: After fixing formatting issues, if insufficient context remains, provide comprehensive summary and advise re-running commit pipeline
+1.5. **Markdown linting** - Fix markdown lint errors in modified markdown files:
+   - **MANDATORY**: Run markdown lint fix tool to automatically fix markdownlint errors
+   - Execute: `python3 scripts/fix_markdown_lint.py --include-untracked` (or equivalent)
+   - The script automatically:
+     - Finds all modified markdown files (`.md` and `.mdc`) using git
+     - Runs markdownlint-cli2 with `--fix` to auto-fix errors
+     - Reports files fixed and errors resolved
+   - **CRITICAL**: If markdownlint-cli2 is not installed, report error but DO NOT block commit (tool may not be available in all environments)
+   - **VALIDATION**: After fixing, verify markdown lint errors are resolved:
+     - Check script output for files fixed count
+     - If errors remain, manually fix non-auto-fixable errors
+     - **BLOCK COMMIT** if critical markdown lint errors remain (trailing spaces, list formatting, etc.)
+   - **PRIMARY FOCUS**: If markdown lint errors are detected, fix them immediately
+   - **Note**: This step runs after code formatting to ensure markdown files are also properly formatted
 2. **Type checking** - Run type checker (if applicable):
    - **Conditional**: Only execute if project uses a type system (Python with type hints, TypeScript, etc.)
    - Execute language-specific type checker script: `.cortex/synapse/scripts/{language}/check_types.py` (or equivalent)
@@ -200,7 +214,7 @@ The following error patterns MUST be detected and fixed before commit. These are
      - `results.tests.pass_rate` = 100.0 (MUST be 100%)
      - `results.tests.coverage` ≥ 0.90 (MUST meet threshold - NO exceptions)
      - **BLOCK COMMIT** if any of the above validations fail
-   - **CRITICAL COVERAGE VALIDATION**: 
+   - **CRITICAL COVERAGE VALIDATION**:
      - Coverage MUST be extracted from `results.tests.coverage` field
      - Coverage MUST be compared to 0.90 threshold
      - If coverage < 0.90, commit procedure MUST STOP immediately
@@ -221,17 +235,37 @@ The following error patterns MUST be detected and fixed before commit. These are
    - Update completion status and progress indicators
    - Ensure roadmap accurately reflects current project state
 7. **Archive completed plans** - Archive any completed build plans:
-   - Check `.cursor/plans/` directory for completed plan files
-   - Use standard tools (`mv` or equivalent) to move completed plans to `.cursor/plans/archive/` directory
-   - Create `.cursor/plans/archive/` directory with standard tools if it doesn't exist
-   - Update plan status to "archived" if not already done
-   - Ensure no active plans remain in the plans directory
-   - **CRITICAL**: Plan files MUST be archived in `.cursor/plans/archive/`, never in `.cursor/plans/archive/`
-8. **Validate archive locations** - Validate that all archived files are in correct locations:
-   - Check `.cursor/plans/archive/` directory - should contain plan files only
-   - Validate that plan files are archived in `.cursor/plans/archive/`
-   - Report any plan files found outside `.cursor/plans/archive/` and require manual correction
-   - Block commit if archive location violations are found
+   - **MANDATORY**: Scan `.cursor/plans/` directory (or `.cortex/plans/` if `.cursor/plans` is a symlink) for plan files with status "COMPLETED" or "Complete"
+   - **Detection Method**: Use `grep -l "Status.*COMPLETED\|Status.*Complete" .cursor/plans/*.md` (or `.cortex/plans/*.md`) to find completed plans
+   - **CRITICAL**: If no completed plans are found, report "0 plans archived" but DO NOT skip this step - the check MUST be performed
+   - For each completed plan found:
+     - Extract phase number from filename (e.g., `phase-18-*.md` → Phase18)
+     - Create archive directory: `mkdir -p .cursor/plans/archive/PhaseX/` (or `.cortex/plans/archive/PhaseX/`)
+     - Move plan file: `mv .cursor/plans/phase-X-*.md .cursor/plans/archive/PhaseX/`
+     - Update all links in memory bank files (activeContext.md, roadmap.md, progress.md) to point to archive location: `../plans/archive/PhaseX/phase-X-*.md`
+     - Run `validate_links()` MCP tool to verify all links are valid after archival
+     - Fix any broken links found
+   - **VALIDATION**: After archiving, verify:
+     - Count of plans archived (must match count found in detection step)
+     - All archived plans are in `.cursor/plans/archive/PhaseX/` directories (not in `.cursor/plans/`)
+     - All links in memory bank files point to archive locations
+     - Link validation passes with zero broken links for archived plans
+   - **BLOCK COMMIT** if:
+     - Completed plans are found but not archived
+     - Links are not updated after archiving
+     - Link validation fails for archived plan links
+   - **CRITICAL**: Plan files MUST be archived in `.cursor/plans/archive/PhaseX/`, never left in `.cursor/plans/`
+8. **Validate archive locations** - Validate that all archived files are in correct locations and no completed plans remain unarchived:
+   - **MANDATORY**: Re-check for completed plans in `.cursor/plans/` (or `.cortex/plans/`) that were not archived
+   - Use `grep -l "Status.*COMPLETED\|Status.*Complete" .cursor/plans/*.md` to detect any remaining completed plans
+   - **CRITICAL**: If any completed plans are found in `.cursor/plans/`, this is a violation - they MUST be archived
+   - Check `.cursor/plans/archive/` directory structure - should contain PhaseX subdirectories with plan files
+   - Validate that all plan files in archive are in correct PhaseX subdirectories
+   - Report any plan files found outside `.cursor/plans/archive/PhaseX/` and require manual correction
+   - **BLOCK COMMIT** if:
+     - Any completed plans remain in `.cursor/plans/` directory
+     - Any archived plans are in wrong locations (not in PhaseX subdirectories)
+     - Archive location violations are found
 9. **Validate memory bank timestamps** - Use MCP tool `validate(check_type="timestamps")`:
    - **Call MCP tool**: `validate(check_type="timestamps", project_root="<project_root>")`
    - The tool will automatically:
@@ -305,6 +339,9 @@ The commit procedure executes steps in this specific order to ensure dependencie
 1. **Formatting** - Ensures code style consistency with project formatter
    - **CRITICAL**: Must verify with formatter check after formatting to ensure CI will pass
    - **VALIDATION**: Formatter check MUST pass - **BLOCK COMMIT** if it fails
+1.5. **Markdown Linting** - Fixes markdown lint errors in modified markdown files
+   - **CRITICAL**: Must run markdown lint fix tool to ensure all markdown files are properly formatted
+   - **VALIDATION**: Markdown lint errors MUST be fixed - **BLOCK COMMIT** if critical errors remain
 2. **Type Checking** - Validates type safety with type checker (if applicable)
    - **CRITICAL**: Must pass with zero type errors AND zero warnings before proceeding (skip if project doesn't use types)
    - **VALIDATION**: Type checker MUST report zero errors AND zero warnings - **BLOCK COMMIT** if type errors OR warnings exist
@@ -316,7 +353,7 @@ The commit procedure executes steps in this specific order to ensure dependencie
    - **CRITICAL**: Runs AFTER errors, formatting, and code quality are fixed
    - **CRITICAL**: Tests must pass with 100% pass rate before proceeding
    - **VALIDATION**: Must verify zero test failures, 100% pass rate, 90%+ coverage (MANDATORY), all integration tests pass
-   - **CRITICAL COVERAGE ENFORCEMENT**: 
+   - **CRITICAL COVERAGE ENFORCEMENT**:
      - Coverage threshold of 90% is MANDATORY and absolute
      - Coverage MUST be parsed from test output and verified ≥ 90.0%
      - If coverage < 90.0%, commit procedure MUST STOP and coverage MUST be fixed
@@ -380,6 +417,7 @@ Use this ordering when numbering results:
 
 - Step 0: Fix Errors
 - Step 1: Formatting
+- Step 1.5: Markdown Linting
 - Step 2: Code Quality Checks
 - Step 3: Test Execution
 - Step 4: Memory Bank Update
@@ -416,6 +454,25 @@ Use this ordering when numbering results:
 - **Errors**: Any formatting errors encountered
 - **Warnings**: Any formatting warnings
 - **Verification**: Confirmation that formatter check passed before proceeding
+
+#### **1.5. Markdown Linting**
+
+- **Status**: Success/Failure/Skipped
+- **Command Used**: `python3 scripts/fix_markdown_lint.py --include-untracked`
+- **Tool Available**: Whether markdownlint-cli2 is installed
+- **Files Processed**: Count of markdown files processed
+- **Files Fixed**: Count of markdown files with errors fixed
+- **Files Unchanged**: Count of markdown files with no errors
+- **Errors Fixed**: List of markdown lint errors fixed
+- **Errors Remaining**: List of non-auto-fixable errors (if any)
+- **Validation Results**:
+  - Tool executed: Yes/No (MUST be Yes if tool available)
+  - All auto-fixable errors fixed: Yes/No (MUST be Yes if tool available)
+  - Critical errors remaining: Yes/No (MUST be No)
+  - Script output parsed: Yes/No
+- **Details**: Summary of markdown lint fixing operations
+- **Commit Blocked**: Yes/No (blocked if critical markdown lint errors remain)
+- **Skip if**: markdownlint-cli2 is not installed (report warning but don't block)
 
 #### **2. Type Checking**
 
@@ -488,18 +545,38 @@ Use this ordering when numbering results:
 #### **6. Plan Archiving**
 
 - **Status**: Success/Failure
-- **Plans Archived**: Count of plans moved to archive directory
+- **Plans Found**: Count of completed plans detected (must show detection was performed)
+- **Plans Archived**: Count of plans moved to archive directory (must match Plans Found if > 0)
 - **Plans Processed**: Count of plan files checked
+- **Archive Directories Created**: List of PhaseX directories created
+- **Links Updated**: Count of links updated in memory bank files
+- **Link Validation Status**: Pass/Fail after archiving
+- **Validation Results**:
+  - Detection performed: Yes/No (MUST be Yes - show command/output)
+  - All completed plans archived: Yes/No (MUST be Yes if Plans Found > 0)
+  - Links updated: Yes/No (MUST be Yes if Plans Archived > 0)
+  - Link validation passed: Yes/No (MUST be Yes if Plans Archived > 0)
+  - Archive locations verified: Yes/No (MUST be Yes if Plans Archived > 0)
 - **Archive Directory**: Location where plans were archived
-- **Details**: Summary of plan archiving operations
+- **Details**: Summary of plan archiving operations including detection method and results
+- **Commit Blocked**: Yes/No (blocked if completed plans found but not archived, or if link validation fails)
 
 #### **7. Archive Location Validation**
 
 - **Status**: Success/Failure
+- **Completed Plans Re-check**: Count of completed plans found in `.cursor/plans/` (must be 0)
+- **Unarchived Plans**: List of any completed plans still in `.cursor/plans/` (must be empty)
 - **Plan Archive Checked**: Count of files in `.cursor/plans/archive/`
-- **Violations Found**: Count of plan files outside `.cursor/plans/archive/` (must be 0)
-- **Violations List**: List of any plan files in wrong locations
+- **Archive Structure Valid**: Whether all archived plans are in PhaseX subdirectories
+- **Violations Found**: Count of violations (unarchived completed plans + wrong locations, must be 0)
+- **Violations List**: List of any plan files in wrong locations or unarchived completed plans
+- **Validation Results**:
+  - Completed plans re-check performed: Yes/No (MUST be Yes - show command/output)
+  - Zero unarchived completed plans: Yes/No (MUST be Yes)
+  - All archived plans in correct locations: Yes/No (MUST be Yes)
+  - Archive structure valid: Yes/No (MUST be Yes)
 - **Details**: Summary of archive location validation results
+- **Commit Blocked**: Yes/No (blocked if any completed plans remain unarchived or if archive structure is invalid)
 
 #### **8. Memory Bank Timestamp Validation**
 
@@ -589,10 +666,12 @@ Use this ordering when numbering results:
 **PRIMARY FOCUS**: When any error or violation is detected during the commit procedure, the agent's PRIMARY FOCUS must be to fix it immediately.
 
 **After Fixing**:
+
 1. **If sufficient free context remains**: Continue with the commit pipeline automatically
    - Re-run the validation check that detected the issue
    - Verify the fix resolved the issue
    - Proceed to the next step in the commit pipeline
+
 2. **If free context is insufficient**: Stop the commit pipeline and provide:
    - **Comprehensive Changes Summary**: Document all fixes made, files modified, and changes applied
    - **Re-run Recommendation**: Advise the user to re-run the commit pipeline (`/commit` or equivalent)
@@ -730,6 +809,8 @@ Use this ordering when numbering results:
 - ✅ Project formatter + import sorting (if applicable) formatting passes without errors
 - ✅ **CRITICAL**: Formatter check MUST pass after formatting (verifies CI will pass)
 - ✅ **VALIDATION**: Formatter check output confirms zero formatting violations
+- ✅ Markdown lint errors fixed (all modified markdown files properly formatted)
+- ✅ **VALIDATION**: Markdown lint fix tool executed and verified (if tool available)
 - ✅ Real-time checklist updates completed for all steps
 - ✅ File size check passes (all files ≤ 400 lines)
 - ✅ **VALIDATION**: File size check script output confirms zero violations
