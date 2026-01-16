@@ -6,7 +6,12 @@
 
 **CURSOR COMMAND**: This is a Cursor command located in `.cortex/synapse/prompts/` directory, NOT a terminal command.
 
-**Tooling Note**: Use standard Cursor tools (`Read`, `ApplyPatch`, `Write`, `LS`, `Glob`, `Grep`) by default; MCP filesystem tools are optional fallbacks only when standard tools are unavailable or explicitly requested. Use Cortex MCP tools for memory bank operations when appropriate (e.g., `manage_file()` for reading memory bank files, `validate()` for validation checks).
+**Tooling Note**: **MANDATORY: All file operations within `.cortex/` directory MUST use Cortex MCP tools** - do NOT access files directly via hardcoded paths. Use standard Cursor tools (`Read`, `ApplyPatch`, `Write`, `LS`, `Glob`, `Grep`) for files outside `.cortex/` directory only. For `.cortex/` files:
+
+- Use `manage_file()` for memory bank files (read/write)
+- Use `get_structure_info()` to get directory paths dynamically
+- Use path resolver utilities to construct safe paths
+- For review reports: Use `Write` tool with path obtained from `get_cortex_path(project_root, CortexResourceType.REVIEWS)` or `get_structure_info()`
 
 ## ⚠️ MANDATORY PRE-ACTION CHECKLIST
 
@@ -134,7 +139,13 @@
 
 - All review reports MUST be saved to `.cortex/reviews/` directory
 - File naming: `code-review-report-YYYY-MM-DD.md` (e.g., `code-review-report-2026-01-15.md`)
-- Create the `.cortex/reviews/` directory if it doesn't exist
+- **MANDATORY: Use Cortex MCP tools to get the correct path**:
+  1. Call `get_structure_info(project_root=None)` MCP tool to get structure information
+  2. Extract the `.cortex` directory path from the response (typically `{project_root}/.cortex`)
+  3. Construct the reviews directory path: `{cortex_dir}/reviews/`
+  4. Construct the full file path: `{reviews_dir}/code-review-report-YYYY-MM-DD.md`
+  5. Use the `Write` tool with this dynamically constructed path (it will create parent directories automatically)
+- **NEVER use hardcoded paths like `.cortex/code-review-report-*.md`** - This is the deprecated old path that must not be used
 - Do NOT save review reports in `.cortex/` root or other locations
 
 **CRITICAL: Report Structure for Plan Creation**

@@ -158,19 +158,19 @@ The following error patterns MUST be detected and fixed before commit. These are
      - **CONTEXT ASSESSMENT**: After fixing formatting issues, if insufficient context remains, provide comprehensive summary and advise re-running commit pipeline
    - **Fallback**: If MCP tool is unavailable, run formatter manually: `.venv/bin/black src/ tests/` (for Python) or equivalent for other languages
 1.5. **Markdown linting** - Fix markdown lint errors in all markdown files:
-   - **MANDATORY**: Run markdown lint fix tool to automatically fix markdownlint errors
+   - **MANDATORY**: Run markdown lint fix MCP tool to automatically fix markdownlint errors
    - **CRITICAL**: Check ALL markdown files, not just modified ones, to catch existing errors
-   - Execute: `.venv/bin/python scripts/fix_markdown_lint.py --check-all` (or equivalent)
-   - The script automatically:
-     - Finds all markdown files (`.md` and `.mdc`) in the project when `--check-all` is used
+   - **Call MCP tool**: `fix_markdown_lint(check_all_files=True, include_untracked_markdown=True)`
+   - The MCP tool automatically:
+     - Finds all markdown files (`.md` and `.mdc`) in the project when `check_all_files=True`
      - Runs markdownlint-cli2 with `--fix` to auto-fix errors
-     - Reports files fixed and errors resolved
+     - Returns structured JSON with files fixed and errors resolved
    - **CRITICAL**: markdownlint-cli2 is a REQUIRED dependency for Cortex MCP. If not installed:
      - **BLOCK COMMIT** and report error: "markdownlint-cli2 not found. Install it with: npm install -g markdownlint-cli2"
      - Installation is required because `fix_markdown_lint` MCP tool depends on it
      - See README.md for installation instructions
    - **VALIDATION**: After fixing, verify markdown lint errors are resolved:
-     - **Step 1**: Check tool response for `files_with_errors` count
+     - **Step 1**: Parse MCP tool response to check `files_with_errors` count
      - **Step 2**: If `files_with_errors > 0`, run markdownlint in check-only mode to get detailed error report:
        - Execute: `markdownlint-cli2 "**/*.md" "**/*.mdc" --config .markdownlint.json 2>&1` (or equivalent)
        - Parse output to extract error codes (MD024, MD032, MD031, MD036, etc.) and file paths
@@ -191,7 +191,7 @@ The following error patterns MUST be detected and fixed before commit. These are
        - If file is in `.cortex/plans/` directory: **BLOCK COMMIT** - plan files must be error-free
        - For other files: Review and fix manually or add markdownlint disable comments if appropriate
      - **Step 5**: Re-run validation after manual fixes:
-       - Run fix tool again: `.venv/bin/python scripts/fix_markdown_lint.py --check-all`
+       - Call MCP tool again: `fix_markdown_lint(check_all_files=True, include_untracked_markdown=True)`
        - Run check-only mode again: `markdownlint-cli2 "**/*.md" "**/*.mdc" --config .markdownlint.json 2>&1`
        - Verify zero critical errors remain
      - **BLOCK COMMIT** if:
@@ -202,7 +202,8 @@ The following error patterns MUST be detected and fixed before commit. These are
      - **Note**: Memory bank files (progress.md, activeContext.md, roadmap.md, etc.) must be error-free
    - **PRIMARY FOCUS**: If markdown lint errors are detected, fix them immediately
    - **Note**: This step runs after code formatting to ensure markdown files are also properly formatted
-   - **Note**: Using `--check-all` ensures all markdown files are checked, not just those modified in the current commit
+   - **Note**: Using `check_all_files=True` ensures all markdown files are checked, not just those modified in the current commit
+   - **Fallback**: If MCP tool is unavailable, the tool can be called via CLI wrapper: `.venv/bin/python -m cortex.tools.markdown_operations` (if implemented)
 2. **Type checking** - Use `execute_pre_commit_checks()` MCP tool (if applicable):
    - **Conditional**: Only execute if project uses a type system (Python with type hints, TypeScript, etc.)
    - **Call MCP tool**: `execute_pre_commit_checks(checks=["type_check"], strict_mode=False)`
@@ -512,7 +513,7 @@ Use this ordering when numbering results:
 #### **1.5. Markdown Linting**
 
 - **Status**: Success/Failure/Skipped
-- **Command Used**: `.venv/bin/python scripts/fix_markdown_lint.py --check-all`
+- **MCP Tool Used**: `fix_markdown_lint(check_all_files=True, include_untracked_markdown=True)`
 - **Tool Available**: Whether markdownlint-cli2 is installed
 - **Files Processed**: Count of markdown files processed
 - **Files Fixed**: Count of markdown files with errors fixed
