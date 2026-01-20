@@ -11,7 +11,7 @@
 **Memory Bank Access**: All memory bank operations MUST use structured Cortex MCP tools:
 
 - `manage_file()` - Read/write individual memory bank files
-- `optimize_context()` - Get optimal context for a task within token budget
+- `load_context()` - Get optimal context for a task within token budget
 - `load_progressive_context()` - Load context progressively based on strategy
 - `get_relevance_scores()` - Get relevance scores for memory bank files
 - `get_memory_bank_stats()` - Get memory bank statistics
@@ -39,7 +39,7 @@
      - Estimated scope/complexity
 
 2. ✅ **Load relevant context** - Understand current project context:
-   - **Use Cortex MCP tool `optimize_context(task_description="[roadmap step description]", token_budget=50000)`** to get optimal context for the roadmap step
+   - **Use Cortex MCP tool `load_context(task_description="[roadmap step description]", token_budget=50000)`** to get optimal context for the roadmap step
    - **Alternative**: Use `load_progressive_context(task_description="[roadmap step description]")` to load context progressively
    - **Optional**: Use `get_relevance_scores(task_description="[roadmap step description]")` to see which memory bank files are most relevant
    - The context loading tools will automatically select relevant files (activeContext.md, progress.md, projectBrief.md, systemPatterns.md, techContext.md, etc.) based on the task
@@ -80,7 +80,7 @@
 
 ### Step 2: Load Relevant Context
 
-1. **Use Cortex MCP tool `optimize_context(task_description="[description of roadmap step]", token_budget=50000)`** to get optimal context for the implementation task
+1. **Use Cortex MCP tool `load_context(task_description="[description of roadmap step]", token_budget=50000)`** to get optimal context for the implementation task
    - This tool will automatically select and return relevant memory bank files based on the task description
    - The returned context will include: current project state, related work, technical constraints, patterns, and any relevant context
 2. **Alternative approach**: If you need more control, use `get_relevance_scores(task_description="[description]")` first to see which files are most relevant, then use `manage_file()` to read specific high-relevance files
@@ -232,4 +232,4 @@ If the following tools would be helpful but are not available, they should be pl
 - `batch_read_memory_bank_files(file_names)` - Read multiple memory bank files in a single call
 - `get_memory_bank_file_list()` - Get list of all available memory bank files with metadata
 
-These tools would provide more efficient and structured access patterns, but the existing tools (`optimize_context()`, `load_progressive_context()`, `manage_file()`) are sufficient for current needs.
+These tools would provide more efficient and structured access patterns, but the existing tools (`load_context()`, `load_progressive_context()`, `manage_file()`) are sufficient for current needs.

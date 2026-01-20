@@ -1,12 +1,12 @@
 # Analyze Context Effectiveness
 
-**AI EXECUTION COMMAND**: End-of-session analysis to evaluate `optimize_context` effectiveness and provide feedback for improvement.
+**AI EXECUTION COMMAND**: End-of-session analysis to evaluate `load_context` effectiveness and provide feedback for improvement.
 
 **CRITICAL**: These steps are for the AI to execute AUTOMATICALLY at the end of a chat session. DO NOT ask the user for permission or confirmation. Execute immediately.
 
 **CURSOR COMMAND**: This is a Cursor command located in `.cortex/synapse/prompts/` directory, NOT a terminal command.
 
-**Purpose**: Analyze how effective the `optimize_context` tool was during this session by comparing what context was provided versus what was actually used. This feedback helps improve future context optimization.
+**Purpose**: Analyze how effective the `load_context` tool was during this session by comparing what context was provided versus what was actually used. This feedback helps improve future context optimization.
 
 ## Core Goal
 
@@ -23,7 +23,7 @@ Every token matters. The goal is to:
 
 Run this prompt at the end of ANY chat session to:
 
-### If `optimize_context` WAS Used
+### If `load_context` WAS Used
 
 - Evaluate context selection effectiveness
 - Identify over-provisioning (unused files wasting tokens)
@@ -31,57 +31,57 @@ Run this prompt at the end of ANY chat session to:
 - Generate improvement suggestions
 - Build a feedback dataset for optimization
 
-### If `optimize_context` WAS NOT Used
+### If `load_context` WAS NOT Used
 
 - **Investigate why it wasn't used** - This is a missed optimization opportunity
 - Analyze what context was loaded manually or automatically
-- Determine if `optimize_context` would have helped
-- Identify barriers to using `optimize_context`
+- Determine if `load_context` would have helped
+- Identify barriers to using `load_context`
 - Recommend when to use it in similar future sessions
 
 ## Pre-Analysis Checklist
 
 Before starting the analysis, determine which path to follow:
 
-### Path A: optimize_context WAS Used
+### Path A: load_context WAS Used
 
-If `optimize_context` was called during the session, proceed to analyze its effectiveness.
+If `load_context` was called during the session, proceed to analyze its effectiveness.
 
-### Path B: optimize_context WAS NOT Used
+### Path B: load_context WAS NOT Used
 
-If `optimize_context` was NOT called, investigate:
+If `load_context` was NOT called, investigate:
 
 1. **What context was loaded instead?**
    - Manual file reads?
    - Automatic context from IDE?
    - Memory bank files read directly?
 
-2. **Why wasn't optimize_context used?**
+2. **Why wasn't load_context used?**
    - Task seemed too simple?
    - Forgot it was available?
    - Didn't know when to use it?
    - Previous bad experience?
 
-3. **Would optimize_context have helped?**
+3. **Would load_context have helped?**
    - Were multiple files needed?
    - Was there uncertainty about which files to read?
    - Did the session involve exploring unfamiliar code?
    - Was context loading inefficient (reading files that weren't needed)?
 
 4. **Recommendation for future sessions**
-   - Should `optimize_context` be used for similar tasks?
+   - Should `load_context` be used for similar tasks?
    - What task description would have been appropriate?
    - What token budget would have been suitable?
 
-**Skip to the "Path B Analysis" section below if optimize_context was not used.**
+**Skip to the "Path B Analysis" section below if load_context was not used.**
 
 ---
 
-## Path A: Analyzing optimize_context Effectiveness
+## Path A: Analyzing load_context Effectiveness
 
-### 1. Recall optimize_context Calls
+### 1. Recall load_context Calls
 
-For each `optimize_context` call during the session, identify:
+For each `load_context` call during the session, identify:
 
 - **Task description** used
 - **Files selected** (from `selected_files` in response)
@@ -101,12 +101,12 @@ Recall what actually happened during the session:
 
 ## Analysis Steps
 
-### Step 1: Gather optimize_context Data
+### Step 1: Gather load_context Data
 
-List all `optimize_context` calls made during the session:
+List all `load_context` calls made during the session:
 
 ```markdown
-### optimize_context Call #1
+### load_context Call #1
 - **Task**: [task description]
 - **Selected Files**: [list of files]
 - **Total Tokens**: [number]
@@ -118,7 +118,7 @@ List all `optimize_context` calls made during the session:
 
 ### Step 2: Analyze Actual Usage
 
-For each optimize_context call, categorize files:
+For each load_context call, categorize files:
 
 #### Files Actually Used
 
@@ -132,7 +132,7 @@ Files that were:
 
 Files that were:
 
-- Selected by optimize_context
+- Selected by load_context
 - Never read, referenced, or used
 - Could have been excluded to save tokens
 
@@ -140,7 +140,7 @@ Files that were:
 
 Files that were:
 
-- NOT selected by optimize_context
+- NOT selected by load_context
 - But were needed during the session
 - Had to be read separately or caused gaps in context
 
@@ -225,16 +225,16 @@ Based on the analysis, provide specific suggestions:
 
 ---
 
-## Path B Analysis: optimize_context Was NOT Used
+## Path B Analysis: load_context Was NOT Used
 
-If `optimize_context` was not called during this session, provide the following analysis:
+If `load_context` was not called during this session, provide the following analysis:
 
 ### Step B1: Document Context Loading
 
 What context was actually loaded during the session?
 
 ```markdown
-### Context Loaded (Without optimize_context)
+### Context Loaded (Without load_context)
 
 | File | How Loaded | Was It Needed | Tokens (est.) |
 |------|------------|---------------|---------------|
@@ -252,9 +252,9 @@ Calculate informal efficiency metrics:
 - **Estimated Token Waste**: Tokens in files that weren't needed
 - **Missing Context**: Files that should have been loaded but weren't
 
-### Step B3: Evaluate optimize_context Opportunity
+### Step B3: Evaluate load_context Opportunity
 
-Would `optimize_context` have improved this session?
+Would `load_context` have improved this session?
 
 | Factor | Assessment |
 |--------|------------|
@@ -262,18 +262,18 @@ Would `optimize_context` have improved this session?
 | Uncertainty about which files? | Yes/No |
 | Token budget concerns? | Yes/No |
 | Task complexity | Simple/Medium/Complex |
-| **Recommendation** | Should/Could/Shouldn't have used optimize_context |
+| **Recommendation** | Should/Could/Shouldn't have used load_context |
 
 ### Step B4: Generate Recommendations
 
-If `optimize_context` should have been used:
+If `load_context` should have been used:
 
 1. **Suggested task description**: "[What task description would have worked]"
 2. **Suggested token budget**: [number] tokens
 3. **Suggested strategy**: [dependency_aware/priority/section_level/hybrid]
 4. **Expected benefit**: [What improvement would have been achieved]
 
-If `optimize_context` was correctly not used:
+If `load_context` was correctly not used:
 
 - Document why (e.g., "Single file task, no optimization needed")
 - Note for future reference
@@ -290,8 +290,8 @@ Provide the analysis in the following structured format:
 ## Session Summary
 
 - **Date**: [YYYY-MM-DD]
-- **optimize_context Used**: [Yes/No]
-- **Total optimize_context Calls**: [number or N/A]
+- **load_context Used**: [Yes/No]
+- **Total load_context Calls**: [number or N/A]
 - **Overall Effectiveness**: [Excellent/Good/Needs Improvement/Not Applicable]
 
 ## Metrics Summary
@@ -332,12 +332,12 @@ Provide the analysis in the following structured format:
 
 ## Structured Feedback (for storage)
 
-### If optimize_context WAS Used:
+### If load_context WAS Used:
 
 ```json
 {
   "session_date": "YYYY-MM-DD",
-  "optimize_context_used": true,
+  "load_context_used": true,
   "task_descriptions": ["task1", "task2"],
   "metrics": {
     "precision": 0.XX,
@@ -359,12 +359,12 @@ Provide the analysis in the following structured format:
 }
 ```
 
-### If optimize_context WAS NOT Used:
+### If load_context WAS NOT Used:
 
 ```json
 {
   "session_date": "YYYY-MM-DD",
-  "optimize_context_used": false,
+  "load_context_used": false,
   "reason_not_used": "Task seemed simple / Forgot / Didn't know when to use",
   "context_loaded_manually": {
     "files_read": ["file1.md", "file2.md"],
@@ -372,12 +372,12 @@ Provide the analysis in the following structured format:
     "files_actually_needed": ["file1.md"],
     "estimated_waste_tokens": 800
   },
-  "should_have_used_optimize_context": true,
+  "should_have_used_load_context": true,
   "recommended_task_description": "Suggested task description for future",
   "recommended_token_budget": 5000,
   "expected_benefit": "Would have saved ~800 tokens and included missing context",
   "suggestions": [
-    "Use optimize_context for multi-file tasks",
+    "Use load_context for multi-file tasks",
     "Consider dependency_aware strategy for this task type"
   ]
 }
@@ -403,7 +403,7 @@ manage_file(
 
 ## Success Criteria
 
-- [ ] All optimize_context calls identified and analyzed
+- [ ] All load_context calls identified and analyzed
 - [ ] Metrics calculated accurately
 - [ ] Feedback category determined
 - [ ] Specific improvement suggestions provided
@@ -445,10 +445,10 @@ Category: Under-provisioned
 Suggestion: Include dependency files when systemPatterns.md is selected
 ```
 
-### Example: optimize_context Not Used (Should Have Been)
+### Example: load_context Not Used (Should Have Been)
 
 ```
-optimize_context Used: No
+load_context Used: No
 Files Read Manually: 5
 Files Actually Needed: 2
 Estimated Token Waste: ~2000 tokens
@@ -463,20 +463,20 @@ Recommended Strategy: dependency_aware
 Expected Benefit: Would have selected only 2 relevant files instead of 5,
 saving ~2000 tokens and providing better focused context.
 
-Suggestion: For debugging tasks, always start with optimize_context
+Suggestion: For debugging tasks, always start with load_context
 to get targeted context instead of reading files manually.
 ```
 
-### Example: optimize_context Not Used (Correctly)
+### Example: load_context Not Used (Correctly)
 
 ```
-optimize_context Used: No
+load_context Used: No
 Task Type: Single file edit (typo fix)
 Files Needed: 1
 
 Should Have Used: No - Task was too simple
 Reason: Single file task with clear scope, no context optimization needed.
 
-Note: optimize_context adds overhead for simple tasks.
+Note: load_context adds overhead for simple tasks.
 Use it when multiple files or uncertain scope is involved.
 ```

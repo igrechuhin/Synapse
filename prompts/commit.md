@@ -114,6 +114,17 @@ The following error patterns MUST be detected and fixed before commit. These are
 - **Block Commit**: Yes - warnings must be resolved before commit
 - **Note**: Only applicable if project uses a type system (Python with type hints, TypeScript, etc.)
 
+### ⚠️ Errors Introduced After Initial Checks (CRITICAL)
+
+- **Pattern**: Code changes made AFTER Step 2-4 (type check, quality, tests) introduce NEW errors
+- **Detection**: CI fails with type/lint errors that weren't present in original Step 2 check
+- **Root Cause**: Agent makes additional code changes during steps 5-11 (memory bank, roadmap, test fixes) without re-running type check
+- **Example Failure**: Agent adds constants to fix tests, those constants have type errors, agent commits without re-checking
+- **Action**: ALWAYS run Step 12 (Final Validation Gate) immediately before commit
+- **Block Commit**: Yes - Step 12 is MANDATORY and cannot be skipped
+- **Prevention**: ANY code change after Step 4 REQUIRES re-running type check and linter before commit
+- **Note**: This is the most common cause of CI failures that "should have been caught"
+
 **CRITICAL**: All error patterns above MUST be validated by parsing command output, not just checking exit codes. Exit codes can be misleading - always parse actual output to verify results.
 
 ## Steps
@@ -494,10 +505,52 @@ The commit procedure executes steps in this specific order to ensure dependencie
 9. **Optimization** (Memory Bank Validation) - Validates and optimizes memory bank
 10. **Roadmap Sync** (Roadmap-Codebase Synchronization) - Ensures roadmap.md matches Sources/ codebase
 11. **Submodule Handling** - Commits and pushes `.cortex/synapse` submodule changes if any
-12. **Commit** - Creates the commit with all changes (including updated submodule reference)
-13. **Push** - Pushes committed changes to remote repository
+12. **⚠️ FINAL VALIDATION GATE** - **MANDATORY re-verification before commit** (see details below)
+13. **Commit** - Creates the commit with all changes (including updated submodule reference)
+14. **Push** - Pushes committed changes to remote repository
 
 **MCP Tools**: Steps 0 (Fix Errors), 1 (Formatting), 2 (Type Checking), 3 (Code Quality), and 4 (Testing) use the `execute_pre_commit_checks()` MCP tool instead of scripts. This provides structured parameters, type safety, and consistent error handling. Scripts are fallbacks only if the MCP tool is unavailable.
+
+## ⚠️ STEP 12: FINAL VALIDATION GATE (CRITICAL - MANDATORY)
+
+**WHY THIS STEP EXISTS**: During steps 5-11 (Memory Bank, Roadmap, Plan Archiving, etc.), the agent may make code changes (adding constants, fixing tests, etc.) that introduce NEW type errors or linting issues. The original checks in Steps 0-4 are INVALIDATED by any subsequent code changes.
+
+**CRITICAL RULE**: ANY code change after Step 4 REQUIRES re-verification before commit.
+
+### 12.1 Re-run Type Check (MANDATORY for typed projects)
+
+```
+.venv/bin/pyright src/ 2>&1
+```
+
+- **MUST verify**: Output ends with `0 errors, 0 warnings, 0 informations`
+- **BLOCK COMMIT** if ANY errors or warnings are reported
+- **DO NOT rely on memory of earlier checks** - you MUST re-run and verify output NOW
+
+### 12.2 Re-run Linter Check (MANDATORY)
+
+```
+.venv/bin/ruff check src/ tests/ 2>&1
+```
+
+- **MUST verify**: Output shows zero violations
+- **BLOCK COMMIT** if ANY violations are reported
+- **DO NOT rely on memory of earlier checks** - you MUST re-run and verify output NOW
+
+### 12.3 Verification Requirements
+
+- **Parse actual command output** - do not assume success
+- **Look for specific strings**: "0 errors" for pyright, "All checks passed" for ruff
+- **If output is truncated or unclear**: Re-run without `| head` or piping
+- **If any check fails**: Fix issues and restart from Step 12.1
+
+### 12.4 Checklist Before Proceeding to Commit
+
+- [ ] Type check re-run: **0 errors, 0 warnings** confirmed in output
+- [ ] Linter re-run: **0 violations** confirmed in output
+- [ ] All output was **fully read and parsed**, not assumed
+
+**⚠️ VIOLATION**: Proceeding to commit creation without completing Step 12 with verified zero-error output is a CRITICAL VIOLATION that will cause CI failures.
 
 ## ⚠️ MANDATORY CHECKLIST UPDATES
 
@@ -524,9 +577,15 @@ Before proceeding to commit creation, provide a validation summary confirming al
   - Pass rate = 100% (calculated from test output)
   - Coverage ≥ 90% (parsed from test output)
   - Integration tests = all pass (explicitly verified)
+- [ ] **⚠️ FINAL VALIDATION GATE (Step 12) - MANDATORY**:
+  - Type check RE-RUN: `0 errors, 0 warnings, 0 informations` (output verified)
+  - Linter RE-RUN: `0 violations` (output verified)
+  - This step MUST be executed IMMEDIATELY before commit, not relied on from earlier steps
 - [ ] **All Validations Passed**: All above validations confirmed successful
 
 **If any validation fails, BLOCK COMMIT and fix issues before proceeding.**
+
+**⚠️ CRITICAL**: Step 12 (Final Validation Gate) exists because code changes during steps 5-11 can introduce NEW errors. DO NOT skip this step or rely on earlier checks.
 
 ## Output Format
 
@@ -556,8 +615,9 @@ Use this ordering when numbering results:
 - Step 9: Memory Bank Timestamp Validation
 - Step 10: Roadmap Synchronization Validation
 - Step 11: Submodule Handling
-- Step 12: Commit Creation
-- Step 13: Push Branch
+- Step 12: ⚠️ Final Validation Gate (MANDATORY)
+- Step 13: Commit Creation
+- Step 14: Push Branch
 
 #### **0. Fix Errors**
 
@@ -775,7 +835,20 @@ Use this ordering when numbering results:
 - **Parent Reference Updated**: Whether parent repository's submodule reference was updated
 - **Details**: Summary of submodule operations performed
 
-#### **12. Commit Creation**
+#### **12. ⚠️ Final Validation Gate (MANDATORY)**
+
+- **Status**: Success/Failure (MUST be Success to proceed)
+- **Type Check Re-run**: Output of `.venv/bin/pyright src/` (MUST show "0 errors, 0 warnings, 0 informations")
+- **Linter Re-run**: Output of `.venv/bin/ruff check src/ tests/` (MUST show 0 violations)
+- **Output Verified**: Whether actual command output was parsed (not assumed)
+- **Code Changes Since Step 4**: List any code changes made during steps 5-11 that required re-verification
+- **Validation Results**:
+  - Type check passed: Yes/No (MUST be Yes)
+  - Linter passed: Yes/No (MUST be Yes)
+  - Output fully read: Yes/No (MUST be Yes)
+- **BLOCK COMMIT** if any check in Step 12 fails
+
+#### **13. Commit Creation**
 
 - **Status**: Success/Failure
 - **Commit Hash**: Git commit hash if successful
@@ -783,7 +856,7 @@ Use this ordering when numbering results:
 - **Files Committed**: Count and list of files in the commit
 - **Submodule Reference Updated**: Whether submodule reference was included in commit
 
-#### **13. Push Branch**
+#### **14. Push Branch**
 
 - **Status**: Success/Failure
 - **Branch Name**: Current branch that was pushed

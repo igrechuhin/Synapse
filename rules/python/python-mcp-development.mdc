@@ -103,13 +103,13 @@ class OptimizeContextResult(BaseModel):
     error: str | None = None
 
 @mcp.tool()
-async def optimize_context(request: OptimizeContextRequest) -> OptimizeContextResult:
-    result = _optimize_context_impl(
+async def load_context(request: LoadContextRequest) -> LoadContextResult:
+    result = _load_context_impl(
         root=request.memory_bank_root,
         max_tokens=request.max_tokens,
         strategy=request.strategy,
     )
-    return OptimizeContextResult(
+    return LoadContextResult(
         status="success",
         selected_files=result.selected_files,
         total_tokens=result.total_tokens,
@@ -122,10 +122,10 @@ async def optimize_context(request: OptimizeContextRequest) -> OptimizeContextRe
 - **Core logic in pure helpers**: Small, pure helpers that are easy to test and refactor
 
 ```python
-def _optimize_context_impl(root: str, max_tokens: int, strategy: str) -> OptimizeContextResult:
+def _load_context_impl(root: str, max_tokens: int, strategy: str) -> LoadContextResult:
     """Pure helper (no I/O, fully typed)."""
     # ... pure computation ...
-    return OptimizeContextResult(selected_files=[], total_tokens=0)
+    return LoadContextResult(selected_files=[], total_tokens=0)
 ```
 
 ### Pydantic Models for MCP Tool Return Types (STRICT MANDATORY)

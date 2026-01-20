@@ -31,7 +31,7 @@
         {
           "file": "analyze-context-effectiveness.md",
           "name": "Analyze Context",
-          "description": "End-of-session analysis to evaluate optimize_context effectiveness and provide feedback for improvement",
+          "description": "End-of-session analysis to evaluate load_context effectiveness and provide feedback for improvement",
           "keywords": ["context", "optimization", "feedback", "analysis", "metrics", "learning"]
         }
       ]
