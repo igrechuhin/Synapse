@@ -25,10 +25,14 @@
 1. ✅ **Read the roadmap** - Understand project priorities:
    - **Use Cortex MCP tool `manage_file(file_name="roadmap.md", operation="read")`** to get all roadmap items
    - Parse the roadmap structure to identify:
+     - **CRITICAL: Check for "Blockers (ASAP Priority)" section first** (typically around line 217 in roadmap.md)
      - All roadmap items/entries
      - Their current status (pending, in-progress, completed, etc.)
-     - The next pending step (first uncompleted item)
-   - Extract the following information from the next pending step:
+     - **PRIORITY RULE: Blockers MUST be handled before any other roadmap items**
+   - **MANDATORY PRIORITY CHECK**:
+     - **If blockers exist in "Blockers (ASAP Priority)" section**: Handle the FIRST blocker item (first uncompleted blocker)
+     - **Only if NO blockers exist**: Proceed with the next pending step from regular roadmap sections
+   - Extract the following information from the selected step (blocker or regular item):
      - Description/title of the step
      - Any specific requirements or acceptance criteria
      - Dependencies or prerequisites
@@ -51,18 +55,28 @@
 
 ## EXECUTION STEPS
 
+**⚠️ CRITICAL PRIORITY RULE**: Blockers in the "Blockers (ASAP Priority)" section (typically around line 217 in roadmap.md) MUST be handled FIRST before any other roadmap items. Only proceed with regular roadmap items if no blockers exist.
+
 ### Step 1: Read and Parse Roadmap
 
 1. **Use Cortex MCP tool `manage_file(file_name="roadmap.md", operation="read")`** to get the roadmap content
 2. Parse the roadmap structure from the returned JSON to identify:
+   - **CRITICAL: First check for "Blockers (ASAP Priority)" section** (typically starts around line 217)
    - All roadmap items/entries
    - Their current status (pending, in-progress, completed, etc.)
-   - The next pending step (first uncompleted item)
-3. Extract the following information from the next pending step:
+   - **PRIORITY RULE: Blockers MUST be handled before any other roadmap items**
+3. **MANDATORY PRIORITY SELECTION**:
+   - **If "Blockers (ASAP Priority)" section exists and contains uncompleted items**:
+     - Select the FIRST uncompleted blocker item from that section
+     - This is the item you MUST implement (highest priority)
+   - **Only if NO blockers exist or all blockers are completed**:
+     - Select the next pending step from regular roadmap sections
+4. Extract the following information from the selected step (blocker or regular item):
    - Description/title of the step
    - Any specific requirements or acceptance criteria
    - Dependencies or prerequisites
    - Estimated scope/complexity
+   - **If it's a blocker**: Note the urgency and impact described in the blocker entry
 
 ### Step 2: Load Relevant Context
 
@@ -119,6 +133,17 @@
    - Update current work focus if the completed step was the active focus
    - Note any new work that should be prioritized next
 9. **Use `manage_file(file_name="activeContext.md", operation="write", content="[updated content]", change_description="Updated active context after roadmap step completion")`** to save the updated active context
+10. **⚠️ MANDATORY: If the roadmap step references a plan file (e.g., `.cortex/plans/phase-XX-*.md`) and the work is too long to complete in one session**:
+    - **Read the plan file** using standard file tools (plans are in `.cortex/plans/`, not memory bank)
+    - **Update the plan file** to reflect the current implementation status:
+      - Mark completed steps/tasks as "COMPLETED" or "✅"
+      - Mark in-progress steps/tasks as "IN PROGRESS" or "🔄"
+      - Add notes about what was accomplished in this session
+      - Update any status indicators or progress tracking sections
+      - Document any blockers or issues encountered
+      - Note what remains to be done in future sessions
+    - **Save the updated plan file** using standard file tools
+    - This ensures continuity across multiple implementation sessions
 
 ### Step 6: Verify Completion
 
@@ -127,7 +152,10 @@
    - All tests pass
    - Code follows all standards
    - Memory bank is updated
-2. If the step is not fully complete, continue implementation until it is
+   - **If a plan file exists and work is incomplete**: Plan file is updated with current status
+2. If the step is not fully complete:
+   - **If work cannot be completed in this session**: Ensure the plan file (if referenced) is updated with current status before ending
+   - **If work can continue**: Continue implementation until it is complete
 
 ## IMPLEMENTATION GUIDELINES
 
@@ -162,11 +190,17 @@ If you encounter any issues during implementation:
 1. **Roadmap parsing errors**: If the roadmap format is unclear, read it carefully and identify the structure. If still unclear, proceed with the first uncompleted item you can identify.
 2. **Implementation blockers**: If you cannot complete the step due to missing information or dependencies, document what is needed and update the roadmap accordingly.
 3. **Test failures**: Fix all test failures before considering the step complete. Do not skip tests without justification.
-4. **Memory bank errors**: If Cortex MCP tools are unavailable or fail:
-   - First, verify the tools are properly configured and accessible
-   - If tools are missing, document what tools need to be implemented (e.g., `get_context_for_task()`, `batch_read_memory_bank_files()`)
-   - Only use standard file tools as a last resort fallback
-   - Report missing tool requirements in the implementation notes
+4. **Memory bank errors (CRITICAL)**: If Cortex MCP tools crash, disconnect, or exhibit unexpected behavior:
+   - **STOP IMMEDIATELY**: Current process MUST stop - do not continue with implementation
+   - **Create investigation plan**: Use the `create-plan.md` prompt (`.cortex/synapse/prompts/create-plan.md`) to create an investigation plan
+   - **Link in roadmap**: Add plan to roadmap.md under "Blockers (ASAP Priority)" section
+   - **Provide summary to user**: 
+     - Description: What tool failed and how (crash, disconnect, unexpected behavior)
+     - Impact: What work was blocked
+     - Fix Recommendation: Mark as **FIX-ASAP** priority
+     - Plan Location: Path to created investigation plan
+   - **DO NOT** use standard file tools as fallback - the tool failure must be investigated first
+   - **DO NOT** continue with implementation until the tool issue is resolved
 
 ## SUCCESS CRITERIA
 
@@ -180,12 +214,15 @@ The roadmap step is considered complete when:
 
 ## NOTES
 
+- **CRITICAL PRIORITY**: Blockers in "Blockers (ASAP Priority)" section (typically around line 217 in roadmap.md) MUST be handled FIRST before any other roadmap items
 - This is a generic command that can be reused for any roadmap step
 - The agent should be thorough and complete the entire step, not just part of it
 - If a step is too large, break it down into smaller sub-tasks and complete them systematically
+- **MANDATORY PLAN UPDATES**: If the roadmap step references a plan file (e.g., `.cortex/plans/phase-XX-*.md`) and the work cannot be completed in one session, you MUST update the plan file at the end of the session to reflect the current implementation status. This ensures continuity and allows future sessions to pick up where you left off.
 - Always update the memory bank after completing work using Cortex MCP tools
 - Follow all workspace rules and coding standards throughout implementation
 - **CRITICAL**: Never access memory bank files directly via file paths - always use Cortex MCP tools for structured access
+- **Plan files**: Plan files are located in `.cortex/plans/` directory and should be accessed using standard file tools (not MCP tools, as they are not part of the memory bank)
 
 ## MISSING TOOLS (If Required)
 

@@ -120,6 +120,18 @@ The following error patterns MUST be detected and fixed before commit. These are
 
 0. **Fix errors and warnings** - Use `execute_pre_commit_checks()` MCP tool:
    - **Call MCP tool**: `execute_pre_commit_checks(checks=["fix_errors"], strict_mode=False)`
+   - **CRITICAL - MCP TOOL VALIDATION**: After tool call, validate response:
+     - **Automatic validation**: `mcp_tool_wrapper` and `validate_mcp_tool_response()` automatically validate:
+       - Response is not None
+       - Response is dict (not JSON string)
+       - Response has "status" field
+       - If status="error", check if it's a tool failure (not expected validation error)
+     - **If tool failure detected**: Protocol is enforced automatically:
+       - Investigation plan is created automatically
+       - Plan is added to roadmap automatically
+       - Commit procedure stops immediately
+       - User is notified with failure summary
+     - **If validation passes**: Continue with response parsing
    - The tool will automatically:
      - Detect project language
      - Fix all compiler errors, type errors, formatting issues, and warnings
@@ -143,6 +155,14 @@ The following error patterns MUST be detected and fixed before commit. These are
 
 1. **Code formatting** - Use `execute_pre_commit_checks()` MCP tool:
    - **Call MCP tool**: `execute_pre_commit_checks(checks=["format"], strict_mode=False)`
+   - **CRITICAL - MCP TOOL VALIDATION**: After tool call, validate response:
+     - **Automatic validation**: `mcp_tool_wrapper` and `validate_mcp_tool_response()` automatically validate:
+       - Response is not None
+       - Response is dict (not JSON string)
+       - Response has "status" field
+       - If status="error", check if it's a tool failure (not expected validation error)
+     - **If tool failure detected**: Protocol is enforced automatically (see MCP Tool Failure section)
+     - **If validation passes**: Continue with response parsing
    - The tool will automatically:
      - Detect project language
      - Run project formatter (e.g., Black for Python) and import sorting tools
@@ -157,12 +177,20 @@ The following error patterns MUST be detected and fixed before commit. These are
      - **VALIDATION**: Parse tool response to verify formatting passed - **BLOCK COMMIT** if formatting fails
      - **CONTEXT ASSESSMENT**: After fixing formatting issues, if insufficient context remains, provide comprehensive summary and advise re-running commit pipeline
    - **Fallback**: If MCP tool is unavailable, run formatter manually: `.venv/bin/black src/ tests/` (for Python) or equivalent for other languages
-1.5. **Markdown linting** - Fix markdown lint errors in all markdown files:
+1.5. **Markdown linting** - Fix markdown lint errors in modified markdown files:
    - **MANDATORY**: Run markdown lint fix MCP tool to automatically fix markdownlint errors
-   - **CRITICAL**: Check ALL markdown files, not just modified ones, to catch existing errors
-   - **Call MCP tool**: `fix_markdown_lint(check_all_files=True, include_untracked_markdown=True)`
+   - **CRITICAL**: Check only modified/new markdown files (determined via git) to fix errors in files being committed
+   - **Call MCP tool**: `fix_markdown_lint(check_all_files=False, include_untracked_markdown=True)`
+   - **CRITICAL - MCP TOOL VALIDATION**: After tool call, validate response:
+     - **Automatic validation**: `mcp_tool_wrapper` and `validate_mcp_tool_response()` automatically validate:
+       - Response is not None
+       - Response is dict (not JSON string)
+       - Response has "status" field
+       - If status="error", check if it's a tool failure (not expected validation error)
+     - **If tool failure detected**: Protocol is enforced automatically (see MCP Tool Failure section)
+     - **If validation passes**: Continue with response parsing
    - The MCP tool automatically:
-     - Finds all markdown files (`.md` and `.mdc`) in the project when `check_all_files=True`
+     - Finds modified markdown files (`.md` and `.mdc`) via git (staged, unstaged, and optionally untracked)
      - Runs markdownlint-cli2 with `--fix` to auto-fix errors
      - Returns structured JSON with files fixed and errors resolved
    - **CRITICAL**: markdownlint-cli2 is a REQUIRED dependency for Cortex MCP. If not installed:
@@ -171,8 +199,9 @@ The following error patterns MUST be detected and fixed before commit. These are
      - See README.md for installation instructions
    - **VALIDATION**: After fixing, verify markdown lint errors are resolved:
      - **Step 1**: Parse MCP tool response to check `files_with_errors` count
-     - **Step 2**: If `files_with_errors > 0`, run markdownlint in check-only mode to get detailed error report:
-       - Execute: `markdownlint-cli2 "**/*.md" "**/*.mdc" --config .markdownlint.json 2>&1` (or equivalent)
+     - **Step 2**: If `files_with_errors > 0`, run markdownlint in check-only mode on modified files to get detailed error report:
+       - Get modified files: `git diff --name-only --diff-filter=ACMR | grep -E '\.(md|mdc)$'` (or use git status for untracked)
+       - Execute: `markdownlint-cli2 <modified_files> --config .markdownlint.json 2>&1` (or equivalent)
        - Parse output to extract error codes (MD024, MD032, MD031, MD036, etc.) and file paths
      - **Step 3**: Categorize errors by severity:
        - **Critical errors** (BLOCK COMMIT for memory bank files):
@@ -191,8 +220,8 @@ The following error patterns MUST be detected and fixed before commit. These are
        - If file is in `.cortex/plans/` directory: **BLOCK COMMIT** - plan files must be error-free
        - For other files: Review and fix manually or add markdownlint disable comments if appropriate
      - **Step 5**: Re-run validation after manual fixes:
-       - Call MCP tool again: `fix_markdown_lint(check_all_files=True, include_untracked_markdown=True)`
-       - Run check-only mode again: `markdownlint-cli2 "**/*.md" "**/*.mdc" --config .markdownlint.json 2>&1`
+       - Call MCP tool again: `fix_markdown_lint(check_all_files=False, include_untracked_markdown=True)`
+       - Run check-only mode on modified files: `markdownlint-cli2 $(git diff --name-only --diff-filter=ACMR | grep -E '\.(md|mdc)$') --config .markdownlint.json 2>&1` (or equivalent)
        - Verify zero critical errors remain
      - **BLOCK COMMIT** if:
        - Any critical errors remain in `.cortex/memory-bank/*.md` files
@@ -202,11 +231,20 @@ The following error patterns MUST be detected and fixed before commit. These are
      - **Note**: Memory bank files (progress.md, activeContext.md, roadmap.md, etc.) must be error-free
    - **PRIMARY FOCUS**: If markdown lint errors are detected, fix them immediately
    - **Note**: This step runs after code formatting to ensure markdown files are also properly formatted
-   - **Note**: Using `check_all_files=True` ensures all markdown files are checked, not just those modified in the current commit
+   - **Note**: Using `check_all_files=False` (default) ensures only modified/new markdown files are checked, which is faster and focuses on files being committed
+   - **Note**: Modified files are determined via git (staged, unstaged, and untracked when `include_untracked_markdown=True`)
    - **Fallback**: If MCP tool is unavailable, the tool can be called via CLI wrapper: `.venv/bin/python -m cortex.tools.markdown_operations` (if implemented)
 2. **Type checking** - Use `execute_pre_commit_checks()` MCP tool (if applicable):
    - **Conditional**: Only execute if project uses a type system (Python with type hints, TypeScript, etc.)
    - **Call MCP tool**: `execute_pre_commit_checks(checks=["type_check"], strict_mode=False)`
+   - **CRITICAL - MCP TOOL VALIDATION**: After tool call, validate response:
+     - **Automatic validation**: `mcp_tool_wrapper` and `validate_mcp_tool_response()` automatically validate:
+       - Response is not None
+       - Response is dict (not JSON string)
+       - Response has "status" field
+       - If status="error", check if it's a tool failure (not expected validation error)
+     - **If tool failure detected**: Protocol is enforced automatically (see MCP Tool Failure section)
+     - **If validation passes**: Continue with response parsing
    - The tool will automatically:
      - Detect project language and type checker (e.g., pyright for Python, tsc for TypeScript)
      - Run type checker on appropriate directories (e.g., src/ for Python, matches CI workflow)
@@ -225,6 +263,14 @@ The following error patterns MUST be detected and fixed before commit. These are
    - **Fallback**: If MCP tool is unavailable, run type checker manually: `.venv/bin/pyright src/` (for Python) or equivalent for other languages
 3. **Code quality checks** - Use `execute_pre_commit_checks()` MCP tool:
    - **Call MCP tool**: `execute_pre_commit_checks(checks=["quality"], strict_mode=False)`
+   - **CRITICAL - MCP TOOL VALIDATION**: After tool call, validate response:
+     - **Automatic validation**: `mcp_tool_wrapper` and `validate_mcp_tool_response()` automatically validate:
+       - Response is not None
+       - Response is dict (not JSON string)
+       - Response has "status" field
+       - If status="error", check if it's a tool failure (not expected validation error)
+     - **If tool failure detected**: Protocol is enforced automatically (see MCP Tool Failure section)
+     - **If validation passes**: Continue with response parsing
    - The tool will automatically:
      - Detect project language
      - Run file size checks (verifies all files ≤ 400 lines)
@@ -244,6 +290,14 @@ The following error patterns MUST be detected and fixed before commit. These are
    - **Fallback**: If MCP tool is unavailable, run quality checks manually using scripts: `.cortex/synapse/scripts/{language}/check_file_sizes.py` and `.cortex/synapse/scripts/{language}/check_function_lengths.py` (or equivalent)
 4. **Test execution** - Use `execute_pre_commit_checks()` MCP tool:
    - **Call MCP tool**: `execute_pre_commit_checks(checks=["tests"], timeout=300, coverage_threshold=0.90)`
+   - **CRITICAL - MCP TOOL VALIDATION**: After tool call, validate response:
+     - **Automatic validation**: `mcp_tool_wrapper` and `validate_mcp_tool_response()` automatically validate:
+       - Response is not None
+       - Response is dict (not JSON string)
+       - Response has "status" field
+       - If status="error", check if it's a tool failure (not expected validation error)
+     - **If tool failure detected**: Protocol is enforced automatically (see MCP Tool Failure section)
+     - **If validation passes**: Continue with response parsing
    - The tool will automatically:
      - Detect project language and test framework
      - Execute test suite with timeout protection
@@ -267,11 +321,27 @@ The following error patterns MUST be detected and fixed before commit. These are
    - Re-verify all validation criteria after fixes, including coverage threshold
 5. **Memory bank operations** - **Should use existing MCP tools**:
    - **Use MCP tool `manage_file()`** to update memory bank files (e.g., `activeContext.md`, `progress.md`, `roadmap.md`)
+   - **CRITICAL - MCP TOOL VALIDATION**: After each `manage_file()` call, validate response:
+     - **Automatic validation**: `mcp_tool_wrapper` and `validate_mcp_tool_response()` automatically validate:
+       - Response is not None
+       - Response is dict (not JSON string)
+       - Response has "status" field
+       - If status="error", check if it's a tool failure (not expected validation error)
+     - **If tool failure detected**: Protocol is enforced automatically (see MCP Tool Failure section)
+     - **If validation passes**: Continue with response parsing
    - **Use MCP tool `get_memory_bank_stats()`** to check current state
    - **Do NOT** read prompt files - use structured MCP tools instead
    - Update all relevant memory bank files with current changes using `manage_file(operation="write", ...)`
 6. **Update roadmap** - Update roadmap.md with completed items and new milestones:
    - **Use Cortex MCP tool `manage_file()`** to read and update roadmap.md
+   - **CRITICAL - MCP TOOL VALIDATION**: After each `manage_file()` call, validate response:
+     - **Automatic validation**: `mcp_tool_wrapper` and `validate_mcp_tool_response()` automatically validate:
+       - Response is not None
+       - Response is dict (not JSON string)
+       - Response has "status" field
+       - If status="error", check if it's a tool failure (not expected validation error)
+     - **If tool failure detected**: Protocol is enforced automatically (see MCP Tool Failure section)
+     - **If validation passes**: Continue with response parsing
    - Review recent changes and completed work
    - Mark completed milestones and tasks in roadmap.md using `manage_file(operation="write", ...)`
    - Add new roadmap items if significant new work is identified
@@ -311,6 +381,14 @@ The following error patterns MUST be detected and fixed before commit. These are
      - Archive location violations are found
 9. **Validate memory bank timestamps** - Use MCP tool `validate(check_type="timestamps")`:
    - **Call MCP tool**: `validate(check_type="timestamps", project_root="<project_root>")`
+   - **CRITICAL - MCP TOOL VALIDATION**: After tool call, validate response:
+     - **Automatic validation**: `mcp_tool_wrapper` and `validate_mcp_tool_response()` automatically validate:
+       - Response is not None
+       - Response is dict (not JSON string)
+       - Response has "status" field
+       - If status="error", check if it's a tool failure (not expected validation error)
+     - **If tool failure detected**: Protocol is enforced automatically (see MCP Tool Failure section)
+     - **If validation passes**: Continue with response parsing
    - The tool will automatically:
      - Scan all Memory Bank files for timestamps
      - Validate that all timestamps use YYYY-MM-DD date-only format (no time components)
@@ -325,11 +403,18 @@ The following error patterns MUST be detected and fixed before commit. These are
    - If violations are found, fix timestamp formats and re-run validation until all pass
    - Re-verify all validation criteria after fixes
 10. **Roadmap synchronization validation** - Execute Cursor command: `validate-roadmap-sync` (if available):
-
 - Check if `.cortex/synapse/prompts/validate-roadmap-sync.md` exists
 - If file exists:
   - Read `.cortex/synapse/prompts/validate-roadmap-sync.md`
   - Execute ALL steps from that command automatically
+  - **CRITICAL - MCP TOOL VALIDATION**: If command uses MCP tools (e.g., `validate(check_type="roadmap_sync")`), validate response:
+    - **Automatic validation**: `mcp_tool_wrapper` and `validate_mcp_tool_response()` automatically validate:
+      - Response is not None
+      - Response is dict (not JSON string)
+      - Response has "status" field
+      - If status="error", check if it's a tool failure (not expected validation error)
+    - **If tool failure detected**: Protocol is enforced automatically (see MCP Tool Failure section)
+    - **If validation passes**: Continue with response parsing
   - Validate roadmap.md is synchronized with Sources/ directory
   - Ensure all production TODOs are properly tracked
   - Verify line numbers and file references are accurate
@@ -821,6 +906,44 @@ Use this ordering when numbering results:
   2. Provide detailed error information
   3. Suggest resolution steps (e.g., set upstream branch, check authentication)
   4. Commit remains successful even if push fails
+
+### MCP Tool Failure (CRITICAL)
+
+- **Action**: **STOP IMMEDIATELY** - Do not continue with commit pipeline
+- **Protocol Enforcement**: **AUTOMATIC AND MANDATORY** - The MCP tool failure protocol is automatically enforced by the `mcp_tool_wrapper` decorator. Agents cannot bypass this protocol.
+- **Process**:
+  1. **STOP**: Current commit process MUST stop immediately when Cortex MCP tool crashes, disconnects, or exhibits unexpected behavior
+  2. **DO NOT** attempt to retry or use fallback methods - the tool failure must be investigated first
+  3. **Automatic Protocol Enforcement**: The MCP tool failure protocol is automatically enforced:
+     - `mcp_tool_wrapper` decorator detects tool failures automatically
+     - `MCPToolFailureHandler` creates investigation plans automatically
+     - Investigation plans are added to roadmap automatically
+     - User is notified automatically with failure summary
+     - **Protocol violations are automatically blocked** - agents cannot continue with workarounds
+  4. **Validation Required**: After each MCP tool call, validation is performed automatically:
+     - Response structure is validated (must be dict, not JSON string)
+     - Error status is checked (status="error" indicates tool failure)
+     - Response format is verified (must match expected structure)
+     - If validation fails, protocol is enforced automatically
+     - **No manual validation needed** - validation happens automatically in the wrapper
+  5. **Provide summary to user** (automatically generated):
+     - **Description**: What tool failed and how (crash, disconnect, unexpected behavior)
+     - **Impact**: Commit procedure was blocked at [step name]
+     - **Fix Recommendation**: Mark as **FIX-ASAP** priority - tool must be fixed before commit can proceed
+     - **Plan Location**: Path to created investigation plan
+     - **Next Steps**: User should review the plan and prioritize fixing the tool issue
+  6. **DO NOT** proceed with commit until the MCP tool issue is resolved
+- **Affected Tools**: This applies to all Cortex MCP tools used in commit procedure:
+  - `execute_pre_commit_checks()` (fix_errors, format, type_check, quality, tests)
+  - `fix_markdown_lint()` (markdown linting)
+  - `manage_file()` (memory bank operations)
+  - `validate()` (timestamp validation, roadmap sync)
+  - Any other Cortex MCP tools used during commit
+- **Automatic Enforcement**: Protocol violations are automatically detected and blocked:
+  - Attempts to use workarounds are prevented
+  - Fallback methods are blocked when tool fails
+  - Commit procedure stops immediately on tool failure
+  - Investigation plans are created automatically
 
 ### Other Step Failures
 

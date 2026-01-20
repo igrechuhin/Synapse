@@ -1,0 +1,442 @@
+---
+globs: *.py
+alwaysApply: false
+---
+
+# Pydantic 2 Standards (STRICT MANDATORY - ZERO TOLERANCE)
+
+**ENFORCEMENT**: All rules are MANDATORY. CI MUST fail on violations. NO exceptions.
+
+## Core Principles
+
+- **Pydantic 2 First**: ALL structured data MUST use Pydantic `BaseModel` - NO EXCEPTIONS
+- **Validation + Transformation**: Pydantic validates AND transforms data automatically
+- **Type Safety**: Full type hints with explicit types - MANDATORY
+- **Modern API**: Use Pydantic 2 methods (`model_validate`, `model_dump`) - MANDATORY
+
+## Model Definition (STRICT MANDATORY)
+
+### Basic Model Structure
+
+```python
+from pydantic import BaseModel, Field, ConfigDict
+from typing import Literal
+from datetime import date
+
+# ✅ REQUIRED - Modern Pydantic 2 model
+class User(BaseModel):
+    """User model with full type hints and validation."""
+    
+    model_config = ConfigDict(
+        from_attributes=True,  # Enable ORM mode
+        str_strip_whitespace=True,  # Strip whitespace from strings
+        strict=False,  # Allow type coercion (str -> int, etc.)
+    )
+    
+    id: int
+    name: str = Field(min_length=1, max_length=100, description="User's full name")
+    email: str = Field(pattern=r"[^@]+@[^@]+\.[^@]+", description="Valid email address")
+    status: Literal["active", "inactive", "pending"] = "pending"
+    created_at: date | None = None
+
+# ❌ PROHIBITED - Old Config class style
+class BadModel(BaseModel):
+    class Config:  # BLOCKED - Use ConfigDict instead
+        orm_mode = True  # BLOCKED - Use from_attributes
+```
+
+### Field Definition with `Field()` (MANDATORY)
+
+```python
+from pydantic import BaseModel, Field
+from typing import Annotated
+from uuid import uuid4
+
+class Product(BaseModel):
+    # ✅ REQUIRED - Annotated style (preferred)
+    id: Annotated[str, Field(default_factory=lambda: uuid4().hex)]
+    price: Annotated[float, Field(gt=0, le=10000, description="Price must be positive")]
+    name: Annotated[str, Field(min_length=2, max_length=50)]
+    
+    # ✅ REQUIRED - Direct Field assignment (acceptable)
+    quantity: int = Field(ge=0, default=0, description="Stock quantity")
+    
+    # ✅ REQUIRED - Alias for external API compatibility
+    external_id: str = Field(alias="externalId", default="")
+    
+    # ✅ REQUIRED - Exclude sensitive fields from serialization
+    internal_code: str = Field(exclude=True, default="")
+    
+    # ✅ REQUIRED - Hide from repr
+    debug_info: str = Field(repr=False, default="")
+```
+
+### Field Constraints (MANDATORY)
+
+**Numeric Constraints:**
+- `gt` (greater than): `Field(gt=0)` - value > 0
+- `ge` (greater or equal): `Field(ge=1)` - value >= 1
+- `lt` (less than): `Field(lt=100)` - value < 100
+- `le` (less or equal): `Field(le=10)` - value <= 10
+
+**String Constraints:**
+- `min_length`: `Field(min_length=3)` - minimum characters
+- `max_length`: `Field(max_length=100)` - maximum characters
+- `pattern`: `Field(pattern=r"^[a-z]+$")` - regex pattern (replaces deprecated `regex`)
+
+**Dynamic Defaults:**
+- `default_factory`: `Field(default_factory=list)` - callable for mutable defaults
+
+```python
+class ValidationExample(BaseModel):
+    # Numeric constraints
+    age: int = Field(ge=0, le=150, description="Age in years")
+    rating: float = Field(ge=1.0, le=5.0, description="Rating 1-5")
+    
+    # String constraints
+    username: str = Field(min_length=3, max_length=20, pattern=r"^[a-zA-Z0-9_]+$")
+    
+    # Dynamic defaults
+    tags: list[str] = Field(default_factory=list)
+    metadata: dict[str, str] = Field(default_factory=dict)
+```
+
+## Validators (STRICT MANDATORY)
+
+### Field Validator (`@field_validator`)
+
+```python
+from pydantic import BaseModel, field_validator
+
+class User(BaseModel):
+    name: str
+    age: int
+    
+    # ✅ REQUIRED - mode='before' for pre-validation transformation
+    @field_validator('name', mode='before')
+    @classmethod
+    def validate_name(cls, v: object) -> str:
+        if isinstance(v, int):
+            return str(v)
+        if isinstance(v, str):
+            return v.strip()
+        raise ValueError("Name must be string or int")
+    
+    # ✅ REQUIRED - mode='after' for post-validation checks
+    @field_validator('age', mode='after')
+    @classmethod
+    def validate_age(cls, v: int) -> int:
+        if v < 0:
+            raise ValueError("Age cannot be negative")
+        if v > 150:
+            raise ValueError("Age cannot exceed 150")
+        return v
+```
+
+**Validator Modes:**
+- `mode='before'`: Run BEFORE type coercion - use for data transformation
+- `mode='after'`: Run AFTER type coercion - use for business logic validation
+
+### Model Validator (`@model_validator`)
+
+```python
+from pydantic import BaseModel, model_validator
+from typing import Self
+
+class DateRange(BaseModel):
+    start_date: date
+    end_date: date
+    
+    # ✅ REQUIRED - Cross-field validation
+    @model_validator(mode='after')
+    def validate_date_range(self) -> Self:
+        if self.end_date < self.start_date:
+            raise ValueError("end_date must be after start_date")
+        return self
+    
+    # ✅ REQUIRED - Pre-validation model transformation
+    @model_validator(mode='before')
+    @classmethod
+    def normalize_input(cls, data: dict[str, object]) -> dict[str, object]:
+        if isinstance(data, dict):
+            # Normalize field names
+            if 'startDate' in data:
+                data['start_date'] = data.pop('startDate')
+        return data
+```
+
+### Computed Fields (`@computed_field`)
+
+```python
+from pydantic import BaseModel, computed_field
+
+class Person(BaseModel):
+    first_name: str
+    last_name: str
+    birth_date: date
+    
+    # ✅ REQUIRED - Computed field with return type
+    @computed_field
+    @property
+    def full_name(self) -> str:
+        return f"{self.first_name} {self.last_name}"
+    
+    @computed_field
+    @property
+    def age(self) -> int:
+        today = date.today()
+        return today.year - self.birth_date.year - (
+            (today.month, today.day) < (self.birth_date.month, self.birth_date.day)
+        )
+```
+
+## ConfigDict Options (MANDATORY)
+
+```python
+from pydantic import BaseModel, ConfigDict
+
+class OptimizedModel(BaseModel):
+    model_config = ConfigDict(
+        # ORM Integration
+        from_attributes=True,  # Enable model_validate from ORM objects
+        
+        # String Processing
+        str_strip_whitespace=True,  # Strip leading/trailing whitespace
+        str_to_lower=False,  # Convert strings to lowercase
+        str_to_upper=False,  # Convert strings to uppercase
+        str_min_length=None,  # Global minimum string length
+        str_max_length=None,  # Global maximum string length
+        
+        # Validation Behavior
+        strict=False,  # Allow type coercion
+        validate_default=True,  # Validate default values
+        validate_assignment=True,  # Validate on attribute assignment
+        
+        # Enum Handling
+        use_enum_values=True,  # Use enum values instead of enum objects
+        
+        # Extra Fields
+        extra='forbid',  # 'ignore', 'allow', or 'forbid' extra fields
+        
+        # Serialization
+        populate_by_name=True,  # Allow population by field name AND alias
+    )
+```
+
+## Data Serialization (MANDATORY)
+
+### Modern Methods (Pydantic 2)
+
+```python
+user = User(id=1, name="John", email="john@example.com")
+
+# ✅ REQUIRED - model_dump() (replaces dict())
+data_dict = user.model_dump()
+data_dict_exclude = user.model_dump(exclude={'internal_code'})
+data_dict_include = user.model_dump(include={'id', 'name'})
+data_dict_by_alias = user.model_dump(by_alias=True)
+data_dict_exclude_unset = user.model_dump(exclude_unset=True)
+
+# ✅ REQUIRED - model_dump_json() (replaces json())
+json_str = user.model_dump_json()
+json_str_indent = user.model_dump_json(indent=2)
+
+# ❌ PROHIBITED - Deprecated methods
+user.dict()  # BLOCKED - Use model_dump()
+user.json()  # BLOCKED - Use model_dump_json()
+```
+
+### Data Validation (MANDATORY)
+
+```python
+# ✅ REQUIRED - model_validate() (replaces parse_obj/from_orm)
+user_from_dict = User.model_validate({"id": 1, "name": "John", "email": "j@e.com"})
+user_from_orm = User.model_validate(orm_object, from_attributes=True)
+
+# ✅ REQUIRED - model_validate_json() for JSON strings
+user_from_json = User.model_validate_json('{"id": 1, "name": "John", "email": "j@e.com"}')
+
+# ✅ REQUIRED - Strict validation
+user_strict = User.model_validate(data, strict=True)
+
+# ✅ REQUIRED - With context
+user_with_context = User.model_validate(data, context={'source': 'api'})
+
+# ❌ PROHIBITED - Deprecated methods
+User.parse_obj(data)  # BLOCKED - Use model_validate()
+User.from_orm(obj)  # BLOCKED - Use model_validate(obj, from_attributes=True)
+User.parse_raw(json_str)  # BLOCKED - Use model_validate_json()
+```
+
+## Model Inheritance (MANDATORY)
+
+```python
+from pydantic import BaseModel, ConfigDict
+
+# ✅ REQUIRED - Base model with shared config
+class BaseEntity(BaseModel):
+    model_config = ConfigDict(
+        from_attributes=True,
+        str_strip_whitespace=True,
+    )
+    
+    id: int
+    created_at: datetime
+    updated_at: datetime | None = None
+
+# ✅ REQUIRED - Inherit and extend
+class User(BaseEntity):
+    name: str
+    email: str
+
+class Product(BaseEntity):
+    name: str
+    price: float
+    
+    # Override parent config if needed
+    model_config = ConfigDict(
+        **BaseEntity.model_config,
+        str_to_lower=True,  # Additional config
+    )
+```
+
+## ORM Integration (MANDATORY)
+
+```python
+from pydantic import BaseModel, ConfigDict
+
+# SQLAlchemy ORM model (example)
+class UserORM:
+    id: int
+    name: str
+    email: str
+
+# ✅ REQUIRED - Pydantic model for ORM
+class UserSchema(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    
+    id: int
+    name: str
+    email: str
+
+# ✅ REQUIRED - Convert ORM to Pydantic
+def get_user(user_id: int) -> UserSchema | None:
+    orm_user = session.query(UserORM).get(user_id)
+    if orm_user:
+        return UserSchema.model_validate(orm_user)
+    return None
+
+# ✅ REQUIRED - Dynamic from_attributes
+user_schema = UserSchema.model_validate(orm_user, from_attributes=True)
+```
+
+## Literal Types for Status Fields (STRICT MANDATORY)
+
+```python
+from typing import Literal
+
+class OperationResult(BaseModel):
+    # ✅ REQUIRED - Literal for status fields
+    status: Literal["success", "error", "pending"]
+    
+    # ✅ REQUIRED - Literal for enum-like fields
+    priority: Literal["low", "medium", "high", "critical"]
+    
+    # ✅ REQUIRED - Literal for boolean-like states
+    state: Literal["active", "inactive"]
+
+# ❌ PROHIBITED
+class BadResult(BaseModel):
+    status: str  # BLOCKED - Use Literal for known values
+    priority: str  # BLOCKED - Use Literal for known values
+```
+
+## Nested Models (MANDATORY)
+
+```python
+class Address(BaseModel):
+    street: str
+    city: str
+    country: str = "USA"
+
+class Company(BaseModel):
+    name: str
+    address: Address  # Nested model
+
+class Employee(BaseModel):
+    name: str
+    company: Company  # Nested model
+    addresses: list[Address] = Field(default_factory=list)  # List of nested models
+
+# ✅ REQUIRED - Nested validation works automatically
+employee = Employee.model_validate({
+    "name": "John",
+    "company": {
+        "name": "Acme",
+        "address": {"street": "123 Main", "city": "NYC"}
+    }
+})
+```
+
+## Error Handling (MANDATORY)
+
+```python
+from pydantic import BaseModel, ValidationError
+
+class User(BaseModel):
+    name: str = Field(min_length=1)
+    age: int = Field(ge=0)
+
+# ✅ REQUIRED - Proper error handling
+def create_user(data: dict[str, object]) -> User | None:
+    try:
+        return User.model_validate(data)
+    except ValidationError as e:
+        # Access structured errors
+        for error in e.errors():
+            field = error['loc']
+            message = error['msg']
+            error_type = error['type']
+            logger.error(f"Validation error in {field}: {message} ({error_type})")
+        return None
+```
+
+## Violations (BLOCKED)
+
+- ❌ Using `class Config:` instead of `ConfigDict` (STRICTLY FORBIDDEN)
+- ❌ Using `orm_mode` instead of `from_attributes` (STRICTLY FORBIDDEN)
+- ❌ Using `.dict()` instead of `.model_dump()` (STRICTLY FORBIDDEN)
+- ❌ Using `.json()` instead of `.model_dump_json()` (STRICTLY FORBIDDEN)
+- ❌ Using `parse_obj()` instead of `model_validate()` (STRICTLY FORBIDDEN)
+- ❌ Using `from_orm()` instead of `model_validate(obj, from_attributes=True)` (STRICTLY FORBIDDEN)
+- ❌ Using `regex` parameter instead of `pattern` in Field (STRICTLY FORBIDDEN)
+- ❌ Missing `@classmethod` decorator on `@field_validator` (STRICTLY FORBIDDEN)
+- ❌ Using `str` for status/enum fields instead of `Literal` (STRICTLY FORBIDDEN)
+- ❌ Missing type hints on validator return types (STRICTLY FORBIDDEN)
+- ❌ Using `Any` type in Pydantic models (STRICTLY FORBIDDEN)
+- ❌ Using untyped `dict`, `list` in Pydantic models (STRICTLY FORBIDDEN)
+- ❌ Missing `Field()` constraints for user input validation (STRICTLY FORBIDDEN)
+- ❌ Using mutable defaults without `default_factory` (STRICTLY FORBIDDEN)
+
+## Best Practices Summary
+
+1. **Always use `ConfigDict`** instead of nested `Config` class
+2. **Always use `model_validate()`** instead of `parse_obj()` or `from_orm()`
+3. **Always use `model_dump()`** instead of `.dict()`
+4. **Always use `model_dump_json()`** instead of `.json()`
+5. **Always use `Literal` types** for status/enum-like fields
+6. **Always use `Field()`** with constraints for user input
+7. **Always use `Annotated` style** for complex field definitions (preferred)
+8. **Always use `@classmethod`** with `@field_validator`
+9. **Always specify `mode`** in validators (`'before'` or `'after'`)
+10. **Always use `from_attributes=True`** for ORM integration
+11. **Always use `default_factory`** for mutable defaults
+12. **Always return `Self`** from `@model_validator(mode='after')`
+
+## Enforcement
+
+- **Pre-commit hooks**: Verify Pydantic 2 API usage
+- **CI Integration**: Automated checks fail builds on deprecated API usage
+- **Code review**: Reject PRs using Pydantic 1 patterns
+- **Type checking**: Pyright must pass with strict mode
+- **NO exceptions**: All Pydantic violations must be fixed before merge

@@ -104,10 +104,9 @@ def calculate_complexity(node: ast.AST) -> int:
 
     for child in ast.walk(node):
         # Decision points
-        if isinstance(child, (ast.If, ast.While, ast.For, ast.With)):
-            complexity += 1
-        # Exception handlers
-        elif isinstance(child, ast.ExceptHandler):
+        if isinstance(child, (ast.If, ast.While, ast.For, ast.With)) or isinstance(
+            child, ast.ExceptHandler
+        ):
             complexity += 1
         # Boolean operators (and, or)
         elif isinstance(child, ast.BoolOp):

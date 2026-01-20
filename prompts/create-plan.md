@@ -224,11 +224,22 @@ If you encounter any issues during plan creation:
    - Suggest running `setup_project_structure` if needed
    - Use fallback path resolution only as last resort
 
-2. **Memory bank errors**: If Cortex MCP tools are unavailable or fail:
-   - First, verify the tools are properly configured and accessible
-   - If tools are missing, document what tools need to be implemented
-   - Only use standard file tools as a last resort fallback
-   - Report missing tool requirements in the error message
+2. **Memory bank errors (CRITICAL)**: If Cortex MCP tools crash, disconnect, or exhibit unexpected behavior during plan creation:
+   - **STOP IMMEDIATELY**: Current plan creation process MUST stop
+   - **Document the failure**: Record what tool failed, how it failed (crash, disconnect, unexpected behavior), and what operation was attempted
+   - **Create manual investigation plan**: If possible, create a basic plan file manually documenting:
+     - Problem statement describing the tool failure
+     - Affected tools and operations
+     - Error messages or tool responses
+     - Investigation approach
+   - **Link in roadmap**: Add plan to roadmap.md under "Blockers (ASAP Priority)" section (if roadmap can be accessed)
+   - **Provide summary to user**:
+     - Description: What tool failed and how
+     - Impact: Plan creation was blocked
+     - Fix Recommendation: Mark as **FIX-ASAP** priority
+     - Plan Location: Path to investigation plan (if created)
+   - **DO NOT** use standard file tools as fallback - the tool failure must be investigated first
+   - **Note**: If plan creation itself fails due to MCP tool errors, provide the summary directly to the user with all available information
 
 3. **Plan creation errors**: If plan file cannot be created:
    - Check write permissions on plans directory

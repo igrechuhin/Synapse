@@ -27,6 +27,12 @@
           "name": "Plan",
           "description": "Create a development plan based on user description, add it to plans directory, and update roadmap",
           "keywords": ["plan", "planning", "roadmap", "development", "tasks", "milestones"]
+        },
+        {
+          "file": "analyze-context-effectiveness.md",
+          "name": "Analyze Context",
+          "description": "End-of-session analysis to evaluate optimize_context effectiveness and provide feedback for improvement",
+          "keywords": ["context", "optimization", "feedback", "analysis", "metrics", "learning"]
         }
       ]
     }

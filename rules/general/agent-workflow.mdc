@@ -176,25 +176,45 @@ When encountering any situation NOT listed in "Valid Stopping Conditions":
 
 ## MCP Tool Error Handling (CRITICAL)
 
-**MANDATORY**: When encountering unexpected results from Cortex MCP tools:
+**MANDATORY**: When encountering unexpected results from Cortex MCP tools (crashes, disconnects, unexpected behavior):
 
-1. **Immediately create investigation plan**:
-   - Create a plan file at `.cortex/plans/` with descriptive name (e.g., `phase-X-investigate-issue-name.md`)
-   - Include problem statement, root cause analysis, investigation tasks, and expected outcomes
-   - Mark as **BLOCKER** status with **ASAP** priority
+1. **STOP IMMEDIATELY**: 
+   - **Current process MUST stop** - do not continue with any other work
+   - Do not attempt to retry or work around the failure
+   - Do not proceed with the original task
 
-2. **Link in roadmap**:
+2. **Create investigation plan**:
+   - **Use the `create-plan.md` prompt** (located at `.cortex/synapse/prompts/create-plan.md`) to create a plan
+   - Follow ALL steps in `create-plan.md` to create a comprehensive investigation plan
+   - Plan must include:
+     - Problem statement describing the tool failure
+     - Root cause analysis approach
+     - Investigation tasks
+     - Expected outcomes
+   - Mark plan as **BLOCKER** status with **ASAP** priority
+   - Save plan file at `.cortex/plans/` with descriptive name (e.g., `phase-X-investigate-tool-name-failure.md`)
+
+3. **Link in roadmap**:
    - Add plan to `.cortex/memory-bank/roadmap.md` under "Blockers (ASAP Priority)" section
    - Include in "Active Work" section if blocking current work
    - Add to "Recent Findings" with critical bug indicator (🔴)
 
-3. **Document the issue**:
-   - Describe the unexpected behavior
+4. **Document the issue in the plan**:
+   - Describe the unexpected behavior (crash, disconnect, unexpected response, etc.)
    - Note what was expected vs. what actually happened
    - Include any error messages or tool responses
    - List affected tools and operations
+   - Include tool name, operation attempted, and failure type
 
-**VIOLATION**: Encountering MCP tool errors without creating investigation plan and linking in roadmap is a CRITICAL violation.
+5. **Provide summary to user**:
+   - **MANDATORY**: Provide a clear summary to the user with:
+     - **Description**: What tool failed and how (crash, disconnect, unexpected behavior)
+     - **Impact**: What work was blocked by this failure
+     - **Fix Recommendation**: Mark as **FIX-ASAP** priority with recommendation to investigate and fix immediately
+     - **Plan Location**: Path to the created investigation plan
+     - **Next Steps**: User should review the plan and prioritize fixing the tool issue
+
+**VIOLATION**: Encountering MCP tool errors without stopping, creating investigation plan via `create-plan.md`, and providing summary to user is a CRITICAL violation.
 
 ## Violations (BLOCKED)
 

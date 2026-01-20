@@ -188,7 +188,7 @@ def find_circular_dependencies(layer_deps: dict[str, set[str]]) -> list[list[str
         for neighbor in layer_deps.get(node, set()):
             dfs(neighbor, path.copy(), visited)
 
-    for layer in layer_deps.keys():
+    for layer in layer_deps:
         dfs(layer, [], set())
 
     return cycles
