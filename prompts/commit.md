@@ -94,10 +94,11 @@ The following error patterns MUST be detected and fixed before commit. These are
 ### Linter Errors
 
 - **Pattern**: Linter reports errors (not warnings)
-- **Detection**: Parse linter output for error count (e.g., ruff for Python, ESLint for JavaScript/TypeScript)
+- **Detection**: Parse linter output for error count
 - **Action**: Fix linting errors, re-run linter, verify zero errors
 - **Block Commit**: Yes - linter errors will cause CI to fail
-- **Note**: For Python, ensure code is compatible with Python 3.13+ (CI checks Python 3.13 compatibility). Use `TypeAlias` from `typing` instead of `type` alias statement (Python 3.13+ only). **Use `execute_pre_commit_checks()` MCP tool for all pre-commit operations** - scripts are fallbacks only if MCP tool is unavailable
+- **Note**: **Use `execute_pre_commit_checks()` MCP tool for all pre-commit operations** - scripts are fallbacks only if MCP tool is unavailable
+- **Fallback Script**: `.venv/bin/python .cortex/synapse/scripts/{language}/check_linting.py`
 
 ### Integration Test Failures
 
@@ -116,13 +117,16 @@ The following error patterns MUST be detected and fixed before commit. These are
 
 ### ⚠️ Errors Introduced After Initial Checks (CRITICAL)
 
-- **Pattern**: Code changes made AFTER Step 2-4 (type check, quality, tests) introduce NEW errors
-- **Detection**: CI fails with type/lint errors that weren't present in original Step 2 check
-- **Root Cause**: Agent makes additional code changes during steps 5-11 (memory bank, roadmap, test fixes) without re-running type check
-- **Example Failure**: Agent adds constants to fix tests, those constants have type errors, agent commits without re-checking
-- **Action**: ALWAYS run Step 12 (Final Validation Gate) immediately before commit
+- **Pattern 1 - Code changes**: Code changes made AFTER Step 2-4 (type check, quality, tests) introduce NEW errors
+- **Pattern 2 - New files**: NEW files created during Step 4 (e.g., test files to fix coverage) are NEVER formatted by Step 1
+- **Detection**: CI fails with type/lint/formatting errors that weren't present in original checks
+- **Root Cause 1**: Agent makes code changes during steps 5-11 without re-running type check
+- **Root Cause 2**: Agent creates new test files during Step 4 to fix coverage, but Step 1 (Formatting) already ran
+- **Example Failure 1**: Agent adds constants to fix tests, those constants have type errors, agent commits without re-checking
+- **Example Failure 2**: Agent creates `test_new_module.py` during Step 4 coverage fix, file is never formatted, CI fails on Black check
+- **Action**: ALWAYS run Step 12 (Final Validation Gate) immediately before commit - this includes running `fix_formatting.py` THEN `check_formatting.py`
 - **Block Commit**: Yes - Step 12 is MANDATORY and cannot be skipped
-- **Prevention**: ANY code change after Step 4 REQUIRES re-running type check and linter before commit
+- **Prevention**: ANY code change OR new file creation after Step 1 REQUIRES re-running formatting fix AND verification before commit
 - **Note**: This is the most common cause of CI failures that "should have been caught"
 
 **CRITICAL**: All error patterns above MUST be validated by parsing command output, not just checking exit codes. Exit codes can be misleading - always parse actual output to verify results.
@@ -161,8 +165,8 @@ The following error patterns MUST be detected and fixed before commit. These are
      - **CRITICAL**: If linting errors remain, fix remaining issues and re-run fix-errors until check passes
      - **MANDATORY**: Linter check MUST pass before proceeding to next step
      - **VALIDATION**: Parse tool response to verify zero errors - **BLOCK COMMIT** if any linting errors remain
-     - **Note**: The fix-errors step runs linter with --fix which fixes auto-fixable issues, but some errors (like syntax errors, undefined names, Python version compatibility) cannot be auto-fixed and must be manually resolved
-     - **Fallback**: If MCP tool is unavailable, run linter manually: `.venv/bin/ruff check src/ tests/` (for Python) or equivalent for other languages
+     - **Note**: The fix-errors step runs linter with --fix which fixes auto-fixable issues, but some errors (like syntax errors, undefined names) cannot be auto-fixed and must be manually resolved
+     - **Fallback**: If MCP tool is unavailable, run linter script: `.venv/bin/python .cortex/synapse/scripts/{language}/check_linting.py`
 
 1. **Code formatting** - Use `execute_pre_commit_checks()` MCP tool:
    - **Call MCP tool**: `execute_pre_commit_checks(checks=["format"], strict_mode=False)`
@@ -187,7 +191,7 @@ The following error patterns MUST be detected and fixed before commit. These are
      - **MANDATORY**: Formatter check MUST pass before proceeding to next step
      - **VALIDATION**: Parse tool response to verify formatting passed - **BLOCK COMMIT** if formatting fails
      - **CONTEXT ASSESSMENT**: After fixing formatting issues, if insufficient context remains, provide comprehensive summary and advise re-running commit pipeline
-   - **Fallback**: If MCP tool is unavailable, run formatter manually: `.venv/bin/black src/ tests/` (for Python) or equivalent for other languages
+   - **Fallback**: If MCP tool is unavailable, run formatter script: `.venv/bin/python .cortex/synapse/scripts/{language}/fix_formatting.py` (to fix) or `.venv/bin/python .cortex/synapse/scripts/{language}/check_formatting.py` (to check)
 1.5. **Markdown linting** - Fix markdown lint errors in modified markdown files:
    - **MANDATORY**: Run markdown lint fix MCP tool to automatically fix markdownlint errors
    - **CRITICAL**: Check only modified/new markdown files (determined via git) to fix errors in files being committed
@@ -271,7 +275,7 @@ The following error patterns MUST be detected and fixed before commit. These are
    - Re-run type checker after fixes to verify zero errors AND zero warnings remain
    - **CONTEXT ASSESSMENT**: After fixing type issues, if insufficient context remains, provide comprehensive summary and advise re-running commit pipeline
    - **Skip if**: Project does not use a type system
-   - **Fallback**: If MCP tool is unavailable, run type checker manually: `.venv/bin/pyright src/` (for Python) or equivalent for other languages
+   - **Fallback**: If MCP tool is unavailable, run type check script: `.venv/bin/python .cortex/synapse/scripts/{language}/check_types.py`
 3. **Code quality checks** - Use `execute_pre_commit_checks()` MCP tool:
    - **Call MCP tool**: `execute_pre_commit_checks(checks=["quality"], strict_mode=False)`
    - **CRITICAL - MCP TOOL VALIDATION**: After tool call, validate response:
@@ -413,7 +417,9 @@ The following error patterns MUST be detected and fixed before commit. These are
      - **BLOCK COMMIT** if any timestamp violations are found
    - If violations are found, fix timestamp formats and re-run validation until all pass
    - Re-verify all validation criteria after fixes
+
 10. **Roadmap synchronization validation** - Execute Cursor command: `validate-roadmap-sync` (if available):
+
 - Check if `.cortex/synapse/prompts/validate-roadmap-sync.md` exists
 - If file exists:
   - Read `.cortex/synapse/prompts/validate-roadmap-sync.md`
@@ -513,40 +519,72 @@ The commit procedure executes steps in this specific order to ensure dependencie
 
 ## ⚠️ STEP 12: FINAL VALIDATION GATE (CRITICAL - MANDATORY)
 
-**WHY THIS STEP EXISTS**: During steps 5-11 (Memory Bank, Roadmap, Plan Archiving, etc.), the agent may make code changes (adding constants, fixing tests, etc.) that introduce NEW type errors or linting issues. The original checks in Steps 0-4 are INVALIDATED by any subsequent code changes.
+**WHY THIS STEP EXISTS**: During steps 4-11, the agent may:
 
-**CRITICAL RULE**: ANY code change after Step 4 REQUIRES re-verification before commit.
+1. **Create NEW files** (e.g., new test files to fix coverage in Step 4) that were never formatted
+2. **Make code changes** (adding constants, fixing tests, etc.) that introduce NEW type errors or linting issues
 
-### 12.1 Re-run Type Check (MANDATORY for typed projects)
+The original checks in Steps 0-4 are INVALIDATED by any subsequent code changes or new file creation.
 
+**CRITICAL RULE**: ANY code change OR new file creation after Step 1 REQUIRES re-running formatting AND verification before commit.
+
+### 12.1 Re-run Formatting FIX then CHECK (MANDATORY)
+
+**CRITICAL**: New files created during Steps 4-11 (especially test files added to fix coverage) will NOT have been formatted by Step 1. You MUST run the fix script first, then verify.
+
+**Step 12.1.1 - Run formatting FIX** (always run this, not just on failure):
+
+```bash
+.venv/bin/python .cortex/synapse/scripts/{language}/fix_formatting.py
 ```
-.venv/bin/pyright src/ 2>&1
+
+**Step 12.1.2 - Run formatting CHECK** to verify:
+
+```bash
+.venv/bin/python .cortex/synapse/scripts/{language}/check_formatting.py
 ```
 
-- **MUST verify**: Output ends with `0 errors, 0 warnings, 0 informations`
-- **BLOCK COMMIT** if ANY errors or warnings are reported
+- **MUST verify**: Output shows formatting check passed (e.g., "✅ All formatting checks passed")
+- **BLOCK COMMIT** if ANY formatting violations are reported
+- **DO NOT rely on memory of earlier checks** - you MUST re-run and verify output NOW
+- **If check still fails after fix**: Investigate manually, fix issues, and re-run both fix and check
+
+### 12.2 Re-run Type Check (MANDATORY for typed projects)
+
+Run the language-specific type check script:
+
+```bash
+.venv/bin/python .cortex/synapse/scripts/{language}/check_types.py
+```
+
+- **MUST verify**: Output shows type check passed (e.g., "✅ All type checks passed")
+- **BLOCK COMMIT** if ANY type errors or warnings are reported
+- **DO NOT rely on memory of earlier checks** - you MUST re-run and verify output NOW
+- **Skip if**: Project does not use a type system
+
+### 12.3 Re-run Linter Check (MANDATORY)
+
+Run the language-specific linter check script:
+
+```bash
+.venv/bin/python .cortex/synapse/scripts/{language}/check_linting.py
+```
+
+- **MUST verify**: Output shows linter check passed (e.g., "✅ All linting checks passed")
+- **BLOCK COMMIT** if ANY linter violations are reported
 - **DO NOT rely on memory of earlier checks** - you MUST re-run and verify output NOW
 
-### 12.2 Re-run Linter Check (MANDATORY)
-
-```
-.venv/bin/ruff check src/ tests/ 2>&1
-```
-
-- **MUST verify**: Output shows zero violations
-- **BLOCK COMMIT** if ANY violations are reported
-- **DO NOT rely on memory of earlier checks** - you MUST re-run and verify output NOW
-
-### 12.3 Verification Requirements
+### 12.4 Verification Requirements
 
 - **Parse actual command output** - do not assume success
-- **Look for specific strings**: "0 errors" for pyright, "All checks passed" for ruff
+- **Look for success indicators**: "✅" or "passed" in output
 - **If output is truncated or unclear**: Re-run without `| head` or piping
 - **If any check fails**: Fix issues and restart from Step 12.1
 
-### 12.4 Checklist Before Proceeding to Commit
+### 12.5 Checklist Before Proceeding to Commit
 
-- [ ] Type check re-run: **0 errors, 0 warnings** confirmed in output
+- [ ] Formatting re-run: **check passed** confirmed in output
+- [ ] Type check re-run: **0 errors, 0 warnings** confirmed in output (if applicable)
 - [ ] Linter re-run: **0 violations** confirmed in output
 - [ ] All output was **fully read and parsed**, not assumed
 
@@ -578,9 +616,12 @@ Before proceeding to commit creation, provide a validation summary confirming al
   - Coverage ≥ 90% (parsed from test output)
   - Integration tests = all pass (explicitly verified)
 - [ ] **⚠️ FINAL VALIDATION GATE (Step 12) - MANDATORY**:
+  - Formatting FIX executed: Yes (MUST run to format any new files created since Step 1)
+  - Formatting CHECK: `would be left unchanged` (output verified)
   - Type check RE-RUN: `0 errors, 0 warnings, 0 informations` (output verified)
   - Linter RE-RUN: `0 violations` (output verified)
   - This step MUST be executed IMMEDIATELY before commit, not relied on from earlier steps
+  - **CRITICAL**: New test files created during Step 4 (coverage fix) MUST be formatted
 - [ ] **All Validations Passed**: All above validations confirmed successful
 
 **If any validation fails, BLOCK COMMIT and fix issues before proceeding.**
@@ -838,12 +879,17 @@ Use this ordering when numbering results:
 #### **12. ⚠️ Final Validation Gate (MANDATORY)**
 
 - **Status**: Success/Failure (MUST be Success to proceed)
-- **Type Check Re-run**: Output of `.venv/bin/pyright src/` (MUST show "0 errors, 0 warnings, 0 informations")
-- **Linter Re-run**: Output of `.venv/bin/ruff check src/ tests/` (MUST show 0 violations)
+- **Formatting Fix Run**: Output of `.venv/bin/python .cortex/synapse/scripts/{language}/fix_formatting.py` (MUST run to format any new files)
+- **Formatting Check Re-run**: Output of `.venv/bin/python .cortex/synapse/scripts/{language}/check_formatting.py` (MUST show check passed)
+- **Type Check Re-run**: Output of `.venv/bin/python .cortex/synapse/scripts/{language}/check_types.py` (MUST show check passed, skip if not applicable)
+- **Linter Re-run**: Output of `.venv/bin/python .cortex/synapse/scripts/{language}/check_linting.py` (MUST show check passed)
 - **Output Verified**: Whether actual command output was parsed (not assumed)
+- **New Files Created Since Step 1**: List any new files created during steps 4-11 (especially test files for coverage)
 - **Code Changes Since Step 4**: List any code changes made during steps 5-11 that required re-verification
 - **Validation Results**:
-  - Type check passed: Yes/No (MUST be Yes)
+  - Formatting fix executed: Yes/No (MUST be Yes)
+  - Formatting check passed: Yes/No (MUST be Yes)
+  - Type check passed: Yes/No (MUST be Yes, or N/A if project doesn't use types)
   - Linter passed: Yes/No (MUST be Yes)
   - Output fully read: Yes/No (MUST be Yes)
 - **BLOCK COMMIT** if any check in Step 12 fails

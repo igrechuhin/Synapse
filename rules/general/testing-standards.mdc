@@ -12,7 +12,10 @@ alwaysApply: false
 - **AAA required**: Arrange-Act-Assert structure in every test.
 - **Deterministic**: No flakiness; avoid time-based sleeps and randomness without seeding.
 - **Performance**: Individual tests complete in <10s; suites stay lean.
-- **Coverage**: New code paths must be covered; critical logic needs edge/error cases.
+- **Coverage**: Minimum 90% coverage required (MANDATORY - NO EXCEPTIONS).
+  - New code paths must be covered; critical logic needs edge/error cases.
+  - "Pre-existing condition" is NOT a valid excuse for low coverage.
+  - Coverage threshold failures MUST be fixed before commit.
 
 ## Skips and Marks
 

@@ -139,7 +139,15 @@
    - **Dependencies**: Dependencies on other plans or external work
    - **Success Criteria**: Measurable outcomes
    - **Technical Design**: Architecture, data model, UI/UX changes (if applicable)
-   - **Testing Strategy**: Unit, integration, E2E, manual testing approach
+   - **Testing Strategy (MANDATORY)**: Comprehensive testing requirements:
+     - **Coverage Target**: Minimum 95% code coverage for ALL new functionality (MANDATORY)
+     - **Unit Tests**: Test all public functions, methods, and classes individually
+     - **Integration Tests**: Test component interactions and data flow
+     - **Edge Cases**: Test boundary conditions, error handling, and invalid inputs
+     - **Regression Tests**: Ensure existing functionality remains unaffected
+     - **Test Documentation**: Document test scenarios and expected behaviors
+     - **AAA Pattern**: All tests MUST follow Arrange-Act-Assert pattern
+     - **No Blanket Skips**: Every skip MUST have justification and linked ticket
    - **Risks & Mitigation**: Potential risks and how to address them
    - **Timeline**: Estimated timeline or sprint breakdown
    - **Notes**: Additional context, decisions, open questions
@@ -201,6 +209,14 @@
 - **Actionability**: Include specific, actionable steps
 - **Measurability**: Define clear success criteria
 - **Realism**: Set achievable timelines and scope
+
+### Testing Requirements (MANDATORY)
+
+- **Coverage**: Every plan MUST include a testing strategy targeting minimum 95% code coverage for new functionality
+- **Test Types**: Plans MUST specify required unit tests, integration tests, and edge case tests
+- **Test-First Consideration**: Plans SHOULD consider test cases during design phase (TDD approach encouraged)
+- **Acceptance Criteria**: Each implementation step SHOULD have associated test verification criteria
+- **No Implementation Without Tests**: Plans MUST NOT be considered complete without comprehensive test specifications
 
 ### Roadmap Integration
 

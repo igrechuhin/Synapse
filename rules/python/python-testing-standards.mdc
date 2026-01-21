@@ -86,11 +86,14 @@ def test_invalid_input_raises_validation_error():
     assert "must be positive" in str(exc_info.value)
 ```
 
-## Test Coverage (ENFORCED)
+## Test Coverage (ENFORCED - NO EXCEPTIONS)
 
 - **100% Coverage Target**: Aim for 100% test coverage on new code - MANDATORY
-- **Minimum 90%**: Maintain at least 90% coverage - MANDATORY
+- **Minimum 90%**: Maintain at least 90% coverage - MANDATORY (NO EXCEPTIONS)
 - **Coverage Reports**: Generate coverage reports in CI - MANDATORY
+- **No Excuses**: "Pre-existing condition" is NOT a valid excuse for low coverage
+- **Fix Before Commit**: Coverage threshold failures MUST be fixed before commit
+- **CI Enforcement**: CI MUST fail if coverage drops below 90%
 
 ```toml
 [tool.coverage.run]
@@ -100,6 +103,7 @@ omit = ["*/tests/*", "*/migrations/*"]
 [tool.coverage.report]
 exclude_lines = ["pragma: no cover", "def __repr__"]
 show_missing = true
+fail_under = 90
 ```
 
 ## Async Testing (ENFORCED)
@@ -194,8 +198,9 @@ class TestUserServiceCreation:
 ## Enforcement
 
 - **pytest Configuration**: Proper pytest.ini configuration in CI
-- **Coverage Requirements**: Minimum 90% coverage for new code
+- **Coverage Requirements**: Minimum 90% coverage (MANDATORY - NO EXCEPTIONS)
 - **Test Execution**: All tests must pass in CI
 - **Performance Benchmarks**: Performance tests included in CI pipeline
 - **Code Review**: Test quality review required for all PRs
 - **NO exceptions**: All testing standard violations must be fixed before merge
+- **Coverage Excuses Forbidden**: "Pre-existing condition", "technical debt", or "will fix later" are NOT valid excuses
