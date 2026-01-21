@@ -275,6 +275,8 @@ The plan creation is considered complete when:
 
 - ✅ Plan file created successfully in plans directory
 - ✅ Plan content is complete with all required sections
+- ✅ **Testing strategy included with 95% coverage target (MANDATORY)**
+- ✅ **Test specifications defined for all new functionality (MANDATORY)**
 - ✅ Roadmap updated with new plan entry
 - ✅ Roadmap entry properly formatted and linked
 - ✅ All paths obtained dynamically using MCP tools

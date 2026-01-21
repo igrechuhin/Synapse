@@ -103,16 +103,37 @@
    - Follow language-specific best practices and modern features
    - Keep functions ≤30 lines and files ≤400 lines
    - Use dependency injection (no global state or singletons)
-2. Write or update tests:
+2. Write or update tests (MANDATORY - comprehensive test coverage required):
    - Follow AAA pattern (MANDATORY)
    - No blanket skips (MANDATORY)
    - Target 100% pass rate on project's test suite
-   - Minimum 90% coverage for new code
+   - **Minimum 95% code coverage for ALL new functionality (MANDATORY)**
+   - **Unit tests**: Test all new public functions, methods, and classes individually
+   - **Integration tests**: Test component interactions and data flow between modules
+   - **Edge case tests**: Test boundary conditions, error handling, invalid inputs, and empty states
+   - **Test documentation**: Include clear docstrings explaining test purpose and expected behavior
+   - **Verify coverage**: Run coverage tool and ensure 95% threshold is met before considering implementation complete
 3. Fix any errors or issues:
    - Run linters and fix all issues
    - Fix type errors
    - Fix formatting issues using project's code formatter
    - Ensure all tests pass
+
+### Step 4.5: Verify Test Coverage (MANDATORY)
+
+1. **Run coverage analysis**:
+   - Execute test suite with coverage reporting enabled (e.g., `pytest --cov=src --cov-report=term-missing`)
+   - Review coverage report for new/modified files
+2. **Verify 95% threshold**:
+   - Check that ALL new functionality has at least 95% code coverage
+   - Identify any uncovered lines or branches in new code
+3. **Add missing tests if coverage is below 95%**:
+   - Write additional unit tests for uncovered code paths
+   - Add edge case tests for uncovered branches
+   - Add integration tests if component interactions are untested
+4. **Re-run coverage** until 95% threshold is met for all new code
+5. **Document coverage**: Note the final coverage percentage in implementation summary
+6. **BLOCKING**: Do NOT proceed to memory bank updates until 95% coverage is achieved
 
 ### Step 5: Update Memory Bank
 
@@ -169,12 +190,18 @@
 - **Dependency injection**: All external dependencies MUST be injected via initializers
 - **No global state**: NO global state or singletons in production code
 
-### Testing
+### Testing (MANDATORY - Comprehensive Coverage Required)
 
 - **AAA pattern**: Follow Arrange-Act-Assert pattern (MANDATORY)
-- **No blanket skips**: No blanket skips (MANDATORY); justify every skip with clear reason
-- **Coverage**: Minimum 90% coverage for new code
+- **No blanket skips**: No blanket skips (MANDATORY); justify every skip with clear reason and linked ticket
+- **Coverage target**: **Minimum 95% code coverage for ALL new functionality (MANDATORY)**
 - **Test execution**: All tests must pass using the project's standard test runner
+- **Unit tests**: Every new public function, method, and class MUST have corresponding unit tests
+- **Integration tests**: Test interactions between components and modules
+- **Edge cases**: Test boundary conditions, error paths, invalid inputs, empty collections, null/None values
+- **Regression prevention**: Ensure tests cover scenarios that prevent regressions
+- **Coverage verification**: Run coverage report before marking implementation complete; fail if below 95%
+- **Test-to-code ratio**: Aim for meaningful test coverage, not just line coverage - test behavior, not implementation
 
 ### Memory Bank Updates
 
@@ -209,6 +236,9 @@ The roadmap step is considered complete when:
 - ✅ All implementation tasks are finished
 - ✅ All code follows coding standards
 - ✅ All tests pass
+- ✅ **Code coverage for new functionality is at least 95% (MANDATORY)**
+- ✅ **Comprehensive tests exist**: Unit tests, integration tests, and edge case tests for all new code
+- ✅ **Coverage verified**: Coverage report generated and reviewed
 - ✅ Memory bank is updated
 - ✅ The roadmap reflects the completed status
 
