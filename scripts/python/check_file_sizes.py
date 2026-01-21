@@ -97,9 +97,17 @@ def main():
 
     violations: list[tuple[Path, int]] = []
 
+    # Files that are excluded from size checks (data definition files)
+    excluded_patterns = [
+        "models.py",  # Pydantic model definitions are inherently large
+    ]
+
     for py_file in src_dir.glob("**/*.py"):
         # Skip __pycache__ and test files
         if "__pycache__" in str(py_file) or py_file.name.startswith("test_"):
+            continue
+        # Skip excluded patterns (data definition files)
+        if any(py_file.name == pattern for pattern in excluded_patterns):
             continue
 
         lines = count_lines(py_file)

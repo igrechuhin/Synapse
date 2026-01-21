@@ -73,16 +73,27 @@ The following error patterns MUST be detected and fixed before commit. These are
 ### File Size Violations
 
 - **Pattern**: Files exceeding 400 lines
-- **Detection**: Parse MCP tool response (`results.quality.file_size_violations`) or file size check output
-- **Action**: Split large files, re-run check, verify zero violations
+- **Detection**: Parse MCP tool response - check `results.quality.success` = false OR `len(results.quality.file_size_violations)` > 0
+- **Action**: Split large files, re-run check, verify `success` = true AND violations array is empty
 - **Block Commit**: Yes - file size violations will cause CI to fail
+- **⚠️ NO EXCEPTIONS**: Pre-existing violations are NOT acceptable - they MUST be fixed before commit
 
 ### Function Length Violations
 
 - **Pattern**: Functions exceeding 30 lines
-- **Detection**: Parse MCP tool response (`results.quality.function_length_violations`) or function length check output
-- **Action**: Refactor long functions, re-run check, verify zero violations
+- **Detection**: Parse MCP tool response - check `results.quality.success` = false OR `len(results.quality.function_length_violations)` > 0
+- **Action**: Refactor long functions, re-run check, verify `success` = true AND violations array is empty
 - **Block Commit**: Yes - function length violations will cause CI to fail
+- **⚠️ NO EXCEPTIONS**: Pre-existing violations are NOT acceptable - they MUST be fixed before commit
+
+### ⚠️ Pre-Existing Violations (CRITICAL ANTI-PATTERN)
+
+- **Pattern**: Agent dismisses violations as "pre-existing issues" and proceeds with commit
+- **Detection**: Agent acknowledges violations exist but commits anyway with reasoning like "these are pre-existing"
+- **Why This Is WRONG**: CI doesn't care if violations are new or pre-existing - it will FAIL regardless
+- **Action**: NEVER proceed with commit when violations exist, regardless of their origin
+- **Block Commit**: Yes - ANY violation blocks commit, period
+- **Note**: The only acceptable state is `results.quality.success` = true with empty violation arrays
 
 ### Formatting Violations
 
@@ -291,17 +302,22 @@ The following error patterns MUST be detected and fixed before commit. These are
      - Run file size checks (verifies all files ≤ 400 lines)
      - Run function/method length checks (verifies all functions ≤ 30 lines)
      - Auto-detect directories (src/, tests/) matching CI workflow
-     - Return structured results with violation counts
+     - Return structured results with violation lists and success flag
    - **VALIDATION**: Parse tool response to verify:
-     - `results.quality.status` = "passed"
-     - `results.quality.file_size_violations` = 0 (MUST be zero)
-     - `results.quality.function_length_violations` = 0 (MUST be zero)
-   - **BLOCK COMMIT** if any violations are found
+     - `results.quality.success` = true (MUST be true - this is the PRIMARY indicator)
+     - `len(results.quality.file_size_violations)` = 0 (MUST be empty array)
+     - `len(results.quality.function_length_violations)` = 0 (MUST be empty array)
+   - **⚠️ ABSOLUTE BLOCK**: If `results.quality.success` = false OR any violations array is non-empty:
+     - **IMMEDIATELY STOP** - Do NOT proceed to next step
+     - **NO EXCEPTIONS** - Pre-existing violations are NOT acceptable
+     - **NO WORKAROUNDS** - Cannot dismiss violations as "pre-existing issues"
+     - **MUST FIX** - All violations must be fixed before commit can proceed
+     - **CI WILL FAIL** - Any violation that exists will cause CI failure, so commit is pointless
    - **PRIMARY FOCUS**: If violations are detected, fix them immediately (split files, extract functions)
    - Fix any file size or function/method length violations before proceeding
-   - Re-run quality check after fixes to verify zero violations remain
+   - Re-run quality check after fixes to verify `success` = true and both violation arrays are empty
    - **CONTEXT ASSESSMENT**: After fixing violations, if insufficient context remains, provide comprehensive summary and advise re-running commit pipeline
-   - Note: These checks match CI quality gate requirements and MUST pass
+   - Note: These checks match CI quality gate requirements and MUST pass - there is no path to green CI with violations
    - **Fallback**: If MCP tool is unavailable, run quality checks manually using scripts: `.cortex/synapse/scripts/{language}/check_file_sizes.py` and `.cortex/synapse/scripts/{language}/check_function_lengths.py` (or equivalent)
 4. **Test execution** - Use `execute_pre_commit_checks()` MCP tool:
    - **Call MCP tool**: `execute_pre_commit_checks(checks=["tests"], timeout=300, coverage_threshold=0.90)`
@@ -748,19 +764,24 @@ Use this ordering when numbering results:
 
 - **Status**: Success/Failure
 - **Command Used**: `execute_pre_commit_checks(checks=["quality"])` MCP tool
-- **File Size Check**: Status of file size validation (from tool response: `results.quality.file_size_violations`, max 400 lines, MUST be 0)
-- **Function Length Check**: Status of function length validation (from tool response: `results.quality.function_length_violations`, max 30 lines, MUST be 0)
-- **Quality Check Status**: Pass/Fail (from tool response: `results.quality.status`, MUST be "passed")
+- **Quality Success Flag**: `results.quality.success` (MUST be true - PRIMARY indicator)
+- **File Size Violations**: Count from `len(results.quality.file_size_violations)` (MUST be 0, array must be empty)
+- **Function Length Violations**: Count from `len(results.quality.function_length_violations)` (MUST be 0, array must be empty)
 - **Tool Response Parsed**: Yes/No (MUST be Yes)
-- **Violations Found**: Count of violations found (must be 0)
+- **Violations Found**: Count of violations found (must be 0 to proceed)
 - **Violations Fixed**: Count of violations fixed
 - **Validation Results**:
   - Tool executed: Yes/No (MUST be Yes)
-  - File size violations after fixes: Count (MUST be 0, parsed from tool response)
-  - Function length violations after fixes: Count (MUST be 0, parsed from tool response)
+  - Quality success flag: Yes/No (MUST be Yes - from `results.quality.success`)
+  - File size violations array empty: Yes/No (MUST be Yes, parsed from tool response)
+  - Function length violations array empty: Yes/No (MUST be Yes, parsed from tool response)
   - Tool output parsed: Yes/No
 - **Details**: Summary of any violations and their resolution
-- **Commit Blocked**: Yes/No (blocked if any violations remain)
+- **⚠️ ABSOLUTE BLOCK**: If success=false OR any violations exist:
+  - Pre-existing violations are NOT acceptable
+  - Cannot dismiss as "pre-existing issues"
+  - CI will fail, so commit is blocked
+- **Commit Blocked**: Yes/No (blocked if success=false OR any violations remain - NO EXCEPTIONS)
 - **Fallback Used**: Yes/No (only if MCP tool was unavailable)
 
 #### **4. Test Execution**
@@ -1132,10 +1153,12 @@ Use this ordering when numbering results:
 - ✅ Markdown lint errors fixed (all modified markdown files properly formatted)
 - ✅ **VALIDATION**: Markdown lint fix tool executed and verified (if tool available)
 - ✅ Real-time checklist updates completed for all steps
+- ✅ **QUALITY CHECK SUCCESS**: `results.quality.success` = true (PRIMARY validation)
 - ✅ File size check passes (all files ≤ 400 lines)
-- ✅ **VALIDATION**: File size check confirms zero violations (parsed from MCP tool response)
+- ✅ **VALIDATION**: `len(results.quality.file_size_violations)` = 0 (array MUST be empty)
 - ✅ Function length check passes (all functions ≤ 30 lines)
-- ✅ **VALIDATION**: Function length check confirms zero violations (parsed from MCP tool response)
+- ✅ **VALIDATION**: `len(results.quality.function_length_violations)` = 0 (array MUST be empty)
+- ✅ **NO EXCEPTIONS**: Pre-existing violations do NOT bypass this check - CI will fail regardless
 - ✅ All executable tests pass (100% pass rate) - verified via test execution
 - ✅ **VALIDATION**: Test output parsed to confirm zero failures, 100% pass rate (from MCP tool response)
 - ✅ Test coverage meets threshold (90%+) - verified via test execution
