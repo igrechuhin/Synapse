@@ -436,9 +436,9 @@ The following error patterns MUST be detected and fixed before commit. These are
 
 10. **Roadmap synchronization validation** - Execute Cursor command: `validate-roadmap-sync` (if available):
 
-- Check if `.cortex/synapse/prompts/validate-roadmap-sync.md` exists
+- Check if `.cortex/prompts/validate-roadmap-sync.md` exists (Cortex-specific prompt, not part of Synapse)
 - If file exists:
-  - Read `.cortex/synapse/prompts/validate-roadmap-sync.md`
+  - Read `.cortex/prompts/validate-roadmap-sync.md`
   - Execute ALL steps from that command automatically
   - **CRITICAL - MCP TOOL VALIDATION**: If command uses MCP tools (e.g., `validate(check_type="roadmap_sync")`), validate response:
     - **Automatic validation**: `mcp_tool_wrapper` and `validate_mcp_tool_response()` automatically validate:
