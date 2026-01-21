@@ -590,18 +590,44 @@ Run the language-specific linter check script:
 - **BLOCK COMMIT** if ANY linter violations are reported
 - **DO NOT rely on memory of earlier checks** - you MUST re-run and verify output NOW
 
-### 12.4 Verification Requirements
+### 12.4 Re-run Quality Checks (MANDATORY)
+
+**CRITICAL**: Quality violations (file sizes, function lengths) can be introduced during Steps 4-11 and MUST be validated before commit.
+
+**Step 12.4.1 - Check file sizes** (MANDATORY):
+
+```bash
+.venv/bin/python .cortex/synapse/scripts/{language}/check_file_sizes.py
+```
+
+- **MUST verify**: Output shows "✅ All files within size limits (400 lines)"
+- **BLOCK COMMIT** if ANY file size violations are reported
+- **NO EXCEPTIONS**: Pre-existing violations are NOT acceptable
+
+**Step 12.4.2 - Check function lengths** (MANDATORY):
+
+```bash
+.venv/bin/python .cortex/synapse/scripts/{language}/check_function_lengths.py
+```
+
+- **MUST verify**: Output shows "✅ All functions within length limits (30 lines)"
+- **BLOCK COMMIT** if ANY function length violations are reported
+- **NO EXCEPTIONS**: Pre-existing violations are NOT acceptable
+
+### 12.5 Verification Requirements
 
 - **Parse actual command output** - do not assume success
 - **Look for success indicators**: "✅" or "passed" in output
 - **If output is truncated or unclear**: Re-run without `| head` or piping
 - **If any check fails**: Fix issues and restart from Step 12.1
 
-### 12.5 Checklist Before Proceeding to Commit
+### 12.6 Checklist Before Proceeding to Commit
 
 - [ ] Formatting re-run: **check passed** confirmed in output
 - [ ] Type check re-run: **0 errors, 0 warnings** confirmed in output (if applicable)
 - [ ] Linter re-run: **0 violations** confirmed in output
+- [ ] File sizes re-run: **0 violations** confirmed in output
+- [ ] Function lengths re-run: **0 violations** confirmed in output
 - [ ] All output was **fully read and parsed**, not assumed
 
 **⚠️ VIOLATION**: Proceeding to commit creation without completing Step 12 with verified zero-error output is a CRITICAL VIOLATION that will cause CI failures.
@@ -636,8 +662,11 @@ Before proceeding to commit creation, provide a validation summary confirming al
   - Formatting CHECK: `would be left unchanged` (output verified)
   - Type check RE-RUN: `0 errors, 0 warnings, 0 informations` (output verified)
   - Linter RE-RUN: `0 violations` (output verified)
+  - File sizes RE-RUN: `0 violations` (output verified)
+  - Function lengths RE-RUN: `0 violations` (output verified)
   - This step MUST be executed IMMEDIATELY before commit, not relied on from earlier steps
   - **CRITICAL**: New test files created during Step 4 (coverage fix) MUST be formatted
+  - **CRITICAL**: Quality checks (file sizes, function lengths) MUST be re-verified before commit
 - [ ] **All Validations Passed**: All above validations confirmed successful
 
 **If any validation fails, BLOCK COMMIT and fix issues before proceeding.**
@@ -904,6 +933,8 @@ Use this ordering when numbering results:
 - **Formatting Check Re-run**: Output of `.venv/bin/python .cortex/synapse/scripts/{language}/check_formatting.py` (MUST show check passed)
 - **Type Check Re-run**: Output of `.venv/bin/python .cortex/synapse/scripts/{language}/check_types.py` (MUST show check passed, skip if not applicable)
 - **Linter Re-run**: Output of `.venv/bin/python .cortex/synapse/scripts/{language}/check_linting.py` (MUST show check passed)
+- **File Sizes Re-run**: Output of `.venv/bin/python .cortex/synapse/scripts/{language}/check_file_sizes.py` (MUST show 0 violations)
+- **Function Lengths Re-run**: Output of `.venv/bin/python .cortex/synapse/scripts/{language}/check_function_lengths.py` (MUST show 0 violations)
 - **Output Verified**: Whether actual command output was parsed (not assumed)
 - **New Files Created Since Step 1**: List any new files created during steps 4-11 (especially test files for coverage)
 - **Code Changes Since Step 4**: List any code changes made during steps 5-11 that required re-verification
@@ -912,6 +943,8 @@ Use this ordering when numbering results:
   - Formatting check passed: Yes/No (MUST be Yes)
   - Type check passed: Yes/No (MUST be Yes, or N/A if project doesn't use types)
   - Linter passed: Yes/No (MUST be Yes)
+  - File sizes check passed: Yes/No (MUST be Yes)
+  - Function lengths check passed: Yes/No (MUST be Yes)
   - Output fully read: Yes/No (MUST be Yes)
 - **BLOCK COMMIT** if any check in Step 12 fails
 
