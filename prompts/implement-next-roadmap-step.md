@@ -51,6 +51,16 @@
    - Read `.cursor/rules/memory-bank-workflow.mdc` for memory bank update requirements
    - Read `.cursor/rules/testing-standards.mdc` for testing requirements
 
+4. ✅ **Verify implementation against rules** - After implementation, verify conformance:
+   - Review all new/modified code to ensure it conforms to coding standards
+   - Verify type annotations are complete per language-specific standards
+   - Verify structured data types follow project's data modeling standards (check language-specific rules)
+   - Verify functions/methods are within project's length limits
+   - Verify files are within project's size limits
+   - Verify dependency injection patterns are followed (no global state or singletons)
+   - Verify naming conventions follow project standards
+   - **If violations found**: Fix them BEFORE proceeding to memory bank updates
+
 **VIOLATION**: Executing this command without following this checklist is a CRITICAL violation that blocks proper implementation.
 
 ## EXECUTION STEPS
@@ -94,25 +104,55 @@
 3. Determine what tests need to be written or updated
 4. Consider any integration points or dependencies
 
+### Step 3.5: Check Existing Data Models (MANDATORY)
+
+Before defining new data structures (classes, types, models, interfaces):
+
+1. **Review existing data model patterns**:
+   - Check project's code organization standards for where data models should be defined
+   - Review existing data model patterns in the project
+   - Verify if similar models already exist
+   - Understand project's data modeling standards (check language-specific rules)
+
+2. **Follow project's code organization**:
+   - Check language-specific rules for data model organization requirements
+   - Ensure data models are placed according to project's file structure standards
+   - Use existing model patterns as templates
+   - **Run language-specific validation script**: `.venv/bin/python .cortex/synapse/scripts/{language}/check_data_models.py` (if available)
+
+3. **Verify model type compliance**:
+   - Check language-specific rules for required model types
+   - Ensure new models follow project's data modeling standards
+   - Verify model type compliance per language-specific coding standards
+   - **Run language-specific validation script**: `.venv/bin/python .cortex/synapse/scripts/{language}/check_data_models.py` (if available) - will verify data modeling compliance automatically
+
 ### Step 4: Implement the Step
 
 1. Execute all implementation tasks:
    - Create/modify/delete files as needed
    - Write or update code according to coding standards
-   - Ensure type hints are complete (100% coverage, follow language-specific type system best practices)
+   - Ensure type annotations are complete per language-specific standards
    - Follow language-specific best practices and modern features
-   - Keep functions ≤30 lines and files ≤400 lines
+   - Keep functions/methods and files within project's length/size limits (check language-specific standards)
    - Use dependency injection (no global state or singletons)
+   - **Path and Resource Resolution**:
+     - **CRITICAL**: Never hardcode paths. Always use project's path resolver utilities.
+     - **REQUIRED**: Use path resolver utilities (e.g., `get_cortex_path()`, `CortexResourceType`) instead of hardcoded paths
+     - **REQUIRED**: Check existing code for path resolution patterns
+     - **REQUIRED**: Use project's standard path resolution approach
+     - **FORBIDDEN**: Hardcoding paths like `.cortex/.session`, `.cursor/memory-bank`, etc.
+     - **FORBIDDEN**: String concatenation for paths without using resolver utilities
+     - **FORBIDDEN**: Assuming path structure without checking project patterns
 2. Write or update tests (MANDATORY - comprehensive test coverage required):
    - Follow AAA pattern (MANDATORY)
    - No blanket skips (MANDATORY)
    - Target 100% pass rate on project's test suite
-   - **Minimum 95% code coverage for ALL new functionality (MANDATORY)**
+   - **Minimum code coverage per project's testing standards (check testing-standards.mdc)**
    - **Unit tests**: Test all new public functions, methods, and classes individually
    - **Integration tests**: Test component interactions and data flow between modules
    - **Edge case tests**: Test boundary conditions, error handling, invalid inputs, and empty states
    - **Test documentation**: Include clear docstrings explaining test purpose and expected behavior
-   - **Verify coverage**: Run coverage tool and ensure 95% threshold is met before considering implementation complete
+   - **Verify coverage**: Run coverage tool and ensure project's coverage threshold is met before considering implementation complete
 3. Fix any errors or issues:
    - Run linters and fix all issues
    - Fix type errors
@@ -124,16 +164,57 @@
 1. **Run coverage analysis**:
    - Execute test suite with coverage reporting enabled (e.g., `pytest --cov=src --cov-report=term-missing`)
    - Review coverage report for new/modified files
-2. **Verify 95% threshold**:
-   - Check that ALL new functionality has at least 95% code coverage
+2. **Verify coverage threshold** (per project's testing standards):
+   - Check project's testing standards for required coverage threshold
+   - Check that ALL new functionality meets the required coverage threshold
    - Identify any uncovered lines or branches in new code
-3. **Add missing tests if coverage is below 95%**:
+3. **Add missing tests if coverage is below threshold**:
    - Write additional unit tests for uncovered code paths
    - Add edge case tests for uncovered branches
    - Add integration tests if component interactions are untested
-4. **Re-run coverage** until 95% threshold is met for all new code
+4. **Re-run coverage** until required threshold is met for all new code
 5. **Document coverage**: Note the final coverage percentage in implementation summary
-6. **BLOCKING**: Do NOT proceed to memory bank updates until 95% coverage is achieved
+6. **BLOCKING**: Do NOT proceed to memory bank updates until required coverage threshold is achieved
+
+### Step 4.6: Verify Code Conformance to Rules (MANDATORY)
+
+1. **Review all new/modified files** against project rules:
+   - Re-read `.cursor/rules/coding-standards.mdc` and language-specific standards
+   - Compare each new/modified file against these standards
+2. **Verify type system compliance** (per language-specific rules):
+   - Type annotations are complete on all new functions, methods, classes
+   - Generic/untyped types are avoided per language standards
+   - **Structured data types follow project's data modeling standards** (CRITICAL):
+     - **MANDATORY CHECK**: Scan code for data structure types - verify they comply with project's required data modeling patterns
+     - **MANDATORY CHECK**: Check language-specific coding standards for required data modeling types (e.g., check python-coding-standards.mdc for Python)
+     - Check language-specific coding standards for required data modeling patterns
+     - Use project-mandated types for structured data (e.g., data classes, models, interfaces)
+     - Avoid generic untyped containers when structured alternatives are required
+   - **BLOCKING**: If data structures don't comply with project's required modeling standards, this MUST be fixed before proceeding
+   - Concrete types are used instead of generic types where possible
+   - Modern language features are used per project's language version requirements
+3. **Verify structural compliance** (per project standards):
+   - All functions/methods are within project's length limits
+   - All files are within project's size limits
+   - Dependency injection patterns are followed (no global state or singletons)
+   - Code organization follows project's file structure standards
+   - **Verify code organization** (per project standards):
+     - Check language-specific rules for data model organization requirements
+     - Ensure data models are placed according to project's file structure standards
+     - One public type per file (check project's file organization standards)
+     - **Run language-specific validation script**: `.venv/bin/python .cortex/synapse/scripts/{language}/check_data_models.py` (if available)
+     - **BLOCKING**: If data models are in wrong files, they MUST be moved to correct location
+4. **Verify naming conventions** (per language-specific rules):
+   - Check language-specific coding standards for naming requirements
+   - Private/internal identifiers follow language conventions
+   - Public identifiers follow language conventions
+   - Constants follow language conventions
+5. **Fix any violations found**:
+   - If type violations: Add proper type annotations, use concrete types per language standards
+   - If data modeling violations: Convert to project-mandated data types per language-specific rules
+   - If structural violations: Extract helper functions, split large files
+   - If naming violations: Rename following conventions
+6. **BLOCKING**: Do NOT proceed to memory bank updates until all code conforms to rules
 
 ### Step 5: Update Memory Bank
 
@@ -182,11 +263,11 @@
 
 ### Code Quality
 
-- **Type hints**: 100% coverage required; follow language-specific type system best practices
+- **Type annotations**: Complete coverage required per language-specific standards
 - **Language features**: Use modern language features and built-ins appropriate to the project's language version
-- **Concrete types**: Use concrete types instead of generic `object` or `any` types wherever possible
-- **Function length**: Keep functions ≤30 lines (logical lines, excluding doc comments & blank lines)
-- **File length**: Keep files ≤400 lines (excluding license headers & imports)
+- **Concrete types**: Use concrete types instead of generic types wherever possible per language standards
+- **Function/method length**: Keep within project's length limits (check language-specific coding standards)
+- **File length**: Keep within project's size limits (check language-specific coding standards)
 - **Dependency injection**: All external dependencies MUST be injected via initializers
 - **No global state**: NO global state or singletons in production code
 
@@ -194,13 +275,13 @@
 
 - **AAA pattern**: Follow Arrange-Act-Assert pattern (MANDATORY)
 - **No blanket skips**: No blanket skips (MANDATORY); justify every skip with clear reason and linked ticket
-- **Coverage target**: **Minimum 95% code coverage for ALL new functionality (MANDATORY)**
+- **Coverage target**: **Minimum code coverage per project's testing standards (MANDATORY - check testing-standards.mdc)**
 - **Test execution**: All tests must pass using the project's standard test runner
 - **Unit tests**: Every new public function, method, and class MUST have corresponding unit tests
 - **Integration tests**: Test interactions between components and modules
 - **Edge cases**: Test boundary conditions, error paths, invalid inputs, empty collections, null/None values
 - **Regression prevention**: Ensure tests cover scenarios that prevent regressions
-- **Coverage verification**: Run coverage report before marking implementation complete; fail if below 95%
+- **Coverage verification**: Run coverage report before marking implementation complete; fail if below project's required threshold
 - **Test-to-code ratio**: Aim for meaningful test coverage, not just line coverage - test behavior, not implementation
 
 ### Memory Bank Updates
@@ -235,8 +316,11 @@ The roadmap step is considered complete when:
 
 - ✅ All implementation tasks are finished
 - ✅ All code follows coding standards
+- ✅ **Code conformance verified**: All new/modified code verified against project rules (Step 4.6)
+- ✅ **Type system compliance**: Complete type annotations, proper data modeling per language-specific rules
+- ✅ **Structural compliance**: Functions/methods and files within project limits, DI patterns followed
 - ✅ All tests pass
-- ✅ **Code coverage for new functionality is at least 95% (MANDATORY)**
+- ✅ **Code coverage for new functionality meets project's required threshold (MANDATORY)**
 - ✅ **Comprehensive tests exist**: Unit tests, integration tests, and edge case tests for all new code
 - ✅ **Coverage verified**: Coverage report generated and reviewed
 - ✅ Memory bank is updated

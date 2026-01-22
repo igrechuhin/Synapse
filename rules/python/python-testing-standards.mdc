@@ -180,6 +180,75 @@ class TestUserServiceCreation:
         pass
 ```
 
+## Testing Private Functions (ENFORCED - STRICT)
+
+**CRITICAL**: Private functions (prefixed with `_`) MUST NOT be tested directly. This aligns with general testing standards but has Python-specific enforcement.
+
+**Python-Specific Rules:**
+
+- **Private Function Convention**: Functions/methods prefixed with `_` are private implementation details - MANDATORY
+- **Pyright Enforcement**: `reportPrivateUsage` errors indicate private function access - MANDATORY to fix
+- **Type Checker Suppressions FORBIDDEN**: Using `# type: ignore[reportPrivateUsage]` to test private functions is STRICTLY FORBIDDEN
+- **Test Through Public API**: All private function behavior MUST be tested through public interface - MANDATORY
+
+**FORBIDDEN (Python-Specific):**
+
+```python
+# ❌ FORBIDDEN - Direct import of private function
+from mymodule import _calculate_tax  # type: ignore[reportPrivateUsage]
+
+def test_calculate_tax():
+    result = _calculate_tax(100.00)  # BLOCKED
+    assert result == 8.00
+```
+
+```python
+# ❌ FORBIDDEN - Type ignore to suppress private usage
+from mymodule import _validate_input  # type: ignore[reportPrivateUsage]
+
+def test_validate_input():
+    assert _validate_input("test")  # BLOCKED
+```
+
+**REQUIRED (Python-Specific):**
+
+```python
+# ✅ REQUIRED - Test through public interface
+from mymodule import PricingService
+
+def test_calculate_total_includes_tax():
+    """Test tax calculation through public API."""
+    service = PricingService()
+    # Tax calculation is private, but we test it through public method
+    total = service.calculate_total_with_tax(100.00)
+    assert total == 108.00  # Verifies _calculate_tax indirectly
+```
+
+```python
+# ✅ REQUIRED - Extract private function to public if needed
+# If _validate_input needs direct testing, make it public:
+# def validate_input(...) instead of def _validate_input(...)
+# OR extract to separate module for testing
+```
+
+**Pyright Configuration:**
+
+- **reportPrivateUsage**: Enabled by default - MANDATORY
+- **No Suppressions**: Do NOT add `# type: ignore[reportPrivateUsage]` to test files - FORBIDDEN
+- **Fix Violations**: All `reportPrivateUsage` errors in test files MUST be fixed - MANDATORY
+
+**Refactoring Strategy:**
+
+1. **If private function needs testing**: Make it public (remove `_` prefix) OR extract to separate module
+2. **If behavior is complex**: Test through public API that uses the private function
+3. **If testing is difficult**: Refactor to improve testability (dependency injection, smaller functions)
+
+**Enforcement:**
+
+- **Type Checker**: Pyright MUST report zero `reportPrivateUsage` errors in test files
+- **CI Validation**: CI MUST fail if test files import private functions
+- **Code Review**: All private function imports in tests MUST be rejected
+
 ## Violations (BLOCKED)
 
 - ❌ Tests without clear AAA structure
@@ -194,6 +263,9 @@ class TestUserServiceCreation:
 - ❌ Test data hardcoded in test methods
 - ❌ Missing fixtures for common test setup
 - ❌ Tests that modify shared state without cleanup
+- ❌ Importing private functions (prefixed with `_`) in test files
+- ❌ Using `# type: ignore[reportPrivateUsage]` to test private functions
+- ❌ Direct testing of private implementation details
 
 ## Enforcement
 

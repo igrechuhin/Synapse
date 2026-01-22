@@ -27,6 +27,18 @@
    - Read `.cursor/rules/coding-standards.mdc` and language-specific coding standards (e.g., `.cursor/rules/python-coding-standards.mdc` for Python) for code quality standards
    - Read `.cursor/rules/memory-bank-workflow.mdc` for memory bank update requirements
 
+1. ✅ **Verify code conformance to rules** - Before running checks, verify code follows rules:
+   - Review changed files to ensure they conform to coding standards read above
+   - Verify type annotations are complete per language-specific standards
+   - Verify structured data types follow project's data modeling standards (check language-specific rules)
+     - **MANDATORY CHECK**: Scan code for data structure types - verify they comply with project's required data modeling patterns
+     - **MANDATORY CHECK**: Check language-specific coding standards for required data modeling types (e.g., check python-coding-standards.mdc for Python)
+     - **BLOCKING**: If data structures don't comply with project's required modeling standards, this MUST be fixed before proceeding
+   - Verify functions/methods are within project's length limits
+   - Verify files are within project's size limits
+   - Verify dependency injection patterns are followed (no global state or singletons)
+   - **If violations found**: Fix them BEFORE proceeding with pre-commit checks
+
 1. ✅ **Understand operations** - Use MCP tools for all operations:
    - **Pre-commit checks**: Use `execute_pre_commit_checks()` MCP tool for fix_errors, format, type_check, quality, and tests
    - **Memory bank operations**: Use existing MCP tools (`manage_file()`, `get_memory_bank_stats()`) instead of prompt files
@@ -38,6 +50,24 @@
    - Check that test suite can be executed
 
 **VIOLATION**: Executing this command without following this checklist is a CRITICAL violation that blocks proper commit procedure.
+
+## ⚠️ CRITICAL: Synapse Architecture (MANDATORY)
+
+When modifying `.cortex/synapse/` files:
+
+- **Prompts (`prompts/*.md`)**: MUST be language-agnostic and project-agnostic
+  - DO NOT hardcode language-specific commands (e.g., `ruff`, `black`, `prettier`)
+  - DO NOT reference project-specific requirements (e.g., "Pydantic models")
+  - DO use script references: `.cortex/synapse/scripts/{language}/check_*.py`
+  - DO use generic language: "check language-specific rules", "use project-mandated types"
+
+- **Rules (`rules/*.mdc`)**: Language-specific rules are allowed
+  - Python-specific rules go in `rules/python/`
+  - General rules go in `rules/general/`
+
+- **Scripts (`scripts/{language}/*.py`)**: Language-specific implementations
+  - Each language has its own directory
+  - Scripts handle tool detection and project structure automatically
 
 ## ⚠️ COMMON ERRORS TO CATCH BEFORE COMMIT
 

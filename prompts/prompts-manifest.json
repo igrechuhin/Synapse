@@ -27,6 +27,12 @@
           "name": "Plan",
           "description": "Create a development plan based on user description, add it to plans directory, and update roadmap",
           "keywords": ["plan", "planning", "roadmap", "development", "tasks", "milestones"]
+        },
+        {
+          "file": "analyze-session-optimization.md",
+          "name": "Analyze Session Optimization",
+          "description": "Analyze current session to find optimization opportunities for Synapse prompts and rules to avoid similar mistakes in future",
+          "keywords": ["session", "analysis", "optimization", "mistakes", "synapse", "improvement", "prevention"]
         }
       ]
     }
