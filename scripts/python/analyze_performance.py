@@ -229,15 +229,15 @@ def main():
                 print("-" * 70)
 
                 # Group by severity
-                by_severity: defaultdict[str, list[PerformanceIssue]] = defaultdict(
-                    list
+                by_severity_focus: defaultdict[str, list[PerformanceIssue]] = (
+                    defaultdict(list)
                 )
                 for issue in issues:
-                    by_severity[issue.severity].append(issue)
+                    by_severity_focus[issue.severity].append(issue)
 
                 for severity in ["high", "medium", "low"]:
-                    if severity in by_severity:
-                        for issue in by_severity[severity]:
+                    if severity in by_severity_focus:
+                        for issue in by_severity_focus[severity]:
                             severity_icon = {
                                 "high": "🔴",
                                 "medium": "🟡",
@@ -266,15 +266,15 @@ def main():
                 print("-" * 70)
 
                 # Group by severity
-                by_severity: defaultdict[str, list[PerformanceIssue]] = defaultdict(
+                by_severity_all: defaultdict[str, list[PerformanceIssue]] = defaultdict(
                     list
                 )
                 for issue in issues:
-                    by_severity[issue.severity].append(issue)
+                    by_severity_all[issue.severity].append(issue)
 
                 for severity in ["high", "medium", "low"]:
-                    if severity in by_severity:
-                        for issue in by_severity[severity]:
+                    if severity in by_severity_all:
+                        for issue in by_severity_all[severity]:
                             severity_icon = {
                                 "high": "🔴",
                                 "medium": "🟡",

@@ -48,7 +48,7 @@ def get_linter_command(project_root: Path) -> list[str]:
 
     # Try uv run ruff
     try:
-        subprocess.run(
+        _ = subprocess.run(
             ["uv", "--version"],
             capture_output=True,
             check=True,

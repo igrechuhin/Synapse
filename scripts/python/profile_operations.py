@@ -21,7 +21,6 @@ import time
 from collections.abc import Callable, Coroutine
 from pathlib import Path
 from pstats import SortKey
-from typing import cast
 
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
@@ -123,19 +122,7 @@ async def profile_structure_analysis() -> float:
         elapsed = time.perf_counter() - start
 
         print(f"Structure analysis (20 files): {elapsed:.3f}s")
-        if "organization" in result:
-            org: object = result["organization"]
-            if isinstance(org, dict) and "total_files" in org:
-                org_dict = cast(dict[str, object], org)
-                total_value = org_dict["total_files"]
-                if isinstance(total_value, int):
-                    print(f"Files analyzed: {total_value}")
-                else:
-                    print("Files analyzed: N/A")
-            else:
-                print("Files analyzed: N/A")
-        else:
-            print("Files analyzed: N/A")
+        print(f"Files analyzed: {result.file_count}")
         return elapsed
 
 

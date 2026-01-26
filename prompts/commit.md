@@ -480,7 +480,27 @@ Run the language-specific linter check script:
 - **BLOCK COMMIT** if output is truncated or unclear - re-run without truncation
 - **DO NOT rely on memory of earlier checks** - you MUST re-run and verify output NOW
 
-### 12.4 Re-run Tests with Coverage Validation (MANDATORY)
+### 12.4 Re-run Test Naming Check (MANDATORY)
+
+Run the language-specific test naming check script:
+
+```bash
+.venv/bin/python .cortex/synapse/scripts/{language}/check_test_naming.py
+```
+
+**⚠️ CRITICAL**: Do NOT truncate output - read FULL output to verify check passed
+
+- **MUST verify**: Output shows test naming check passed (e.g., "✅ All test functions follow naming convention")
+- **MUST verify**: Exit code is 0 (zero) - command must succeed
+- **MUST verify**: No test naming violations reported (all test functions follow `test_<name>` pattern)
+- **BLOCK COMMIT** if ANY test naming violations are reported OR if exit code is non-zero
+- **BLOCK COMMIT** if output is truncated or unclear - re-run without truncation
+- **DO NOT rely on memory of earlier checks** - you MUST re-run and verify output NOW
+- **Fix violations**: Test functions must follow pattern `test_<name>` (with underscore after "test")
+  - Invalid: `testread`, `testgenerate`, `testcreate`, `testsetup` (missing underscore)
+  - Valid: `test_read`, `test_generate`, `test_create`, `test_setup` (with underscore)
+
+### 12.5 Re-run Tests with Coverage Validation (MANDATORY)
 
 **CRITICAL**: Code changes during Steps 5-11 may affect test coverage. Tests MUST be re-run and coverage MUST be validated.
 
@@ -893,6 +913,7 @@ Use this ordering when numbering results:
 - **Formatting Check Re-run**: Output of `.venv/bin/python .cortex/synapse/scripts/{language}/check_formatting.py` (MUST show check passed)
 - **Type Check Re-run**: Output of `.venv/bin/python .cortex/synapse/scripts/{language}/check_types.py` (MUST show check passed, skip if not applicable)
 - **Linter Re-run**: Output of `.venv/bin/python .cortex/synapse/scripts/{language}/check_linting.py` (MUST show check passed)
+- **Test Naming Re-run**: Output of `.venv/bin/python .cortex/synapse/scripts/{language}/check_test_naming.py` (MUST show check passed)
 - **File Sizes Re-run**: Output of `.venv/bin/python .cortex/synapse/scripts/{language}/check_file_sizes.py` (MUST show 0 violations)
 - **Function Lengths Re-run**: Output of `.venv/bin/python .cortex/synapse/scripts/{language}/check_function_lengths.py` (MUST show 0 violations)
 - **Output Verified**: Whether actual command output was parsed (not assumed)
@@ -903,6 +924,7 @@ Use this ordering when numbering results:
   - Formatting check passed: Yes/No (MUST be Yes)
   - Type check passed: Yes/No (MUST be Yes, or N/A if project doesn't use types)
   - Linter passed: Yes/No (MUST be Yes)
+  - Test naming check passed: Yes/No (MUST be Yes)
   - File sizes check passed: Yes/No (MUST be Yes)
   - Function lengths check passed: Yes/No (MUST be Yes)
   - Output fully read: Yes/No (MUST be Yes)

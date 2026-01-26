@@ -52,7 +52,7 @@ def get_test_command(project_root: Path) -> list[str]:
 
     # Try uv run pytest
     try:
-        subprocess.run(
+        _ = subprocess.run(
             ["uv", "--version"],
             capture_output=True,
             check=True,

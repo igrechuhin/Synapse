@@ -20,10 +20,11 @@ When invoked:
 
 1. Run file size checks (verifies all files ≤ 400 lines)
 2. Run function/method length checks (verifies all functions ≤ 30 lines)
-3. Parse quality check results
-4. **Fix ALL violations** automatically (do not ask for permission)
-5. Re-run quality check to verify zero violations remain
-6. Report violations fixed and files modified
+3. Run test naming checks (verifies all test functions follow `test_<name>` pattern)
+4. Parse quality check results
+5. **Fix ALL violations** automatically (do not ask for permission)
+6. Re-run quality check to verify zero violations remain
+7. Report violations fixed and files modified
 
 Key practices:
 
@@ -41,11 +42,20 @@ For each quality check:
 - **Fix ALL violations** automatically:
   - Fix ALL file size violations by splitting large files or extracting modules
   - Fix ALL function length violations by extracting helper functions or refactoring logic
+  - Fix ALL test naming violations by renaming test functions to follow `test_<name>` pattern (e.g., `testread` → `test_read`, `testgenerate` → `test_generate`)
   - Continue fixing until ALL violations are resolved - do not stop after fixing some
   - **NEVER ask for permission** - just fix them all automatically
 - Re-run quality check to verify zero violations remain
 - Report specific violations fixed with file paths, function names, and line counts
 - Provide summary of all fixes applied
+
+Test naming check:
+
+- Run `.venv/bin/python .cortex/synapse/scripts/{language}/check_test_naming.py`
+- Verify all test functions follow the pattern: `test_<name>` (with underscore after "test")
+- Invalid patterns: `testread`, `testgenerate`, `testcreate`, `testsetup` (missing underscore)
+- Valid patterns: `test_read`, `test_generate`, `test_create`, `test_setup` (with underscore)
+- **Fix ALL violations** by renaming test functions to add underscore after "test"
 
 CRITICAL: Pre-existing violations are NOT acceptable - they MUST be fixed before commit.
 CRITICAL: Fix ALL violations automatically - never ask for permission, never stop with violations remaining.

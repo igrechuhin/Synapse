@@ -73,6 +73,7 @@ Rules in `rules/` directory can be:
 | `check_types.py` | Run type checker (pyright) |
 | `check_file_sizes.py` | Verify files ≤ 400 lines |
 | `check_function_lengths.py` | Verify functions ≤ 30 lines |
+| `check_test_naming.py` | Verify test functions follow `test_<name>` pattern |
 | `run_tests.py` | Run test suite with coverage |
 
 ## Adding Support for New Languages
@@ -87,6 +88,7 @@ To add support for a new language:
    - `check_types.py` - Type checking (if applicable)
    - `check_file_sizes.py` - File size limits
    - `check_function_lengths.py` - Function length limits
+   - `check_test_naming.py` - Test function naming conventions
    - `run_tests.py` - Test execution
 3. Use shared utilities from `_utils.py` for common operations
 4. Add language-specific rules in `rules/{language}/`

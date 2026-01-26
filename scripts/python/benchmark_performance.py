@@ -120,24 +120,24 @@ class PerformanceBenchmark:
         print("=" * 70)
 
         for test_info in self.test_modules:
-            print(f"\n📊 Day {test_info['day']}: Testing {test_info['module']}...")
-            print(f"   File: {test_info['test_file']}")
-            print(f"   Target improvement: {test_info['target']}")
+            print(f"\n📊 Day {test_info.day}: Testing {test_info.module}...")
+            print(f"   File: {test_info.test_file}")
+            print(f"   Target improvement: {test_info.target}")
 
             exec_time, test_count, passed, failed = self.run_test_file(
-                test_info["test_file"]
+                test_info.test_file
             )
 
             status = "✅ PASS" if failed == 0 else f"⚠️ {failed} FAILED"
 
             result = BenchmarkResult(
-                module=test_info["module"],
-                test_file=test_info["test_file"],
+                module=test_info.module,
+                test_file=test_info.test_file,
                 test_count=test_count,
                 execution_time_s=round(exec_time, 3),
                 tests_passed=passed,
                 tests_failed=failed,
-                improvement_target=test_info["target"],
+                improvement_target=test_info.target,
                 status=status,
             )
 

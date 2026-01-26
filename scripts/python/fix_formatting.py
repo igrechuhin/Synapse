@@ -46,7 +46,7 @@ def get_formatter_command(project_root: Path) -> list[str]:
 
     # Try uv run black
     try:
-        subprocess.run(
+        _ = subprocess.run(
             ["uv", "--version"],
             capture_output=True,
             check=True,
