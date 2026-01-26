@@ -17,16 +17,19 @@ import subprocess
 import time
 from dataclasses import asdict, dataclass
 from pathlib import Path
-from typing import TypedDict
+
+from pydantic import BaseModel, ConfigDict, Field
 
 
-class TestModuleInfo(TypedDict):
-    """Test module information dictionary structure."""
+class TestModuleInfo(BaseModel):
+    """Test module information structure."""
 
-    module: str
-    test_file: str
-    target: str
-    day: int
+    model_config = ConfigDict(extra="forbid", validate_assignment=True)
+
+    module: str = Field(description="Module name")
+    test_file: str = Field(description="Test file path")
+    target: str = Field(description="Target identifier")
+    day: int = Field(ge=1, description="Day number")
 
 
 @dataclass
@@ -50,36 +53,36 @@ class PerformanceBenchmark:
         """Initialize benchmark suite."""
         self.results: list[BenchmarkResult] = []
         self.test_modules: list[TestModuleInfo] = [
-            {
-                "module": "duplication_detector",
-                "test_file": "tests/unit/test_duplication_detector.py",
-                "target": "80-95%",
-                "day": 1,
-            },
-            {
-                "module": "relevance_scorer",
-                "test_file": "tests/unit/test_relevance_scorer.py",
-                "target": "60-80%",
-                "day": 2,
-            },
-            {
-                "module": "pattern_analyzer",
-                "test_file": "tests/unit/test_pattern_analyzer.py",
-                "target": "70-85%",
-                "day": 3,
-            },
-            {
-                "module": "link_parser",
-                "test_file": "tests/unit/test_link_parser.py",
-                "target": "30-50%",
-                "day": 4,
-            },
-            {
-                "module": "rules_indexer",
-                "test_file": "tests/unit/test_rules_indexer.py",
-                "target": "40-60%",
-                "day": 5,
-            },
+            TestModuleInfo(
+                module="duplication_detector",
+                test_file="tests/unit/test_duplication_detector.py",
+                target="80-95%",
+                day=1,
+            ),
+            TestModuleInfo(
+                module="relevance_scorer",
+                test_file="tests/unit/test_relevance_scorer.py",
+                target="60-80%",
+                day=2,
+            ),
+            TestModuleInfo(
+                module="pattern_analyzer",
+                test_file="tests/unit/test_pattern_analyzer.py",
+                target="70-85%",
+                day=3,
+            ),
+            TestModuleInfo(
+                module="link_parser",
+                test_file="tests/unit/test_link_parser.py",
+                target="30-50%",
+                day=4,
+            ),
+            TestModuleInfo(
+                module="rules_indexer",
+                test_file="tests/unit/test_rules_indexer.py",
+                target="40-60%",
+                day=5,
+            ),
         ]
 
     def run_test_file(self, test_file: str) -> tuple[float, int, int, int]:

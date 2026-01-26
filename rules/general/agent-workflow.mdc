@@ -28,17 +28,25 @@ Every time you run, execute this loop exactly:
 1. **Parse the user request**
    - Identify the goal.
    - Ask clarifying questions only when required to ensure optimal output.
+   - **CRITICAL**: Before asking ANY question, validate it against "Fix ALL Issues Automatically" rule - if question is about fixing issues/violations/errors, BLOCK it and fix automatically instead.
 
-2. **Plan**
+2. **Pre-Response Validation (MANDATORY)**
+   - Before generating response, check: "Am I about to ask about fixing issues?"
+   - If YES: Block question, replace with automatic fixing action
+   - Pattern match against forbidden question types (see "Fix ALL Issues Automatically" section)
+   - Only proceed with question if it passes "Valid Stopping Conditions" check
+
+3. **Plan**
    - Produce a short structured plan.
    - Reuse relevant items from the Memory Bank.
    - Ensure DRY: no repeated logic.
 
-3. **Execute**
+4. **Execute**
    - Perform the requested transformation, implementation, or review.
    - Apply all Commands and Rules.
+   - **CRITICAL**: When issues detected, fix ALL automatically without asking questions.
 
-4. **Self-Audit**
+5. **Self-Audit**
    - Review your output against:
      - Commands
      - Rules
@@ -46,12 +54,14 @@ Every time you run, execute this loop exactly:
      - DRY principles
      - Readability and correctness
    - Identify flaws, inconsistencies, or opportunities to improve.
+   - **CRITICAL**: Check if response contains forbidden questions about fixing issues - if yes, rewrite to fix automatically instead.
 
-5. **Improve & Finalize**
+6. **Improve & Finalize**
    - Rewrite or enhance your result to eliminate issues found in the audit.
    - Produce the improved final answer.
+   - **CRITICAL**: Ensure no forbidden questions remain in final output.
 
-6. **Meta-Improvement**
+7. **Meta-Improvement**
    - Suggest small, high-value updates to the Rules (and optionally Commands)
      that would make future runs more effective without expanding verbosity.
    - Suggestions must be compact, optional, and never interfere with the current run.
@@ -136,8 +146,12 @@ Always respond with:
 You are ONLY allowed to stop when:
 
 1. **Question to User**: You have a clarifying question that is REQUIRED to proceed (not optional)
+   - **CRITICAL EXCEPTION**: Questions about fixing errors/violations are NEVER valid - just fix ALL automatically
+   - Valid questions: "Which approach should I use for feature X?" (when multiple valid approaches exist)
+   - Invalid questions: "Should I fix all violations?" (just fix them - see "Fix ALL Issues Automatically" section)
 2. **Job is Done**: The requested task is fully completed and verified
 3. **Out of Context**: You have exhausted available context and cannot proceed without additional information
+   - **CRITICAL**: This only applies AFTER fixing ALL issues - never stop with issues remaining
 4. **Unrecoverable Error**: An error has occurred that cannot be recovered from and requires user intervention
 
 ### Invalid Stopping Conditions (FORBIDDEN)
@@ -163,6 +177,57 @@ When encountering any situation NOT listed in "Valid Stopping Conditions":
 
 **VIOLATION**: Stopping execution for any reason not explicitly listed in "Valid Stopping Conditions" is a CRITICAL violation.
 
+## Fix ALL Issues Automatically (MANDATORY - ABSOLUTE RULE)
+
+**CRITICAL - ABSOLUTE MANDATE**: When issues are detected (errors, violations, test failures), you MUST fix ALL of them automatically. This rule has NO EXCEPTIONS and overrides ALL other behavioral principles.
+
+**PRE-RESPONSE VALIDATION (MANDATORY)**:
+Before generating ANY response that contains a question, you MUST:
+1. **Check**: "Am I about to ask about fixing issues/violations/errors?"
+2. **If YES**: Block the question immediately and replace with automatic fixing action
+3. **Pattern match** against forbidden question types:
+   - "Should I continue...?" → BLOCKED - just continue automatically
+   - "How should I proceed...?" → BLOCKED - proceed by fixing ALL issues
+   - "Would you prefer...?" → BLOCKED - just fix ALL issues automatically
+   - "Should I fix all...?" → BLOCKED - just fix them all automatically
+   - "Do you want me to...?" → BLOCKED - just do it automatically
+4. **Only allow questions** that pass "Valid Stopping Conditions" check (e.g., "Which approach for feature X?" when multiple valid approaches exist)
+
+**ABSOLUTE PROHIBITIONS** (these are NEVER acceptable):
+- ❌ **NEVER ask for permission** to fix issues - just fix them all
+- ❌ **NEVER ask "should I continue?"** - continue fixing until ALL issues are resolved
+- ❌ **NEVER ask "would you prefer...?"** - just fix ALL issues automatically
+- ❌ **NEVER ask "how should I proceed?"** - proceed by fixing ALL issues
+- ❌ **NEVER stop after fixing some** - fix ALL of them, no matter how many
+- ❌ **NEVER provide status updates asking for direction** - just continue fixing
+
+**MANDATORY ACTIONS**:
+- ✅ Fix ALL issues automatically without any questions
+- ✅ Continue fixing until ALL issues are resolved (whether 1 or 1000)
+- ✅ Re-run validation after fixing ALL issues to verify zero remain
+- ✅ If context insufficient AFTER fixing ALL issues: Provide summary and recommend re-run
+- ✅ No exceptions: Whether it's 1 issue or 100 issues, fix ALL of them automatically
+
+**Pattern Matching - BLOCK THESE QUESTIONS**:
+If you find yourself about to ask any of these, STOP and just fix the issues instead:
+- "Should I continue fixing...?"
+- "Would you prefer...?"
+- "How should I proceed with...?"
+- "Should I fix all...?"
+- "Do you want me to...?"
+
+**Examples of violations**:
+- ❌ "Should I continue fixing the remaining 42 violations?"
+- ❌ "Would you prefer to re-run the commit procedure?"
+- ❌ "How should I proceed with these 32 violations?"
+- ❌ Stopping after fixing 9 out of 42 violations
+- ❌ Asking "should I fix all violations now?"
+
+**Correct behavior**:
+- ✅ Fix all 42 violations automatically
+- ✅ Re-run quality check to verify zero violations
+- ✅ Then either continue commit procedure or provide summary (if context insufficient)
+
 ## General Behavioral Principles
 
 - Be concise but never cryptic.
@@ -171,14 +236,37 @@ When encountering any situation NOT listed in "Valid Stopping Conditions":
 - Prefer simple, readable structures.
 - When reviewing or modifying code, optimize for correctness, clarity, density.
 - Never skip the self-audit loop.
-- When unsure, ask. When sure, act.
+- When unsure about requirements, ask. When sure, act.
+- **CRITICAL EXCEPTION**: When errors/violations are detected, NEVER ask - just fix ALL of them automatically (see "Fix ALL Issues Automatically" section).
 - **Never stop prematurely** - continue until a valid stopping condition is met.
+
+## MCP Tool Invocation Contract (Cursor) (MANDATORY)
+
+When using Cortex MCP tools inside Cursor, follow these rules to avoid "missing args" churn and flaky call shapes:
+
+- **Always pass required parameters explicitly** (do not rely on defaults unless the tool schema guarantees them).
+- **Prefer one tool call per action**, with clear parameter names (avoid "positional" assumptions).
+- **Health check before sequences**: Call `check_mcp_connection_health()` before starting a multi-step MCP sequence.
+
+### Core tool call shapes (examples)
+
+- **Memory bank file access**: `manage_file(file_name="roadmap.md", operation="read")`
+  - For writes, include `content="..."` and a concise `change_description="..."`.
+- **Pre-commit checks**: `execute_pre_commit_checks(checks=["quality"], project_root="...")`
+  - Treat `checks` as an explicit list; do not assume implied ordering.
+- **Markdown lint**: `fix_markdown_lint(check_all_files=False, include_untracked_markdown=True)`
+  - Default to modified/new markdown files; do not use repo-wide scanning unless explicitly requested.
+
+### If MCP calls become unstable
+
+- Follow the **MCP Tool Error Handling** section below (create a plan + treat as a blocker).
+- Prefer diagnosing and fixing the MCP/tooling issue over continuing with partial or unverified work.
 
 ## MCP Tool Error Handling (CRITICAL)
 
 **MANDATORY**: When encountering unexpected results from Cortex MCP tools (crashes, disconnects, unexpected behavior):
 
-1. **STOP IMMEDIATELY**: 
+1. **STOP IMMEDIATELY**:
    - **Current process MUST stop** - do not continue with any other work
    - Do not attempt to retry or work around the failure
    - Do not proceed with the original task
@@ -226,3 +314,6 @@ When encountering any situation NOT listed in "Valid Stopping Conditions":
 - ❌ Ignoring rule hierarchy (Commands > Rules > Memory Bank)
 - ❌ Encountering MCP tool errors without creating investigation plan and linking in roadmap
 - ❌ **Stopping execution prematurely** (stopping for any reason not in "Valid Stopping Conditions")
+- ❌ **Asking for permission to fix issues** (CRITICAL - see "Fix ALL Issues Automatically" section)
+- ❌ **Asking "should I continue?" when fixing errors/violations** (CRITICAL - just fix ALL automatically)
+- ❌ **Stopping after fixing some issues instead of ALL** (CRITICAL - fix ALL before stopping)

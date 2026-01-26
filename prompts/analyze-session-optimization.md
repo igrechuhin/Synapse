@@ -4,6 +4,8 @@
 
 **CRITICAL**: This command analyzes the CURRENT session (not historical sessions) to find patterns of mistakes that could be prevented by improving Synapse prompts and rules. Execute all steps AUTOMATICALLY without asking for permission.
 
+**Agent Delegation**: This prompt delegates to the **`session-optimization-analyzer` agent** from `.cortex/synapse/agents/session-optimization-analyzer.md` for specialized session analysis.
+
 **Tooling Note**: Use Cortex MCP tools for session analysis and memory bank operations. Use standard Cursor tools for file operations outside `.cortex/` directory.
 
 ## ⚠️ MANDATORY PRE-ACTION CHECKLIST
@@ -88,6 +90,7 @@
    - **Expected impact**: How each recommendation would prevent future mistakes
 
 7. **Output format** - Present findings in structured format:
+
    ```markdown
    # Session Optimization Analysis
 

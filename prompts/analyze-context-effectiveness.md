@@ -4,6 +4,8 @@
 
 **CRITICAL**: Execute this automatically. DO NOT ask user for permission.
 
+**Agent Delegation**: This prompt delegates to the **`context-effectiveness-analyzer` agent** from `.cortex/synapse/agents/context-effectiveness-analyzer.md` for specialized context analysis.
+
 ## Purpose
 
 Analyze the current session's `load_context` calls to evaluate effectiveness

@@ -6,6 +6,19 @@
 
 **CURSOR COMMAND**: This is a Cursor command located in `.cortex/synapse/prompts/` directory, NOT a terminal command.
 
+**Agent Delegation**: This prompt orchestrates code review and delegates specialized analysis to dedicated agents in `.cortex/synapse/agents/`:
+
+- **static-analyzer** - Step 1: Static analysis (linting)
+- **bug-detector** - Step 2: Bug detection
+- **consistency-checker** - Step 3: Consistency check
+- **rules-compliance-checker** - Step 4: Rules compliance check
+- **completeness-verifier** - Step 5: Completeness verification
+- **test-coverage-reviewer** - Step 6: Test coverage review
+- **security-assessor** - Step 7: Security assessment
+- **performance-reviewer** - Step 8: Performance review
+
+When executing steps, delegate to the appropriate agent for specialized analysis, then aggregate results into the review report.
+
 **Tooling Note**: **MANDATORY: All file operations within `.cortex/` directory MUST use Cortex MCP tools** - do NOT access files directly via hardcoded paths. Use standard Cursor tools (`Read`, `ApplyPatch`, `Write`, `LS`, `Glob`, `Grep`) for files outside `.cortex/` directory only. For `.cortex/` files:
 
 - Use `manage_file()` for memory bank files (read/write)
@@ -44,14 +57,18 @@
 
 ## Steps
 
-1. **Static analysis** - Run linter and type checker:
+1. **Static analysis** - **Delegate to `static-analyzer` agent**:
+   - Use the `static-analyzer` agent from `.cortex/synapse/agents/static-analyzer.md` for this step
+   - The agent will run linter (type checking is handled separately by type-checker agent):
    - Run Pyright type checker: `.venv/bin/pyright src/ tests/` or `python -m pyright src/ tests/` to identify type errors and warnings
    - Run ruff linter: `.venv/bin/ruff check src/ tests/` to identify code quality issues
    - Check for compiler warnings and errors
    - Identify deprecated API usage
    - Check for unused imports and variables
    - Verify code follows best practices
-2. **Bug detection** - Search for potential bugs and logic errors:
+2. **Bug detection** - **Delegate to `bug-detector` agent**:
+   - Use the `bug-detector` agent from `.cortex/synapse/agents/bug-detector.md` for this step
+   - The agent will search for potential bugs and logic errors:
    - Search for force unwraps (`!`) and analyze safety
    - Check for null pointer dereferences
    - Identify potential race conditions in concurrent code
@@ -59,40 +76,52 @@
    - Check for off-by-one errors in loops
    - Verify array bounds checking
    - Check for integer overflow possibilities
-3. **Consistency check** - Verify naming conventions and code style:
+3. **Consistency check** - **Delegate to `consistency-checker` agent**:
+   - Use the `consistency-checker` agent from `.cortex/synapse/agents/consistency-checker.md` for this step
+   - The agent will verify cross-file consistency (naming conventions, code style uniformity):
    - Check naming consistency (camelCase, PascalCase)
    - Verify file organization (one type per file, file naming)
    - Check code style consistency across files
    - Verify error handling patterns are consistent
    - Check architectural pattern consistency
    - Verify API design patterns are consistent
-4. **Rules compliance check** - Verify all @rules/ requirements are met:
+4. **Rules compliance check** - **Delegate to `rules-compliance-checker` agent**:
+   - Use the `rules-compliance-checker` agent from `.cortex/synapse/agents/rules-compliance-checker.md` for this step
+   - The agent will verify all @rules/ requirements are met:
    - **Coding Standards**: SOLID principles, DRY, YAGNI compliance
    - **File Organization**: One type per file, max 400 lines per file, max 30 lines per function
    - **Performance Rules**: O(n) algorithms, no blocking I/O on main thread
    - **Testing Standards**: Public API test coverage, AAA pattern
    - **Error Handling**: No fatalError in production, typed errors
    - **Dependency Injection**: No singletons, proper injection
-5. **Completeness verification** - Identify incomplete implementations:
+5. **Completeness verification** - **Delegate to `completeness-verifier` agent**:
+   - Use the `completeness-verifier` agent from `.cortex/synapse/agents/completeness-verifier.md` for this step
+   - The agent will identify incomplete implementations:
    - Search for `TODO:` and `FIXME:` comments in production code
    - Identify placeholder implementations (`fatalError("Not implemented")`)
    - Check for missing error handling
    - Verify all protocol requirements are implemented
    - Check for incomplete test coverage
    - Identify missing documentation
-6. **Test coverage review** - Check that all public APIs have adequate test coverage:
+6. **Test coverage review** - **Delegate to `test-coverage-reviewer` agent**:
+   - Use the `test-coverage-reviewer` agent from `.cortex/synapse/agents/test-coverage-reviewer.md` for this step
+   - The agent will check that all public APIs have adequate test coverage:
    - Identify all public APIs (public/open declarations)
    - Check for corresponding test files
    - Verify test coverage for critical business logic
    - Check for edge case coverage
    - Verify test quality (AAA pattern, descriptive names)
    - Identify gaps in test coverage
-7. **Security assessment** - Look for potential security vulnerabilities:
+7. **Security assessment** - **Delegate to `security-assessor` agent**:
+   - Use the `security-assessor` agent from `.cortex/synapse/agents/security-assessor.md` for this step
+   - The agent will look for potential security vulnerabilities:
    - Check for hardcoded secrets or credentials
    - Verify input validation at boundaries
    - Verify secure logging (no secrets in logs)
    - Check for proper authentication/authorization
-8. **Performance review** - Identify potential performance bottlenecks:
+8. **Performance review** - **Delegate to `performance-reviewer` agent**:
+   - Use the `performance-reviewer` agent from `.cortex/synapse/agents/performance-reviewer.md` for this step
+   - The agent will identify potential performance bottlenecks:
    - Check for O(n²) algorithms on large collections
    - Identify unnecessary memory allocations
    - Check for blocking I/O on main thread

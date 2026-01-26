@@ -133,6 +133,7 @@ def _load_context_impl(root: str, max_tokens: int, strategy: str) -> LoadContext
 **CRITICAL**: All MCP tool return types MUST use Pydantic `BaseModel` instead of `TypedDict`, `dict[str, object]`, untyped `dict`, `list`, or `Any`. ZERO TOLERANCE.
 
 **Pattern:**
+
 1. Define Pydantic models at module level
 2. Use Pydantic models in handler return types
 3. Use `Literal` types for status/enum fields
@@ -160,6 +161,7 @@ async def validate_memory_bank(...) -> dict[str, object]:  # BLOCKED
 ```
 
 **FORBIDDEN:**
+
 - ❌ Using `dict[str, object]` for MCP tool return types (STRICTLY FORBIDDEN)
 - ❌ Using untyped `dict`, `list`, `tuple`, `set` (STRICTLY FORBIDDEN)
 - ❌ Using `Any` type (STRICTLY FORBIDDEN)
@@ -173,12 +175,15 @@ async def validate_memory_bank(...) -> dict[str, object]:  # BLOCKED
 ## Common MCP Errors
 
 ### Error: "coroutine 'main' was never awaited"
+
 **Fix**: Make main function synchronous, run async code internally
 
-### Error: "async for requires an object with __aiter__ method"
+### Error: "async for requires an object with **aiter** method"
+
 **Fix**: Call `stdio_server()` without arguments
 
 ### Error: "'Server' object has no attribute 'initialize'"
+
 **Fix**: Register handlers on `self.server` (MCP Server instance), not wrapper class
 
 ## Tool Naming (MANDATORY)

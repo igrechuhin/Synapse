@@ -17,7 +17,8 @@ import os
 import sys
 from collections import defaultdict
 from pathlib import Path
-from typing import TypedDict
+
+from pydantic import BaseModel, ConfigDict, Field
 
 # Import shared utilities
 try:
@@ -28,14 +29,18 @@ except ImportError:
     from _utils import find_src_directory, get_config_path, get_project_root
 
 
-class PerformanceIssue(TypedDict):
-    """Performance issue dictionary structure."""
+class PerformanceIssue(BaseModel):
+    """Performance issue structure."""
 
-    type: str
-    severity: str
-    line: int
-    function: str | None
-    message: str
+    model_config = ConfigDict(extra="forbid", validate_assignment=True)
+
+    type: str = Field(description="Issue type")
+    severity: str = Field(description="Issue severity (high/medium/low)")
+    line: int = Field(ge=1, description="Line number")
+    function: str | None = Field(
+        default=None, description="Function name if applicable"
+    )
+    message: str = Field(description="Issue description")
 
 
 class PerformanceAnalyzer(ast.NodeVisitor):
@@ -65,13 +70,13 @@ class PerformanceAnalyzer(ast.NodeVisitor):
 
         if self.loop_depth >= 2:
             self.issues.append(
-                {
-                    "type": "nested_loops",
-                    "severity": "high",
-                    "line": node.lineno,
-                    "function": self.function_name,
-                    "message": f"Nested loop detected (depth {self.loop_depth}) - potential O(n²) or worse",
-                }
+                PerformanceIssue(
+                    type="nested_loops",
+                    severity="high",
+                    line=node.lineno,
+                    function=self.function_name,
+                    message=f"Nested loop detected (depth {self.loop_depth}) - potential O(n²) or worse",
+                )
             )
 
         self.generic_visit(node)
@@ -82,13 +87,13 @@ class PerformanceAnalyzer(ast.NodeVisitor):
 
         if self.loop_depth >= 2:
             self.issues.append(
-                {
-                    "type": "nested_loops",
-                    "severity": "high",
-                    "line": node.lineno,
-                    "function": self.function_name,
-                    "message": f"Nested while loop (depth {self.loop_depth}) - potential O(n²) or worse",
-                }
+                PerformanceIssue(
+                    type="nested_loops",
+                    severity="high",
+                    line=node.lineno,
+                    function=self.function_name,
+                    message=f"Nested while loop (depth {self.loop_depth}) - potential O(n²) or worse",
+                )
             )
 
         self.generic_visit(node)
@@ -99,25 +104,25 @@ class PerformanceAnalyzer(ast.NodeVisitor):
         if self.loop_depth > 0 and node.attr == "append":
             if isinstance(node.value, ast.Name):
                 self.issues.append(
-                    {
-                        "type": "list_append_in_loop",
-                        "severity": "medium",
-                        "line": node.lineno,
-                        "function": self.function_name,
-                        "message": "List append in loop - consider list comprehension",
-                    }
+                    PerformanceIssue(
+                        type="list_append_in_loop",
+                        severity="medium",
+                        line=node.lineno,
+                        function=self.function_name,
+                        message="List append in loop - consider list comprehension",
+                    )
                 )
 
         # Check for .split() in loops
         if self.loop_depth > 0 and node.attr == "split":
             self.issues.append(
-                {
-                    "type": "string_split_in_loop",
-                    "severity": "medium",
-                    "line": node.lineno,
-                    "function": self.function_name,
-                    "message": "String split in loop - consider moving outside",
-                }
+                PerformanceIssue(
+                    type="string_split_in_loop",
+                    severity="medium",
+                    line=node.lineno,
+                    function=self.function_name,
+                    message="String split in loop - consider moving outside",
+                )
             )
 
         self.generic_visit(node)
@@ -128,25 +133,25 @@ class PerformanceAnalyzer(ast.NodeVisitor):
             if node.func.attr in ["read_file", "write_file", "exists"]:
                 if self.loop_depth > 0:
                     self.issues.append(
-                        {
-                            "type": "file_io_in_loop",
-                            "severity": "high",
-                            "line": node.lineno,
-                            "function": self.function_name,
-                            "message": f"File I/O ({node.func.attr}) in loop - major performance impact",
-                        }
+                        PerformanceIssue(
+                            type="file_io_in_loop",
+                            severity="high",
+                            line=node.lineno,
+                            function=self.function_name,
+                            message=f"File I/O ({node.func.attr}) in loop - major performance impact",
+                        )
                     )
 
             # Check for len() in loop condition (common in while loops)
             if node.func.attr == "len" and self.loop_depth > 0:
                 self.issues.append(
-                    {
-                        "type": "len_in_loop",
-                        "severity": "low",
-                        "line": node.lineno,
-                        "function": self.function_name,
-                        "message": "len() in loop - consider caching",
-                    }
+                    PerformanceIssue(
+                        type="len_in_loop",
+                        severity="low",
+                        line=node.lineno,
+                        function=self.function_name,
+                        message="len() in loop - consider caching",
+                    )
                 )
 
         self.generic_visit(node)
@@ -228,7 +233,7 @@ def main():
                     list
                 )
                 for issue in issues:
-                    by_severity[issue["severity"]].append(issue)
+                    by_severity[issue.severity].append(issue)
 
                 for severity in ["high", "medium", "low"]:
                     if severity in by_severity:
@@ -239,7 +244,7 @@ def main():
                                 "low": "🟢",
                             }[severity]
                             print(
-                                f"  {severity_icon} Line {issue['line']:4d} [{issue['function'] or 'module'}]: {issue['message']}"
+                                f"  {severity_icon} Line {issue.line:4d} [{issue.function or 'module'}]: {issue.message}"
                             )
     else:
         # Analyze all Python files
@@ -265,7 +270,7 @@ def main():
                     list
                 )
                 for issue in issues:
-                    by_severity[issue["severity"]].append(issue)
+                    by_severity[issue.severity].append(issue)
 
                 for severity in ["high", "medium", "low"]:
                     if severity in by_severity:
@@ -276,7 +281,7 @@ def main():
                                 "low": "🟢",
                             }[severity]
                             print(
-                                f"  {severity_icon} Line {issue['line']:4d} [{issue['function'] or 'module'}]: {issue['message']}"
+                                f"  {severity_icon} Line {issue.line:4d} [{issue.function or 'module'}]: {issue.message}"
                             )
 
     # Summary
@@ -291,7 +296,7 @@ def main():
         severity_counts: defaultdict[str, int] = defaultdict(int)
         for issues in all_issues.values():
             for issue in issues:
-                severity_counts[issue["severity"]] += 1
+                severity_counts[issue.severity] += 1
 
         for severity in ["high", "medium", "low"]:
             if severity in severity_counts:
@@ -301,11 +306,11 @@ def main():
         high_priority: list[tuple[str, PerformanceIssue]] = []
         for module, issues in all_issues.items():
             for issue in issues:
-                if issue["severity"] == "high":
+                if issue.severity == "high":
                     high_priority.append((module, issue))
 
         for i, (module, issue) in enumerate(high_priority[:5], 1):
-            print(f"  {i}. {module}:{issue['line']} - {issue['message']}")
+            print(f"  {i}. {module}:{issue.line} - {issue.message}")
 
     print("=" * 70)
 

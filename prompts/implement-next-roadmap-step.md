@@ -18,6 +18,13 @@
 
 **Memory Bank Update Note**: After implementing the roadmap step, you MUST update memory bank files using `manage_file(operation="write", ...)` to reflect the completed work.
 
+**Agent Delegation**: This prompt orchestrates roadmap implementation and delegates specialized tasks to dedicated agents in `.cortex/synapse/agents/`:
+
+- **roadmap-implementer** - Implements the roadmap step with tests and validation
+- **memory-bank-updater** - Updates memory bank files after completion
+
+When executing steps, delegate to the appropriate agent for specialized work, then continue with orchestration.
+
 ## ⚠️ MANDATORY PRE-ACTION CHECKLIST
 
 **BEFORE executing this command, you MUST:**
@@ -67,7 +74,9 @@
 
 **⚠️ CRITICAL PRIORITY RULE**: Blockers in the "Blockers (ASAP Priority)" section (typically around line 217 in roadmap.md) MUST be handled FIRST before any other roadmap items. Only proceed with regular roadmap items if no blockers exist.
 
-### Step 1: Read and Parse Roadmap
+### Step 1: Read and Parse Roadmap - **Delegate to `roadmap-implementer` agent**
+
+**Use the `roadmap-implementer` agent from `.cortex/synapse/agents/roadmap-implementer.md` for roadmap implementation steps.**
 
 1. **Use Cortex MCP tool `manage_file(file_name="roadmap.md", operation="read")`** to get the roadmap content
 2. Parse the roadmap structure from the returned JSON to identify:
@@ -216,7 +225,9 @@ Before defining new data structures (classes, types, models, interfaces):
    - If naming violations: Rename following conventions
 6. **BLOCKING**: Do NOT proceed to memory bank updates until all code conforms to rules
 
-### Step 5: Update Memory Bank
+### Step 5: Update Memory Bank - **Delegate to `memory-bank-updater` agent**
+
+**Use the `memory-bank-updater` agent from `.cortex/synapse/agents/memory-bank-updater.md` for this step.**
 
 1. **Use Cortex MCP tool `manage_file(file_name="roadmap.md", operation="read")`** to get current roadmap content
 2. Update the roadmap content:
@@ -302,7 +313,7 @@ If you encounter any issues during implementation:
    - **STOP IMMEDIATELY**: Current process MUST stop - do not continue with implementation
    - **Create investigation plan**: Use the `create-plan.md` prompt (`.cortex/synapse/prompts/create-plan.md`) to create an investigation plan
    - **Link in roadmap**: Add plan to roadmap.md under "Blockers (ASAP Priority)" section
-   - **Provide summary to user**: 
+   - **Provide summary to user**:
      - Description: What tool failed and how (crash, disconnect, unexpected behavior)
      - Impact: What work was blocked
      - Fix Recommendation: Mark as **FIX-ASAP** priority

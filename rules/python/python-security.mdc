@@ -74,6 +74,7 @@ import secrets, base64
 ```
 
 **FORBIDDEN:**
+
 - ❌ MD5, SHA1, or other weak hashing algorithms
 - ❌ Plain text password storage
 - ❌ Timing attack vulnerable comparisons (`==` for passwords)
@@ -275,6 +276,7 @@ import secrets
 ```
 
 **FORBIDDEN:**
+
 - ❌ `random` module for security-sensitive operations
 - ❌ Weak algorithms (MD5, SHA1, DES)
 - ❌ Predictable random generation

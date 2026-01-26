@@ -18,7 +18,8 @@ Configuration:
 import ast
 import sys
 from pathlib import Path
-from typing import TypedDict
+
+from pydantic import BaseModel, ConfigDict, Field
 
 # Import shared utilities
 try:
@@ -29,15 +30,17 @@ except ImportError:
     from _utils import find_src_directory, get_config_path, get_project_root
 
 
-class ComplexityIssue(TypedDict):
-    """Complexity issue dictionary structure."""
+class ComplexityIssue(BaseModel):
+    """Complexity issue structure."""
 
-    file: str
-    function: str
-    line: int
-    complexity: int
-    nesting: int
-    issues: list[str]
+    model_config = ConfigDict(extra="forbid", validate_assignment=True)
+
+    file: str = Field(description="File path")
+    function: str = Field(description="Function name")
+    line: int = Field(ge=1, description="Line number")
+    complexity: int = Field(ge=0, description="Cyclomatic complexity score")
+    nesting: int = Field(ge=0, description="Maximum nesting depth")
+    issues: list[str] = Field(default_factory=list, description="Issue descriptions")
 
 
 def analyze_file(file_path: Path, project_root: Path) -> list[ComplexityIssue]:
@@ -73,14 +76,14 @@ def analyze_file(file_path: Path, project_root: Path) -> list[ComplexityIssue]:
                     rel_path = file_path
 
                 results.append(
-                    {
-                        "file": str(rel_path),
-                        "function": node.name,
-                        "line": node.lineno,
-                        "complexity": complexity,
-                        "nesting": nesting,
-                        "issues": _describe_issues(complexity, nesting),
-                    }
+                    ComplexityIssue(
+                        file=str(rel_path),
+                        function=node.name,
+                        line=node.lineno,
+                        complexity=complexity,
+                        nesting=nesting,
+                        issues=_describe_issues(complexity, nesting),
+                    )
                 )
 
     return results
@@ -201,7 +204,7 @@ def main():
 
     # Sort by complexity (highest first), then by nesting
     def sort_key(x: ComplexityIssue) -> tuple[int, int]:
-        return (x["complexity"], x["nesting"])
+        return (x.complexity, x.nesting)
 
     all_results.sort(key=sort_key, reverse=True)
 
@@ -217,24 +220,22 @@ def main():
 
     # Group by severity
     high_complexity: list[ComplexityIssue] = [
-        r for r in all_results if r["complexity"] > 15
+        r for r in all_results if r.complexity > 15
     ]
     medium_complexity: list[ComplexityIssue] = [
-        r for r in all_results if 10 < r["complexity"] <= 15
+        r for r in all_results if 10 < r.complexity <= 15
     ]
-    deep_nesting: list[ComplexityIssue] = [r for r in all_results if r["nesting"] > 3]
+    deep_nesting: list[ComplexityIssue] = [r for r in all_results if r.nesting > 3]
 
     # Print high complexity functions
     if high_complexity:
         print(f"\n🔴 HIGH COMPLEXITY (>{15}):")
         print("-" * 80)
         for result in high_complexity:
-            print(f"\n📍 {result['file']}:{result['line']}")
-            print(f"   Function: {result['function']}")
-            print(
-                f"   Complexity: {result['complexity']} (nesting: {result['nesting']})"
-            )
-            for issue in result["issues"]:
+            print(f"\n📍 {result.file}:{result.line}")
+            print(f"   Function: {result.function}")
+            print(f"   Complexity: {result.complexity} (nesting: {result.nesting})")
+            for issue in result.issues:
                 print(f"   - {issue}")
 
     # Print medium complexity functions
@@ -242,24 +243,22 @@ def main():
         print("\n🟡 MEDIUM COMPLEXITY (11-15):")
         print("-" * 80)
         for result in medium_complexity:
-            print(f"\n📍 {result['file']}:{result['line']}")
-            print(f"   Function: {result['function']}")
-            print(
-                f"   Complexity: {result['complexity']} (nesting: {result['nesting']})"
-            )
+            print(f"\n📍 {result.file}:{result.line}")
+            print(f"   Function: {result.function}")
+            print(f"   Complexity: {result.complexity} (nesting: {result.nesting})")
 
     # Print deep nesting issues
     nesting_only: list[ComplexityIssue] = [
-        r for r in deep_nesting if r["complexity"] <= 10
+        r for r in deep_nesting if r.complexity <= 10
     ]
     if nesting_only:
         print("\n🟠 DEEP NESTING (>3 levels):")
         print("-" * 80)
         for result in nesting_only:
-            print(f"\n📍 {result['file']}:{result['line']}")
-            print(f"   Function: {result['function']}")
+            print(f"\n📍 {result.file}:{result.line}")
+            print(f"   Function: {result.function}")
             print(
-                f"   Nesting: {result['nesting']} levels (complexity: {result['complexity']})"
+                f"   Nesting: {result.nesting} levels (complexity: {result.complexity})"
             )
 
     # Summary statistics
@@ -273,7 +272,7 @@ def main():
     print(f"📈 Total issues: {len(all_results)}")
 
     if all_results:
-        complexity_values = [r["complexity"] for r in all_results]
+        complexity_values = [r.complexity for r in all_results]
         avg_complexity = sum(complexity_values) / len(complexity_values)
         max_complexity = max(complexity_values)
         print(f"\n📊 Average complexity (issues only): {avg_complexity:.1f}")

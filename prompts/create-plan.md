@@ -22,6 +22,13 @@
 
 **Sequential Thinking**: If sequential thinking MCP is available, use it to ensure best results when creating the plan.
 
+**Agent Delegation**: This prompt orchestrates plan creation and delegates specialized tasks to dedicated agents in `.cortex/synapse/agents/`:
+
+- **plan-creator** - Creates the development plan from description
+- **memory-bank-updater** - Updates roadmap.md with new plan entry
+
+When executing steps, delegate to the appropriate agent for specialized work, then continue with orchestration.
+
 ## ⚠️ MANDATORY PRE-ACTION CHECKLIST
 
 **BEFORE executing this command, you MUST:**
@@ -114,7 +121,9 @@
 3. **Wait for user responses** before proceeding to plan creation
 4. **If no clarification is needed**, proceed directly to plan creation
 
-### Step 5: Create the Plan
+### Step 5: Create the Plan - **Delegate to `plan-creator` agent**
+
+**Use the `plan-creator` agent from `.cortex/synapse/agents/plan-creator.md` for this step.**
 
 1. **Generate plan content** based on:
    - User's description (and clarifications if any)
@@ -162,7 +171,9 @@
    - Check file content is complete and well-structured
    - Ensure all required sections are present
 
-### Step 6: Update Roadmap
+### Step 6: Update Roadmap - **Delegate to `memory-bank-updater` agent**
+
+**Use the `memory-bank-updater` agent from `.cortex/synapse/agents/memory-bank-updater.md` for this step.**
 
 1. **Read current roadmap**:
    - **Use Cortex MCP tool `manage_file(file_name="roadmap.md", operation="read")`** to get current roadmap content

@@ -120,6 +120,7 @@ def process(data: "SomeModel") -> "ResultModel":
 ```
 
 **Why it's forbidden:**
+
 - It's a workaround for circular imports, not a solution
 - Indicates poor module architecture and tight coupling
 - Creates runtime vs type-checking behavior mismatch
@@ -129,6 +130,7 @@ def process(data: "SomeModel") -> "ResultModel":
 **How to fix circular imports properly:**
 
 1. **Extract shared types to a separate module:**
+
    ```python
    # ✅ REQUIRED - Create a dedicated types/models module
    # src/cortex/core/models.py - shared models
@@ -137,6 +139,7 @@ def process(data: "SomeModel") -> "ResultModel":
    ```
 
 2. **Use dependency inversion with Protocols:**
+
    ```python
    # ✅ REQUIRED - Define Protocol in the dependent module
    from typing import Protocol
@@ -154,6 +157,7 @@ def process(data: "SomeModel") -> "ResultModel":
    - Consider if the modules should be merged or split differently
 
 4. **Use late imports inside functions (last resort):**
+
    ```python
    # ✅ ACCEPTABLE (only when restructuring is not feasible)
    def process() -> ResultModel:
@@ -162,6 +166,7 @@ def process(data: "SomeModel") -> "ResultModel":
    ```
 
 **Violations:**
+
 - ❌ `from typing import TYPE_CHECKING` - FORBIDDEN
 - ❌ `if TYPE_CHECKING:` blocks - FORBIDDEN
 - ❌ String annotations to avoid imports (e.g., `"SomeModel"`) - FORBIDDEN when caused by circular imports
