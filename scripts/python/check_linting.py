@@ -35,6 +35,8 @@ except ImportError:
 def get_linter_command(project_root: Path) -> list[str]:
     """Get linter command to run.
 
+    Matches CI workflow: ruff check --select F,E,W
+
     Args:
         project_root: Path to project root
 
@@ -44,7 +46,7 @@ def get_linter_command(project_root: Path) -> list[str]:
     # Try .venv/bin/ruff first
     venv_ruff = project_root / ".venv" / "bin" / "ruff"
     if venv_ruff.exists():
-        return [str(venv_ruff), "check"]
+        return [str(venv_ruff), "check", "--select", "F,E,W"]
 
     # Try uv run ruff
     try:
@@ -54,12 +56,12 @@ def get_linter_command(project_root: Path) -> list[str]:
             check=True,
             cwd=project_root,
         )
-        return ["uv", "run", "ruff", "check"]
+        return ["uv", "run", "ruff", "check", "--select", "F,E,W"]
     except (subprocess.CalledProcessError, FileNotFoundError):
         pass
 
     # Fallback to system ruff
-    return ["ruff", "check"]
+    return ["ruff", "check", "--select", "F,E,W"]
 
 
 def get_directories_to_check(project_root: Path) -> list[str]:
@@ -93,21 +95,33 @@ def get_directories_to_check(project_root: Path) -> list[str]:
         for pattern in ["tests", "test", "tests/unit", "tests/integration"]:
             candidate = project_root / pattern
             if candidate.exists() and candidate.is_dir():
-                dirs.append(str(candidate))
+                tests_dir = candidate
                 break
     else:
         if not tests_dir.is_absolute():
             tests_dir = project_root / tests_dir
         else:
             tests_dir = Path(tests_dir)
-        if tests_dir.exists():
-            dirs.append(str(tests_dir))
 
-    # Add scripts directory if it exists
-    scripts_dir = project_root / ".cortex" / "synapse" / "scripts"
+    if tests_dir is not None and tests_dir.exists():
+        dirs.append(str(tests_dir))
+
+    # Add scripts directory if it exists (for synapse scripts self-check)
+    scripts_dir = get_config_path("SCRIPTS_DIR")
+    if scripts_dir is None:
+        # Default to .cortex/synapse/scripts
+        scripts_dir = project_root / ".cortex" / "synapse" / "scripts"
+    else:
+        if not scripts_dir.is_absolute():
+            scripts_dir = project_root / scripts_dir
+        else:
+            scripts_dir = Path(scripts_dir)
+
     if scripts_dir.exists():
         dirs.append(str(scripts_dir))
 
+    # Note: When used in commit pipeline, this checks src/ and tests/ (matching CI main step)
+    # When used in CI synapse step, this also checks synapse scripts themselves
     return dirs
 
 
