@@ -157,7 +157,7 @@ def check_spelling_with_cspell(
         # Count errors from output (cspell returns non-zero on errors)
         if error_count != 0:
             # Count unique files with errors
-            error_files = set()
+            error_files: set[str] = set()
             for line in output.split("\n"):
                 if line.strip() and not line.startswith("cspell"):
                     # Extract file path from error line
@@ -174,9 +174,11 @@ def check_spelling_with_cspell(
     except FileNotFoundError:
         return (
             -1,
-            f"Error: Spell checker command not found: {spell_checker_cmd[0]}\n"
-            "Install cspell: npm install -g cspell\n"
-            "Or use: npx -y cspell",
+            (
+                f"Error: Spell checker command not found: {spell_checker_cmd[0]}\n"
+                "Install cspell: npm install -g cspell\n"
+                "Or use: npx -y cspell"
+            ),
         )
     except Exception as e:
         return (-1, f"Error running spell checker: {e}")
