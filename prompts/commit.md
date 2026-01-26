@@ -20,17 +20,27 @@
 **Agents Used**:
 
 - **error-fixer** - Step 0: Fix errors and warnings
+- **quality-checker** - Step 0.5: Quality preflight (fail-fast)
 - **code-formatter** - Step 1: Code formatting
 - **markdown-linter** - Step 1.5: Markdown linting
 - **type-checker** - Step 2: Type checking
 - **quality-checker** - Step 3: Code quality checks
 - **test-executor** - Step 4: Test execution
-- **memory-bank-updater** - Step 5: Memory bank updates
+- **memory-bank-updater** - Step 5: Memory bank operations
+- **memory-bank-updater** - Step 6: Roadmap updates
 - **plan-archiver** - Step 7: Plan archiving
+- **plan-archiver** - Step 8: Archive location validation
 - **timestamp-validator** - Step 9: Timestamp validation
 - **roadmap-sync-validator** - Step 10: Roadmap synchronization validation
 
-**When executing steps**: Delegate to the appropriate agent for implementation, then verify success and proceed with orchestration.
+**Steps without dedicated agents** (handled directly in orchestration):
+
+- **Step 11**: Submodule handling (`.cortex/synapse`)
+- **Step 12**: Final validation gate (re-verification of formatting, types, linting, quality)
+- **Step 13**: Commit creation
+- **Step 14**: Push branch
+
+**When executing steps**: Delegate to the appropriate agent for implementation, then verify success and proceed with orchestration. Steps without agents are handled directly by the orchestration workflow.
 
 ## ⚠️ MANDATORY PRE-ACTION CHECKLIST
 
