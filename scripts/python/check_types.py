@@ -8,6 +8,7 @@ Configuration:
     SRC_DIR: Source directory path (default: auto-detected)
 """
 
+import json
 import re
 import subprocess
 import sys
@@ -139,83 +140,190 @@ def main():
         # Pyright automatically finds pyrightconfig.json in project root
         # Even when checking excluded directories, the config settings (like strict type checks) still apply
         # We explicitly check the directory to bypass the exclude list, but strict settings are still enforced
-        cmd = type_checker_cmd + [dir_to_check]
+        # Try JSON output first, fall back to text if not supported
+        has_errors = False
+        error_count = 0
+        warning_count = 0
+        output = ""
+        result = None
 
+        # First, try with JSON output
+        cmd_json = type_checker_cmd + ["--outputjson", dir_to_check]
+        json_success = False
         try:
-            result = subprocess.run(
-                cmd,
+            result_json = subprocess.run(
+                cmd_json,
                 cwd=project_root,
                 capture_output=True,
                 text=True,
                 check=False,
+                timeout=300,  # 5 minute timeout
             )
 
-            # Collect output
-            output = result.stdout + result.stderr
-            all_output += f"\n=== Type checking {dir_to_check} ===\n"
-            all_output += output
+            # Try to parse JSON output
+            try:
+                json_data = json.loads(result_json.stdout)
+                all_output += f"\n=== Type checking {dir_to_check} (JSON) ===\n"
 
-            # Check for errors in output
-            # More robust error detection - check for actual error/warning counts
-            # Pyright/basedpyright output format: "X error(s), Y warning(s)"
-            error_match = re.search(r"(\d+)\s+error", output, re.IGNORECASE)
-            warning_match = re.search(r"(\d+)\s+warning", output, re.IGNORECASE)
+                if "generalDiagnostics" in json_data:
+                    diagnostics = json_data["generalDiagnostics"]
+                    for diag in diagnostics:
+                        severity = diag.get("severity", "").lower()
+                        rule = diag.get("rule", "")
+                        # Count errors (severity "error") and warnings (severity "warning")
+                        if severity == "error":
+                            error_count += 1
+                            has_errors = True
+                        elif severity == "warning":
+                            warning_count += 1
+                            has_errors = True
 
-            error_count = int(error_match.group(1)) if error_match else 0
-            warning_count = int(warning_match.group(1)) if warning_match else 0
+                        # Also check for specific error rule types
+                        error_rules = [
+                            "reportArgumentType",
+                            "reportUnknownVariableType",
+                            "reportUnknownMemberType",
+                            "reportAttributeAccessIssue",
+                            "reportAssignmentType",
+                            "reportIndexIssue",
+                            "reportOperatorIssue",
+                            "reportGeneralTypeIssues",
+                            "reportUnknownArgumentType",
+                        ]
+                        if rule in error_rules:
+                            has_errors = True
 
-            # Check for specific error patterns (basedpyright/pyright format)
-            # These patterns catch various error types that might not be counted in summary
-            error_patterns = [
-                r"error:\s",  # Standard error format
-                r"reportArgumentType",  # Argument type errors
-                r"reportUnknownVariableType",  # Unknown variable type
-                r"reportUnknownMemberType",  # Unknown member type
-                r"reportAttributeAccessIssue",  # Attribute access issues
-                r"reportAssignmentType",  # Assignment type errors
-                r"reportIndexIssue",  # Index access issues
-                r"reportOperatorIssue",  # Operator issues
-                r"reportGeneralTypeIssues",  # General type issues
-            ]
+                # Also check summary if available
+                if "summary" in json_data:
+                    summary = json_data["summary"]
+                    error_count = max(error_count, summary.get("errorCount", 0))
+                    warning_count = max(warning_count, summary.get("warningCount", 0))
+                    if error_count > 0 or warning_count > 0:
+                        has_errors = True
 
-            has_error_pattern = any(
-                bool(re.search(pattern, output, re.IGNORECASE))
-                for pattern in error_patterns
-            )
+                # Format output for display
+                if has_errors or error_count > 0 or warning_count > 0:
+                    all_output += (
+                        f"Found {error_count} error(s), {warning_count} warning(s)\n"
+                    )
+                    # Add diagnostic details
+                    if "generalDiagnostics" in json_data:
+                        for diag in json_data["generalDiagnostics"]:
+                            file = diag.get("file", "")
+                            line = (
+                                diag.get("range", {}).get("start", {}).get("line", "")
+                            )
+                            message = diag.get("message", "")
+                            rule = diag.get("rule", "")
+                            severity = diag.get("severity", "")
+                            all_output += (
+                                f"  {severity}: {file}:{line}: {message} ({rule})\n"
+                            )
+                else:
+                    all_output += "No errors or warnings found\n"
 
-            # Check for warning patterns
-            warning_patterns = [
-                r"warning:\s",
-            ]
-            has_warning_pattern = any(
-                bool(re.search(pattern, output, re.IGNORECASE))
-                for pattern in warning_patterns
-            )
+                # Use JSON result
+                result = result_json
+                output = result_json.stdout + result_json.stderr
+                json_success = True
 
-            # Fail if any errors or warnings found
-            # Also check return code - non-zero typically indicates errors
-            if (
-                result.returncode != 0
-                or error_count > 0
-                or warning_count > 0
-                or has_error_pattern
-                or has_warning_pattern
-            ):
-                all_errors = True
+            except (json.JSONDecodeError, KeyError, ValueError):
+                # JSON parsing failed, fall through to text parsing
+                json_success = False
 
-        except FileNotFoundError:
-            print(
-                f"Error: Type checker command not found: {type_checker_cmd[0]}",
-                file=sys.stderr,
-            )
-            print(
-                "Install the type checker or ensure it's in your PATH or .venv/bin/",
-                file=sys.stderr,
-            )
-            sys.exit(1)
-        except Exception as e:
-            print(f"Error running type checker: {e}", file=sys.stderr)
-            sys.exit(1)
+        except (FileNotFoundError, subprocess.TimeoutExpired):
+            # JSON output not supported or timed out, fall through to text
+            json_success = False
+
+        # If JSON parsing failed or not supported, use text output
+        if not json_success:
+            cmd = type_checker_cmd + [dir_to_check]
+            try:
+                result = subprocess.run(
+                    cmd,
+                    cwd=project_root,
+                    capture_output=True,
+                    text=True,
+                    check=False,
+                    timeout=300,  # 5 minute timeout
+                )
+
+                output = result.stdout + result.stderr
+                all_output += f"\n=== Type checking {dir_to_check} ===\n"
+                all_output += output
+
+                # Check for errors in output
+                # More robust error detection - check for actual error/warning counts
+                # Pyright/basedpyright output format: "X error(s), Y warning(s)"
+                error_match = re.search(r"(\d+)\s+error", output, re.IGNORECASE)
+                warning_match = re.search(r"(\d+)\s+warning", output, re.IGNORECASE)
+
+                error_count = int(error_match.group(1)) if error_match else 0
+                warning_count = int(warning_match.group(1)) if warning_match else 0
+
+                # Check for specific error patterns (basedpyright/pyright format)
+                # These patterns catch various error types that might not be counted in summary
+                error_patterns = [
+                    r"error:\s",  # Standard error format
+                    r"reportArgumentType",  # Argument type errors
+                    r"reportUnknownVariableType",  # Unknown variable type
+                    r"reportUnknownMemberType",  # Unknown member type
+                    r"reportAttributeAccessIssue",  # Attribute access issues
+                    r"reportAssignmentType",  # Assignment type errors
+                    r"reportIndexIssue",  # Index access issues
+                    r"reportOperatorIssue",  # Operator issues
+                    r"reportGeneralTypeIssues",  # General type issues
+                    r"reportUnknownArgumentType",  # Unknown argument type
+                ]
+
+                has_error_pattern = any(
+                    bool(re.search(pattern, output, re.IGNORECASE))
+                    for pattern in error_patterns
+                )
+
+                # Check for warning patterns
+                warning_patterns = [
+                    r"warning:\s",
+                ]
+                has_warning_pattern = any(
+                    bool(re.search(pattern, output, re.IGNORECASE))
+                    for pattern in warning_patterns
+                )
+
+                if (
+                    error_count > 0
+                    or warning_count > 0
+                    or has_error_pattern
+                    or has_warning_pattern
+                ):
+                    has_errors = True
+
+            except FileNotFoundError:
+                print(
+                    f"Error: Type checker command not found: {type_checker_cmd[0]}",
+                    file=sys.stderr,
+                )
+                print(
+                    "Install the type checker or ensure it's in your PATH or .venv/bin/",
+                    file=sys.stderr,
+                )
+                sys.exit(1)
+            except subprocess.TimeoutExpired:
+                print(
+                    f"Error: Type checker timed out for {dir_to_check}",
+                    file=sys.stderr,
+                )
+                sys.exit(1)
+            except Exception as e:
+                print(f"Error running type checker: {e}", file=sys.stderr)
+                sys.exit(1)
+
+        # Fail if any errors or warnings found
+        # Also check return code - non-zero typically indicates errors
+        if result is not None and (
+            result.returncode != 0 or has_errors or error_count > 0 or warning_count > 0
+        ):
+            all_errors = True
 
     # Print all output
     if all_output:
