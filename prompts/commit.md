@@ -41,6 +41,7 @@
 - **Step 14**: Push branch
 
 **When executing steps**: For steps that delegate to agents, you MUST:
+
 1. **READ** the agent file from `.cortex/synapse/agents/{agent-name}.md`
 2. **EXECUTE** all execution steps from the agent file
 3. **VERIFY** success and proceed with orchestration
@@ -234,6 +235,7 @@ The following error patterns MUST be detected and fixed before commit. These are
 - **CRITICAL**: Formatter check MUST pass before proceeding to Step 1.5
 - **BLOCK COMMIT**: If formatting violations remain, stop immediately
 - **Workflow**: After agent completes, verify formatting check passed before proceeding
+- **Directory scope**: Ensure formatting covers same directories as CI: `src/`, `tests/`, `.cortex/synapse/scripts/`
 - **Context Assessment**: If insufficient context remains after fixing formatting, provide comprehensive summary and advise re-running commit pipeline
 
 ### Step 1.5: Markdown linting (delegate to `markdown-linter`)
@@ -242,6 +244,7 @@ The following error patterns MUST be detected and fixed before commit. These are
 - **Dependency**: Must run AFTER Step 1 (code formatting)
 - **CRITICAL**: Memory bank and plan files must be error-free
 - **BLOCK COMMIT**: If critical errors remain in `.cortex/memory-bank/*.md` or `.cortex/plans/*.md` files (excluding `.cortex/plans/archive/**` by default)
+- **CRITICAL**: Markdown lint errors in memory bank or plans will cause CI to fail - must be fixed
 - **Workflow**: After agent completes, verify zero critical errors remain before proceeding to Step 2
 
 ### Step 2: Type checking (delegate to `type-checker`)
@@ -290,7 +293,7 @@ The following error patterns MUST be detected and fixed before commit. These are
 - **Dependency**: Must run AFTER Step 5 (memory bank operations)
 - **CRITICAL**: If no completed plans are found, report "0 plans archived" but DO NOT skip this step
 - **BLOCK COMMIT**: If completed plans are found but not archived, or if link validation fails
-- **Workflow**: 
+- **Workflow**:
   1. **READ** `.cortex/synapse/agents/plan-archiver.md` agent file
   2. **EXECUTE** all execution steps from the agent file (detect completed plans, archive them, update links, validate)
   3. After agent completes, verify all plans archived and links updated before proceeding to Step 8
@@ -371,14 +374,16 @@ The commit procedure executes steps in this specific order to ensure dependencie
 4. **Testing** (Run Tests) - Executes test suite to ensure functionality correctness
    - **CRITICAL**: Uses `execute_pre_commit_checks()` MCP tool for structured test execution
    - **CRITICAL**: Runs AFTER errors, formatting, and code quality are fixed
-   - **CRITICAL**: Tests must pass with 100% pass rate before proceeding
-   - **VALIDATION**: Must verify zero test failures, 100% pass rate, 90%+ coverage (MANDATORY), all integration tests pass
+   - **CRITICAL**: Tests must pass with 100% pass rate AND coverage ≥ 90.0% before proceeding
+   - **VALIDATION**: Must verify `results.tests.success` = true AND zero test failures, 100% pass rate, 90%+ coverage (MANDATORY), all integration tests pass
    - **CRITICAL COVERAGE ENFORCEMENT**:
      - Coverage threshold of 90% is MANDATORY and absolute
-     - Coverage MUST be parsed from test output and verified ≥ 90.0%
+     - Coverage MUST be parsed from tool response (`results.tests.coverage`) and verified ≥ 0.90 (as float)
+     - `results.tests.success` = false OR `results.tests.coverage` < 0.90 MUST block commit
+     - The tool now validates coverage internally, but you MUST also verify `results.tests.success` = true AND `results.tests.coverage` ≥ 0.90
      - If coverage < 90.0%, commit procedure MUST STOP and coverage MUST be fixed
      - NO exceptions, NO "close enough", NO proceeding with coverage below threshold
-   - **BLOCK COMMIT** if any test validation fails, including coverage below threshold
+   - **BLOCK COMMIT** if `results.tests.success` = false OR `results.tests.coverage` < 0.90 OR any test validation fails
 5. **Documentation** (Memory Bank) - Updates project context
 6. **Roadmap Updates** (Roadmap Update) - Ensures roadmap reflects current progress
 7. **Plan Archiving** (Archive Completed Plans) - Cleans up completed build plans
@@ -403,6 +408,14 @@ The original checks in Steps 0-4 are INVALIDATED by any subsequent code changes 
 
 **CRITICAL RULE**: ANY code change OR new file creation after Step 1 REQUIRES re-running formatting AND verification before commit.
 
+**⚠️ MANDATORY: NO OUTPUT TRUNCATION IN STEP 12**
+
+- **PROHIBITED**: NEVER use `| tail`, `| head`, `| grep`, or ANY output piping/truncation in Step 12 commands
+- **REQUIRED**: Read and parse the FULL output of every command in Step 12
+- **REASON**: Truncated output hides critical errors and makes verification impossible - this has caused CI failures
+- **VERIFICATION**: Every check in Step 12 MUST show explicit success indicators in FULL output
+- **BLOCK COMMIT**: If output is truncated or unclear, DO NOT proceed to commit - re-run command without truncation
+
 ### 12.1 Re-run Formatting FIX then CHECK (MANDATORY)
 
 **CRITICAL**: New files created during Steps 4-11 (especially test files added to fix coverage) will NOT have been formatted by Step 1. You MUST run the fix script first, then verify.
@@ -413,16 +426,24 @@ The original checks in Steps 0-4 are INVALIDATED by any subsequent code changes 
 .venv/bin/python .cortex/synapse/scripts/{language}/fix_formatting.py
 ```
 
+**⚠️ CRITICAL**: Do NOT truncate output - read FULL output to verify fix completed successfully
+
 **Step 12.1.2 - Run formatting CHECK** to verify:
 
 ```bash
 .venv/bin/python .cortex/synapse/scripts/{language}/check_formatting.py
 ```
 
+**⚠️ CRITICAL**: Do NOT truncate output - read FULL output to verify check passed
+
 - **MUST verify**: Output shows formatting check passed (e.g., "✅ All formatting checks passed")
-- **BLOCK COMMIT** if ANY formatting violations are reported
+- **MUST verify**: Exit code is 0 (zero) - command must succeed
+- **MUST verify**: No error messages or formatting violations in output
+- **BLOCK COMMIT** if ANY formatting violations are reported OR if exit code is non-zero
+- **BLOCK COMMIT** if output is truncated or unclear - re-run without truncation
 - **DO NOT rely on memory of earlier checks** - you MUST re-run and verify output NOW
 - **If check still fails after fix**: Investigate manually, fix issues, and re-run both fix and check
+- **Scope verification**: Ensure formatting check covers same directories as CI (`src/`, `tests/`, `.cortex/synapse/scripts/`)
 
 ### 12.2 Re-run Type Check (MANDATORY for typed projects)
 
@@ -432,8 +453,13 @@ Run the language-specific type check script:
 .venv/bin/python .cortex/synapse/scripts/{language}/check_types.py
 ```
 
+**⚠️ CRITICAL**: Do NOT truncate output - read FULL output to verify check passed
+
 - **MUST verify**: Output shows type check passed (e.g., "✅ All type checks passed")
-- **BLOCK COMMIT** if ANY type errors or warnings are reported
+- **MUST verify**: Exit code is 0 (zero) - command must succeed
+- **MUST verify**: Output shows "0 errors" and "0 warnings" (or equivalent success message)
+- **BLOCK COMMIT** if ANY type errors or warnings are reported OR if exit code is non-zero
+- **BLOCK COMMIT** if output is truncated or unclear - re-run without truncation
 - **DO NOT rely on memory of earlier checks** - you MUST re-run and verify output NOW
 - **Skip if**: Project does not use a type system
 
@@ -445,51 +471,124 @@ Run the language-specific linter check script:
 .venv/bin/python .cortex/synapse/scripts/{language}/check_linting.py
 ```
 
+**⚠️ CRITICAL**: Do NOT truncate output - read FULL output to verify check passed
+
 - **MUST verify**: Output shows linter check passed (e.g., "✅ All linting checks passed")
-- **BLOCK COMMIT** if ANY linter violations are reported
+- **MUST verify**: Exit code is 0 (zero) - command must succeed
+- **MUST verify**: No error messages or linting violations in output
+- **BLOCK COMMIT** if ANY linter violations are reported OR if exit code is non-zero
+- **BLOCK COMMIT** if output is truncated or unclear - re-run without truncation
 - **DO NOT rely on memory of earlier checks** - you MUST re-run and verify output NOW
 
-### 12.4 Re-run Quality Checks (MANDATORY)
+### 12.4 Re-run Tests with Coverage Validation (MANDATORY)
+
+**CRITICAL**: Code changes during Steps 5-11 may affect test coverage. Tests MUST be re-run and coverage MUST be validated.
+
+**Step 12.4.1 - Re-run tests with coverage** (MANDATORY):
+
+Use the MCP tool:
+
+```python
+execute_pre_commit_checks(checks=["tests"], timeout=300, coverage_threshold=0.90)
+```
+
+Or fallback script:
+
+```bash
+.venv/bin/python .cortex/synapse/scripts/{language}/run_tests.py
+```
+
+- **MUST verify**: `results.tests.success` = true (PRIMARY indicator)
+- **MUST verify**: `results.tests.tests_failed` = 0 (zero failures)
+- **MUST verify**: `results.tests.pass_rate` = 100.0 (100% pass rate)
+- **MUST verify**: `results.tests.coverage` ≥ 0.90 (coverage ≥ 90%, parsed as float)
+- **BLOCK COMMIT** if `results.tests.success` = false OR `results.tests.coverage` < 0.90 OR any test fails
+- **CRITICAL**: Coverage validation is MANDATORY - NO EXCEPTIONS
+
+### 12.5 Re-run Quality Checks (MANDATORY)
 
 **CRITICAL**: Quality violations (file sizes, function lengths) can be introduced during Steps 4-11 and MUST be validated before commit.
 
-**Step 12.4.1 - Check file sizes** (MANDATORY):
+**Step 12.5.1 - Check file sizes** (MANDATORY):
 
 ```bash
 .venv/bin/python .cortex/synapse/scripts/{language}/check_file_sizes.py
 ```
 
+**⚠️ CRITICAL**: Do NOT truncate output - read FULL output to verify check passed
+
 - **MUST verify**: Output shows "✅ All files within size limits (400 lines)"
-- **BLOCK COMMIT** if ANY file size violations are reported
+- **MUST verify**: Exit code is 0 (zero) - command must succeed
+- **MUST verify**: No file size violations reported in output
+- **BLOCK COMMIT** if ANY file size violations are reported OR if exit code is non-zero
+- **BLOCK COMMIT** if output is truncated or unclear - re-run without truncation
 - **NO EXCEPTIONS**: Pre-existing violations are NOT acceptable
 
-**Step 12.4.2 - Check function lengths** (MANDATORY):
+**Step 12.5.2 - Check function lengths** (MANDATORY):
 
 ```bash
 .venv/bin/python .cortex/synapse/scripts/{language}/check_function_lengths.py
 ```
 
+**⚠️ CRITICAL**: Do NOT truncate output - read FULL output to verify check passed
+
 - **MUST verify**: Output shows "✅ All functions within length limits (30 lines)"
-- **BLOCK COMMIT** if ANY function length violations are reported
+- **MUST verify**: Exit code is 0 (zero) - command must succeed
+- **MUST verify**: No function length violations reported in output
+- **BLOCK COMMIT** if ANY function length violations are reported OR if exit code is non-zero
+- **BLOCK COMMIT** if output is truncated or unclear - re-run without truncation
 - **NO EXCEPTIONS**: Pre-existing violations are NOT acceptable
 
-### 12.5 Verification Requirements
+### 12.6 Re-run Markdown Lint Check (MANDATORY)
 
+**CRITICAL**: Markdown files may have been modified during Steps 5-11. Markdown lint MUST be re-checked.
+
+**Step 12.6.1 - Re-run markdown lint check** (MANDATORY):
+
+Use the MCP tool:
+
+```python
+fix_markdown_lint(check_all_files=False, include_untracked_markdown=True)
+```
+
+- **MUST verify**: Zero critical errors in `.cortex/memory-bank/*.md` or `.cortex/plans/*.md` files
+- **BLOCK COMMIT** if critical markdown lint errors remain in memory bank or plans
+- **Note**: Other markdown files are non-blocking unless explicitly requested
+
+### 12.7 Verification Requirements (CRITICAL)
+
+**⚠️ MANDATORY: NO OUTPUT TRUNCATION IN STEP 12**
+
+- **PROHIBITED**: NEVER use `| tail`, `| head`, or any output piping/truncation in Step 12 commands
+- **REQUIRED**: Read and parse the FULL output of every command in Step 12
+- **REASON**: Truncated output hides critical errors and makes verification impossible
 - **Parse actual command output** - do not assume success
 - **Look for success indicators**: "✅" or "passed" in output
-- **If output is truncated or unclear**: Re-run without `| head` or piping
+- **If output is unclear or missing success indicators**: Re-run command without any piping/truncation
 - **If any check fails**: Fix issues and restart from Step 12.1
+- **BLOCK COMMIT**: If ANY check in Step 12 fails OR if output cannot be fully verified, DO NOT proceed to commit
 
-### 12.6 Checklist Before Proceeding to Commit
+### 12.8 Checklist Before Proceeding to Commit
 
-- [ ] Formatting re-run: **check passed** confirmed in output
-- [ ] Type check re-run: **0 errors, 0 warnings** confirmed in output (if applicable)
-- [ ] Linter re-run: **0 violations** confirmed in output
-- [ ] File sizes re-run: **0 violations** confirmed in output
-- [ ] Function lengths re-run: **0 violations** confirmed in output
+- [ ] Formatting re-run: **check passed** confirmed in FULL output (exit code 0, success message visible)
+- [ ] Formatting re-run: **NO output truncation** - full output read and verified
+- [ ] Type check re-run: **0 errors, 0 warnings** confirmed in FULL output (if applicable)
+- [ ] Type check re-run: **NO output truncation** - full output read and verified
+- [ ] Linter re-run: **0 violations** confirmed in FULL output
+- [ ] Linter re-run: **NO output truncation** - full output read and verified
+- [ ] **Tests re-run**: `results.tests.success` = true AND `results.tests.coverage` ≥ 0.90 confirmed (MANDATORY)
+- [ ] **Coverage validation**: `results.tests.coverage` ≥ 0.90 (parsed as float, MANDATORY)
+- [ ] File sizes re-run: **0 violations** confirmed in FULL output
+- [ ] File sizes re-run: **NO output truncation** - full output read and verified
+- [ ] Function lengths re-run: **0 violations** confirmed in FULL output
+- [ ] Function lengths re-run: **NO output truncation** - full output read and verified
+- [ ] Markdown lint re-run: **0 critical errors** in memory bank/plans confirmed
 - [ ] All output was **fully read and parsed**, not assumed
+- [ ] All commands in Step 12 executed **WITHOUT** `| tail`, `| head`, or any output truncation
 
 **⚠️ VIOLATION**: Proceeding to commit creation without completing Step 12 with verified zero-error output is a CRITICAL VIOLATION that will cause CI failures.
+
+**⚠️ VIOLATION**: Using output truncation (`| tail`, `| head`, etc.) in Step 12 is a CRITICAL VIOLATION that prevents proper verification and will cause CI failures.
 
 ## ⚠️ MANDATORY CHECKLIST UPDATES
 
@@ -685,16 +784,19 @@ Use this ordering when numbering results:
 - **Tool Response Parsed**: Yes/No (MUST be Yes)
 - **Validation Results**:
   - Tool executed: Yes/No (MUST be Yes)
-  - Tests status: Pass/Fail (from tool response: `results.tests.status`, MUST be "passed")
+  - Tests success flag: Yes/No (from tool response: `results.tests.success`, MUST be true - PRIMARY indicator)
+  - Tests status: Pass/Fail (from tool response: `results.tests.status`, MUST be "passed" if success=true)
   - Zero failures confirmed: Yes/No (parsed from tool response: `results.tests.tests_failed`, MUST be 0)
   - 100% pass rate confirmed: Yes/No (parsed from tool response: `results.tests.pass_rate`, MUST be 100.0)
-  - Coverage threshold met: Yes/No (parsed from tool response: `results.tests.coverage`, MUST be ≥ 90.0%)
-  - Coverage value extracted: Yes/No (exact percentage must be shown from tool response)
+  - Coverage value extracted: Yes/No (exact percentage must be shown from tool response: `results.tests.coverage`)
+  - Coverage threshold met: Yes/No (MANDATORY: `results.tests.coverage` MUST be ≥ 0.90, parsed as float)
+  - Coverage validation: Yes/No (MANDATORY: Verify `results.tests.success` = true AND `results.tests.coverage` ≥ 0.90)
   - Integration tests passed: Yes/No (explicitly verified from tool response)
   - Tool output parsed: Yes/No
 - **Details**: Complete summary from test execution tool response
-- **Commit Blocked**: Yes/No (blocked if any validation fails, including coverage < 90.0%)
-- **CRITICAL**: If coverage < 90.0%, commit MUST be blocked regardless of other results
+- **Commit Blocked**: Yes/No (blocked if `results.tests.success` = false OR `results.tests.coverage` < 0.90 OR any validation fails)
+- **CRITICAL**: `results.tests.success` = false OR `results.tests.coverage` < 0.90 MUST block commit - NO EXCEPTIONS
+- **CRITICAL**: Coverage validation is MANDATORY - the tool now validates coverage internally, but you MUST also verify
 - **Fallback Used**: Yes/No (only if MCP tool was unavailable)
 
 #### **5. Memory Bank Update**

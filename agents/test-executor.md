@@ -31,11 +31,13 @@ Key practices:
 - Use `execute_pre_commit_checks(checks=["tests"], timeout=300, coverage_threshold=0.90)` MCP tool when available
 - Auto-detect project language and test framework
 - Parse test output to extract exact counts
-- Verify `results.tests.success` = true
+- **PRIMARY VALIDATION**: Verify `results.tests.success` = true (MUST be true - this now includes coverage validation)
 - Verify `results.tests.tests_failed` = 0 (MUST be zero)
 - Verify `results.tests.pass_rate` = 100.0 (MUST be 100%)
-- Verify `results.tests.coverage` ≥ 0.90 (MANDATORY - NO exceptions)
+- **MANDATORY COVERAGE VALIDATION**: Verify `results.tests.coverage` ≥ 0.90 (parsed as float, MUST be ≥ 0.90)
+- **CRITICAL**: `results.tests.success` = false OR `results.tests.coverage` < 0.90 MUST block commit - NO EXCEPTIONS
 - Block commits if any validation fails, including coverage < 90.0%
+- **Note**: The tool now validates coverage internally, but you MUST also verify `results.tests.success` = true AND `results.tests.coverage` ≥ 0.90
 
 For each test execution:
 

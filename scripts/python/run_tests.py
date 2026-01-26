@@ -113,13 +113,14 @@ def main():
         print(f"Project root: {project_root}", file=sys.stderr)
         sys.exit(0)  # Not an error, just nothing to test
 
-    # Build test command with coverage
+    # Build test command with coverage (matches CI workflow exactly)
     cmd = test_cmd + [
-        str(tests_dir),
+        "tests/",  # Use tests/ directory (matches CI: tests/)
         "-v",
-        "--cov=src",
-        "--cov-report=term",
-        f"--cov-fail-under={COVERAGE_THRESHOLD}",
+        "--cov=src/cortex",  # Match CI: --cov=src/cortex
+        "--cov-report=xml",  # Match CI: --cov-report=xml
+        "--cov-report=term",  # Also include terminal report
+        f"--cov-fail-under={COVERAGE_THRESHOLD}",  # Match CI: --cov-fail-under=90
     ]
 
     try:
