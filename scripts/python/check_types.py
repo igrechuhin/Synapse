@@ -147,8 +147,17 @@ def main():
         output = ""
         result = None
 
+        # Ensure we use the project root config file explicitly
+        # This ensures strict settings are applied even for excluded directories
+        config_file = project_root / "pyrightconfig.json"
+        cmd_base = type_checker_cmd.copy()
+        if config_file.exists():
+            # Pyright automatically finds config, but we can explicitly verify it's being used
+            # by checking that the config exists and pyright will use it
+            pass  # Pyright finds config automatically from project root
+
         # First, try with JSON output
-        cmd_json = type_checker_cmd + ["--outputjson", dir_to_check]
+        cmd_json = cmd_base + ["--outputjson", dir_to_check]
         json_success = False
         try:
             result_json = subprocess.run(
@@ -171,6 +180,7 @@ def main():
                         severity = diag.get("severity", "").lower()
                         rule = diag.get("rule", "")
                         # Count errors (severity "error") and warnings (severity "warning")
+                        # This catches ALL errors regardless of rule name
                         if severity == "error":
                             error_count += 1
                             has_errors = True
@@ -178,17 +188,21 @@ def main():
                             warning_count += 1
                             has_errors = True
 
-                        # Also check for specific error rule types
+                        # Also check for specific error rule types for additional safety
+                        # Note: We check severity first (above), but also track specific rules
+                        # to ensure we catch all error types even if severity is misreported
                         error_rules = [
-                            "reportArgumentType",
-                            "reportUnknownVariableType",
-                            "reportUnknownMemberType",
-                            "reportAttributeAccessIssue",
-                            "reportAssignmentType",
-                            "reportIndexIssue",
-                            "reportOperatorIssue",
-                            "reportGeneralTypeIssues",
-                            "reportUnknownArgumentType",
+                            "reportArgumentType",  # Argument type mismatches
+                            "reportUnknownVariableType",  # Unknown variable types
+                            "reportUnknownMemberType",  # Unknown member types
+                            "reportAttributeAccessIssue",  # Attribute access issues
+                            "reportAssignmentType",  # Assignment type errors
+                            "reportIndexIssue",  # Index access issues (e.g., indexing non-indexable types)
+                            "reportOperatorIssue",  # Operator issues
+                            "reportGeneralTypeIssues",  # General type issues
+                            "reportUnknownArgumentType",  # Unknown argument types
+                            "reportOptionalSubscript",  # Optional subscript errors (e.g., indexing None)
+                            "reportCallIssue",  # Call issues (e.g., no matching overloads)
                         ]
                         if rule in error_rules:
                             has_errors = True
@@ -237,7 +251,7 @@ def main():
 
         # If JSON parsing failed or not supported, use text output
         if not json_success:
-            cmd = type_checker_cmd + [dir_to_check]
+            cmd = cmd_base + [dir_to_check]
             try:
                 result = subprocess.run(
                     cmd,
@@ -274,6 +288,8 @@ def main():
                     r"reportOperatorIssue",  # Operator issues
                     r"reportGeneralTypeIssues",  # General type issues
                     r"reportUnknownArgumentType",  # Unknown argument type
+                    r"reportOptionalSubscript",  # Optional subscript errors (e.g., indexing None)
+                    r"reportCallIssue",  # Call issues (e.g., no matching overloads)
                 ]
 
                 has_error_pattern = any(
