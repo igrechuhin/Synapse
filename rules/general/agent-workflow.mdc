@@ -183,6 +183,7 @@ When encountering any situation NOT listed in "Valid Stopping Conditions":
 
 **PRE-RESPONSE VALIDATION (MANDATORY)**:
 Before generating ANY response that contains a question, you MUST:
+
 1. **Check**: "Am I about to ask about fixing issues/violations/errors?"
 2. **If YES**: Block the question immediately and replace with automatic fixing action
 3. **Pattern match** against forbidden question types:
@@ -194,6 +195,7 @@ Before generating ANY response that contains a question, you MUST:
 4. **Only allow questions** that pass "Valid Stopping Conditions" check (e.g., "Which approach for feature X?" when multiple valid approaches exist)
 
 **ABSOLUTE PROHIBITIONS** (these are NEVER acceptable):
+
 - ❌ **NEVER ask for permission** to fix issues - just fix them all
 - ❌ **NEVER ask "should I continue?"** - continue fixing until ALL issues are resolved
 - ❌ **NEVER ask "would you prefer...?"** - just fix ALL issues automatically
@@ -202,6 +204,7 @@ Before generating ANY response that contains a question, you MUST:
 - ❌ **NEVER provide status updates asking for direction** - just continue fixing
 
 **MANDATORY ACTIONS**:
+
 - ✅ Fix ALL issues automatically without any questions
 - ✅ Continue fixing until ALL issues are resolved (whether 1 or 1000)
 - ✅ Re-run validation after fixing ALL issues to verify zero remain
@@ -210,6 +213,7 @@ Before generating ANY response that contains a question, you MUST:
 
 **Pattern Matching - BLOCK THESE QUESTIONS**:
 If you find yourself about to ask any of these, STOP and just fix the issues instead:
+
 - "Should I continue fixing...?"
 - "Would you prefer...?"
 - "How should I proceed with...?"
@@ -217,6 +221,7 @@ If you find yourself about to ask any of these, STOP and just fix the issues ins
 - "Do you want me to...?"
 
 **Examples of violations**:
+
 - ❌ "Should I continue fixing the remaining 42 violations?"
 - ❌ "Would you prefer to re-run the commit procedure?"
 - ❌ "How should I proceed with these 32 violations?"
@@ -224,6 +229,7 @@ If you find yourself about to ask any of these, STOP and just fix the issues ins
 - ❌ Asking "should I fix all violations now?"
 
 **Correct behavior**:
+
 - ✅ Fix all 42 violations automatically
 - ✅ Re-run quality check to verify zero violations
 - ✅ Then either continue commit procedure or provide summary (if context insufficient)
@@ -259,19 +265,80 @@ When using Cortex MCP tools inside Cursor, follow these rules to avoid "missing 
 
 ### If MCP calls become unstable
 
-- Follow the **MCP Tool Error Handling** section below (create a plan + treat as a blocker).
+- Follow the **MCP Tool Error Handling** section below.
+- **For CRITICAL errors**: Create investigation plan and treat as blocker (see Error Classification section).
+- **For NON-CRITICAL errors**: Use alternative approaches (see Alternative Approaches section).
 - Prefer diagnosing and fixing the MCP/tooling issue over continuing with partial or unverified work.
 
 ## MCP Tool Error Handling (CRITICAL)
 
 **MANDATORY**: When encountering unexpected results from Cortex MCP tools (crashes, disconnects, unexpected behavior):
 
-1. **STOP IMMEDIATELY**:
+### Error Classification
+
+Before taking action, classify the error to determine the appropriate response:
+
+**CRITICAL ERRORS** (must investigate immediately):
+
+- Tool crashes or disconnects (connection closed, server error)
+- Protocol errors (-32000, connection closed, transport errors)
+- Tool returns completely unexpected response format (not JSON, malformed structure)
+- Tool blocks required workflow (no alternative approach available)
+- Tool failure prevents completion of mandatory task
+
+**NON-CRITICAL ERRORS** (may continue with alternatives):
+
+- Validation errors in tool's data models (e.g., `FileMetadataForScoring` validation errors)
+- Data format issues where alternative information sources exist
+- Tool returns error but alternative approach is available (e.g., `manage_file()` can replace `load_context()`)
+- Error doesn't block core workflow (tool is for convenience, not requirement)
+- Partial tool failure where remaining functionality is sufficient
+
+**Decision Criteria**:
+
+- If error blocks required workflow → **CRITICAL** (investigate immediately)
+- If alternative approach exists and error is non-blocking → **NON-CRITICAL** (may continue, but document)
+- When in doubt → Treat as **CRITICAL** (investigate) - safety first
+
+**Examples**:
+
+- **CRITICAL**: `load_context()` crashes with connection error → CRITICAL (blocks workflow, no alternative)
+- **CRITICAL**: `manage_file()` returns protocol error → CRITICAL (blocks required file operations)
+- **NON-CRITICAL**: `load_context()` returns validation error for `FileMetadataForScoring` → NON-CRITICAL (can use `manage_file()` to read files directly)
+- **NON-CRITICAL**: `get_relevance_scores()` fails with data format error → NON-CRITICAL (can use `load_context()` with explicit file list)
+
+### Alternative Approaches for Non-Critical Errors
+
+When encountering **NON-CRITICAL** errors, you may use alternative approaches:
+
+**Acceptable Alternative Approaches**:
+
+- Use alternative MCP tools that provide similar information (e.g., `manage_file()` instead of `load_context()`)
+- Use standard file tools (Read, Write) if MCP tool is for convenience only
+- Continue with available information if error doesn't block workflow
+- Use partial results if sufficient for task completion
+
+**Requirements for Using Alternatives**:
+
+- **Document the error and alternative approach used** (note in session/work log)
+- **Verify alternative approach provides equivalent information** (don't proceed with insufficient data)
+- **If alternative approach is insufficient** → Treat as **CRITICAL** error (investigate immediately)
+- **Maintain workflow quality** (don't compromise on correctness or completeness)
+
+**Examples of Acceptable Alternatives**:
+
+- If `load_context()` fails with validation error → use `manage_file()` to read specific files directly
+- If `get_relevance_scores()` fails → use `load_context()` with explicit file list
+- If tool fails but standard file tools work → use standard tools and document the workaround
+- If tool returns partial results → use available data if sufficient, otherwise treat as CRITICAL
+
+1. **STOP IMMEDIATELY** (For CRITICAL errors only):
    - **Current process MUST stop** - do not continue with any other work
    - Do not attempt to retry or work around the failure
    - Do not proceed with the original task
+   - **For NON-CRITICAL errors**: See "Alternative Approaches for Non-Critical Errors" section above
 
-2. **Create investigation plan**:
+2. **Create investigation plan** (For CRITICAL errors):
    - **Use the `create-plan.md` prompt** (located at `.cortex/synapse/prompts/create-plan.md`) to create a plan
    - Follow ALL steps in `create-plan.md` to create a comprehensive investigation plan
    - Plan must include:
@@ -281,28 +348,40 @@ When using Cortex MCP tools inside Cursor, follow these rules to avoid "missing 
      - Expected outcomes
    - Mark plan as **BLOCKER** status with **ASAP** priority
    - Save plan file at `.cortex/plans/` with descriptive name (e.g., `phase-X-investigate-tool-name-failure.md`)
+   - **For NON-CRITICAL errors**: Document error and alternative approach used (see "Alternative Approaches" section)
 
-3. **Link in roadmap**:
+3. **Link in roadmap** (For CRITICAL errors):
    - Add plan to `.cortex/memory-bank/roadmap.md` under "Blockers (ASAP Priority)" section
    - Include in "Active Work" section if blocking current work
    - Add to "Recent Findings" with critical bug indicator (🔴)
+   - **For NON-CRITICAL errors**: Note in session/work log if significant
 
-4. **Document the issue in the plan**:
-   - Describe the unexpected behavior (crash, disconnect, unexpected response, etc.)
-   - Note what was expected vs. what actually happened
-   - Include any error messages or tool responses
-   - List affected tools and operations
-   - Include tool name, operation attempted, and failure type
+4. **Document the issue**:
+   - **For CRITICAL errors** (in investigation plan):
+     - Describe the unexpected behavior (crash, disconnect, unexpected response, etc.)
+     - Note what was expected vs. what actually happened
+     - Include any error messages or tool responses
+     - List affected tools and operations
+     - Include tool name, operation attempted, and failure type
+   - **For NON-CRITICAL errors** (in session/work log):
+     - Document the error encountered
+     - Note the alternative approach used
+     - Verify alternative approach provides equivalent information
 
 5. **Provide summary to user**:
-   - **MANDATORY**: Provide a clear summary to the user with:
-     - **Description**: What tool failed and how (crash, disconnect, unexpected behavior)
-     - **Impact**: What work was blocked by this failure
-     - **Fix Recommendation**: Mark as **FIX-ASAP** priority with recommendation to investigate and fix immediately
-     - **Plan Location**: Path to the created investigation plan
-     - **Next Steps**: User should review the plan and prioritize fixing the tool issue
+   - **For CRITICAL errors** (MANDATORY):
+     - **MANDATORY**: Provide a clear summary to the user with:
+       - **Description**: What tool failed and how (crash, disconnect, unexpected behavior)
+       - **Impact**: What work was blocked by this failure
+       - **Fix Recommendation**: Mark as **FIX-ASAP** priority with recommendation to investigate and fix immediately
+       - **Plan Location**: Path to the created investigation plan
+       - **Next Steps**: User should review the plan and prioritize fixing the tool issue
+   - **For NON-CRITICAL errors**: Document in session notes (no user summary required unless alternative approach is insufficient)
 
-**VIOLATION**: Encountering MCP tool errors without stopping, creating investigation plan via `create-plan.md`, and providing summary to user is a CRITICAL violation.
+**VIOLATION**:
+
+- Encountering **CRITICAL** MCP tool errors without stopping, creating investigation plan via `create-plan.md`, and providing summary to user is a CRITICAL violation.
+- Using alternative approaches for **NON-CRITICAL** errors without documenting the error and verifying the alternative provides equivalent information is a violation.
 
 ## Violations (BLOCKED)
 
@@ -312,7 +391,8 @@ When using Cortex MCP tools inside Cursor, follow these rules to avoid "missing 
 - ❌ Using non-US English
 - ❌ Proceeding without fetching rules first
 - ❌ Ignoring rule hierarchy (Commands > Rules > Memory Bank)
-- ❌ Encountering MCP tool errors without creating investigation plan and linking in roadmap
+- ❌ Encountering **CRITICAL** MCP tool errors without creating investigation plan and linking in roadmap
+- ❌ Using alternative approaches for **NON-CRITICAL** errors without documenting the error and verifying the alternative provides equivalent information
 - ❌ **Stopping execution prematurely** (stopping for any reason not in "Valid Stopping Conditions")
 - ❌ **Asking for permission to fix issues** (CRITICAL - see "Fix ALL Issues Automatically" section)
 - ❌ **Asking "should I continue?" when fixing errors/violations** (CRITICAL - just fix ALL automatically)
