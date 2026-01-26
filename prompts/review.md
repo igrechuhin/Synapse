@@ -166,15 +166,14 @@ When executing steps, delegate to the appropriate agent for specialized analysis
 
 **CRITICAL: Report File Location**
 
-- All review reports MUST be saved to `.cortex/reviews/` directory
+- All review reports MUST be saved to the reviews directory (configured in structure)
 - File naming: `code-review-report-YYYY-MM-DD.md` (e.g., `code-review-report-2026-01-15.md`)
 - **MANDATORY: Use Cortex MCP tools to get the correct path**:
   1. Call `get_structure_info(project_root=None)` MCP tool to get structure information
-  2. Extract the `.cortex` directory path from the response (typically `{project_root}/.cortex`)
-  3. Construct the reviews directory path: `{cortex_dir}/reviews/`
-  4. Construct the full file path: `{reviews_dir}/code-review-report-YYYY-MM-DD.md`
-  5. Use the `Write` tool with this dynamically constructed path (it will create parent directories automatically)
-- **NEVER use hardcoded paths like `.cortex/code-review-report-*.md`** - This is the deprecated old path that must not be used
+  2. Extract the reviews directory path from the response: `structure_info.paths.reviews` (e.g., `/path/to/project/.cortex/reviews`)
+  3. Construct the full file path: `{reviews_path}/code-review-report-YYYY-MM-DD.md`
+  4. Use the `Write` tool with this dynamically constructed path (it will create parent directories automatically)
+- **NEVER use hardcoded paths like `.cortex/code-review-report-*.md` or `.cortex/reviews/`** - Always use `get_structure_info()` to get the path dynamically
 - Do NOT save review reports in `.cortex/` root or other locations
 
 **CRITICAL: Report Structure for Plan Creation**
@@ -356,7 +355,7 @@ For each improvement suggestion, provide the following structure to enable effic
 - ✅ **Detailed metrics scoring included** - All 9 metrics scored (0-10) with reasoning
 - ✅ Overall score calculated as average of metric scores
 - ✅ Actionable recommendations provided
-- ✅ **Report saved to `.cortex/reviews/code-review-report-YYYY-MM-DD.md`** - Report file location is correct
+- ✅ **Report saved to reviews directory** - Report file location is correct (path obtained via `get_structure_info()`)
 - ✅ **All issues include plan-ready structure** - Each issue/improvement has:
   - Implementation steps (numbered, actionable)
   - Dependencies and prerequisites
@@ -382,9 +381,13 @@ This command provides comprehensive code quality assurance before commits and re
 
 **Report Output:**
 
-- Save all review reports to `.cortex/reviews/code-review-report-YYYY-MM-DD.md`
+- **MANDATORY: Use Cortex MCP tools to get the correct path**:
+  1. Call `get_structure_info(project_root=None)` MCP tool to get structure information
+  2. Extract the reviews directory path: `structure_info.paths.reviews`
+  3. Construct file path: `{reviews_path}/code-review-report-YYYY-MM-DD.md`
+  4. Use the `Write` tool with this dynamically constructed path (it will create parent directories automatically)
 - Use format: `code-review-report-2026-01-15.md` (date in YYYY-MM-DD format)
-- Create `.cortex/reviews/` directory if it doesn't exist
+- **NEVER use hardcoded paths like `.cortex/reviews/`** - Always use `get_structure_info()` to get the path dynamically
 - Never save reports in `.cortex/` root or other locations
 
 **Report Structure for Plan Creation:**

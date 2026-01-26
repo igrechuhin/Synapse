@@ -136,7 +136,12 @@
    ```
 
 8. **Save analysis report** - Store findings for future reference:
-   - **Use Cortex MCP tool `manage_file()`** to write report to `.cortex/reviews/session-optimization-{timestamp}.md`
+   - **MANDATORY: Use Cortex MCP tools to get the correct path**:
+     1. Call `get_structure_info(project_root=None)` MCP tool to get structure information
+     2. Extract the reviews directory path from the response: `structure_info.paths.reviews` (e.g., `/path/to/project/.cortex/reviews`)
+     3. Construct the full file path: `{reviews_path}/session-optimization-{timestamp}.md`
+     4. Use the `Write` tool with this dynamically constructed path (it will create parent directories automatically)
+   - **NEVER use hardcoded paths like `.cortex/reviews/session-optimization-*.md`** - Always use `get_structure_info()` to get the path dynamically
    - Include full analysis, recommendations, and implementation suggestions
    - Link report in roadmap if significant improvements are identified
 
