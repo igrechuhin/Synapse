@@ -40,7 +40,12 @@
 - **Step 13**: Commit creation
 - **Step 14**: Push branch
 
-**When executing steps**: Delegate to the appropriate agent for implementation, then verify success and proceed with orchestration. Steps without agents are handled directly by the orchestration workflow.
+**When executing steps**: For steps that delegate to agents, you MUST:
+1. **READ** the agent file from `.cortex/synapse/agents/{agent-name}.md`
+2. **EXECUTE** all execution steps from the agent file
+3. **VERIFY** success and proceed with orchestration
+
+Steps without agents are handled directly by the orchestration workflow.
 
 ## ⚠️ MANDATORY PRE-ACTION CHECKLIST
 
@@ -281,11 +286,14 @@ The following error patterns MUST be detected and fixed before commit. These are
 
 ### Step 7: Archive completed plans (delegate to `plan-archiver`)
 
-- **Agent**: Use `.cortex/synapse/agents/plan-archiver.md` for implementation details
+- **Agent**: **MANDATORY** - Read `.cortex/synapse/agents/plan-archiver.md` and execute ALL its execution steps
 - **Dependency**: Must run AFTER Step 5 (memory bank operations)
 - **CRITICAL**: If no completed plans are found, report "0 plans archived" but DO NOT skip this step
 - **BLOCK COMMIT**: If completed plans are found but not archived, or if link validation fails
-- **Workflow**: After agent completes, verify all plans archived and links updated before proceeding to Step 8
+- **Workflow**: 
+  1. **READ** `.cortex/synapse/agents/plan-archiver.md` agent file
+  2. **EXECUTE** all execution steps from the agent file (detect completed plans, archive them, update links, validate)
+  3. After agent completes, verify all plans archived and links updated before proceeding to Step 8
 
 ### Step 8: Validate archive locations (part of `plan-archiver`)
 
