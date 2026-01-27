@@ -37,6 +37,7 @@ When invoked:
 Key practices:
 
 - Use `execute_pre_commit_checks(checks=["type_check"])` MCP tool when available
+- **⚠️ IMPORTANT**: MCP tool may only check `src/` directory. Step 12.2 (Final Validation Gate) uses script which checks BOTH `src/` AND `tests/` - script results are AUTHORITATIVE and take precedence.
 - Auto-detect project language and type checker
 - Parse output to extract exact error and warning counts
 - Verify `results.type_check.status` = "passed"
@@ -47,6 +48,7 @@ Key practices:
 For each type check:
 
 - Run type checker on appropriate directories (src/ for Python, matches CI workflow)
+- **⚠️ NOTE**: MCP tool checks `src/` only. Script in Step 12.2 checks `src/` + `tests/` and is AUTHORITATIVE.
 - Parse output to extract exact counts (not just exit codes) - explicitly extract and verify error count = 0 and warning count = 0
 - **Fix ALL type errors and warnings** automatically:
   - Fix ALL type errors by correcting type annotations, imports, or code logic

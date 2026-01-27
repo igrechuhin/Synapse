@@ -125,6 +125,7 @@ The following error patterns MUST be detected and fixed before commit. These are
 - **Detection**: Parse type checker output for error count (e.g., Pyright for Python, TypeScript compiler for TypeScript)
 - **Action**: Fix all type errors, re-run type checker, verify zero errors
 - **Block Commit**: Yes - type errors will cause CI to fail
+- **⚠️ CRITICAL**: Step 2 uses MCP tool which may only check `src/`. Step 12.2 uses script which checks BOTH `src/` AND `tests/`. Script results are AUTHORITATIVE - if script finds errors that MCP tool missed, commit MUST be blocked.
 - **Note**: Only applicable if project uses a type system (Python with type hints, TypeScript, etc.)
 
 ### Test Failures
@@ -265,6 +266,7 @@ The following error patterns MUST be detected and fixed before commit. These are
 - **Dependency**: Must run AFTER Step 1.5 (markdown linting)
 - **Conditional**: Only execute if project uses a type system (Python with type hints, TypeScript, etc.)
 - **CRITICAL**: Must verify zero type errors AND zero warnings
+- **⚠️ IMPORTANT**: This step uses MCP tool which may only check `src/` directory. Step 12.2 (Final Validation Gate) uses the script which checks BOTH `src/` AND `tests/` - Step 12.2 is AUTHORITATIVE and takes precedence.
 - **BLOCK COMMIT**: If any type errors OR warnings remain
 - **Workflow**: After agent completes, verify zero errors and zero warnings before proceeding to Step 3
 - **Skip if**: Project does not use a type system
@@ -425,6 +427,12 @@ The original checks in Steps 0-4 are INVALIDATED by any subsequent code changes 
 
 **⚠️ ZERO ERRORS TOLERANCE**: This project has ZERO errors tolerance. ANY errors found in Step 12 (formatting, types, linting, quality) MUST block commit - NO EXCEPTIONS, even if errors are pre-existing or in files you didn't modify. You MUST explicitly parse error counts from output and verify they are ZERO before proceeding.
 
+**⚠️ AUTHORITATIVE CHECKS**: Step 12 uses scripts that check MORE directories than earlier MCP tool checks. For example:
+
+- **Type checking**: Step 2 MCP tool may only check `src/`, but Step 12.2 script checks BOTH `src/` AND `tests/`
+- **Script results take precedence**: If Step 12 script finds errors (even if Step 2 MCP tool passed), commit MUST be blocked
+- **NO DISCREPANCY ALLOWED**: If script finds errors that MCP tool missed, those errors MUST be fixed before commit
+
 ## ⚠️ MANDATORY: NO OUTPUT TRUNCATION IN STEP 12
 
 - **PROHIBITED**: NEVER use `| tail`, `| head`, `| grep`, or ANY output piping/truncation in Step 12 commands
@@ -464,6 +472,8 @@ The original checks in Steps 0-4 are INVALIDATED by any subsequent code changes 
 
 ### 12.2 Re-run Type Check (MANDATORY for typed projects)
 
+**⚠️ CRITICAL**: This step is AUTHORITATIVE and checks MORE directories than Step 2 (MCP tool). The script checks BOTH `src/` AND `tests/`, while the MCP tool in Step 2 may only check `src/`. ANY errors found here MUST block commit, regardless of Step 2 results.
+
 Run the language-specific type check script:
 
 ```bash
@@ -475,9 +485,15 @@ Run the language-specific type check script:
 - **MUST verify**: Output shows type check passed (e.g., "✅ All type checks passed")
 - **MUST verify**: Exit code is 0 (zero) - command must succeed
 - **MUST verify**: Output shows "0 errors" and "0 warnings" (or equivalent success message)
+- **⚠️ ABSOLUTE BLOCK**: If ANY type errors or warnings are reported (even if Step 2 MCP tool passed), STOP IMMEDIATELY - DO NOT proceed to commit
+- **⚠️ NO EXCEPTIONS**: Script errors take precedence over MCP tool results - if script finds errors, commit MUST be blocked
+- **⚠️ ZERO ERRORS TOLERANCE**: The project has ZERO errors tolerance - ANY errors (new or pre-existing, in src/ or tests/) MUST block commit
 - **BLOCK COMMIT** if ANY type errors or warnings are reported OR if exit code is non-zero
 - **BLOCK COMMIT** if output is truncated or unclear - re-run without truncation
+- **BLOCK COMMIT** if error count > 0 (even if errors are in test files or files you didn't modify)
 - **DO NOT rely on memory of earlier checks** - you MUST re-run and verify output NOW
+- **DO NOT dismiss errors as "pre-existing"** - ALL errors must be fixed before commit
+- **DO NOT dismiss errors because Step 2 passed** - Step 12.2 is AUTHORITATIVE and checks more directories
 - **Skip if**: Project does not use a type system
 
 ### 12.3 Re-run Linter Check (MANDATORY)
@@ -617,6 +633,7 @@ fix_markdown_lint(check_all_files=False, include_untracked_markdown=True)
 - [ ] Formatting re-run: **NO output truncation** - full output read and verified
 - [ ] Type check re-run: **0 errors, 0 warnings** confirmed in FULL output (if applicable)
 - [ ] Type check re-run: **NO output truncation** - full output read and verified
+- [ ] Type check re-run: **Script errors take precedence** - if script found errors that Step 2 MCP tool missed, commit MUST be blocked
 - [ ] Linter re-run: **0 violations** confirmed in FULL output (error count explicitly parsed and verified = 0)
 - [ ] Linter re-run: **NO output truncation** - full output read and verified
 - [ ] Linter re-run: **ZERO ERRORS TOLERANCE** - verified that error count = 0 (NO exceptions, even for pre-existing errors)
@@ -653,6 +670,7 @@ Before proceeding to commit creation, provide a validation summary confirming al
 - [ ] **Linter Check Validation**: Linter check = 0 errors (parsed from MCP tool response: `results.fix_errors.errors`, CRITICAL - catches non-fixable errors)
 - [ ] **Formatting Validation**: Formatter check = 0 violations (parsed from MCP tool response)
 - [ ] **Type Checking Validation**: Type checker = 0 type errors AND 0 warnings (parsed from MCP tool response, skip if not applicable)
+  - **⚠️ CRITICAL**: Step 12.2 script checks BOTH `src/` AND `tests/` - if script finds errors that Step 2 MCP tool missed, commit MUST be blocked
 - [ ] **Code Quality Validation**: File size = 0 violations, Function length = 0 violations (parsed from MCP tool response)
 - [ ] **Test Execution Validation**:
   - Test failures = 0 (parsed from test output)
@@ -933,9 +951,13 @@ Use this ordering when numbering results:
 #### **12. ⚠️ Final Validation Gate (MANDATORY)**
 
 - **Status**: Success/Failure (MUST be Success to proceed)
+- **⚠️ AUTHORITATIVE**: Step 12 scripts check MORE directories than earlier MCP tool checks (e.g., scripts check `src/` + `tests/`, while MCP tool may only check `src/`)
+- **⚠️ PRECEDENCE**: Script results take precedence - if script finds errors that MCP tool missed, commit MUST be blocked
 - **Formatting Fix Run**: Output of `.venv/bin/python .cortex/synapse/scripts/{language}/fix_formatting.py` (MUST run to format any new files)
 - **Formatting Check Re-run**: Output of `.venv/bin/python .cortex/synapse/scripts/{language}/check_formatting.py` (MUST show check passed)
 - **Type Check Re-run**: Output of `.venv/bin/python .cortex/synapse/scripts/{language}/check_types.py` (MUST show check passed, skip if not applicable)
+  - **⚠️ CRITICAL**: Script checks BOTH `src/` AND `tests/` - if script finds errors (even if Step 2 MCP tool passed), commit MUST be blocked
+  - **⚠️ NO EXCEPTIONS**: Script errors take precedence over MCP tool results
 - **Linter Re-run**: Output of `.venv/bin/python .cortex/synapse/scripts/{language}/check_linting.py` (MUST show check passed with 0 errors - ZERO ERRORS TOLERANCE, NO EXCEPTIONS)
 - **Test Naming Re-run**: Output of `.venv/bin/python .cortex/synapse/scripts/{language}/check_test_naming.py` (MUST show check passed)
 - **File Sizes Re-run**: Output of `.venv/bin/python .cortex/synapse/scripts/{language}/check_file_sizes.py` (MUST show 0 violations)
@@ -943,16 +965,19 @@ Use this ordering when numbering results:
 - **Output Verified**: Whether actual command output was parsed (not assumed)
 - **New Files Created Since Step 1**: List any new files created during steps 4-11 (especially test files for coverage)
 - **Code Changes Since Step 4**: List any code changes made during steps 5-11 that required re-verification
+- **Discrepancy Handling**: If Step 12 script finds errors that Step 2 MCP tool missed, document the discrepancy and BLOCK commit
 - **Validation Results**:
   - Formatting fix executed: Yes/No (MUST be Yes)
   - Formatting check passed: Yes/No (MUST be Yes)
   - Type check passed: Yes/No (MUST be Yes, or N/A if project doesn't use types)
+    - **⚠️ CRITICAL**: If script found errors that MCP tool missed, this MUST be No and commit MUST be blocked
   - Linter passed: Yes/No (MUST be Yes - error count explicitly parsed and verified = 0, ZERO ERRORS TOLERANCE, NO EXCEPTIONS even for pre-existing errors)
   - Test naming check passed: Yes/No (MUST be Yes)
   - File sizes check passed: Yes/No (MUST be Yes)
   - Function lengths check passed: Yes/No (MUST be Yes)
   - Output fully read: Yes/No (MUST be Yes)
-- **BLOCK COMMIT** if any check in Step 12 fails
+  - Script errors take precedence: Yes/No (MUST be Yes - if script finds errors, commit blocked regardless of MCP tool results)
+- **BLOCK COMMIT** if any check in Step 12 fails (including script errors that MCP tool missed)
 
 #### **13. Commit Creation**
 
