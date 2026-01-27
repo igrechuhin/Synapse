@@ -227,8 +227,9 @@ def main():
                         # additional safety. Note: We check severity first
                         # (above), but also track specific rules to ensure
                         # we catch all error types even if severity is
-                        # misreported
+                        # misreported or downgraded by a specific engine
                         error_rules = [
+                            "reportUnknownParameterType",  # Unknown parameter types
                             "reportArgumentType",  # Argument type mismatches
                             "reportUnknownVariableType",  # Unknown variable types
                             "reportUnknownMemberType",  # Unknown member types
@@ -317,9 +318,11 @@ def main():
 
                 # Check for specific error patterns (basedpyright/pyright
                 # format). These patterns catch various error types that
-                # might not be counted in summary
+                # might not be counted in summary or may not be surfaced
+                # as severity=\"error\" by all engines
                 error_patterns = [
                     r"error:\s",  # Standard error format
+                    r"reportUnknownParameterType",  # Unknown parameter type
                     r"reportArgumentType",  # Argument type errors
                     r"reportUnknownVariableType",  # Unknown variable type
                     r"reportUnknownMemberType",  # Unknown member type

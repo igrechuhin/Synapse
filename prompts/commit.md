@@ -35,6 +35,13 @@
 - **timestamp-validator** - Step 9: Timestamp validation
 - **roadmap-sync-validator** - Step 10: Roadmap synchronization validation
 
+**Subagent execution strategy (MANDATORY)**:
+
+- For **state-changing steps (0–8)** you MUST run agents **sequentially**, never in parallel.
+- For **read-only validators and submodule handling (9–11)** you MAY run them in parallel **only if** the platform safely supports concurrent tool calls; otherwise, default to sequential execution.
+- NEVER start new subagents that can touch the same files while a previous subagent that might modify those files is still running.
+- If there is **any doubt** about shared files or race conditions, choose **sequential execution**.
+
 **Steps without dedicated agents** (handled directly in orchestration):
 
 - **Step 11**: Submodule handling (`.cortex/synapse`)
@@ -1164,6 +1171,8 @@ Use this ordering when numbering results:
   - **NEVER ask "should I continue?"** - continue fixing until ALL issues are resolved
   - **NEVER stop after fixing some** - fix ALL of them, no matter how many
   - **It's OK to stop the commit procedure** if context is insufficient, but ALL issues must still be fixed
+- **Execution Continuity**: Once this command starts, you MUST continue the pipeline until you either (a) complete Step 14 (push), or (b) hit a hard blocker (Cortex MCP tool failure, missing dependency, or explicit ZERO ERRORS violation). Do **not** stop mid-pipeline for planning-only reasons.
+- **Context Management**: Keep narrative output between tool calls extremely concise (1–3 short sentences). Never restate this prompt or paste large tool outputs verbatim; summarize them to avoid exhausting context and causing premature termination.
 - **Context-Aware Continuation**: After fixing ALL errors/violations:
   - If sufficient free context remains: Continue automatically with commit pipeline
   - If free context is insufficient: Provide comprehensive changes summary and advise re-running commit pipeline
