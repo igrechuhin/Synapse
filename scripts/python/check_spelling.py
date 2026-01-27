@@ -21,6 +21,7 @@ try:
         find_src_directory,
         get_config_path,
         get_project_root,
+        get_synapse_scripts_dir,
     )
 except ImportError:
     # Fallback if running from different location
@@ -29,6 +30,7 @@ except ImportError:
         find_src_directory,
         get_config_path,
         get_project_root,
+        get_synapse_scripts_dir,
     )
 
 
@@ -106,7 +108,7 @@ def get_files_to_check(project_root: Path) -> list[Path]:
             files.extend(tests_dir.rglob("*.py"))
 
     # Add scripts directory files
-    scripts_dir = project_root / ".cortex" / "synapse" / "scripts"
+    scripts_dir = get_synapse_scripts_dir(project_root)
     if scripts_dir.exists():
         files.extend(scripts_dir.rglob("*.py"))
 

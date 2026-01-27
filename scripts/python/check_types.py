@@ -20,6 +20,7 @@ try:
         find_src_directory,
         get_config_path,
         get_project_root,
+        get_synapse_scripts_dir,
     )
 except ImportError:
     # Fallback if running from different location
@@ -28,6 +29,7 @@ except ImportError:
         find_src_directory,
         get_config_path,
         get_project_root,
+        get_synapse_scripts_dir,
     )
 
 
@@ -103,7 +105,7 @@ def get_directories_to_check(project_root: Path) -> list[str]:
             dirs.append(str(tests_dir))
 
     # Add scripts directory if it exists
-    scripts_dir = project_root / ".cortex" / "synapse" / "scripts"
+    scripts_dir = get_synapse_scripts_dir(project_root)
     if scripts_dir.exists():
         dirs.append(str(scripts_dir))
 
@@ -111,7 +113,12 @@ def get_directories_to_check(project_root: Path) -> list[str]:
 
 
 def main():
-    """Check type annotations."""
+    """Check type annotations.
+
+    ZERO TOLERANCE POLICY: This script enforces zero tolerance for type errors
+    in ALL checked directories, including .cortex/synapse/. ANY error or warning
+    will cause the script to exit with code 1, blocking commits and CI.
+    """
     # Get project root
     script_path = Path(__file__)
     project_root = get_project_root(script_path)
@@ -121,6 +128,26 @@ def main():
 
     # Get directories to check
     dirs_to_check = get_directories_to_check(project_root)
+
+    # Explicitly verify synapse directory is checked
+    synapse_scripts_dir = get_synapse_scripts_dir(project_root)
+    if synapse_scripts_dir.exists():
+        synapse_checked = any(
+            Path(dir_path).resolve() == synapse_scripts_dir.resolve()
+            or str(synapse_scripts_dir.resolve()) in str(Path(dir_path).resolve())
+            for dir_path in dirs_to_check
+        )
+
+        if not synapse_checked:
+            print(
+                f"ERROR: Synapse scripts directory exists but is not being checked: {synapse_scripts_dir}",
+                file=sys.stderr,
+            )
+            print(
+                f"Directories being checked: {dirs_to_check}",
+                file=sys.stderr,
+            )
+            sys.exit(1)
 
     if not dirs_to_check:
         print(
@@ -348,10 +375,24 @@ def main():
             print(all_output, file=sys.stderr)
 
     if all_errors:
+        # Check if errors are in synapse directory
+        synapse_errors = (
+            ".cortex/synapse" in all_output or "synapse/scripts" in all_output
+        )
+
         print(
             "\n❌ Type errors or warnings detected. Fix before committing.",
             file=sys.stderr,
         )
+        if synapse_errors:
+            print(
+                "\n⚠️  ZERO TOLERANCE: Type errors/warnings found in .cortex/synapse/ directory.",
+                file=sys.stderr,
+            )
+            print(
+                "ALL errors in synapse directory must be fixed - no exceptions for pre-existing errors.",
+                file=sys.stderr,
+            )
         sys.exit(1)
 
     print("✅ All type checks passed")

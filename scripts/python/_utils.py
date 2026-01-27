@@ -158,3 +158,27 @@ def get_config_path(key: str, default: Path | None = None) -> Path | None:
     if value is None:
         return default
     return Path(value)
+
+
+def get_synapse_scripts_dir(project_root: Path) -> Path:
+    """Get synapse scripts directory path.
+
+    Uses SCRIPTS_DIR environment variable if set, otherwise falls back to
+    the default .cortex/synapse/scripts location.
+
+    Args:
+        project_root: Path to project root
+
+    Returns:
+        Path to synapse scripts directory
+    """
+    scripts_dir = get_config_path("SCRIPTS_DIR")
+    if scripts_dir is None:
+        # Default to .cortex/synapse/scripts
+        return project_root / ".cortex" / "synapse" / "scripts"
+
+    # Make path relative to project root if not absolute
+    if not scripts_dir.is_absolute():
+        return project_root / scripts_dir
+
+    return scripts_dir

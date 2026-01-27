@@ -164,7 +164,7 @@ When executing steps, delegate to the appropriate agent for specialized analysis
 
 **ALWAYS provide a detailed report** with comprehensive analysis. Every review must include either improvement suggestions or code quality estimates (or both).
 
-**CRITICAL: Report File Location**
+## CRITICAL: Report File Location
 
 - All review reports MUST be saved to the reviews directory (configured in structure)
 - File naming: `code-review-report-YYYY-MM-DD.md` (e.g., `code-review-report-2026-01-15.md`)

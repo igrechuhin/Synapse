@@ -19,6 +19,7 @@ try:
         find_src_directory,
         get_config_path,
         get_project_root,
+        get_synapse_scripts_dir,
     )
 except ImportError:
     # Fallback if running from different location
@@ -27,6 +28,7 @@ except ImportError:
         find_src_directory,
         get_config_path,
         get_project_root,
+        get_synapse_scripts_dir,
     )
 
 
@@ -102,7 +104,7 @@ def get_directories_to_format(project_root: Path) -> list[str]:
             dirs.append(str(tests_dir))
 
     # Add scripts directory if it exists
-    scripts_dir = project_root / ".cortex" / "synapse" / "scripts"
+    scripts_dir = get_synapse_scripts_dir(project_root)
     if scripts_dir.exists():
         dirs.append(str(scripts_dir))
 

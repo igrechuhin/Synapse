@@ -408,7 +408,7 @@ The original checks in Steps 0-4 are INVALIDATED by any subsequent code changes 
 
 **CRITICAL RULE**: ANY code change OR new file creation after Step 1 REQUIRES re-running formatting AND verification before commit.
 
-**⚠️ MANDATORY: NO OUTPUT TRUNCATION IN STEP 12**
+## ⚠️ MANDATORY: NO OUTPUT TRUNCATION IN STEP 12
 
 - **PROHIBITED**: NEVER use `| tail`, `| head`, `| grep`, or ANY output piping/truncation in Step 12 commands
 - **REQUIRED**: Read and parse the FULL output of every command in Step 12
@@ -577,7 +577,7 @@ fix_markdown_lint(check_all_files=False, include_untracked_markdown=True)
 
 ### 12.7 Verification Requirements (CRITICAL)
 
-**⚠️ MANDATORY: NO OUTPUT TRUNCATION IN STEP 12**
+## ⚠️ MANDATORY: NO OUTPUT TRUNCATION IN STEP 12 (Verification)
 
 - **PROHIBITED**: NEVER use `| tail`, `| head`, or any output piping/truncation in Step 12 commands
 - **REQUIRED**: Read and parse the FULL output of every command in Step 12

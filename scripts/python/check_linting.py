@@ -21,6 +21,7 @@ try:
         find_src_directory,
         get_config_path,
         get_project_root,
+        get_synapse_scripts_dir,
     )
 except ImportError:
     # Fallback if running from different location
@@ -29,6 +30,7 @@ except ImportError:
         find_src_directory,
         get_config_path,
         get_project_root,
+        get_synapse_scripts_dir,
     )
 
 
@@ -107,16 +109,7 @@ def get_directories_to_check(project_root: Path) -> list[str]:
         dirs.append(str(tests_dir))
 
     # Add scripts directory if it exists (for synapse scripts self-check)
-    scripts_dir = get_config_path("SCRIPTS_DIR")
-    if scripts_dir is None:
-        # Default to .cortex/synapse/scripts
-        scripts_dir = project_root / ".cortex" / "synapse" / "scripts"
-    else:
-        if not scripts_dir.is_absolute():
-            scripts_dir = project_root / scripts_dir
-        else:
-            scripts_dir = Path(scripts_dir)
-
+    scripts_dir = get_synapse_scripts_dir(project_root)
     if scripts_dir.exists():
         dirs.append(str(scripts_dir))
 
@@ -126,7 +119,12 @@ def get_directories_to_check(project_root: Path) -> list[str]:
 
 
 def main():
-    """Check linting without auto-fixing."""
+    """Check linting without auto-fixing.
+
+    ZERO TOLERANCE POLICY: This script enforces zero tolerance for linting errors
+    in ALL checked directories, including .cortex/synapse/. ANY error will cause
+    the script to exit with code 1, blocking commits and CI.
+    """
     # Get project root
     script_path = Path(__file__)
     project_root = get_project_root(script_path)
@@ -136,6 +134,26 @@ def main():
 
     # Get directories to check
     dirs_to_check = get_directories_to_check(project_root)
+
+    # Explicitly verify synapse directory is checked
+    synapse_scripts_dir = get_synapse_scripts_dir(project_root)
+    if synapse_scripts_dir.exists():
+        synapse_checked = any(
+            Path(dir_path).resolve() == synapse_scripts_dir.resolve()
+            or str(synapse_scripts_dir.resolve()) in str(Path(dir_path).resolve())
+            for dir_path in dirs_to_check
+        )
+
+        if not synapse_checked:
+            print(
+                f"ERROR: Synapse scripts directory exists but is not being checked: {synapse_scripts_dir}",
+                file=sys.stderr,
+            )
+            print(
+                f"Directories being checked: {dirs_to_check}",
+                file=sys.stderr,
+            )
+            sys.exit(1)
 
     if not dirs_to_check:
         print(
@@ -164,10 +182,25 @@ def main():
             if result.stderr:
                 print(result.stderr, file=sys.stderr)
 
+            # Check if errors are in synapse directory
+            output_text = (result.stdout or "") + (result.stderr or "")
+            synapse_errors = (
+                ".cortex/synapse" in output_text or "synapse/scripts" in output_text
+            )
+
             print(
                 "\n❌ Linting errors detected. Fix these issues before committing.",
                 file=sys.stderr,
             )
+            if synapse_errors:
+                print(
+                    "\n⚠️  ZERO TOLERANCE: Linting errors found in .cortex/synapse/ directory.",
+                    file=sys.stderr,
+                )
+                print(
+                    "ALL errors in synapse directory must be fixed - no exceptions for pre-existing errors.",
+                    file=sys.stderr,
+                )
             print(
                 "Note: Some errors cannot be auto-fixed and must be manually resolved.",
                 file=sys.stderr,
