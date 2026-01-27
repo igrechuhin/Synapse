@@ -34,7 +34,8 @@ MAX_LINES = get_config_int("MAX_FUNCTION_LINES", 30)
 def count_logical_lines(
     node: ast.FunctionDef | ast.AsyncFunctionDef, source_lines: list[str]
 ) -> int:
-    """Count logical lines in a function (excluding docstrings, comments, blank lines)."""
+    """Count logical lines in a function (excluding docstrings, comments,
+    blank lines)."""
     if node.end_lineno is None:
         return 0
 
@@ -146,7 +147,8 @@ def main():
         except ValueError:
             relative_path = file_path
         print(
-            f"{relative_path}:{start_line} {func_name}() - {logical_lines} lines (excess: {excess})"
+            f"{relative_path}:{start_line} {func_name}() - "
+            f"{logical_lines} lines (excess: {excess})"
         )
 
     return len(all_violations)

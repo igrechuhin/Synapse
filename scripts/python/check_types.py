@@ -140,7 +140,8 @@ def main():
 
         if not synapse_checked:
             print(
-                f"ERROR: Synapse scripts directory exists but is not being checked: {synapse_scripts_dir}",
+                f"ERROR: Synapse scripts directory exists but is not "
+                f"being checked: {synapse_scripts_dir}",
                 file=sys.stderr,
             )
             print(
@@ -157,17 +158,20 @@ def main():
         print(f"Project root: {project_root}", file=sys.stderr)
         sys.exit(0)  # Not an error, just nothing to check
 
-    # Run type checker on each directory separately to avoid config exclusion issues
-    # This ensures tests and scripts are checked even if pyrightconfig.json excludes them
+    # Run type checker on each directory separately to avoid config
+    # exclusion issues. This ensures tests and scripts are checked even
+    # if pyrightconfig.json excludes them
     all_errors = False
     all_output = ""
 
     for dir_to_check in dirs_to_check:
         # Run type checker on this directory
         # Pyright automatically finds pyrightconfig.json in project root
-        # Even when checking excluded directories, the config settings (like strict type checks) still apply
-        # We explicitly check the directory to bypass the exclude list, but strict settings are still enforced
-        # Try JSON output first, fall back to text if not supported
+        # Even when checking excluded directories, the config settings
+        # (like strict type checks) still apply. We explicitly check the
+        # directory to bypass the exclude list, but strict settings are
+        # still enforced. Try JSON output first, fall back to text if
+        # not supported
         has_errors = False
         error_count = 0
         warning_count = 0
@@ -179,8 +183,9 @@ def main():
         config_file = project_root / "pyrightconfig.json"
         cmd_base = type_checker_cmd.copy()
         if config_file.exists():
-            # Pyright automatically finds config, but we can explicitly verify it's being used
-            # by checking that the config exists and pyright will use it
+            # Pyright automatically finds config, but we can explicitly
+            # verify it's being used by checking that the config exists
+            # and pyright will use it
             pass  # Pyright finds config automatically from project root
 
         # First, try with JSON output
@@ -206,8 +211,9 @@ def main():
                     for diag in diagnostics:
                         severity = diag.get("severity", "").lower()
                         rule = diag.get("rule", "")
-                        # Count errors (severity "error") and warnings (severity "warning")
-                        # This catches ALL errors regardless of rule name
+                        # Count errors (severity "error") and warnings
+                        # (severity "warning"). This catches ALL errors
+                        # regardless of rule name
                         if severity == "error":
                             error_count += 1
                             has_errors = True
@@ -215,21 +221,26 @@ def main():
                             warning_count += 1
                             has_errors = True
 
-                        # Also check for specific error rule types for additional safety
-                        # Note: We check severity first (above), but also track specific rules
-                        # to ensure we catch all error types even if severity is misreported
+                        # Also check for specific error rule types for
+                        # additional safety. Note: We check severity first
+                        # (above), but also track specific rules to ensure
+                        # we catch all error types even if severity is
+                        # misreported
                         error_rules = [
                             "reportArgumentType",  # Argument type mismatches
                             "reportUnknownVariableType",  # Unknown variable types
                             "reportUnknownMemberType",  # Unknown member types
                             "reportAttributeAccessIssue",  # Attribute access issues
                             "reportAssignmentType",  # Assignment type errors
-                            "reportIndexIssue",  # Index access issues (e.g., indexing non-indexable types)
+                            "reportIndexIssue",  # Index access issues
+                            # (e.g., indexing non-indexable types)
                             "reportOperatorIssue",  # Operator issues
                             "reportGeneralTypeIssues",  # General type issues
                             "reportUnknownArgumentType",  # Unknown argument types
-                            "reportOptionalSubscript",  # Optional subscript errors (e.g., indexing None)
-                            "reportCallIssue",  # Call issues (e.g., no matching overloads)
+                            "reportOptionalSubscript",  # Optional subscript
+                            # errors (e.g., indexing None)
+                            "reportCallIssue",  # Call issues
+                            # (e.g., no matching overloads)
                         ]
                         if rule in error_rules:
                             has_errors = True
@@ -302,8 +313,9 @@ def main():
                 error_count = int(error_match.group(1)) if error_match else 0
                 warning_count = int(warning_match.group(1)) if warning_match else 0
 
-                # Check for specific error patterns (basedpyright/pyright format)
-                # These patterns catch various error types that might not be counted in summary
+                # Check for specific error patterns (basedpyright/pyright
+                # format). These patterns catch various error types that
+                # might not be counted in summary
                 error_patterns = [
                     r"error:\s",  # Standard error format
                     r"reportArgumentType",  # Argument type errors
@@ -315,8 +327,10 @@ def main():
                     r"reportOperatorIssue",  # Operator issues
                     r"reportGeneralTypeIssues",  # General type issues
                     r"reportUnknownArgumentType",  # Unknown argument type
-                    r"reportOptionalSubscript",  # Optional subscript errors (e.g., indexing None)
-                    r"reportCallIssue",  # Call issues (e.g., no matching overloads)
+                    r"reportOptionalSubscript",  # Optional subscript
+                    # errors (e.g., indexing None)
+                    r"reportCallIssue",  # Call issues
+                    # (e.g., no matching overloads)
                 ]
 
                 has_error_pattern = any(
@@ -347,7 +361,8 @@ def main():
                     file=sys.stderr,
                 )
                 print(
-                    "Install the type checker or ensure it's in your PATH or .venv/bin/",
+                    "Install the type checker or ensure it's in your PATH "
+                    "or .venv/bin/",
                     file=sys.stderr,
                 )
                 sys.exit(1)
@@ -386,11 +401,13 @@ def main():
         )
         if synapse_errors:
             print(
-                "\n⚠️  ZERO TOLERANCE: Type errors/warnings found in .cortex/synapse/ directory.",
+                "\n⚠️  ZERO TOLERANCE: Type errors/warnings found in "
+                ".cortex/synapse/ directory.",
                 file=sys.stderr,
             )
             print(
-                "ALL errors in synapse directory must be fixed - no exceptions for pre-existing errors.",
+                "ALL errors in synapse directory must be fixed - "
+                "no exceptions for pre-existing errors.",
                 file=sys.stderr,
             )
         sys.exit(1)

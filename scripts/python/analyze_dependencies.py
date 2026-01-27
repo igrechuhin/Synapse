@@ -38,8 +38,8 @@ def detect_package_name(src_dir: Path) -> str:
         if item.is_dir() and not item.name.startswith("_"):
             return item.name
         elif item.is_file() and item.suffix == ".py" and item.stem != "__init__":
-            # If there are .py files directly in src/, package name might be project name
-            # Return empty string to indicate flat structure
+            # If there are .py files directly in src/, package name might be
+            # project name. Return empty string to indicate flat structure
             return ""
 
     # Fallback: use src directory's parent name
@@ -222,7 +222,8 @@ def main():
 
     if not package_name:
         print(
-            "Warning: Could not detect package name. Set PACKAGE_NAME environment variable.",
+            "Warning: Could not detect package name. "
+            "Set PACKAGE_NAME environment variable.",
             file=sys.stderr,
         )
         print("Dependency analysis may be incomplete.", file=sys.stderr)

@@ -75,7 +75,10 @@ class PerformanceAnalyzer(ast.NodeVisitor):
                     severity="high",
                     line=node.lineno,
                     function=self.function_name,
-                    message=f"Nested loop detected (depth {self.loop_depth}) - potential O(n²) or worse",
+                    message=(
+                        f"Nested loop detected (depth {self.loop_depth}) - "
+                        "potential O(n²) or worse"
+                    ),
                 )
             )
 
@@ -92,7 +95,10 @@ class PerformanceAnalyzer(ast.NodeVisitor):
                     severity="high",
                     line=node.lineno,
                     function=self.function_name,
-                    message=f"Nested while loop (depth {self.loop_depth}) - potential O(n²) or worse",
+                    message=(
+                        f"Nested while loop (depth {self.loop_depth}) - "
+                        "potential O(n²) or worse"
+                    ),
                 )
             )
 
@@ -138,7 +144,10 @@ class PerformanceAnalyzer(ast.NodeVisitor):
                             severity="high",
                             line=node.lineno,
                             function=self.function_name,
-                            message=f"File I/O ({node.func.attr}) in loop - major performance impact",
+                            message=(
+                                f"File I/O ({node.func.attr}) in loop - "
+                                "major performance impact"
+                            ),
                         )
                     )
 
@@ -244,7 +253,8 @@ def main():
                                 "low": "🟢",
                             }[severity]
                             print(
-                                f"  {severity_icon} Line {issue.line:4d} [{issue.function or 'module'}]: {issue.message}"
+                                f"  {severity_icon} Line {issue.line:4d} "
+                                f"[{issue.function or 'module'}]: {issue.message}"
                             )
     else:
         # Analyze all Python files
@@ -281,7 +291,8 @@ def main():
                                 "low": "🟢",
                             }[severity]
                             print(
-                                f"  {severity_icon} Line {issue.line:4d} [{issue.function or 'module'}]: {issue.message}"
+                                f"  {severity_icon} Line {issue.line:4d} "
+                                f"[{issue.function or 'module'}]: {issue.message}"
                             )
 
     # Summary

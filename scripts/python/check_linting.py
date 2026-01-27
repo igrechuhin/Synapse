@@ -113,8 +113,9 @@ def get_directories_to_check(project_root: Path) -> list[str]:
     if scripts_dir.exists():
         dirs.append(str(scripts_dir))
 
-    # Note: When used in commit pipeline, this checks src/ and tests/ (matching CI main step)
-    # When used in CI synapse step, this also checks synapse scripts themselves
+    # Note: When used in commit pipeline, this checks src/ and tests/
+    # (matching CI main step). When used in CI synapse step, this also
+    # checks synapse scripts themselves
     return dirs
 
 
@@ -146,7 +147,8 @@ def main():
 
         if not synapse_checked:
             print(
-                f"ERROR: Synapse scripts directory exists but is not being checked: {synapse_scripts_dir}",
+                f"ERROR: Synapse scripts directory exists but is not "
+                f"being checked: {synapse_scripts_dir}",
                 file=sys.stderr,
             )
             print(
@@ -194,11 +196,13 @@ def main():
             )
             if synapse_errors:
                 print(
-                    "\n⚠️  ZERO TOLERANCE: Linting errors found in .cortex/synapse/ directory.",
+                    "\n⚠️  ZERO TOLERANCE: Linting errors found in "
+                    ".cortex/synapse/ directory.",
                     file=sys.stderr,
                 )
                 print(
-                    "ALL errors in synapse directory must be fixed - no exceptions for pre-existing errors.",
+                    "ALL errors in synapse directory must be fixed - "
+                    "no exceptions for pre-existing errors.",
                     file=sys.stderr,
                 )
             print(
