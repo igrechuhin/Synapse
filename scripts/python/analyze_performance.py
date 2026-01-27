@@ -253,8 +253,10 @@ def main():
                                 "low": "🟢",
                             }[severity]
                             print(
-                                f"  {severity_icon} Line {issue.line:4d} "
-                                f"[{issue.function or 'module'}]: {issue.message}"
+                                (
+                                    f"  {severity_icon} Line {issue.line:4d} "
+                                    f"[{issue.function or 'module'}]: {issue.message}"
+                                )
                             )
     else:
         # Analyze all Python files
@@ -291,8 +293,10 @@ def main():
                                 "low": "🟢",
                             }[severity]
                             print(
-                                f"  {severity_icon} Line {issue.line:4d} "
-                                f"[{issue.function or 'module'}]: {issue.message}"
+                                (
+                                    f"  {severity_icon} Line {issue.line:4d} "
+                                    f"[{issue.function or 'module'}]: {issue.message}"
+                                )
                             )
 
     # Summary

@@ -210,16 +210,20 @@ def main():
                     rest = func_name[4:]
                     suggested = f"test_{rest}"
                     print(
-                        f"    Line {line_num}: {func_name}() -> "
-                        f"should be {suggested}()",
+                        (
+                            f"    Line {line_num}: {func_name}() -> "
+                            + f"should be {suggested}()"
+                        ),
                         file=sys.stderr,
                     )
             print(file=sys.stderr)
 
         total_violations = len(all_violations)
         print(
-            f"Total violations: {total_violations} test function(s) "
-            "with invalid naming",
+            (
+                f"Total violations: {total_violations} test function(s) "
+                + "with invalid naming"
+            ),
             file=sys.stderr,
         )
         sys.exit(1)

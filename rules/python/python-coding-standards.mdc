@@ -86,6 +86,7 @@ alwaysApply: false
 - **isort**: Black-compatible settings - MANDATORY
 - **No Manual Formatting**: Never adjust Black-formatted code
 - **Quotes**: Double quotes for strings, single for character constants
+- **Implicit String Concatenation**: FORBIDDEN - never rely on adjacent string literals (including f-strings); use a single f-string or explicit `+`/`str.join()` instead (Pyright `reportImplicitStringConcatenation` is configured as `error`)
 - **Trailing Commas**: Required in multi-line structures
 
 ### Import Organization

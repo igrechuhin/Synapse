@@ -140,8 +140,10 @@ def main():
 
         if not synapse_checked:
             print(
-                f"ERROR: Synapse scripts directory exists but is not "
-                f"being checked: {synapse_scripts_dir}",
+                (
+                    f"ERROR: Synapse scripts directory exists but is not "
+                    f"being checked: {synapse_scripts_dir}"
+                ),
                 file=sys.stderr,
             )
             print(
@@ -361,8 +363,10 @@ def main():
                     file=sys.stderr,
                 )
                 print(
-                    "Install the type checker or ensure it's in your PATH "
-                    "or .venv/bin/",
+                    (
+                        "Install the type checker or ensure it's in your PATH "
+                        + "or .venv/bin/"
+                    ),
                     file=sys.stderr,
                 )
                 sys.exit(1)
@@ -401,13 +405,17 @@ def main():
         )
         if synapse_errors:
             print(
-                "\n⚠️  ZERO TOLERANCE: Type errors/warnings found in "
-                ".cortex/synapse/ directory.",
+                (
+                    "\n⚠️  ZERO TOLERANCE: Type errors/warnings found in "
+                    + ".cortex/synapse/ directory."
+                ),
                 file=sys.stderr,
             )
             print(
-                "ALL errors in synapse directory must be fixed - "
-                "no exceptions for pre-existing errors.",
+                (
+                    "ALL errors in synapse directory must be fixed - "
+                    + "no exceptions for pre-existing errors."
+                ),
                 file=sys.stderr,
             )
         sys.exit(1)

@@ -128,8 +128,10 @@ def main():
                 relative_path = path
             excess: int = lines - MAX_LINES
             print(
-                f"  {relative_path}: {lines} lines "
-                f"(max: {MAX_LINES}, excess: {excess})",
+                (
+                    f"  {relative_path}: {lines} lines "
+                    + f"(max: {MAX_LINES}, excess: {excess})"
+                ),
                 file=sys.stderr,
             )
         print(file=sys.stderr)

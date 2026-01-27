@@ -4,6 +4,8 @@
 
 **CRITICAL**: This command is ONLY executed when explicitly invoked by the user (e.g., `/commit` or user explicitly requests commit). Invoking this command IS an explicit commit request per `no-auto-commit.mdc` rule. Once invoked, execute all steps AUTOMATICALLY without asking for additional permission or confirmation.
 
+**⚠️ ZERO ERRORS TOLERANCE (MANDATORY)**: This project has ZERO errors tolerance. ANY errors found in ANY check (formatting, types, linting, quality, tests) MUST block commit - NO EXCEPTIONS. Pre-existing errors are NOT acceptable - they MUST be fixed before commit. You MUST explicitly parse error counts from output and verify they are ZERO before proceeding to commit. DO NOT dismiss errors as "pre-existing" or "in files I didn't modify" - ALL errors must be fixed.
+
 **Tooling Note**: Use standard Cursor tools (`Read`, `ApplyPatch`, `Write`, `LS`, `Glob`, `Grep`) by default; MCP filesystem tools are optional fallbacks only when standard tools are unavailable or explicitly requested. **Use Cortex MCP tools for memory bank operations** (e.g., `manage_file()`, `get_memory_bank_stats()`, `validate()`, `check_structure_health()`).
 
 **Pre-Commit Checks**: Use the `execute_pre_commit_checks()` MCP tool for all pre-commit operations (fix errors, format, type check, quality, tests). This tool provides:
@@ -172,9 +174,12 @@ The following error patterns MUST be detected and fixed before commit. These are
 ### Linter Errors
 
 - **Pattern**: Linter reports errors (not warnings)
-- **Detection**: Parse linter output for error count
+- **Detection**: Parse linter output for error count - MUST explicitly extract and verify error count = 0
 - **Action**: Fix linting errors, re-run linter, verify zero errors
 - **Block Commit**: Yes - linter errors will cause CI to fail
+- **⚠️ ZERO ERRORS TOLERANCE**: The project has ZERO errors tolerance - ANY errors (new or pre-existing) MUST block commit
+- **⚠️ NO EXCEPTIONS**: Pre-existing linting errors are NOT acceptable - they MUST be fixed before commit
+- **⚠️ ABSOLUTE BLOCK**: If error count > 0 (even if errors are in files you didn't modify), stop immediately - DO NOT proceed to commit
 - **Note**: **Use `execute_pre_commit_checks()` MCP tool for all pre-commit operations** - scripts are fallbacks only if MCP tool is unavailable
 - **Fallback Script**: `.venv/bin/python .cortex/synapse/scripts/{language}/check_linting.py`
 
@@ -335,7 +340,10 @@ The following error patterns MUST be detected and fixed before commit. These are
 - **Dependency**: Must run AFTER Steps 4-11 (any code changes may have been made)
 - **CRITICAL**: This step exists because Steps 4-11 may create new files or make code changes that weren't validated
 - **Workflow**: Re-run formatting, type checking, linting, and quality checks to catch any new issues
-- **BLOCK COMMIT**: If any checks fail in this step
+- **⚠️ ZERO ERRORS TOLERANCE**: The project has ZERO errors tolerance - ANY errors (new or pre-existing) MUST block commit
+- **⚠️ NO EXCEPTIONS**: Pre-existing errors are NOT acceptable - they MUST be fixed before commit
+- **⚠️ ABSOLUTE BLOCK**: If ANY errors are found in ANY check (formatting, types, linting, quality), stop immediately - DO NOT proceed to commit
+- **BLOCK COMMIT**: If any checks fail in this step OR if any error count > 0
 - **See detailed instructions below** for specific validation steps
 
 ### Step 13: Commit creation
@@ -408,6 +416,8 @@ The original checks in Steps 0-4 are INVALIDATED by any subsequent code changes 
 
 **CRITICAL RULE**: ANY code change OR new file creation after Step 1 REQUIRES re-running formatting AND verification before commit.
 
+**⚠️ ZERO ERRORS TOLERANCE**: This project has ZERO errors tolerance. ANY errors found in Step 12 (formatting, types, linting, quality) MUST block commit - NO EXCEPTIONS, even if errors are pre-existing or in files you didn't modify. You MUST explicitly parse error counts from output and verify they are ZERO before proceeding.
+
 ## ⚠️ MANDATORY: NO OUTPUT TRUNCATION IN STEP 12
 
 - **PROHIBITED**: NEVER use `| tail`, `| head`, `| grep`, or ANY output piping/truncation in Step 12 commands
@@ -476,9 +486,15 @@ Run the language-specific linter check script:
 - **MUST verify**: Output shows linter check passed (e.g., "✅ All linting checks passed")
 - **MUST verify**: Exit code is 0 (zero) - command must succeed
 - **MUST verify**: No error messages or linting violations in output
+- **MUST verify**: Error count parsed from output = 0 (ZERO) - explicitly extract and verify error count
+- **⚠️ ABSOLUTE BLOCK**: If ANY linter violations are reported (even 1 error), stop immediately - DO NOT proceed to commit
+- **⚠️ NO EXCEPTIONS**: Pre-existing linting errors are NOT acceptable - they MUST be fixed before commit
+- **⚠️ ZERO ERRORS TOLERANCE**: The project has ZERO errors tolerance - ANY errors (new or pre-existing) MUST block commit
 - **BLOCK COMMIT** if ANY linter violations are reported OR if exit code is non-zero
 - **BLOCK COMMIT** if output is truncated or unclear - re-run without truncation
+- **BLOCK COMMIT** if error count > 0 (even if errors are in files you didn't modify)
 - **DO NOT rely on memory of earlier checks** - you MUST re-run and verify output NOW
+- **DO NOT dismiss errors as "pre-existing"** - ALL errors must be fixed before commit
 
 ### 12.4 Re-run Test Naming Check (MANDATORY)
 
@@ -594,8 +610,9 @@ fix_markdown_lint(check_all_files=False, include_untracked_markdown=True)
 - [ ] Formatting re-run: **NO output truncation** - full output read and verified
 - [ ] Type check re-run: **0 errors, 0 warnings** confirmed in FULL output (if applicable)
 - [ ] Type check re-run: **NO output truncation** - full output read and verified
-- [ ] Linter re-run: **0 violations** confirmed in FULL output
+- [ ] Linter re-run: **0 violations** confirmed in FULL output (error count explicitly parsed and verified = 0)
 - [ ] Linter re-run: **NO output truncation** - full output read and verified
+- [ ] Linter re-run: **ZERO ERRORS TOLERANCE** - verified that error count = 0 (NO exceptions, even for pre-existing errors)
 - [ ] **Tests re-run**: `results.tests.success` = true AND `results.tests.coverage` ≥ 0.90 confirmed (MANDATORY)
 - [ ] **Coverage validation**: `results.tests.coverage` ≥ 0.90 (parsed as float, MANDATORY)
 - [ ] File sizes re-run: **0 violations** confirmed in FULL output
@@ -912,7 +929,7 @@ Use this ordering when numbering results:
 - **Formatting Fix Run**: Output of `.venv/bin/python .cortex/synapse/scripts/{language}/fix_formatting.py` (MUST run to format any new files)
 - **Formatting Check Re-run**: Output of `.venv/bin/python .cortex/synapse/scripts/{language}/check_formatting.py` (MUST show check passed)
 - **Type Check Re-run**: Output of `.venv/bin/python .cortex/synapse/scripts/{language}/check_types.py` (MUST show check passed, skip if not applicable)
-- **Linter Re-run**: Output of `.venv/bin/python .cortex/synapse/scripts/{language}/check_linting.py` (MUST show check passed)
+- **Linter Re-run**: Output of `.venv/bin/python .cortex/synapse/scripts/{language}/check_linting.py` (MUST show check passed with 0 errors - ZERO ERRORS TOLERANCE, NO EXCEPTIONS)
 - **Test Naming Re-run**: Output of `.venv/bin/python .cortex/synapse/scripts/{language}/check_test_naming.py` (MUST show check passed)
 - **File Sizes Re-run**: Output of `.venv/bin/python .cortex/synapse/scripts/{language}/check_file_sizes.py` (MUST show 0 violations)
 - **Function Lengths Re-run**: Output of `.venv/bin/python .cortex/synapse/scripts/{language}/check_function_lengths.py` (MUST show 0 violations)
@@ -923,7 +940,7 @@ Use this ordering when numbering results:
   - Formatting fix executed: Yes/No (MUST be Yes)
   - Formatting check passed: Yes/No (MUST be Yes)
   - Type check passed: Yes/No (MUST be Yes, or N/A if project doesn't use types)
-  - Linter passed: Yes/No (MUST be Yes)
+  - Linter passed: Yes/No (MUST be Yes - error count explicitly parsed and verified = 0, ZERO ERRORS TOLERANCE, NO EXCEPTIONS even for pre-existing errors)
   - Test naming check passed: Yes/No (MUST be Yes)
   - File sizes check passed: Yes/No (MUST be Yes)
   - Function lengths check passed: Yes/No (MUST be Yes)
@@ -1190,8 +1207,11 @@ Use this ordering when numbering results:
 
 ## Success Criteria
 
+**⚠️ ZERO ERRORS TOLERANCE**: ALL checks below MUST show ZERO errors - NO EXCEPTIONS, even for pre-existing errors or errors in files you didn't modify.
+
 - ✅ All compiler errors and warnings fixed (fix-errors step passes)
 - ✅ **VALIDATION**: Zero errors AND zero warnings confirmed via type checker (if applicable) and linter re-checks after fix-errors
+- ✅ **ZERO ERRORS TOLERANCE**: Error counts explicitly parsed and verified = 0 for ALL checks (formatting, types, linting, quality, tests)
 - ✅ All type errors and warnings resolved (if applicable)
 - ✅ **VALIDATION**: Type checker reports zero type errors AND zero warnings (parsed from output, skip if not applicable)
 - ✅ All formatting issues fixed

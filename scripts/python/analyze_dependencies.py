@@ -222,8 +222,10 @@ def main():
 
     if not package_name:
         print(
-            "Warning: Could not detect package name. "
-            "Set PACKAGE_NAME environment variable.",
+            (
+                "Warning: Could not detect package name. "
+                + "Set PACKAGE_NAME environment variable."
+            ),
             file=sys.stderr,
         )
         print("Dependency analysis may be incomplete.", file=sys.stderr)

@@ -85,16 +85,16 @@ for item in items:
 
 ```python
 # ✅ REQUIRED
-lines = ['<table>']
+lines = ["<table>"]
 for row in rows:
-    cells = [f'<td>{value}</td>' for value in row.values()]
-    lines.append(f'<tr>{"".join(cells)}</tr>')
-return '\n'.join(lines)
+    cells = [f"<td>{value}</td>" for value in row.values()]
+    lines.append(f"<tr>{''.join(cells)}</tr>")
+return "\n".join(lines)
 
 # ❌ PROHIBITED
-result = '<table>'
+result = "<table>"
 for row in rows:
-    result += '<tr>'  # Creates new string each time
+    result += "<tr>"  # Creates new string each time
 ```
 
 ## Database Query Optimization (ENFORCED)

@@ -140,8 +140,10 @@ def main():
 
         if not synapse_checked:
             print(
-                f"ERROR: Synapse scripts directory exists but is not "
-                f"being checked: {synapse_scripts_dir}",
+                (
+                    f"ERROR: Synapse scripts directory exists but is not "
+                    f"being checked: {synapse_scripts_dir}"
+                ),
                 file=sys.stderr,
             )
             print(
@@ -189,13 +191,17 @@ def main():
             )
             if synapse_errors:
                 print(
-                    "\n⚠️  ZERO TOLERANCE: Formatting errors found in "
-                    ".cortex/synapse/ directory.",
+                    (
+                        "\n⚠️  ZERO TOLERANCE: Formatting errors found in "
+                        + ".cortex/synapse/ directory."
+                    ),
                     file=sys.stderr,
                 )
                 print(
-                    "ALL errors in synapse directory must be fixed - "
-                    "no exceptions for pre-existing errors.",
+                    (
+                        "ALL errors in synapse directory must be fixed - "
+                        + "no exceptions for pre-existing errors."
+                    ),
                     file=sys.stderr,
                 )
             sys.exit(1)
