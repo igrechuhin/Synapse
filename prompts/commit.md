@@ -553,16 +553,17 @@ The original checks in Steps 0-4 are INVALIDATED by any subsequent code changes 
 
 **Step 12.1.1 - Run formatting FIX** (always run this, not just on failure):
 
+```bash
 .venv/bin/python .cortex/synapse/scripts/{language}/fix_formatting.py
-
 ```
 
 **⚠️ CRITICAL**: Do NOT run check_formatting.py in parallel - wait for fix to complete first
 
 **Step 12.1.2 - Run formatting CHECK** to verify (MUST run AFTER Step 12.1.1 completes):
 
+```bash
 .venv/bin/python .cortex/synapse/scripts/{language}/check_formatting.py
-
+```
 
 **⚠️ CRITICAL**: Do NOT truncate output - read FULL output to verify check passed
 

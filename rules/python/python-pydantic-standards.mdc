@@ -469,10 +469,10 @@ async def test_manage_file_success():
 2. **Always use `Annotated` style** for complex field definitions (preferred)
 3. **Always use `@classmethod`** with `@field_validator`
 4. **Always specify `mode`** in validators (`'before'` or `'after'`)
-5Always use `from_attributes=True`** ORM integration
-6Always use `default_factory`** for mutable defaults
-7Always return `Self`**m `@model_validator(mode='after')`
-8Always use Pydantic models** for testing JSON responses from MCP tools
+5. **Always use `from_attributes=True`** ORM integration
+6. **Always use `default_factory`** for mutable defaults
+7. **Always return `Self`** in `@model_validator(mode='after')`
+8. **Always use Pydantic models** for testing JSON responses from MCP tools
 
 ## Enforcement
 
