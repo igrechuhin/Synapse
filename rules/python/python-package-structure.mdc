@@ -11,7 +11,7 @@ alwaysApply: false
 
 ### Standard Project Structure
 
-```
+```text
 my_project/
 ├── pyproject.toml              # PEP 621 compliant
 ├── src/                        # Source code directory

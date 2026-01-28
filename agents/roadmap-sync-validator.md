@@ -1,4 +1,3 @@
-
 ---
 name: roadmap-sync-validator
 

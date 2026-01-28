@@ -1,4 +1,3 @@
-
 ---
 name: memory-bank-updater
 

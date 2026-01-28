@@ -1,4 +1,3 @@
-
 ---
 name: link-validator
 

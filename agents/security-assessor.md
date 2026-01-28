@@ -1,4 +1,3 @@
-
 ---
 name: security-assessor
 

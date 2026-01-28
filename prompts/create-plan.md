@@ -27,6 +27,11 @@
 - **plan-creator** - Creates the development plan from description
 - **memory-bank-updater** - Updates roadmap.md with new plan entry
 
+**Existing Plan Reuse (CRITICAL)**: Before creating a brand-new plan, you MUST check whether a same/similar plan already exists.
+
+- If a similar plan already exists, you MUST **enrich and reprioritize the existing plan**, not create a duplicate.
+- Only create a new plan when there is no clearly-related existing plan.
+
 When executing steps, delegate to the appropriate agent for specialized work, then continue with orchestration.
 
 ## ⚠️ MANDATORY PRE-ACTION CHECKLIST
@@ -89,6 +94,26 @@ When executing steps, delegate to the appropriate agent for specialized work, th
    - Architectural patterns and constraints
    - Recent progress and achievements
 
+### Step 2.5: Check for Existing Related Plans (Reuse vs New)
+
+1. **Discover existing plans**:
+   - Use `get_structure_info()` paths (`structure_info.paths.plans`) to locate the plans directory.
+   - Use standard tools (`LS`, `Read`, `Grep`) to inspect existing plan files and their titles.
+   - Cross-check `roadmap.md` entries (via `manage_file(read)`) for plan titles and short descriptions.
+2. **Identify same/similar plans**:
+   - Compare the user description (title, keywords, problem domain) against:
+     - Plan filenames (e.g., `phase-57-fix-markdown-lint-timeout.md`)
+     - Plan titles and goals inside existing plan files
+     - Roadmap entries that describe similar problems/features.
+   - Treat a plan as **similar** if:
+     - The main goal/problem matches, or
+     - The same component/tool/phase is being improved in a related way.
+3. **Decide reuse vs new**:
+   - If one or more strong matches exist, select the **closest** existing plan as the **target plan**.
+   - If no sufficiently similar plan exists, proceed with creating a **new** plan.
+4. **Record decision**:
+   - Keep track of whether you are **enriching an existing plan** (with its path) or **creating a new plan**. This decision controls later steps.
+
 ### Step 3: Check for Sequential-Thinking MCP
 
 1. **List available MCP resources** to check if sequential-thinking MCP is available
@@ -121,7 +146,7 @@ When executing steps, delegate to the appropriate agent for specialized work, th
 3. **Wait for user responses** before proceeding to plan creation
 4. **If no clarification is needed**, proceed directly to plan creation
 
-### Step 5: Create the Plan - **Delegate to `plan-creator` agent**
+### Step 5: Create or Enrich the Plan - **Delegate to `plan-creator` agent**
 
 **Use the `plan-creator` agent from `.cortex/synapse/agents/plan-creator.md` for this step.**
 
@@ -161,10 +186,17 @@ When executing steps, delegate to the appropriate agent for specialized work, th
    - **Timeline**: Estimated timeline or sprint breakdown
    - **Notes**: Additional context, decisions, open questions
 
-4. **Create plan file**:
-   - Generate a filename based on plan title (sanitize for filesystem)
-   - Use standard tools (`Write`) to create the plan file in the plans directory
-   - File should be saved as `{plans_dir}/{plan-filename}.md`
+4. **Create or update plan file**:
+   - **If creating a new plan**:
+     - Generate a filename based on plan title (sanitize for filesystem)
+     - Use standard tools (`Write`) to create the plan file in the plans directory
+     - File should be saved as `{plans_dir}/{plan-filename}.md`
+   - **If enriching an existing plan**:
+     - Use `Read` to load the existing plan file identified in Step 2.5.
+     - Merge the new description and context into the existing plan:
+       - Update **Context**, **Goal**, **Approach**, **Implementation Steps**, and **Testing Strategy** to incorporate the new requirements/findings.
+       - Optionally add a short dated sub-section (e.g., “### New Input (2026-01-28)”) summarizing the new request and how it affects the plan.
+     - Use `Write` to save the updated plan file in-place (same path, no new file).
 
 5. **Validate plan file**:
    - Verify file was created successfully
@@ -183,12 +215,20 @@ When executing steps, delegate to the appropriate agent for specialized work, th
    - Existing milestones and phases
    - Where to add the new plan entry
 
-3. **Add plan to roadmap**:
-   - Create roadmap entry for the new plan
-   - Include plan title, description, status, and priority
-   - Link to the plan file (relative path from memory-bank directory)
-   - Add to appropriate phase/milestone section
-   - Maintain roadmap structure and formatting
+3. **Add or update plan entry in roadmap**:
+   - **If this is a new plan**:
+     - Create a new roadmap entry for the plan.
+     - Include plan title, description, status, and priority.
+     - Link to the plan file (relative path from memory-bank directory).
+     - Add to the appropriate phase/milestone section.
+   - **If enriching an existing plan**:
+     - Locate the existing roadmap entry that links to the target plan.
+     - **Enrich** the entry to reflect the new context and scope (e.g., expand description, reference new constraints or logs).
+     - **Increase implementation priority** based on the new request, for example by:
+       - Moving the entry into an “Active Work” / higher-priority section, or
+       - Upgrading the status (e.g., from PLANNED to IN PROGRESS), and/or
+       - Adding a clear urgency marker such as **FIX-ASAP** when appropriate.
+     - Ensure the link to the plan file remains correct and roadmap formatting is preserved.
 
 4. **Update roadmap file**:
    - **Use Cortex MCP tool `manage_file(file_name="roadmap.md", operation="write", content="[updated roadmap content]", change_description="Added new plan: [plan title]")`** to save updated roadmap

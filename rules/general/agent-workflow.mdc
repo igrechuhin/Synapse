@@ -260,8 +260,10 @@ When using Cortex MCP tools inside Cursor, follow these rules to avoid "missing 
   - For writes, include `content="..."` and a concise `change_description="..."`.
 - **Pre-commit checks**: `execute_pre_commit_checks(checks=["quality"], project_root="...")`
   - Treat `checks` as an explicit list; do not assume implied ordering.
-- **Markdown lint**: `fix_markdown_lint(check_all_files=False, include_untracked_markdown=True)`
-  - Default to modified/new markdown files; do not use repo-wide scanning unless explicitly requested.
+- **Markdown lint**:
+  - **Commit pipeline (Step 1.5 and Step 12.6)**: MUST use `check_all_files=True` to match CI behavior (checks ALL markdown files)
+  - **General use**: `fix_markdown_lint(check_all_files=False, include_untracked_markdown=True)` - default to modified/new markdown files
+  - **Zero errors tolerance**: ANY markdown lint error MUST block commit - NO EXCEPTIONS
 
 ### If MCP calls become unstable
 

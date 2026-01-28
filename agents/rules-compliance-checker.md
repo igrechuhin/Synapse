@@ -1,4 +1,3 @@
-
 ---
 name: rules-compliance-checker
 

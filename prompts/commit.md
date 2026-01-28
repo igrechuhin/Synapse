@@ -255,10 +255,12 @@ The following error patterns MUST be detected and fixed before commit. These are
 
 - **Agent**: Use `.cortex/synapse/agents/markdown-linter.md` for implementation details
 - **Dependency**: Must run AFTER Step 1 (code formatting)
-- **CRITICAL**: Memory bank and plan files must be error-free
-- **BLOCK COMMIT**: If critical errors remain in `.cortex/memory-bank/*.md` or `.cortex/plans/*.md` files (excluding `.cortex/plans/archive/**` by default)
-- **CRITICAL**: Markdown lint errors in memory bank or plans will cause CI to fail - must be fixed
-- **Workflow**: After agent completes, verify zero critical errors remain before proceeding to Step 2
+- **CRITICAL**: Must check ALL markdown files (like CI does) - use `check_all_files=True` to match CI behavior
+- **CRITICAL**: CI checks ALL markdown files and fails on ANY error - commit pipeline MUST match this behavior
+- **BLOCK COMMIT**: If ANY markdown lint errors remain (not just critical errors in memory bank/plans)
+- **⚠️ ZERO ERRORS TOLERANCE**: The project has ZERO errors tolerance - ANY markdown lint error (in ANY file) MUST block commit
+- **⚠️ NO EXCEPTIONS**: Pre-existing markdown lint errors are NOT acceptable - they MUST be fixed before commit
+- **Workflow**: After agent completes, verify zero errors remain in ALL markdown files before proceeding to Step 2
 
 ### Step 2: Type checking (delegate to `type-checker`)
 
@@ -602,17 +604,29 @@ Or fallback script:
 
 **CRITICAL**: Markdown files may have been modified during Steps 5-11. Markdown lint MUST be re-checked.
 
-**Step 12.6.1 - Re-run markdown lint check** (MANDATORY):
+**⚠️ AUTHORITATIVE**: Step 12.6 checks ALL markdown files (like CI does) - this is the final validation before commit.
 
-Use the MCP tool:
+**Step 12.6.1 - Re-run markdown lint check on ALL files** (MANDATORY):
+
+Use the MCP tool to check ALL markdown files (matching CI behavior):
 
 ```python
-fix_markdown_lint(check_all_files=False, include_untracked_markdown=True)
+fix_markdown_lint(check_all_files=True, include_untracked_markdown=True)
 ```
 
-- **MUST verify**: Zero critical errors in `.cortex/memory-bank/*.md` or `.cortex/plans/*.md` files
-- **BLOCK COMMIT** if critical markdown lint errors remain in memory bank or plans
-- **Note**: Other markdown files are non-blocking unless explicitly requested
+**⚠️ CRITICAL**: Do NOT truncate output - read FULL output to verify check passed
+
+- **MUST verify**: Zero errors in ALL markdown files (not just memory bank/plans)
+- **MUST verify**: Exit code is 0 (zero) - command must succeed
+- **MUST verify**: Output shows "✅" or "passed" or equivalent success message
+- **⚠️ ABSOLUTE BLOCK**: If ANY markdown lint errors are reported (even 1 error in any file), stop immediately - DO NOT proceed to commit
+- **⚠️ NO EXCEPTIONS**: Pre-existing markdown lint errors are NOT acceptable - they MUST be fixed before commit
+- **⚠️ ZERO ERRORS TOLERANCE**: The project has ZERO errors tolerance - ANY markdown lint error (in ANY file) MUST block commit
+- **BLOCK COMMIT** if ANY markdown lint errors are reported OR if exit code is non-zero
+- **BLOCK COMMIT** if output is truncated or unclear - re-run without truncation
+- **DO NOT rely on memory of earlier checks** - you MUST re-run and verify output NOW
+- **DO NOT dismiss errors as "pre-existing"** - ALL errors must be fixed before commit
+- **Match CI behavior**: CI checks ALL markdown files and fails on ANY error - Step 12.6 MUST match this exactly
 
 ### 12.7 Verification Requirements (CRITICAL)
 
@@ -643,7 +657,8 @@ fix_markdown_lint(check_all_files=False, include_untracked_markdown=True)
 - [ ] File sizes re-run: **NO output truncation** - full output read and verified
 - [ ] Function lengths re-run: **0 violations** confirmed in FULL output
 - [ ] Function lengths re-run: **NO output truncation** - full output read and verified
-- [ ] Markdown lint re-run: **0 critical errors** in memory bank/plans confirmed
+- [ ] Markdown lint re-run: **0 errors in ALL markdown files** confirmed (matching CI behavior)
+- [ ] Markdown lint re-run: **check_all_files=True** used to match CI comprehensive check
 - [ ] All output was **fully read and parsed**, not assumed
 - [ ] All commands in Step 12 executed **WITHOUT** `| tail`, `| head`, or any output truncation
 
@@ -764,30 +779,28 @@ Use this ordering when numbering results:
 #### **1.5. Markdown Linting**
 
 - **Status**: Success/Failure/Skipped
-- **MCP Tool Used**: `fix_markdown_lint(check_all_files=False, include_untracked_markdown=True)`
+- **MCP Tool Used**: `fix_markdown_lint(check_all_files=True, include_untracked_markdown=True)` (MUST check ALL files to match CI)
 - **Tool Available**: Whether markdownlint-cli2 is installed
-- **Files Processed**: Count of markdown files processed
+- **Files Processed**: Count of markdown files processed (should match CI - all .md and .mdc files)
 - **Files Fixed**: Count of markdown files with errors fixed
 - **Files Unchanged**: Count of markdown files with no errors
-- **Files With Errors**: Count of files with non-auto-fixable errors
+- **Files With Errors**: Count of files with non-auto-fixable errors (MUST be 0)
 - **Check-Only Validation**: Whether markdownlint check-only mode was run
-- **Critical Errors Found**: Count of critical errors found (MD024, MD032, MD031, MD001, MD003, MD009)
-- **Critical Errors in Memory Bank**: Count of critical errors in `.cortex/memory-bank/*.md` files (MUST be 0)
-- **Critical Errors in Plans**: Count of critical errors in `.cortex/plans/*.md` files excluding `.cortex/plans/archive/**` (MUST be 0)
-- **Critical Errors in Other Files**: Count of critical errors in other markdown files
-- **Non-Critical Errors**: Count of non-critical errors (MD036, MD013, etc.)
+- **Total Errors Found**: Count of ALL errors found in ALL markdown files (MUST be 0)
 - **Errors Fixed**: List of markdown lint errors fixed
-- **Errors Remaining**: List of non-auto-fixable errors with file paths and error codes
+- **Errors Remaining**: List of non-auto-fixable errors with file paths and error codes (MUST be empty)
 - **Validation Results**:
   - Tool executed: Yes/No (MUST be Yes if tool available)
+  - check_all_files=True used: Yes/No (MUST be Yes to match CI behavior)
   - Check-only validation run: Yes/No (MUST be Yes if files_with_errors > 0)
   - All auto-fixable errors fixed: Yes/No (MUST be Yes if tool available)
-  - Zero critical errors in memory bank: Yes/No (MUST be Yes - parsed from check-only output)
-  - Zero critical errors in plans: Yes/No (MUST be Yes - parsed from check-only output)
+  - Zero errors in ALL files: Yes/No (MUST be Yes - parsed from check-only output, matches CI)
   - Tool response parsed: Yes/No
   - Check-only output parsed: Yes/No (MUST be Yes if files_with_errors > 0)
-- **Details**: Summary of markdown lint fixing operations, including critical error breakdown
-- **Commit Blocked**: Yes/No (blocked if critical markdown lint errors remain in memory bank/plans; other files are non-blocking unless explicitly requested)
+- **Details**: Summary of markdown lint fixing operations, including all errors found and fixed
+- **Commit Blocked**: Yes/No (blocked if ANY markdown lint errors remain in ANY file - ZERO ERRORS TOLERANCE, matches CI behavior)
+- **⚠️ ZERO ERRORS TOLERANCE**: ANY markdown lint error (in ANY file) MUST block commit - NO EXCEPTIONS
+- **⚠️ NO EXCEPTIONS**: Pre-existing markdown lint errors are NOT acceptable - they MUST be fixed before commit
 - **REQUIRED**: markdownlint-cli2 must be installed (required dependency for Cortex MCP)
 
 #### **2. Type Checking**
@@ -959,6 +972,7 @@ Use this ordering when numbering results:
   - **⚠️ CRITICAL**: Script checks BOTH `src/` AND `tests/` - if script finds errors (even if Step 2 MCP tool passed), commit MUST be blocked
   - **⚠️ NO EXCEPTIONS**: Script errors take precedence over MCP tool results
 - **Linter Re-run**: Output of `.venv/bin/python .cortex/synapse/scripts/{language}/check_linting.py` (MUST show check passed with 0 errors - ZERO ERRORS TOLERANCE, NO EXCEPTIONS)
+- **Markdown Lint Re-run**: Output of `fix_markdown_lint(check_all_files=True)` MCP tool (MUST show check passed with 0 errors in ALL files - ZERO ERRORS TOLERANCE, NO EXCEPTIONS, matches CI behavior)
 - **Test Naming Re-run**: Output of `.venv/bin/python .cortex/synapse/scripts/{language}/check_test_naming.py` (MUST show check passed)
 - **File Sizes Re-run**: Output of `.venv/bin/python .cortex/synapse/scripts/{language}/check_file_sizes.py` (MUST show 0 violations)
 - **Function Lengths Re-run**: Output of `.venv/bin/python .cortex/synapse/scripts/{language}/check_function_lengths.py` (MUST show 0 violations)
@@ -972,6 +986,7 @@ Use this ordering when numbering results:
   - Type check passed: Yes/No (MUST be Yes, or N/A if project doesn't use types)
     - **⚠️ CRITICAL**: If script found errors that MCP tool missed, this MUST be No and commit MUST be blocked
   - Linter passed: Yes/No (MUST be Yes - error count explicitly parsed and verified = 0, ZERO ERRORS TOLERANCE, NO EXCEPTIONS even for pre-existing errors)
+  - Markdown lint passed: Yes/No (MUST be Yes - zero errors in ALL markdown files, matches CI behavior, ZERO ERRORS TOLERANCE, NO EXCEPTIONS)
   - Test naming check passed: Yes/No (MUST be Yes)
   - File sizes check passed: Yes/No (MUST be Yes)
   - Function lengths check passed: Yes/No (MUST be Yes)
@@ -1252,8 +1267,9 @@ Use this ordering when numbering results:
 - ✅ Project formatter + import sorting (if applicable) formatting passes without errors
 - ✅ **CRITICAL**: Formatter check MUST pass after formatting (verifies CI will pass)
 - ✅ **VALIDATION**: Formatter check output confirms zero formatting violations
-- ✅ Markdown lint errors fixed (all modified markdown files properly formatted)
-- ✅ **VALIDATION**: Markdown lint fix tool executed and verified (if tool available)
+- ✅ Markdown lint errors fixed (ALL markdown files properly formatted, matching CI behavior)
+- ✅ **VALIDATION**: Markdown lint fix tool executed with `check_all_files=True` to check ALL files (matching CI)
+- ✅ **VALIDATION**: Zero errors confirmed in ALL markdown files (not just modified files)
 - ✅ Real-time checklist updates completed for all steps
 - ✅ **QUALITY CHECK SUCCESS**: `results.quality.success` = true (PRIMARY validation)
 - ✅ File size check passes (all files ≤ 400 lines)
