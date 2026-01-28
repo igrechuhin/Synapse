@@ -28,6 +28,14 @@ Key practices:
 - Ensure comprehensive test coverage (95%+ for new functionality)
 - Update memory bank after completion
 
+## Roadmap ↔ Plan Coupling (MANDATORY)
+
+**CRITICAL**: Whenever a new Phase is added to `roadmap.md` with status PLANNED, you MUST also ensure a corresponding plan file exists in `.cortex/plans/`.
+
+- **At minimum**: Create a plan stub such as `phase-XX-<slug>.plan.md` that uses DRY transclusion (e.g., `{{include:../memory-bank/phase-XX-...plan.md}}`) to avoid duplicated content.
+- **Prevents**: `roadmap_sync` from reporting `invalid_references` for missing plans.
+- **Enforcement**: If `roadmap.md` references a Phase but no plan file exists, create the plan file immediately.
+
 For each roadmap implementation:
 
 - Read roadmap and identify next item

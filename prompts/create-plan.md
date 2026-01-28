@@ -100,7 +100,11 @@ When executing steps, delegate to the appropriate agent for specialized work, th
    - Use `get_structure_info()` paths (`structure_info.paths.plans`) to locate the plans directory.
    - Use standard tools (`LS`, `Read`, `Grep`) to inspect existing plan files and their titles.
    - Cross-check `roadmap.md` entries (via `manage_file(read)`) for plan titles and short descriptions.
-2. **Identify same/similar plans**:
+2. **Check for roadmap references to non-existent plans**:
+   - **CRITICAL**: If `roadmap.md` references a Phase with status PLANNED but no corresponding plan file exists in `.cortex/plans/`, you MUST create the plan file now.
+   - At minimum, create a plan stub such as `phase-XX-<slug>.plan.md` that uses DRY transclusion (e.g., `{{include:../memory-bank/phase-XX-...plan.md}}`) to avoid duplicated content.
+   - This prevents `roadmap_sync` from reporting `invalid_references` for missing plans.
+3. **Identify same/similar plans**:
    - Compare the user description (title, keywords, problem domain) against:
      - Plan filenames (e.g., `phase-57-fix-markdown-lint-timeout.md`)
      - Plan titles and goals inside existing plan files
@@ -108,10 +112,10 @@ When executing steps, delegate to the appropriate agent for specialized work, th
    - Treat a plan as **similar** if:
      - The main goal/problem matches, or
      - The same component/tool/phase is being improved in a related way.
-3. **Decide reuse vs new**:
+4. **Decide reuse vs new**:
    - If one or more strong matches exist, select the **closest** existing plan as the **target plan**.
    - If no sufficiently similar plan exists, proceed with creating a **new** plan.
-4. **Record decision**:
+5. **Record decision**:
    - Keep track of whether you are **enriching an existing plan** (with its path) or **creating a new plan**. This decision controls later steps.
 
 ### Step 3: Check for Sequential-Thinking MCP
@@ -182,6 +186,7 @@ When executing steps, delegate to the appropriate agent for specialized work, th
      - **Test Documentation**: Document test scenarios and expected behaviors
      - **AAA Pattern**: All tests MUST follow Arrange-Act-Assert pattern
      - **No Blanket Skips**: Every skip MUST have justification and linked ticket
+     - **Pydantic v2 for JSON Testing**: When testing MCP tool responses (e.g., `manage_file`, `rules`, `execute_pre_commit_checks`), use Pydantic v2 `BaseModel` types and `model_validate_json()` / `model_validate()` instead of asserting on raw `dict` shapes. See `tests/tools/test_file_operations.py` for examples (e.g., `ManageFileErrorResponse` pattern).
    - **Risks & Mitigation**: Potential risks and how to address them
    - **Timeline**: Estimated timeline or sprint breakdown
    - **Notes**: Additional context, decisions, open questions

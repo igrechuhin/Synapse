@@ -64,3 +64,25 @@ For each error fixing operation:
 Always ensure zero errors remain before proceeding to next step.
 Always fix ALL errors automatically - never ask for permission, never stop with errors remaining.
 **⚠️ ZERO ERRORS TOLERANCE**: This project has ZERO errors tolerance - ALL errors (new or pre-existing) MUST be fixed before proceeding.
+
+## MCP Validation Errors (FIX-ASAP)
+
+**CRITICAL**: MCP argument validation errors (e.g., Pydantic missing fields, wrong types) are **FIX-ASAP** issues that MUST be addressed immediately.
+
+**When MCP validation errors are detected**:
+
+1. **Detect these errors in tool responses**: Look for validation errors in MCP tool responses (e.g., `status="error"` with `details.missing` or `details.invalid` fields)
+2. **Identify the root cause**: Determine which required parameter was missing or which parameter had an invalid value
+3. **Update prompts/rules**: Update the relevant prompt or agent file to always provide required parameters with correct types
+4. **Re-run the relevant step**: After updating prompts/rules, re-run the step that triggered the validation error to verify it's resolved
+
+**Common MCP validation errors**:
+
+- Missing `file_name` or `operation` in `manage_file()` calls
+- Missing `operation` in `rules()` calls
+- Invalid `operation` values (e.g., `"read"` instead of `"get_relevant"`)
+- Wrong parameter types (e.g., passing `JsonValue` timeout to `float | None` parameter)
+
+**Example**: If `manage_file()` returns an error with `details.missing=["file_name", "operation"]`, update the prompt/agent that called it to always include these required parameters.
+
+**BLOCK COMMIT**: If MCP validation errors are detected, they MUST be fixed before proceeding. These indicate bugs in orchestration prompts or agents that need immediate correction.

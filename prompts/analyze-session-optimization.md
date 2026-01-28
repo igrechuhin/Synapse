@@ -40,6 +40,13 @@
 
 1. **Load current session data** - Analyze the current session:
    - **Use Cortex MCP tool `analyze_context_effectiveness()`** with `analyze_all_sessions=False` to analyze only the current session
+   - **Expected behavior**: `analyze_context_effectiveness()` may return `status: "no_data"` when no `load_context` calls occur in the current session
+   - **This is expected** for workflow/quality-only sessions (e.g., `/cortex/commit` that do not call `load_context`)
+   - **Fallback signals**: When `status: "no_data"`, use alternative data sources:
+     - Commit pipeline tool outputs (pre-commit checks, validations, roadmap sync results)
+     - Memory-bank diffs (`activeContext.md`, `progress.md`, `roadmap.md`)
+     - Git/file diffs showing code changes
+     - Recent MCP tool invocations and their results
    - Review session logs/transcripts if available (check `.cursor/agent-transcripts/` or similar)
    - Identify all code changes made during the session
    - Identify all user comments, corrections, or feedback about mistakes
@@ -135,19 +142,31 @@
    ...
    ```
 
-8. **Save analysis report** - Store findings for future reference:
+**⚠️ MD024 (Duplicate Heading) Prevention**:
+
+- **If adding a second analysis pass** (e.g., context-effectiveness addendum) to an existing review file:
+  - **Suffix headings with a qualifier** (e.g., `(Addendum)`, `(Context Effectiveness Pass)`, `(Pass 2)`)
+  - **Example**: Instead of `### Mistake Patterns Identified`, use `### Mistake Patterns Identified (Context Effectiveness Pass)`
+  - **Prevents**: Markdownlint `MD024` errors that propagate through memory-bank transclusions
+  - **Avoid duplicate headings**: Never reuse the same heading at the same level without a suffix when appending addenda
+
+1. **Save analysis report** - Store findings for future reference:
    - **MANDATORY: Use Cortex MCP tools to get the correct path**:
      1. Call `get_structure_info(project_root=None)` MCP tool to get structure information
      2. Extract the reviews directory path from the response: `structure_info.paths.reviews` (e.g., `/path/to/project/.cortex/reviews`)
-     3. **Check existing files** in the reviews directory to determine the timestamp format pattern (e.g., `session-optimization-2026-01-28.md` or `session-optimization-2026-01-28T18-31.md`)
-     4. Construct the full file path using proper timestamp format:
-        - **Date-only format**: `{reviews_path}/session-optimization-YYYY-MM-DD.md` (e.g., `session-optimization-2026-01-28.md`)
-        - **Date + time format**: `{reviews_path}/session-optimization-YYYY-MM-DDTHH-MM.md` (e.g., `session-optimization-2026-01-28T18-31.md`)
-        - **CRITICAL**: If using `T` separator (ISO 8601), it MUST be followed by a time component (`HH-MM` or `HH:MM`), not arbitrary text
+     3. **Canonical filename pattern**: `session-optimization-YYYY-MM-DDTHH-MM.md` (e.g., `session-optimization-2026-01-28T17-58.md`)
+     4. **Timestamp format rules**:
+        - **Date component**: `YYYY-MM-DD` (e.g., `2026-01-28`)
+        - **Time component**: `HH-MM` (hours and minutes, e.g., `17-58` for 5:58 PM)
+        - **CRITICAL**: The `T` separator MUST be followed by a full time-of-day component (`HH-MM`), not arbitrary text or counters
+        - **Derive from actual session time**: Use the actual session time (e.g., `T17-58`), avoiding ad-hoc names like `T02` that don't encode a true timestamp
+        - **Date-only fallback**: If no time component is available, use `session-optimization-YYYY-MM-DD.md` (e.g., `session-optimization-2026-01-28.md`)
         - **Avoid conflicts**: If a file with the same date already exists, use date + time format to make it unique
-     5. Use the `Write` tool with this dynamically constructed path (it will create parent directories automatically)
+     5. Construct the full file path: `{reviews_path}/session-optimization-YYYY-MM-DDTHH-MM.md`
+     6. Use the `Write` tool with this dynamically constructed path (it will create parent directories automatically)
    - **NEVER use hardcoded paths like `.cortex/reviews/session-optimization-*.md`** - Always use `get_structure_info()` to get the path dynamically
-   - **NEVER use invalid timestamp formats** like `T-session` or `T-{arbitrary-text}` - The `T` separator requires a valid time component
+   - **NEVER use invalid timestamp formats** like `T02`, `T-session`, or `T-{arbitrary-text}` - The `T` separator requires a valid time component (`HH-MM`)
+   - **Filename validation**: Before saving, verify the filename matches the canonical pattern; detect malformed filenames (e.g., `TNN` with no minutes) and suggest renaming
    - Include full analysis, recommendations, and implementation suggestions
    - Link report in roadmap if significant improvements are identified
 

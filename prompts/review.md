@@ -134,6 +134,7 @@ When executing steps, delegate to the appropriate agent for specialized analysis
    - Verify test coverage for critical business logic
    - Check for edge case coverage
    - Verify test quality (AAA pattern, descriptive names)
+   - **Pydantic v2 for JSON testing**: Verify that tests for MCP tool responses use Pydantic v2 `BaseModel` types and `model_validate_json()` / `model_validate()` instead of raw `dict` assertions. See `tests/tools/test_file_operations.py` for examples (e.g., `ManageFileErrorResponse` pattern).
    - Identify gaps in test coverage
 7. **Security assessment** - **Delegate to `security-assessor` agent**:
    - Use the `security-assessor` agent from `.cortex/synapse/agents/security-assessor.md` for this step

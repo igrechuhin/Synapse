@@ -80,6 +80,90 @@ alwaysApply: false
 - ❌ Replacing concrete types with `object`
 - ❌ Using abstractions like `Mapping` when `dict` works
 
+### JsonValue at MCP Boundaries (MANDATORY)
+
+**CRITICAL**: At MCP (Model Context Protocol) boundaries, JSON data arrives as `JsonValue` (a recursive type alias for JSON-serializable values). This data MUST be normalized to concrete Python types before use.
+
+**Pattern**: Cross-cutting utilities that consume `JsonValue` MUST normalize inputs at the top of the function.
+
+**REQUIRED:**
+
+- ✅ Normalize `JsonValue` inputs to concrete types before use
+- ✅ Create helper functions like `_to_timeout_value()` to normalize specific value types
+- ✅ Perform normalization at the top of functions that accept `JsonValue`
+- ✅ Use `isinstance()` checks and type narrowing for safe conversion
+
+**FORBIDDEN:**
+
+- ❌ Passing `JsonValue` directly to functions expecting concrete types (e.g., `float | None`)
+- ❌ Assuming `JsonValue` is already the correct type without validation
+- ❌ Using `JsonValue` in business logic without normalization
+
+**Example Pattern** (from `mcp_stability.py`):
+
+```python
+def _to_timeout_value(value: JsonValue | None) -> float | None:
+    """Convert JsonValue to a valid timeout value.
+    
+    Ensures we only accept float-compatible values and ignore invalid ones.
+    """
+    if value is None:
+        return None
+    if isinstance(value, (int, float)):
+        return float(value)
+    if isinstance(value, str):
+        try:
+            return float(value)
+        except ValueError:
+            logger.warning("Invalid timeout value %r, falling back to defaults", value)
+            return None
+    logger.warning("Unsupported timeout type %s, falling back to defaults", type(value))
+    return None
+
+async def with_mcp_stability[T](
+    func: Callable[..., Awaitable[T]],
+    *args: JsonValue,
+    timeout: JsonValue | None = None,  # Accepts JsonValue
+    stability_timeout: JsonValue | None = None,  # Accepts JsonValue
+    **kwargs: JsonValue,
+) -> T:
+    """Execute MCP tool with stability protections."""
+    # Normalize JsonValue to concrete types at the top
+    stability_timeout_value = _to_timeout_value(stability_timeout)  # float | None
+    timeout_value = _to_timeout_value(timeout)  # float | None
+    
+    # Now use concrete types in business logic
+    effective_timeout = (
+        stability_timeout_value or timeout_value or float(MCP_TOOL_TIMEOUT_SECONDS)
+    )
+    # ... rest of function uses concrete types
+```
+
+**Alternative Pattern** (push normalization to callers):
+
+```python
+# ✅ REQUIRED - Accept concrete types only, push normalization to callers
+async def execute_with_timeout(
+    func: Callable[..., Awaitable[T]],
+    timeout: float | None = None,  # Concrete type, not JsonValue
+    **kwargs: JsonValue,
+) -> T:
+    """Execute function with timeout protection."""
+    # Function uses concrete types directly
+    effective_timeout = timeout or float(DEFAULT_TIMEOUT)
+    # ... rest of function
+```
+
+**Guidelines:**
+
+1. **MCP boundary functions**: Accept `JsonValue` and normalize immediately
+2. **Internal business logic**: Use concrete types only
+3. **Helper functions**: Create normalization helpers for common conversions (`_to_timeout_value()`, `_to_string_list()`, etc.)
+4. **Error handling**: Log warnings for invalid conversions, fall back to safe defaults
+5. **Type narrowing**: Use `isinstance()` checks to narrow `JsonValue` to specific types
+
+**Cross-check**: Audit all MCP utilities that consume `JsonValue` and ensure they follow this pattern.
+
 ## Code Formatting (ENFORCED)
 
 - **Black**: 88-character line length - MANDATORY

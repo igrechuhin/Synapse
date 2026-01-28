@@ -24,18 +24,33 @@ Key practices:
 - Keep entries reverse-chronological
 - Update after significant changes (MANDATORY)
 
-For each memory bank update:
+## Correct `manage_file` Usage
 
-- Read current file content using `manage_file(operation="read")`
-- Parse structure to understand format
-- Add new entries with proper timestamps
-- Update status indicators and progress tracking
-- Write updated content using `manage_file(operation="write")`
+**CRITICAL**: `file_name` and `operation` are REQUIRED parameters. Calling `manage_file` without these is a protocol violation and will raise a validation error.
 
-Memory bank files:
+### Minimal Read Example
 
-- activeContext.md - Current work focus, recent changes, next steps
-- progress.md - What works, what's left to build
-- roadmap.md - Development roadmap and milestones
+```python
+manage_file(file_name="activeContext.md", operation="read", include_metadata=False)
+```
 
-Always use MCP tools - never access files directly.
+### Minimal Write Example
+
+```python
+manage_file(
+    file_name="progress.md",
+    operation="write",
+    content="# Progress\n\n## 2026-01-28\n\n- Completed Phase 62 Steps 0-3",
+    change_description="Updated progress after Phase 62 implementation"
+)
+```
+
+### Metadata Query Example
+
+```python
+manage_file(file_name="roadmap.md", operation="metadata")
+```
+
+**⚠️ ANTI-PATTERN**: NEVER call `manage_file({})` or omit `file_name`/`operation`; this indicates a missing plan step or a bug in the orchestration prompt.
+
+**Required Parameters**:

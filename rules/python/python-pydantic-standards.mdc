@@ -422,20 +422,57 @@ def create_user(data: dict[str, object]) -> User | None:
 - ❌ Missing `Field()` constraints for user input validation (STRICTLY FORBIDDEN)
 - ❌ Using mutable defaults without `default_factory` (STRICTLY FORBIDDEN)
 
-## Best Practices Summary
+## Testing JSON Responses (MANDATORY)
 
-1. **Always use `ConfigDict`** instead of nested `Config` class
-2. **Always use `model_validate()`** instead of `parse_obj()` or `from_orm()`
-3. **Always use `model_dump()`** instead of `.dict()`
-4. **Always use `model_dump_json()`** instead of `.json()`
-5. **Always use `Literal` types** for status/enum-like fields
-6. **Always use `Field()`** with constraints for user input
-7. **Always use `Annotated` style** for complex field definitions (preferred)
-8. **Always use `@classmethod`** with `@field_validator`
-9. **Always specify `mode`** in validators (`'before'` or `'after'`)
-10. **Always use `from_attributes=True`** for ORM integration
-11. **Always use `default_factory`** for mutable defaults
-12. **Always return `Self`** from `@model_validator(mode='after')`
+**CRITICAL**: When testing MCP tool responses or structured JSON from tools like `manage_file`, `rules`, and `execute_pre_commit_checks`, you MUST use Pydantic v2 models, not raw `dict` assertions.
+
+**REQUIRED Pattern**:
+
+```python
+from pydantic import BaseModel
+from typing import Literal
+
+# ✅ REQUIRED - Define Pydantic model for structured JSON response
+class ManageFileErrorDetails(BaseModel):
+    missing: list[str]
+    required: list[str]
+    operation_values: list[str]
+
+class ManageFileErrorResponse(BaseModel):
+    status: Literal["error"]
+    error: str
+    details: ManageFileErrorDetails
+
+# ✅ REQUIRED - Use model_validate_json() for JSON strings
+async def test_manage_file_missing_parameters():
+    result_str = await manage_file()  # Returns JSON string
+    payload = ManageFileErrorResponse.model_validate_json(result_str)
+    assert payload.status == "error"
+    assert payload.details.missing == ["file_name", "operation"]
+
+# ✅ REQUIRED - Use model_validate() for dict objects
+async def test_manage_file_success():
+    result_dict = json.loads(await manage_file(file_name="test.md", operation="read"))
+    payload = ManageFileSuccessResponse.model_validate(result_dict)
+    assert payload.status == "success"
+```
+
+**FORBIDDEN**:
+
+- ❌ Asserting on raw `dict` shapes: `assert result["status"] == "error"` (use Pydantic model)
+- ❌ Using `json.loads()` then accessing dict keys directly (use `model_validate_json()`)
+- ❌ Testing JSON structure without models (use Pydantic models for type safety)
+
+**Benefits**:
+
+1. **Always use `Field()`** with constraints for user input
+2. **Always use `Annotated` style** for complex field definitions (preferred)
+3. **Always use `@classmethod`** with `@field_validator`
+4. **Always specify `mode`** in validators (`'before'` or `'after'`)
+5Always use `from_attributes=True`** ORM integration
+6Always use `default_factory`** for mutable defaults
+7Always return `Self`**m `@model_validator(mode='after')`
+8Always use Pydantic models** for testing JSON responses from MCP tools
 
 ## Enforcement
 

@@ -99,9 +99,30 @@ When executing steps, delegate to the appropriate agent for specialized work, th
 
 ### Step 2: Load Relevant Context
 
-1. **Use Cortex MCP tool `load_context(task_description="[description of roadmap step]", token_budget=50000)`** to get optimal context for the implementation task
+**Task-Aware Token Budget Selection**:
+
+- **Fix/debug tasks**: Use `token_budget=15000` (narrow, focused work)
+- **Small feature/refactor**: Use `token_budget=20000-30000` (moderate scope)
+- **Architecture/large design**: Use `token_budget=40000-50000` (broad scope)
+- **Increase budget only when utilization regularly exceeds ~70%** from previous runs
+
+**Memory Bank File Selection**:
+
+- **High-value files** (always include for fix/debug): `activeContext.md`, `roadmap.md`, `progress.md`, phase-specific plans
+- **Moderate-value files** (include when relevant): `systemPatterns.md`, `techContext.md`
+- **Lower-relevance files** (optional for fix/debug, include only for exploratory/architectural tasks): `file.md`, `tmp-mcp-test.md`, `projectBrief.md`, `productContext.md`
+
+**Interpreting `file_effectiveness` recommendations**:
+
+- **High relevance**: Prioritize for loading (include in context)
+- **Moderate relevance**: Include when task description matches file content
+- **Lower relevance**: Consider excluding for narrow fix/debug workflows
+
+1. **Use Cortex MCP tool `load_context(task_description="[description of roadmap step]", token_budget=[task-appropriate budget])`** to get optimal context for the implementation task
+   - Select token budget based on task type (fix/debug: 15000, small feature: 20000-30000, architecture: 40000-50000)
    - This tool will automatically select and return relevant memory bank files based on the task description
    - The returned context will include: current project state, related work, technical constraints, patterns, and any relevant context
+   - Review `file_effectiveness` recommendations in the response to understand which files are high/moderate/lower relevance
 2. **Alternative approach**: If you need more control, use `get_relevance_scores(task_description="[description]")` first to see which files are most relevant, then use `manage_file()` to read specific high-relevance files
 3. If the roadmap step references other files or documentation, use `manage_file()` to read those specific files
 4. Identify any dependencies that must be completed first based on the loaded context
@@ -161,6 +182,7 @@ Before defining new data structures (classes, types, models, interfaces):
    - **Integration tests**: Test component interactions and data flow between modules
    - **Edge case tests**: Test boundary conditions, error handling, invalid inputs, and empty states
    - **Test documentation**: Include clear docstrings explaining test purpose and expected behavior
+   - **Pydantic v2 for JSON testing**: When testing MCP tool responses (e.g., `manage_file`, `rules`, `execute_pre_commit_checks`), use Pydantic v2 `BaseModel` types and `model_validate_json()` / `model_validate()` instead of asserting on raw `dict` shapes. See `tests/tools/test_file_operations.py` for examples (e.g., `ManageFileErrorResponse` pattern).
    - **Verify coverage**: Run coverage tool and ensure project's coverage threshold is met before considering implementation complete
 3. Fix any errors or issues:
    - Run linters and fix all issues
@@ -294,6 +316,13 @@ Before defining new data structures (classes, types, models, interfaces):
 - **Regression prevention**: Ensure tests cover scenarios that prevent regressions
 - **Coverage verification**: Run coverage report before marking implementation complete; fail if below project's required threshold
 - **Test-to-code ratio**: Aim for meaningful test coverage, not just line coverage - test behavior, not implementation
+
+**Coverage Interpretation for Focused Work**:
+
+- **New or modified code**: Must meet ≥95% coverage for Phase 62 changes, even when running focused tests
+- **Global `fail-under=90` failures**: When running targeted tests (e.g., `pytest tests/unit/test_roadmap_sync.py`), global coverage failures dominated by untouched modules should be logged as technical debt in `progress.md` / `activeContext.md` (and, where appropriate, new coverage-raising phases), not "fixed ad hoc" during unrelated, narrow tasks
+- **Recording coverage debt**: Document in Memory Bank with wording like: "Global coverage at 21.7% due to untested analysis/structure modules. This is expected legacy debt and does not block focused roadmap sync work. Coverage improvement tracked in Phase XX."
+- **Reference coverage plans**: Reference relevant coverage-improvement plan from roadmap entries instead of attempting broad, unscheduled coverage work
 
 ### Memory Bank Updates
 

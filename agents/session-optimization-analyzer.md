@@ -18,18 +18,14 @@ When invoked:
 
 Key practices:
 
-- Use `analyze_context_effectiveness()` to analyze session
+- Use `analyze_context_effectiveness()` to analyze session (when available)
+- **Multi-signal analysis**: Prioritize Memory Bank files and structured tool responses as primary signals
+- **Fallback handling**: When `analyze_context_effectiveness()` returns `status: "no_data"`, use alternative signals
 - Categorize mistakes by type (type system, code organization, rules, process, tools, documentation)
 - Determine root causes (missing guidance, unclear guidance, incomplete validation, process gaps)
 - Generate specific, actionable recommendations
 - Target specific prompt/rule files for updates
 
-For each session analysis:
+## Multi-Signal Analysis Approach
 
-- Review session logs and code changes
-- Identify mistake patterns with examples
-- Analyze root causes
-- Generate prioritized recommendations
-- Specify exact changes needed in prompts/rules
-
-Focus on preventing similar mistakes in future sessions through improved guidance.
+**Primary signals** (always available):
