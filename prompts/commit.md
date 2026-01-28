@@ -6,7 +6,31 @@
 
 **⚠️ ZERO ERRORS TOLERANCE (MANDATORY)**: This project has ZERO errors tolerance. ANY errors found in ANY check (formatting, types, linting, quality, tests) MUST block commit - NO EXCEPTIONS. Pre-existing errors are NOT acceptable - they MUST be fixed before commit. You MUST explicitly parse error counts from output and verify they are ZERO before proceeding to commit. DO NOT dismiss errors as "pre-existing" or "in files I didn't modify" - ALL errors must be fixed.
 
-**Tooling Note**: Use standard Cursor tools (`Read`, `ApplyPatch`, `Write`, `LS`, `Glob`, `Grep`) by default; MCP filesystem tools are optional fallbacks only when standard tools are unavailable or explicitly requested. **Use Cortex MCP tools for memory bank operations** (e.g., `manage_file()`, `get_memory_bank_stats()`, `validate()`, `check_structure_health()`).
+**Tooling Note**: Use standard Cursor tools (`Read`, `ApplyPatch`, `Write`, `LS`, `Glob`, `Grep`) by default; MCP filesystem tools are optional fallbacks only when standard tools are unavailable or explicitly requested. **Use Cortex MCP tools for memory bank and rules operations** (e.g., `manage_file()`, `rules()`, `get_memory_bank_stats()`, `validate()`, `check_structure_health()`).
+
+**MCP TOOL USAGE (USE WHEN / EXAMPLES)**:
+
+- **manage_file**
+  - **Use when** you need to read or write Memory Bank files (`activeContext.md`, `progress.md`, `roadmap.md`) or query their metadata during the commit workflow.
+  - **Required parameters**: `file_name`, `operation` (`"read"`, `"write"`, `"metadata"`).
+  - **Friendly error behavior**: If you forget `file_name` or `operation`, `manage_file` returns a structured error with a `details.missing` list and a `hint` explaining how to call it correctly.
+  - **Examples**:
+    - Read current roadmap with metadata:
+      - `manage_file(file_name="roadmap.md", operation="read", include_metadata=True)`
+    - Update progress after tests pass:
+      - `manage_file(file_name="progress.md", operation="write", content="[updated content]", change_description="Updated after commit checks")`
+    - Check metadata only:
+      - `manage_file(file_name="activeContext.md", operation="metadata")`
+
+- **rules**
+  - **Use when** you need project rules context (coding standards, testing rules, etc.) as part of pre-commit validation or report generation.
+  - **Required parameter**: `operation` (`"index"` or `"get_relevant"`). `task_description` is REQUIRED for `"get_relevant"`.
+  - **Friendly error behavior**: If you omit `operation`, `rules` returns a structured error with `details.missing=["operation"]` and a `hint` that lists valid values. If you pass an invalid operation, it returns `valid_operations` plus a `hint`.
+  - **Examples**:
+    - Index rules before a large refactor:
+      - `rules(operation="index")`
+    - Load rules relevant to commit/test work:
+      - `rules(operation="get_relevant", task_description="Commit pipeline and test coverage enforcement")`
 
 **Pre-Commit Checks**: Use the `execute_pre_commit_checks()` MCP tool for all pre-commit operations (fix errors, format, type check, quality, tests). This tool provides:
 

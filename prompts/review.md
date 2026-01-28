@@ -22,9 +22,32 @@ When executing steps, delegate to the appropriate agent for specialized analysis
 **Tooling Note**: **MANDATORY: All file operations within `.cortex/` directory MUST use Cortex MCP tools** - do NOT access files directly via hardcoded paths. Use standard Cursor tools (`Read`, `ApplyPatch`, `Write`, `LS`, `Glob`, `Grep`) for files outside `.cortex/` directory only. For `.cortex/` files:
 
 - Use `manage_file()` for memory bank files (read/write)
+- Use `rules()` to obtain relevant rules context when needed
 - Use `get_structure_info()` to get directory paths dynamically
 - Use path resolver utilities to construct safe paths
 - For review reports: Use `Write` tool with path obtained from `get_cortex_path(project_root, CortexResourceType.REVIEWS)` or `get_structure_info()`
+
+**MCP TOOL USAGE (USE WHEN / EXAMPLES)**:
+
+- **manage_file**
+  - **Use when** you need project context from Memory Bank files (e.g., `activeContext.md`, `progress.md`, `roadmap.md`, `systemPatterns.md`, `techContext.md`) to guide the review.
+  - **Required parameters**: `file_name`, `operation` (`"read"`, `"write"`, `"metadata"`).
+  - **Friendly error behavior**: If `file_name` or `operation` is missing, `manage_file` returns a structured error with `details.missing` and a `hint` on correct usage instead of a raw validation trace.
+  - **Examples**:
+    - Load active context before reviewing:
+      - `manage_file(file_name="activeContext.md", operation="read")`
+    - Read roadmap for priority context:
+      - `manage_file(file_name="roadmap.md", operation="read", include_metadata=True)`
+
+- **rules**
+  - **Use when** you want rules-aware reviews (e.g., “review this code against coding standards and testing rules”).
+  - **Required parameter**: `operation` (`"index"` or `"get_relevant"`). `task_description` is REQUIRED for `"get_relevant"`.
+  - **Friendly error behavior**: If `operation` is omitted, `rules` returns a structured error with `details.missing=["operation"]` and a `hint` that lists valid operations; invalid operations return `valid_operations` plus a `hint`.
+  - **Examples**:
+    - Index rules prior to a broad review:
+      - `rules(operation="index")`
+    - Fetch rules relevant to the current review task:
+      - `rules(operation="get_relevant", task_description="Review new health-check and commit pipeline tooling")`
 
 ## ⚠️ MANDATORY PRE-ACTION CHECKLIST
 

@@ -139,9 +139,15 @@
    - **MANDATORY: Use Cortex MCP tools to get the correct path**:
      1. Call `get_structure_info(project_root=None)` MCP tool to get structure information
      2. Extract the reviews directory path from the response: `structure_info.paths.reviews` (e.g., `/path/to/project/.cortex/reviews`)
-     3. Construct the full file path: `{reviews_path}/session-optimization-{timestamp}.md`
-     4. Use the `Write` tool with this dynamically constructed path (it will create parent directories automatically)
+     3. **Check existing files** in the reviews directory to determine the timestamp format pattern (e.g., `session-optimization-2026-01-28.md` or `session-optimization-2026-01-28T18-31.md`)
+     4. Construct the full file path using proper timestamp format:
+        - **Date-only format**: `{reviews_path}/session-optimization-YYYY-MM-DD.md` (e.g., `session-optimization-2026-01-28.md`)
+        - **Date + time format**: `{reviews_path}/session-optimization-YYYY-MM-DDTHH-MM.md` (e.g., `session-optimization-2026-01-28T18-31.md`)
+        - **CRITICAL**: If using `T` separator (ISO 8601), it MUST be followed by a time component (`HH-MM` or `HH:MM`), not arbitrary text
+        - **Avoid conflicts**: If a file with the same date already exists, use date + time format to make it unique
+     5. Use the `Write` tool with this dynamically constructed path (it will create parent directories automatically)
    - **NEVER use hardcoded paths like `.cortex/reviews/session-optimization-*.md`** - Always use `get_structure_info()` to get the path dynamically
+   - **NEVER use invalid timestamp formats** like `T-session` or `T-{arbitrary-text}` - The `T` separator requires a valid time component
    - Include full analysis, recommendations, and implementation suggestions
    - Link report in roadmap if significant improvements are identified
 
