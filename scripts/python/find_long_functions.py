@@ -147,10 +147,8 @@ def main():
         except ValueError:
             relative_path = file_path
         print(
-            (
-                f"{relative_path}:{start_line} {func_name}() - "
-                f"{logical_lines} lines (excess: {excess})"
-            )
+            f"{relative_path}:{start_line} {func_name}() - "
+            + f"{logical_lines} lines (excess: {excess})"
         )
 
     return len(all_violations)
