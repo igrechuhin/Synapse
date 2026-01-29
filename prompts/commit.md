@@ -567,11 +567,12 @@ The original checks in Steps 0-4 are INVALIDATED by any subsequent code changes 
 
 ### 12.0 Re-validate markdown files modified during Steps 0-11 (MANDATORY)
 
-**Purpose**: Catch markdown lint errors in files modified during Steps 0-11 (especially Synapse prompts/rules) before they propagate to submodule or require extra commits.
+**Purpose**: Catch markdown lint errors in files modified during Steps 0-11 (especially Synapse prompts/rules and session review files) before they propagate to submodule or require extra commits.
 
 - **When**: Run immediately at the start of Step 12, before Step 12.1
 - **What**: Identify markdown files modified during Steps 0-11 and run markdown lint check on those files
-- **How**: Use `fix_markdown_lint()` MCP tool with appropriate scope, or run markdown lint script on modified files
+- **How**: Use `fix_markdown_lint(check_all_files=True, include_untracked_markdown=True)` so that all current markdown files (including any session review files in `.cortex/reviews/` created or updated during this session) are linted
+- **If you wrote session review files**: If you created or updated any markdown files during Steps 0–11 (e.g. `.cortex/reviews/session-optimization-*.md`), run `fix_markdown_lint(check_all_files=True, include_untracked_markdown=True)` so those files are included before proceeding to Step 12.1
 - **Fix**: Resolve any markdown lint errors before proceeding to Step 12.1
 - **BLOCK COMMIT**: If markdown lint errors are found on modified files, fix them before continuing to Step 12.1
 - **Rationale**: Reduces extra iterations by catching markdown lint errors immediately after modification, before Step 12.6 full check

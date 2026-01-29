@@ -37,7 +37,7 @@ except ImportError:
 def get_linter_command(project_root: Path) -> list[str]:
     """Get linter command to run.
 
-    Matches CI workflow: ruff check --select F,E,W
+    Uses pyproject.toml rule set (E, F, I, B, UP) - matches CI workflow.
 
     Args:
         project_root: Path to project root
@@ -48,7 +48,7 @@ def get_linter_command(project_root: Path) -> list[str]:
     # Try .venv/bin/ruff first
     venv_ruff = project_root / ".venv" / "bin" / "ruff"
     if venv_ruff.exists():
-        return [str(venv_ruff), "check", "--select", "F,E,W"]
+        return [str(venv_ruff), "check"]
 
     # Try uv run ruff
     try:
@@ -58,12 +58,12 @@ def get_linter_command(project_root: Path) -> list[str]:
             check=True,
             cwd=project_root,
         )
-        return ["uv", "run", "ruff", "check", "--select", "F,E,W"]
+        return ["uv", "run", "ruff", "check"]
     except (subprocess.CalledProcessError, FileNotFoundError):
         pass
 
     # Fallback to system ruff
-    return ["ruff", "check", "--select", "F,E,W"]
+    return ["ruff", "check"]
 
 
 def get_directories_to_check(project_root: Path) -> list[str]:
