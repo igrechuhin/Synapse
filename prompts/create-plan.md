@@ -237,6 +237,7 @@ When executing steps, delegate to the appropriate agent for specialized work, th
 
 4. **Update roadmap file**:
    - **Use Cortex MCP tool `manage_file(file_name="roadmap.md", operation="write", content="[updated roadmap content]", change_description="Added new plan: [plan title]")`** to save updated roadmap
+   - **When calling `manage_file(file_name="roadmap.md", operation="write", content=...)`, the `content` parameter MUST be the complete, unabridged roadmap text.** Read the current roadmap first (Step 6.1), apply only the intended change (add or update one plan entry), and pass the full resulting content. **Never truncate, summarize, or shorten existing roadmap bullets** to fit length limits.
    - Ensure roadmap formatting is preserved
    - Verify the update was successful
 
@@ -247,7 +248,7 @@ When executing steps, delegate to the appropriate agent for specialized work, th
    - Verify file content is complete and accurate
 
 2. **Verify roadmap was updated**:
-   - **Use Cortex MCP tool `manage_file(file_name="roadmap.md", operation="read")`** to verify roadmap includes the new plan
+   - **Re-read roadmap via `manage_file(file_name="roadmap.md", operation="read")`** and confirm: (1) the new or updated plan entry is present and correct, and (2) **all existing roadmap entries are unchanged (no truncation or removal)**. If any existing entry was shortened or removed, restore the full content (e.g. via standard file edits) and repeat the write with complete content.
    - Check that roadmap entry is properly formatted and linked
 
 3. **Provide summary**:

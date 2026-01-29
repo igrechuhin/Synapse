@@ -45,6 +45,10 @@ manage_file(
 )
 ```
 
+### Roadmap writes
+
+For `roadmap.md` writes: always pass the **full file content**. Read the current roadmap via `manage_file(file_name="roadmap.md", operation="read")`, apply the intended edits (add or update one entry), then write the complete result with `manage_file(..., operation="write", content=...)`. **Never truncate or summarize existing entries.**
+
 ### Metadata Query Example
 
 ```python
