@@ -67,6 +67,13 @@
 - NEVER start new subagents that can touch the same files while a previous subagent that might modify those files is still running.
 - If there is **any doubt** about shared files or race conditions, choose **sequential execution**.
 
+**Concurrency rules (Steps 9–11 parallel block)**:
+
+- **Steps 0–8** and **Steps 12–14** MUST remain strictly sequential (ordering and dependencies).
+- **Steps 9, 10, and 11** form a **parallel validation/submodule block**: they are logically independent (read-only validators + submodule handling) and MAY run concurrently when the platform safely supports concurrent tool calls.
+- When running Steps 9–11 in parallel: start all three after Step 8 completes; wait for **all three** to finish before proceeding to Step 12; aggregate their results; if **any** of the three fails or reports blocking issues, treat the block as failed and do not proceed to Step 12.
+- Do **not** add other steps to the parallel group without explicit dependency analysis (see Phase 56 plan). Memory-bank and plan writers remain serialized.
+
 **Steps without dedicated agents** (handled directly in orchestration):
 
 - **Step 11**: Submodule handling (`.cortex/synapse`)
@@ -355,6 +362,8 @@ Step 13 and Step 14 below contain mandatory precondition checks; do not skip the
 - **BLOCK COMMIT**: If any completed plans remain unarchived or in wrong locations
 - **Workflow**: After Step 7 completes, verify archive validation passed before proceeding to Step 9
 
+**Parallel validation/submodule block (Steps 9–11)**: Steps 9, 10, and 11 may run in parallel when the platform supports concurrent tool calls; Step 12 runs only after all three complete. See "Concurrency rules" above.
+
 ### Step 9: Validate memory bank timestamps (delegate to `timestamp-validator`)
 
 - **Agent**: Use `.cortex/synapse/agents/timestamp-validator.md` for implementation details
@@ -370,10 +379,9 @@ Step 13 and Step 14 below contain mandatory precondition checks; do not skip the
 - **Conditional**: Only execute if `.cortex/prompts/validate-roadmap-sync.md` exists
 - **Workflow**: Agent validates roadmap.md is synchronized with codebase TODOs
 - **⚠️ BLOCKING RULE (MANDATORY)**: If `validate(check_type="roadmap_sync")` returns `valid: false`, STOP the commit workflow immediately. Do NOT proceed to Step 11. This is a hard gate, not a warning.
-- **Blocking criteria**:
+- **Blocking criteria** (all `valid: false` outcomes block commit):
   - `missing_roadmap_entries`: ALWAYS blocks commit (critical - TODOs not tracked)
-  - `invalid_references` to non-existent files: ALWAYS blocks commit (critical - broken references)
-  - `invalid_references` that are path-style mismatches where target exists: Log warning, create follow-up plan, but allow commit if TODO tracking is correct
+  - `invalid_references`: ALWAYS blocks commit (validator resolves `.cortex/plans/`, `cortex/plans/`, and `plans/` to `.cortex/plans/`; fix references or paths until validation passes)
 - **Skip if**: Command file does not exist
 
 ### Step 11: Submodule handling (`.cortex/synapse`)
