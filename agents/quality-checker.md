@@ -72,3 +72,12 @@ Test naming check:
 CRITICAL: Pre-existing violations are NOT acceptable - they MUST be fixed before commit.
 CRITICAL: Fix ALL violations automatically - never ask for permission, never stop with violations remaining.
 **⚠️ ZERO ERRORS TOLERANCE**: This project has ZERO errors tolerance - ALL violations (new or pre-existing) MUST be fixed before proceeding.
+
+## Step 12 Sequential Execution (MANDATORY)
+
+**CRITICAL**: Step 12 (Final Validation Gate) formatting operations MUST be sequential:
+
+- **NEVER** run `fix_formatting.py` and `check_formatting.py` in parallel
+- **MUST** run sequentially: first fix, then check
+- Do not interleave other state-changing operations between final formatting fix and check
+- Quality checks (file sizes, function lengths) run after formatting; respect the same sequential ordering

@@ -29,3 +29,23 @@ Key practices:
 ## Multi-Signal Analysis Approach
 
 **Primary signals** (always available):
+
+- Memory Bank files: `progress.md`, `activeContext.md`, `roadmap.md`, phase plans in `.cortex/plans/`
+- Structured tool responses: MCP tool outputs (validate, execute_pre_commit_checks, manage_file, etc.)
+- Git/file diffs: Code and file changes from the session
+
+**Optional signals** (use when available; do not treat as single points of failure):
+
+- `analyze_context_effectiveness()`: May return `status: "no_data"` for workflow-only sessions (e.g., `/cortex/commit` that do not call `load_context`). This is expected; use commit-tool outputs and memory-bank diffs as alternative signals.
+- Transcripts and `load_context` traces: Discover dynamically by listing `agent-transcripts` directories and selecting the most recent transcript whose recorded `rootdir` matches the current project. Do not rely on hardcoded transcript IDs or paths.
+
+**When `analyze_context_effectiveness()` returns `status: "no_data"`**:
+
+- Treat as expected for workflow/quality-only sessions.
+- Fall back to: Memory Bank diffs, git/file diffs, recent MCP tool invocations, and commit pipeline outputs.
+
+## Session Review Filename Conventions
+
+- **Canonical pattern**: `session-optimization-YYYY-MM-DDTHH-MM.md` (e.g., `session-optimization-2026-01-28T17-58.md`).
+- **Timestamp suffix**: The suffix after `T` MUST be a full time-of-day component (hours and minutes), not a bare counter. Use the actual session time (e.g., `T17-58`), not ad-hoc names like `T02` that do not encode a true timestamp.
+- **Malformed names**: If a review file has a malformed suffix (e.g., `TNN` with no minutes), suggest renaming it to match the canonical pattern before referencing it in plans, roadmap entries, or memory-bank files.

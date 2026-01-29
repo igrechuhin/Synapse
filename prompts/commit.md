@@ -2,7 +2,7 @@
 
 **AI EXECUTION COMMAND**: Execute the mandatory commit procedure with all required pre-commit checks, including testing of all runnable project tests.
 
-**CRITICAL**: This command is ONLY executed when explicitly invoked by the user (e.g., `/commit` or user explicitly requests commit). Invoking this command IS an explicit commit request per `no-auto-commit.mdc` rule. Once invoked, execute all steps AUTOMATICALLY without asking for additional permission or confirmation.
+**CRITICAL**: ONLY run this commit workflow when the user explicitly invoked `/cortex/commit` (or equivalent commit command). NEVER commit or push based on implicit assumptions like "as always" or "user expects this". Invoking this command IS an explicit commit request per `no-auto-commit.mdc` rule. Once invoked, execute all steps AUTOMATICALLY without asking for additional permission or confirmation.
 
 **⚠️ ZERO ERRORS TOLERANCE (MANDATORY)**: This project has ZERO errors tolerance. ANY errors found in ANY check (formatting, types, linting, quality, tests) MUST block commit - NO EXCEPTIONS. Pre-existing errors are NOT acceptable - they MUST be fixed before commit. You MUST explicitly parse error counts from output and verify they are ZERO before proceeding to commit. DO NOT dismiss errors as "pre-existing" or "in files I didn't modify" - ALL errors must be fixed.
 
@@ -13,6 +13,7 @@
 - **manage_file**
   - **Use when** you need to read or write Memory Bank files (`activeContext.md`, `progress.md`, `roadmap.md`) or query their metadata during the commit workflow.
   - **Required parameters**: `file_name`, `operation` (`"read"`, `"write"`, `"metadata"`).
+  - **Anti-pattern**: NEVER call `manage_file({})` or omit `file_name`/`operation`; this indicates a missing plan step or a bug in the orchestration prompt.
   - **Friendly error behavior**: If you forget `file_name` or `operation`, `manage_file` returns a structured error with a `details.missing` list and a `hint` explaining how to call it correctly.
   - **Examples**:
     - Read current roadmap with metadata:
@@ -184,6 +185,8 @@ The following error patterns MUST be detected and fixed before commit. These are
 - **Recording coverage debt**: Document in Memory Bank with wording like: "Global coverage at 21.7% due to untested analysis/structure modules. This is expected legacy debt and does not block focused roadmap sync work. Coverage improvement tracked in Phase XX."
 - **Reference coverage plans**: Reference relevant coverage-improvement plan from roadmap entries instead of attempting broad, unscheduled coverage work
 
+**Testing MCP JSON in tests**: When adding tests that assert on MCP tool JSON (e.g., manage_file, rules, execute_pre_commit_checks), follow the project's language-specific testing rules for structured JSON (see language rules and tests/tools/ for the required pattern).
+
 ### File Size Violations
 
 - **Pattern**: Files exceeding 400 lines
@@ -273,15 +276,13 @@ The following error patterns MUST be detected and fixed before commit. These are
 
 ### Git Write Preconditions
 
-**Before executing Step 13 (Commit creation)**:
+Before any `git add`, `git commit`, or `git push`:
 
-- **BLOCK COMMIT**: If any errors remain after this step, stop immediately
-- **Dependency**: Must run BEFORE all other pre-commit checks (first step)
-- **Workflow**: After agent completes, verify zero errors remain before proceeding to Step 1
+1. **User explicitly requested** commit/push (via `/cortex/commit` or explicit "commit"/"push" instruction).
+2. **Current branch** is not `main` (unless user explicitly requested push to `main`).
+3. **All validation gates** (Steps 0–12) have passed.
 
-- **Workflow**: After agent completes, verify formatting check passed before proceeding
-- **Directory scope**: Ensure formatting covers same directories as CI: `src/`, `tests/`, `.cortex/synapse/scripts/`
-- **Context Assessment**: If insufficient context remains after fixing formatting, provide comprehensive summary and advise re-running commit pipeline
+Step 13 and Step 14 below contain mandatory precondition checks; do not skip them.
 
 ### Step 1.5: Markdown linting (delegate to `markdown-linter`)
 
@@ -378,7 +379,8 @@ The following error patterns MUST be detected and fixed before commit. These are
 ### Step 11: Submodule handling (`.cortex/synapse`)
 
 - **Dependency**: Must run AFTER Step 10 (roadmap sync validation)
-- **Workflow**: Follow explicit command sequence below to handle submodule changes deterministically
+- **Workflow**: Follow explicit command sequence below to handle submodule changes deterministically.
+- **Strict decision rule**: Execute sub-steps 11.1 → 11.5 in order. At each step, only proceed to the next sub-step when the condition is met; otherwise skip to Step 12 (or, in 11.5, block commit). Do not run sub-steps in parallel or reorder them.
 
 **Step 11.1 - Check parent repo status**:
 
@@ -420,12 +422,26 @@ git diff --submodule=log -- .cortex/synapse
 - **If no pointer movement**: Investigate - submodule commit may have failed
 - **Note**: Updated submodule reference will be included in main commit (Step 13)
 
+**Step 11.5 - Verify submodule is clean** (MANDATORY, CRITICAL):
+
+- **MUST run after Step 11.4** to catch any uncommitted changes remaining after submodule operations (e.g., missed by 11.3 or introduced during Steps 0–11).
+- Run:
+
+```bash
+git -C .cortex/synapse status --porcelain
+```
+
+- **If output is empty**: Proceed to Step 12 (submodule is clean).
+- **If output is non-empty**: **BLOCK COMMIT** — report uncommitted changes and require manual intervention. Stop immediately; do not proceed to Step 12 or Step 13 until the user has committed and pushed submodule changes.
+- **Rationale**: Prevents uncommitted submodule changes from being missed, which causes inconsistent state between parent repo and submodule.
+
 ### Step 12: Final validation gate (MANDATORY re-verification)
 
 - **Dependency**: Must run AFTER Steps 4-11 (any code changes may have been made)
 - **CRITICAL**: This step exists because Steps 4-11 may create new files or make code changes that weren't validated
 - **⚠️ ABSOLUTE MANDATORY**: Step 12 CANNOT be skipped, bypassed, or assumed to have passed. It MUST be executed in full before Step 13.
 - **⚠️ EXECUTION VERIFICATION REQUIRED**: Before proceeding to Step 13, you MUST provide explicit evidence that ALL Step 12 sub-steps were executed:
+  - Step 12.0: Markdown re-validation on modified files executed (output shown)
   - Step 12.1: Formatting fix AND check executed (output shown)
   - Step 12.2: Type check script executed (output shown with "✅ All type checks passed" or error count = 0)
   - Step 12.3: Linter check executed (output shown with error count = 0)
@@ -540,6 +556,17 @@ The original checks in Steps 0-4 are INVALIDATED by any subsequent code changes 
 
 - **VERIFICATION**: Every check in Step 12 MUST show explicit success indicators in FULL output
 - **BLOCK COMMIT**: If output is truncated or unclear, DO NOT proceed to commit - re-run command without truncation
+
+### 12.0 Re-validate markdown files modified during Steps 0-11 (MANDATORY)
+
+**Purpose**: Catch markdown lint errors in files modified during Steps 0-11 (especially Synapse prompts/rules) before they propagate to submodule or require extra commits.
+
+- **When**: Run immediately at the start of Step 12, before Step 12.1
+- **What**: Identify markdown files modified during Steps 0-11 and run markdown lint check on those files
+- **How**: Use `fix_markdown_lint()` MCP tool with appropriate scope, or run markdown lint script on modified files
+- **Fix**: Resolve any markdown lint errors before proceeding to Step 12.1
+- **BLOCK COMMIT**: If markdown lint errors are found on modified files, fix them before continuing to Step 12.1
+- **Rationale**: Reduces extra iterations by catching markdown lint errors immediately after modification, before Step 12.6 full check
 
 ### 12.1 Re-run Formatting FIX then CHECK (MANDATORY)
 
@@ -748,6 +775,7 @@ fix_markdown_lint(check_all_files=True, include_untracked_markdown=True)
 
 **⚠️ MANDATORY**: This checklist MUST be completed and verified BEFORE proceeding to Step 13. Each item MUST be checked with explicit evidence (command outputs, exit codes, parsed error counts).
 
+- [ ] **Step 12.0 executed**: Markdown re-validation on modified files executed, full output shown
 - [ ] **Step 12.1 executed**: Formatting fix AND check commands executed, full output shown
 - [ ] Formatting re-run: **check passed** confirmed in FULL output (exit code 0, success message visible)
 - [ ] Formatting re-run: **NO output truncation** - full output read and verified
@@ -818,6 +846,7 @@ Before proceeding to commit creation, provide a validation summary confirming al
   - Coverage ≥ 90% (parsed from test output)
   - Integration tests = all pass (explicitly verified)
 - [ ] **⚠️ FINAL VALIDATION GATE (Step 12) - MANDATORY**:
+  - Markdown re-validation (Step 12.0) executed: Yes (MUST run on modified files before Step 12.1)
   - Formatting FIX executed: Yes (MUST run to format any new files created since Step 1)
   - Formatting CHECK: `would be left unchanged` (output verified)
   - Type check RE-RUN: `0 errors, 0 warnings, 0 informations` (output verified)
@@ -1108,6 +1137,7 @@ Use this ordering when numbering results:
 - **Code Changes Since Step 4**: List any code changes made during steps 5-11 that required re-verification
 - **Discrepancy Handling**: If Step 12 script finds errors that Step 2 MCP tool missed, document the discrepancy and BLOCK commit
 - **Validation Results**:
+  - Step 12.0 executed: Yes/No (MUST be Yes - markdown re-validation on modified files executed)
   - Step 12.1 executed: Yes/No (MUST be Yes - formatting fix AND check commands executed)
   - Formatting fix executed: Yes/No (MUST be Yes)
   - Formatting check passed: Yes/No (MUST be Yes)

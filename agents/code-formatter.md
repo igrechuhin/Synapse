@@ -30,3 +30,12 @@ For each formatting operation:
 - Identify any non-auto-fixable formatting issues
 
 Always ensure formatting check passes before proceeding.
+
+## Step 12 Sequential Execution (MANDATORY)
+
+**CRITICAL**: When Step 12 (Final Validation Gate) runs, formatting MUST be sequential:
+
+- **NEVER** run `fix_formatting.py` and `check_formatting.py` in parallel
+- **MUST** run sequentially: first fix, then check
+- Do not interleave other state-changing operations between formatting fix and check
+- This applies to both the code-formatter agent (Steps 0–1) and Step 12.1 in the commit workflow
