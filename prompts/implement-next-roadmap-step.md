@@ -102,7 +102,7 @@ When executing steps, delegate to the appropriate agent for specialized work, th
 **Task-Aware Token Budget Selection**:
 
 - **Fix/debug tasks**: Use `token_budget=15000` (narrow, focused work)
-- **Small feature/refactor**: Use `token_budget=20000-30000` (moderate scope)
+- **Small feature/refactor**: Use `token_budget=20000-30000` (moderate scope); 20000 or 20000–25000 often sufficient; for narrow implement steps when high-value files (activeContext, roadmap, progress) are sufficient, consider **15000–20000**
 - **Architecture/large design**: Use `token_budget=40000-50000` (broad scope)
 - **Increase budget only when utilization regularly exceeds ~70%** from previous runs
 
@@ -123,9 +123,18 @@ When executing steps, delegate to the appropriate agent for specialized work, th
    - This tool will automatically select and return relevant memory bank files based on the task description
    - The returned context will include: current project state, related work, technical constraints, patterns, and any relevant context
    - Review `file_effectiveness` recommendations in the response to understand which files are high/moderate/lower relevance
-2. **Alternative approach**: If you need more control, use `get_relevance_scores(task_description="[description]")` first to see which files are most relevant, then use `manage_file()` to read specific high-relevance files
-3. If the roadmap step references other files or documentation, use `manage_file()` to read those specific files
-4. Identify any dependencies that must be completed first based on the loaded context
+2. **If `load_context()` returns validation error (NON-CRITICAL error per Phase 54)**:
+   - **DO NOT stop**: This is a non-critical error with alternative available
+   - **Use alternative approach**: Use `manage_file()` to read specific memory bank files directly:
+     - `manage_file(file_name="activeContext.md", operation="read")`
+     - `manage_file(file_name="progress.md", operation="read")`
+     - `manage_file(file_name="systemPatterns.md", operation="read")`
+     - `manage_file(file_name="techContext.md", operation="read")`
+   - **Document**: Note in implementation that alternative approach was used due to validation error
+   - **Continue**: Proceed with implementation using loaded context
+3. **Alternative approach**: If you need more control, use `get_relevance_scores(task_description="[description]")` first to see which files are most relevant, then use `manage_file()` to read specific high-relevance files
+4. If the roadmap step references other files or documentation, use `manage_file()` to read those specific files
+5. Identify any dependencies that must be completed first based on the loaded context
 
 ### Step 3: Plan Implementation
 
@@ -137,6 +146,21 @@ When executing steps, delegate to the appropriate agent for specialized work, th
 ### Step 3.5: Check Existing Data Models (MANDATORY)
 
 Before defining new data structures (classes, types, models, interfaces):
+
+**Pre-Implementation Checklist**:
+
+- [ ] Reviewed existing data model patterns in project
+- [ ] Checked language-specific rules for model requirements
+- [ ] **FOR PYTHON**: Confirmed all models will use Pydantic BaseModel (NOT TypedDict)
+- [ ] Verified model placement follows project structure standards
+- [ ] Checked for similar existing models to reuse
+
+**If creating new models, verify**:
+
+- [ ] Using `pydantic.BaseModel` (NOT `TypedDict`)
+- [ ] Using Pydantic 2 API (`model_validate()`, `model_dump()`, `ConfigDict`)
+- [ ] All fields have explicit type hints
+- [ ] Using `Literal` types for status/enum fields
 
 1. **Review existing data model patterns**:
    - Check project's code organization standards for where data models should be defined
@@ -154,6 +178,12 @@ Before defining new data structures (classes, types, models, interfaces):
    - Check language-specific rules for required model types
    - Ensure new models follow project's data modeling standards
    - Verify model type compliance per language-specific coding standards
+   - **CRITICAL FOR PYTHON**:
+     - **ALL structured data MUST use Pydantic `BaseModel`** - NO EXCEPTIONS
+     - **TypedDict is STRICTLY FORBIDDEN** for new code
+     - **Example**: Use `class MergeOpportunity(BaseModel):` NOT `class MergeOpportunity(TypedDict):`
+     - **Validation**: Run `.venv/bin/pyright src/cortex/{new_module}/` and verify no TypedDict usage
+     - **BLOCKING**: If TypedDict is detected, convert to Pydantic BaseModel before proceeding
    - **Run language-specific validation script**: `.venv/bin/python .cortex/synapse/scripts/{language}/check_data_models.py` (if available) - will verify data modeling compliance automatically
 
 ### Step 4: Implement the Step
@@ -173,7 +203,21 @@ Before defining new data structures (classes, types, models, interfaces):
      - **FORBIDDEN**: Hardcoding paths like `.cortex/.session`, `.cursor/memory-bank`, etc.
      - **FORBIDDEN**: String concatenation for paths without using resolver utilities
      - **FORBIDDEN**: Assuming path structure without checking project patterns
-2. Write or update tests (MANDATORY - comprehensive test coverage required):
+2. **MANDATORY: Format code immediately after creation** (before type checking):
+   - **For Python**: Run `.venv/bin/black src/cortex/{new_module}/` to format all new/modified files
+   - **BLOCKING**: All files MUST be formatted before proceeding to type checking
+   - **Verify**: Check Black output - if files were reformatted, they're already updated
+   - **Do not skip**: Formatting is mandatory, not optional - prevents user from having to format manually
+3. **MANDATORY: Run type checking immediately after code creation** (before writing tests):
+   - **BLOCKING**: Fix ALL type errors before proceeding to test writing
+   - **Common type errors to fix**:
+     - Unused imports: Remove or use them
+     - Type mismatches: Fix parameter types (e.g., `dict_keys` → `set`, `object` → concrete type)
+     - Unused call results: Assign to `_` if intentionally unused
+     - Missing type annotations: Add explicit types to all functions/methods
+   - **If type errors exist**: Fix them immediately, do not continue to test writing
+   - **Verification**: Re-run pyright until 0 errors, 0 warnings
+4. Write or update tests (MANDATORY - comprehensive test coverage required):
    - Follow AAA pattern (MANDATORY)
    - No blanket skips (MANDATORY)
    - Target 100% pass rate on project's test suite
@@ -184,11 +228,12 @@ Before defining new data structures (classes, types, models, interfaces):
    - **Test documentation**: Include clear docstrings explaining test purpose and expected behavior
    - **Pydantic v2 for JSON testing**: When testing MCP tool responses (e.g., `manage_file`, `rules`, `execute_pre_commit_checks`), use Pydantic v2 `BaseModel` types and `model_validate_json()` / `model_validate()` instead of asserting on raw `dict` shapes. See `tests/tools/test_file_operations.py` for examples (e.g., `ManageFileErrorResponse` pattern).
    - **Verify coverage**: Run coverage tool and ensure project's coverage threshold is met before considering implementation complete
-3. Fix any errors or issues:
+5. Fix any errors or issues:
    - Run linters and fix all issues
    - Fix type errors
    - Fix formatting issues using project's code formatter
    - Ensure all tests pass
+   - **Before Step 4.5**, run ReadLints on all new/modified files (or call `fix_quality_issues(project_root=...)`) and fix any reported type or lint errors.
 
 ### Step 4.5: Verify Test Coverage (MANDATORY)
 
@@ -215,6 +260,7 @@ Before defining new data structures (classes, types, models, interfaces):
 2. **Verify type system compliance** (per language-specific rules):
    - Type annotations are complete on all new functions, methods, classes
    - Generic/untyped types are avoided per language standards
+   - **Multi-line string messages**: Do not use adjacent string literals (implicit concatenation). Use a single f-string or explicit `+` / `str.join()` (Pyright `reportImplicitStringConcatenation` is error).
    - **Structured data types follow project's data modeling standards** (CRITICAL):
      - **MANDATORY CHECK**: Scan code for data structure types - verify they comply with project's required data modeling patterns
      - **MANDATORY CHECK**: Check language-specific coding standards for required data modeling types (e.g., check python-coding-standards.mdc for Python)

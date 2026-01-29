@@ -20,6 +20,9 @@ alwaysApply: false
 ### Pydantic 2 Models (STRICT MANDATORY)
 
 - **ALL structured data MUST use Pydantic `BaseModel`** - NO EXCEPTIONS
+- **TypedDict is FORBIDDEN** for new code - use Pydantic BaseModel instead
+- **Validation Step**: Before committing, run: `pyright src/` and verify no TypedDict usage in new code
+- **CI Enforcement**: CI MUST fail on TypedDict usage in new modules
 - **Use Pydantic 2 API**: `model_validate()`, `model_dump()`, `ConfigDict` - MANDATORY
 - Applies to: function return types, parameters, API responses, MCP tool results, nested structures
 - CI MUST fail on violations
