@@ -49,6 +49,10 @@ manage_file(
 
 For `roadmap.md` writes: always pass the **full file content**. Read the current roadmap via `manage_file(file_name="roadmap.md", operation="read")`, apply the intended edits (add or update one entry), then write the complete result with `manage_file(..., operation="write", content=...)`. **Never truncate or summarize existing entries.**
 
+### Roadmap update (plan creation)
+
+When invoked from the plan creation workflow (`/cortex/plan`), roadmap updates MUST use only `manage_file(file_name="roadmap.md", operation="write", content=<full roadmap text>, change_description="...")` with the complete, unabridged roadmap content. Do not use StrReplace, direct Write to the roadmap path, or any method that bypasses `manage_file`.
+
 ### Metadata Query Example
 
 ```python

@@ -142,8 +142,9 @@ When modifying `.cortex/synapse/` files:
 - **Prompts (`prompts/*.md`)**: MUST be language-agnostic and project-agnostic
   - DO NOT hardcode language-specific commands (e.g., `ruff`, `black`, `prettier`)
   - DO NOT reference project-specific requirements (e.g., "Pydantic models")
-  - DO use script references: `.cortex/synapse/scripts/{language}/check_*.py`
+  - DO use Cortex MCP tools for all checks (e.g., `execute_pre_commit_checks()`)
   - DO use generic language: "check language-specific rules", "use project-mandated types"
+  - DO NOT instruct agents to run scripts directly; tools resolve language and run the appropriate checks
 
 - **Rules (`rules/*.mdc`)**: Language-specific rules are allowed
   - Python-specific rules go in `rules/python/`
@@ -163,7 +164,7 @@ The following error patterns MUST be detected and fixed before commit. These are
 - **Detection**: Parse type checker output for error count (e.g., Pyright for Python, TypeScript compiler for TypeScript)
 - **Action**: Fix all type errors, re-run type checker, verify zero errors
 - **Block Commit**: Yes - type errors will cause CI to fail
-- **⚠️ CRITICAL**: Step 2 uses MCP tool which may only check `src/`. Step 12.2 uses script which checks BOTH `src/` AND `tests/`. Script results are AUTHORITATIVE - if script finds errors that MCP tool missed, commit MUST be blocked.
+- **⚠️ CRITICAL**: Step 12.2 uses `execute_pre_commit_checks(checks=["type_check"])` which checks BOTH `src/` AND `tests/` to match CI. Step 12.2 result is AUTHORITATIVE - if the tool finds errors, commit MUST be blocked.
 - **Note**: Only applicable if project uses a type system (Python with type hints, TypeScript, etc.)
 
 ### Test Failures
@@ -184,10 +185,9 @@ The following error patterns MUST be detected and fixed before commit. These are
 - **CRITICAL**: Coverage validation is MANDATORY - there are NO exceptions or "slightly below" allowances
 - **Validation**: Coverage percentage MUST be explicitly extracted and verified ≥ 90.0% before proceeding
 - **Enforcement**: If coverage < 90.0%, the commit procedure MUST stop immediately and coverage MUST be fixed before continuing
-- **Re-run tests / coverage report (MANDATORY)**: When re-running tests or when you need a coverage report to fix coverage, use **only**:
-  - `execute_pre_commit_checks(checks=["tests"], timeout=300, coverage_threshold=0.90)` MCP tool, or
-  - `.venv/bin/python .cortex/synapse/scripts/{language}/run_tests.py` as fallback.
-  Do **NOT** run raw test commands in a Shell - use the script or MCP only. Running the test runner directly can produce huge output and long runs and bypass project timeout/configuration.
+- **Re-run tests / coverage report (MANDATORY)**: When re-running tests or when you need a coverage report to fix coverage, use **only** the Cortex MCP tool:
+  - `execute_pre_commit_checks(checks=["tests"], timeout=300, coverage_threshold=0.90)`
+  Do **NOT** run raw test commands in a Shell - use the MCP tool only. Running the test runner directly can produce huge output and long runs and bypass project timeout/configuration.
 
 **Coverage Interpretation for Focused Work**:
 
@@ -239,8 +239,7 @@ The following error patterns MUST be detected and fixed before commit. These are
 - **⚠️ ZERO ERRORS TOLERANCE**: The project has ZERO errors tolerance - ANY errors (new or pre-existing) MUST block commit
 - **⚠️ NO EXCEPTIONS**: Pre-existing linting errors are NOT acceptable - they MUST be fixed before commit
 - **⚠️ ABSOLUTE BLOCK**: If error count > 0 (even if errors are in files you didn't modify), stop immediately - DO NOT proceed to commit
-- **Note**: **Use `execute_pre_commit_checks()` MCP tool for all pre-commit operations** - scripts are fallbacks only if MCP tool is unavailable
-- **Fallback Script**: `.venv/bin/python .cortex/synapse/scripts/{language}/check_linting.py`
+- **Note**: **Use `execute_pre_commit_checks()` MCP tool for all pre-commit operations** (e.g. `execute_pre_commit_checks(checks=["quality"])` for linting; quality includes lint, file sizes, function lengths)
 
 ### Integration Test Failures
 
@@ -312,7 +311,7 @@ Step 13 and Step 14 below contain mandatory precondition checks; do not skip the
 - **Dependency**: Must run AFTER Step 1.5 (markdown linting)
 - **Conditional**: Only execute if project uses a type system (Python with type hints, TypeScript, etc.)
 - **CRITICAL**: Must verify zero type errors AND zero warnings
-- **⚠️ IMPORTANT**: This step uses MCP tool which may only check `src/` directory. Step 12.2 (Final Validation Gate) uses the script which checks BOTH `src/` AND `tests/` - Step 12.2 is AUTHORITATIVE and takes precedence.
+- **⚠️ IMPORTANT**: Step 12.2 (Final Validation Gate) uses `execute_pre_commit_checks(checks=["type_check"])` which checks BOTH `src/` AND `tests/` to match CI - Step 12.2 is AUTHORITATIVE and takes precedence.
 - **BLOCK COMMIT**: If any type errors OR warnings remain
 - **Workflow**: After agent completes, verify zero errors and zero warnings before proceeding to Step 3
 - **Skip if**: Project does not use a type system
@@ -455,7 +454,7 @@ git -C .cortex/synapse status --porcelain
 - **⚠️ EXECUTION VERIFICATION REQUIRED**: Before proceeding to Step 13, you MUST provide explicit evidence that ALL Step 12 sub-steps were executed:
   - Step 12.0: Markdown re-validation on modified files executed (output shown)
   - Step 12.1: Formatting fix AND check executed (output shown); Step 12.1.2 result parsed and verified before Step 12.2; CI parity (12.1.3) recommended
-  - Step 12.2: Type check script executed (output shown with "✅ All type checks passed" or error count = 0)
+  - Step 12.2: Type check tool executed (`execute_pre_commit_checks(checks=["type_check"])` result shown with success and 0 errors)
   - Step 12.3: Linter check executed (output shown with error count = 0)
   - Step 12.4: Test naming check executed (output shown)
   - Step 12.5: File sizes AND function lengths checks executed (output shown)
@@ -474,7 +473,7 @@ git -C .cortex/synapse status --porcelain
   1. **User explicitly requested commit**: Verify user invoked `/cortex/commit` or explicitly requested commit. If not, STOP and ask for confirmation.
   2. **Current branch check**: Verify current branch is not `main` (unless user explicitly requested push to `main`). If on `main` without explicit request, STOP and ask for confirmation.
   3. **Step 12 was fully executed**: All Step 12 sub-steps (12.1-12.6) were executed and their outputs were verified
-  4. **Step 12.2 type check passed**: The `check_types.py` script was executed and showed "✅ All type checks passed" with 0 errors and 0 warnings
+  4. **Step 12.2 type check passed**: The type check tool (`execute_pre_commit_checks(checks=["type_check"])`) was executed and returned success with 0 errors
   5. **No errors in any Step 12 check**: All Step 12 checks passed with zero errors
   6. **Explicit verification provided**: You have documented the execution of Step 12 with actual command outputs
   7. **All validation gates passed**: Steps 0-12 have completed successfully
@@ -539,7 +538,7 @@ The commit procedure executes steps in this specific order to ensure dependencie
 13. **Commit** - Creates the commit with all changes (including updated submodule reference)
 14. **Push** - Pushes committed changes to remote repository
 
-**MCP Tools**: Steps 0 (Fix Errors), 1 (Formatting), 2 (Type Checking), 3 (Code Quality), and 4 (Testing) use the `execute_pre_commit_checks()` MCP tool instead of scripts. This provides structured parameters, type safety, and consistent error handling. Scripts are fallbacks only if the MCP tool is unavailable.
+**MCP Tools**: Steps 0 (Fix Errors), 1 (Formatting), 2 (Type Checking), 3 (Code Quality), and 4 (Testing) use the `execute_pre_commit_checks()` MCP tool. Step 12 (Final Validation Gate) also uses only Cortex MCP tools (format, format_ci_parity, type_check, quality, test_naming, tests, and fix_markdown_lint). This provides structured parameters, type safety, and consistent error handling. Do NOT run scripts directly; use tools only.
 
 ## ⚠️ STEP 12: FINAL VALIDATION GATE (CRITICAL - MANDATORY)
 
@@ -552,15 +551,17 @@ The original checks in Steps 0-4 are INVALIDATED by any subsequent code changes 
 
 **CRITICAL RULE**: ANY code change OR new file creation after Step 1 REQUIRES re-running formatting AND verification before commit.
 
+**CRITICAL RULE (Step 12)**: After ANY code change during Step 12 (e.g. fixing type errors in 12.2, fixing lint in 12.3, or any other edit to `src/` or `tests/`), you MUST re-run Step 12.1 (format → format check → format_ci_parity via `execute_pre_commit_checks`) and verify they pass BEFORE continuing to the next Step 12 sub-step or to Step 13. Edits made inside the final gate must be formatted before commit; otherwise CI will fail on the formatting check.
+
 **⚠️ STEP 12.1 MUST NOT RUN IN PARALLEL WITH 12.2/12.3**: You MUST run Step 12.1.2 (formatting check), wait for its result, and verify exit code 0 and success message BEFORE starting Step 12.2 or 12.3. If you run 12.1.2 in parallel with 12.2/12.3, the formatting result can be missed and unformatted code may be committed (this has caused CI failures: Black formatting check failed on push).
 
 **⚠️ ZERO ERRORS TOLERANCE**: This project has ZERO errors tolerance. ANY errors found in Step 12 (formatting, types, linting, quality) MUST block commit - NO EXCEPTIONS, even if errors are pre-existing or in files you didn't modify. You MUST explicitly parse error counts from output and verify they are ZERO before proceeding.
 
-**⚠️ AUTHORITATIVE CHECKS**: Step 12 uses scripts that check MORE directories than earlier MCP tool checks. For example:
+**⚠️ AUTHORITATIVE CHECKS**: Step 12 uses the same Cortex MCP tools; the type_check check runs on BOTH `src/` AND `tests/` to match CI.
 
-- **Type checking**: Step 2 MCP tool may only check `src/`, but Step 12.2 script checks BOTH `src/` AND `tests/`
-- **Script results take precedence**: If Step 12 script finds errors (even if Step 2 MCP tool passed), commit MUST be blocked
-- **NO DISCREPANCY ALLOWED**: If script finds errors that MCP tool missed, those errors MUST be fixed before commit
+- **Type checking**: Step 12.2 tool (`execute_pre_commit_checks(checks=["type_check"])`) checks BOTH `src/` AND `tests/`
+- **Step 12 results take precedence**: If any Step 12 check finds errors (even if an earlier step passed), commit MUST be blocked
+- **NO DISCREPANCY ALLOWED**: If a Step 12 check finds errors, those errors MUST be fixed before commit
 
 ## ⚠️ MANDATORY: NO OUTPUT TRUNCATION IN STEP 12
 
@@ -585,119 +586,116 @@ The original checks in Steps 0-4 are INVALIDATED by any subsequent code changes 
 
 ### 12.1 Re-run Formatting FIX then CHECK (MANDATORY)
 
-**CRITICAL**: New files created during Steps 4-11 (especially test files added to fix coverage) will NOT have been formatted by Step 1. You MUST run the fix script first, then verify.
+**CRITICAL**: New files created during Steps 4-11 (especially test files added to fix coverage) will NOT have been formatted by Step 1. You MUST run the format tool (`execute_pre_commit_checks(checks=["format"])`) first, then verify.
+
+**CRITICAL (re-run after fixes in Step 12)**: If you fix type errors (12.2), lint (12.3), or make any other code edit to `src/` or `tests/` during Step 12, you MUST re-run 12.1.1 (format via tool), then 12.1.2 (format check via same tool), then 12.1.3 (format_ci_parity via tool) and verify all pass before continuing to 12.3 (or the next sub-step) or Step 13.
 
 **⚠️ SEQUENTIAL EXECUTION REQUIRED (MANDATORY)**:
 
 - **Do not interleave other state-changing operations** between final formatting fix and check.
-- **Do NOT run Step 12.1.2 in parallel with Step 12.2 or 12.3** - you MUST run Step 12.1.2, wait for its result, parse the FULL output and verify exit code 0 and success message (e.g. "✅ All formatting checks passed") BEFORE starting Step 12.2. Running 12.1.2 in parallel can cause the formatting result to be ignored and allow unformatted code to be committed (this has caused CI failures).
+- **Do NOT run Step 12.1.2 in parallel with Step 12.2 or 12.3** - you MUST run Step 12.1.2, wait for its result, parse the FULL tool output and verify success (e.g. `results.format.status` = "passed" or `results.format.errors` empty) BEFORE starting Step 12.2. Running 12.1.2 in parallel can cause the formatting result to be ignored and allow unformatted code to be committed (this has caused CI failures).
 
-- **Recommended pattern**: Run fix, wait for completion, then run check immediately after, then verify result before proceeding.
+- **Recommended pattern**: Run format (fix), wait for completion, then run format (check) immediately after, then verify result before proceeding.
 
 **Step 12.1.1 - Run formatting FIX** (always run this, not just on failure):
 
-```bash
-.venv/bin/python .cortex/synapse/scripts/{language}/fix_formatting.py
+Use the Cortex MCP tool:
+
+```text
+execute_pre_commit_checks(checks=["format"], project_root=<project_root>)
 ```
 
-**⚠️ CRITICAL**: Do NOT run check_formatting.py in parallel - wait for fix to complete first
+**⚠️ CRITICAL**: Do NOT run format check in parallel - wait for fix to complete first
 
 **Step 12.1.2 - Run formatting CHECK** to verify (MUST run AFTER Step 12.1.1 completes):
 
-```bash
-.venv/bin/python .cortex/synapse/scripts/{language}/check_formatting.py
+Use the same tool again (idempotent; verify no files were formatted and success):
+
+```text
+execute_pre_commit_checks(checks=["format"], project_root=<project_root>)
 ```
 
-**⚠️ CRITICAL**: Do NOT truncate output - read FULL output to verify check passed
+**⚠️ CRITICAL**: Do NOT truncate output - read FULL tool response to verify check passed
 
-- **MUST verify**: Exit code is 0 (zero) - command must succeed
-- **MUST verify**: Output contains explicit success indicator (e.g. "✅ All formatting checks passed") - if output is empty or missing success message, BLOCK COMMIT and re-run without truncation
-- **BLOCK COMMIT** if ANY formatting violations are reported OR if exit code is non-zero
-- **BLOCK COMMIT** if output is truncated or unclear - re-run without truncation
+- **MUST verify**: Tool returns `status` = "success" and `results.format` indicates passed (e.g. `results.format.errors` empty or success message)
+- **MUST verify**: If any formatting violations remain, BLOCK COMMIT and re-run format fix (12.1.1) then check again
+- **BLOCK COMMIT** if ANY formatting violations are reported OR if tool returns status "error" for format
 - **BLOCK COMMIT** if you did not wait for and parse Step 12.1.2 result before proceeding to Step 12.2
-- **Scope verification**: Ensure formatting check covers same directories as CI (`src/`, `tests/`, `.cortex/synapse/scripts/`)
+- **Scope**: The tool runs the same scope as CI (`src/`, `tests/` where applicable).
 
 **Step 12.1.3 - CI parity (RECOMMENDED)** - Match CI formatting step exactly:
 
-After Step 12.1.2 passes, run the exact command the CI workflow runs for the main formatting check (same paths as CI) and verify exit code 0. This prevents path/scope mismatch between local scripts and CI.
+After Step 12.1.2 passes, run the format_ci_parity check via the Cortex MCP tool so the same formatter and paths as CI are used:
 
-```bash
-.venv/bin/black --check src/ tests/
+```text
+execute_pre_commit_checks(checks=["format_ci_parity"], project_root=<project_root>)
 ```
 
-Or if using uv: `uv run black --check src/ tests/`
-
-- **Purpose**: CI runs `black --check src/ tests/` as its first quality step. Running the same command locally ensures no discrepancy (e.g. scripts checking different dirs or order).
-- **BLOCK COMMIT** if this command returns non-zero - fix formatting and re-run from Step 12.1.1
+- **Purpose**: CI runs a language-specific formatter on the main source and test trees. This check runs the same validation locally (e.g. for Python: formatter check on `src/` and `tests/`).
+- **BLOCK COMMIT** if this check returns non-success - fix formatting and re-run from Step 12.1.1
+- **Note**: The tool resolves language automatically; no script paths in the prompt.
 
 ### 12.2 Re-run Type Check (MANDATORY for typed projects)
 
-**⚠️ EXECUTION MANDATORY**: This step CANNOT be skipped for Python projects. You MUST execute this command and show its output before proceeding to Step 13.
+**⚠️ EXECUTION MANDATORY**: This step CANNOT be skipped for Python projects. You MUST execute this check via the Cortex MCP tool and show its result before proceeding to Step 13.
 
-Run the language-specific type check script:
+Use the Cortex MCP tool (checks `src/` and `tests/` to match CI):
 
-```bash
-.venv/bin/python .cortex/synapse/scripts/python/check_types.py
+```text
+execute_pre_commit_checks(checks=["type_check"], project_root=<project_root>)
 ```
 
-**⚠️ CRITICAL**: Do NOT truncate output - read FULL output to verify check passed
+**⚠️ CRITICAL**: Do NOT truncate output - read FULL tool response to verify check passed
 
-- **MUST execute**: This command MUST be executed - do not skip or assume it passed
-- **MUST show output**: The full command output MUST be displayed in your response to verify execution
-- **MUST verify**: Output shows type check passed (e.g., "✅ All type checks passed")
-- **MUST verify**: Exit code is 0 (zero) - command must succeed
-- **MUST verify**: Output shows "0 errors" and "0 warnings" (or equivalent success message)
-- **⚠️ ABSOLUTE BLOCK**: If ANY type errors or warnings are reported (even if Step 2 MCP tool passed), STOP IMMEDIATELY - DO NOT proceed to commit
-- **⚠️ NO EXCEPTIONS**: Script errors take precedence over MCP tool results - if script finds errors, commit MUST be blocked
+- **MUST execute**: This tool call MUST be executed - do not skip or assume it passed
+- **MUST show result**: The tool response (or key fields: status, results.type_check) MUST be used to verify execution
+- **MUST verify**: Tool returns `status` = "success" and `results.type_check` indicates passed (e.g. 0 errors)
+- **MUST verify**: `results.type_check.errors` is empty (or equivalent success)
+- **⚠️ ABSOLUTE BLOCK**: If ANY type errors or warnings are reported (even if Step 2 passed earlier), STOP IMMEDIATELY - DO NOT proceed to commit
+- **⚠️ NO EXCEPTIONS**: Step 12.2 result is AUTHORITATIVE - type errors MUST block commit
 - **⚠️ ZERO ERRORS TOLERANCE**: The project has ZERO errors tolerance - ANY errors (new or pre-existing, in src/ or tests/) MUST block commit
-- **BLOCK COMMIT** if ANY type errors or warnings are reported OR if exit code is non-zero
-- **BLOCK COMMIT** if output is truncated or unclear - re-run without truncation
-- **BLOCK COMMIT** if error count > 0 (even if errors are in test files or files you didn't modify)
-- **BLOCK COMMIT** if this command was not executed - Step 12.2 execution is mandatory
-- **DO NOT rely on memory of earlier checks** - you MUST re-run and verify output NOW
+- **BLOCK COMMIT** if ANY type errors or warnings are reported OR if tool returns status "error" for type_check
+- **BLOCK COMMIT** if this check was not executed - Step 12.2 execution is mandatory
+- **DO NOT rely on memory of earlier checks** - you MUST re-run and verify result NOW
 - **DO NOT dismiss errors as "pre-existing"** - ALL errors must be fixed before commit
-- **DO NOT dismiss errors because Step 2 passed** - Step 12.2 is AUTHORITATIVE and checks more directories
 - **Skip if**: Project does not use a type system (Python projects use type hints, so this step is NOT skipped for Python)
+- **If you fixed type errors in this step**: Re-run Step 12.1 (format → format check → format_ci_parity via tools) and verify all pass before proceeding to Step 12.3 (see "CRITICAL RULE (Step 12)" above).
 
 ### 12.3 Re-run Linter Check (MANDATORY)
 
-Run the language-specific linter check script:
+Use the Cortex MCP tool (quality check includes lint; same scope as CI):
 
-```bash
-.venv/bin/python .cortex/synapse/scripts/{language}/check_linting.py
+```text
+execute_pre_commit_checks(checks=["quality"], project_root=<project_root>)
 ```
 
-**⚠️ CRITICAL**: Do NOT truncate output - read FULL output to verify check passed
+**⚠️ CRITICAL**: Do NOT truncate output - read FULL tool response to verify check passed
 
-- **MUST verify**: Output shows linter check passed (e.g., "✅ All linting checks passed")
-- **MUST verify**: Exit code is 0 (zero) - command must succeed
-- **MUST verify**: No error messages or linting violations in output
-- **MUST verify**: Error count parsed from output = 0 (ZERO) - explicitly extract and verify error count
+- **MUST verify**: Tool returns `status` = "success" and quality check indicates passed (no lint errors)
+- **MUST verify**: Parse `results.quality` - errors list must be empty (error count = 0)
 - **⚠️ ABSOLUTE BLOCK**: If ANY linter violations are reported (even 1 error), stop immediately - DO NOT proceed to commit
 - **⚠️ NO EXCEPTIONS**: Pre-existing linting errors are NOT acceptable - they MUST be fixed before commit
 - **⚠️ ZERO ERRORS TOLERANCE**: The project has ZERO errors tolerance - ANY errors (new or pre-existing) MUST block commit
-- **BLOCK COMMIT** if ANY linter violations are reported OR if exit code is non-zero
-- **BLOCK COMMIT** if output is truncated or unclear - re-run without truncation
-- **BLOCK COMMIT** if error count > 0 (even if errors are in files you didn't modify)
-- **DO NOT rely on memory of earlier checks** - you MUST re-run and verify output NOW
+- **BLOCK COMMIT** if ANY linter violations are reported OR if tool returns status "error" for quality
+- **If you fixed lint in this step**: Re-run Step 12.1 (format → format check → format_ci_parity via tools) and verify all pass before proceeding to Step 12.4 (see "CRITICAL RULE (Step 12)" above).
+- **BLOCK COMMIT** if quality check reports any errors
+- **DO NOT rely on memory of earlier checks** - you MUST re-run and verify result NOW
 - **DO NOT dismiss errors as "pre-existing"** - ALL errors must be fixed before commit
 
 ### 12.4 Re-run Test Naming Check (MANDATORY)
 
-Run the language-specific test naming check script:
+Use the Cortex MCP tool (runs language-specific test naming check):
 
-```bash
-.venv/bin/python .cortex/synapse/scripts/{language}/check_test_naming.py
+```text
+execute_pre_commit_checks(checks=["test_naming"], project_root=<project_root>)
 ```
 
-**⚠️ CRITICAL**: Do NOT truncate output - read FULL output to verify check passed
+**⚠️ CRITICAL**: Do NOT truncate output - read FULL tool response to verify check passed
 
-- **MUST verify**: Output shows test naming check passed (e.g., "✅ All test functions follow naming convention")
-- **MUST verify**: Exit code is 0 (zero) - command must succeed
+- **MUST verify**: Tool returns `status` = "success" and `results.test_naming` indicates passed
 - **MUST verify**: No test naming violations reported (all test functions follow `test_<name>` pattern)
-- **BLOCK COMMIT** if ANY test naming violations are reported OR if exit code is non-zero
-- **BLOCK COMMIT** if output is truncated or unclear - re-run without truncation
-- **DO NOT rely on memory of earlier checks** - you MUST re-run and verify output NOW
+- **BLOCK COMMIT** if ANY test naming violations are reported OR if tool returns status "error" for test_naming
+- **DO NOT rely on memory of earlier checks** - you MUST re-run and verify result NOW
 - **Fix violations**: Test functions must follow pattern `test_<name>` (with underscore after "test")
   - Invalid: `testread`, `testgenerate`, `testcreate`, `testsetup` (missing underscore)
   - Valid: `test_read`, `test_generate`, `test_create`, `test_setup` (with underscore)
@@ -714,12 +712,6 @@ Use the MCP tool:
 execute_pre_commit_checks(checks=["tests"], timeout=300, coverage_threshold=0.90)
 ```
 
-Or fallback script:
-
-```bash
-.venv/bin/python .cortex/synapse/scripts/{language}/run_tests.py
-```
-
 - **MUST verify**: `results.tests.success` = true (PRIMARY indicator)
 - **MUST verify**: `results.tests.tests_failed` = 0 (zero failures)
 - **MUST verify**: `results.tests.pass_rate` = 100.0 (100% pass rate)
@@ -733,32 +725,28 @@ Or fallback script:
 
 **Step 12.5.1 - Check file sizes** (MANDATORY):
 
-```bash
-.venv/bin/python .cortex/synapse/scripts/{language}/check_file_sizes.py
+Use the Cortex MCP tool (quality check includes file sizes):
+
+```text
+execute_pre_commit_checks(checks=["quality"], project_root=<project_root>)
 ```
 
-**⚠️ CRITICAL**: Do NOT truncate output - read FULL output to verify check passed
-
-- **MUST verify**: Output shows "✅ All files within size limits (400 lines)"
-- **MUST verify**: Exit code is 0 (zero) - command must succeed
-- **MUST verify**: No file size violations reported in output
-- **BLOCK COMMIT** if ANY file size violations are reported OR if exit code is non-zero
-- **BLOCK COMMIT** if output is truncated or unclear - re-run without truncation
+- **MUST verify**: Tool returns `status` = "success" and `results.quality.file_size_violations` is empty
+- **MUST verify**: No file size violations (all files within 400 lines)
+- **BLOCK COMMIT** if ANY file size violations are reported
 - **NO EXCEPTIONS**: Pre-existing violations are NOT acceptable
 
 **Step 12.5.2 - Check function lengths** (MANDATORY):
 
-```bash
-.venv/bin/python .cortex/synapse/scripts/{language}/check_function_lengths.py
+Same tool as 12.5.1 (quality includes function lengths):
+
+```text
+execute_pre_commit_checks(checks=["quality"], project_root=<project_root>)
 ```
 
-**⚠️ CRITICAL**: Do NOT truncate output - read FULL output to verify check passed
-
-- **MUST verify**: Output shows "✅ All functions within length limits (30 lines)"
-- **MUST verify**: Exit code is 0 (zero) - command must succeed
-- **MUST verify**: No function length violations reported in output
-- **BLOCK COMMIT** if ANY function length violations are reported OR if exit code is non-zero
-- **BLOCK COMMIT** if output is truncated or unclear - re-run without truncation
+- **MUST verify**: Tool returns `status` = "success" and `results.quality.function_length_violations` is empty
+- **MUST verify**: No function length violations (all functions within 30 lines)
+- **BLOCK COMMIT** if ANY function length violations are reported
 - **NO EXCEPTIONS**: Pre-existing violations are NOT acceptable
 
 ### 12.6 Re-run Markdown Lint Check (MANDATORY)
@@ -807,27 +795,27 @@ fix_markdown_lint(check_all_files=True, include_untracked_markdown=True)
 **⚠️ MANDATORY**: This checklist MUST be completed and verified BEFORE proceeding to Step 13. Each item MUST be checked with explicit evidence (command outputs, exit codes, parsed error counts).
 
 - [ ] **Step 12.0 executed**: Markdown re-validation on modified files executed, full output shown
-- [ ] **Step 12.1 executed**: Formatting fix AND check commands executed, full output shown; Step 12.1.2 run and result verified BEFORE starting Step 12.2 (not in parallel)
-- [ ] Formatting re-run: **check passed** confirmed in FULL output (exit code 0, success message visible e.g. "✅ All formatting checks passed")
+- [ ] **Step 12.1 executed**: Formatting fix AND check via `execute_pre_commit_checks(checks=["format"])` executed, full result shown; Step 12.1.2 run and result verified BEFORE starting Step 12.2 (not in parallel)
+- [ ] Formatting re-run: **check passed** confirmed in tool result (status success, results.format indicates passed)
 - [ ] Formatting re-run: **NO output truncation** - full output read and verified
-- [ ] **Step 12.1.3 (recommended)**: CI parity command (e.g. `.venv/bin/black --check src/ tests/`) executed and exit code 0
-- [ ] **Step 12.2 executed**: Type check script command executed, full output shown
-- [ ] Type check re-run: **Command executed**: `.venv/bin/python .cortex/synapse/scripts/python/check_types.py` was run (MANDATORY for Python projects)
+- [ ] **Step 12.1.3 (recommended)**: CI parity check via `execute_pre_commit_checks(checks=["format_ci_parity"])` executed and status success
+- [ ] **Step 12.2 executed**: Type check via `execute_pre_commit_checks(checks=["type_check"])` executed, full result shown
+- [ ] Type check re-run: **Tool executed**: `execute_pre_commit_checks(checks=["type_check"])` was run (MANDATORY for Python/typed projects)
 - [ ] Type check re-run: **Output shown**: Full command output displayed in response (not just "passed")
 - [ ] Type check re-run: **0 errors, 0 warnings** confirmed in FULL output (if applicable)
 - [ ] Type check re-run: **NO output truncation** - full output read and verified
-- [ ] Type check re-run: **Script errors take precedence** - if script found errors that Step 2 MCP tool missed, commit MUST be blocked
-- [ ] **Step 12.3 executed**: Linter check command executed, full output shown
+- [ ] Type check re-run: **Step 12.2 result is AUTHORITATIVE** - if tool found errors (even if Step 2 passed earlier), commit MUST be blocked
+- [ ] **Step 12.3 executed**: Linter/quality check tool executed, full result shown
 - [ ] Linter re-run: **0 violations** confirmed in FULL output (error count explicitly parsed and verified = 0)
 - [ ] Linter re-run: **NO output truncation** - full output read and verified
 - [ ] Linter re-run: **ZERO ERRORS TOLERANCE** - verified that error count = 0 (NO exceptions, even for pre-existing errors)
-- [ ] **Step 12.4 executed**: Test naming check command executed, full output shown
-- [ ] **Step 12.5 executed**: File sizes AND function lengths checks executed, full outputs shown
+- [ ] **Step 12.4 executed**: Test naming check tool executed, full result shown
+- [ ] **Step 12.5 executed**: File sizes AND function lengths via quality tool executed, full results shown
 - [ ] File sizes re-run: **0 violations** confirmed in FULL output
 - [ ] File sizes re-run: **NO output truncation** - full output read and verified
 - [ ] Function lengths re-run: **0 violations** confirmed in FULL output
 - [ ] Function lengths re-run: **NO output truncation** - full output read and verified
-- [ ] **Step 12.6 executed**: Markdown lint check command executed, full output shown
+- [ ] **Step 12.6 executed**: Markdown lint tool executed, full result shown
 - [ ] Markdown lint re-run: **0 errors in ALL markdown files** confirmed (matching CI behavior)
 - [ ] Markdown lint re-run: **check_all_files=True** used to match CI comprehensive check
 - [ ] **Tests re-run**: `results.tests.success` = true AND `results.tests.coverage` ≥ 0.90 confirmed (MANDATORY)
@@ -838,16 +826,16 @@ fix_markdown_lint(check_all_files=True, include_untracked_markdown=True)
 
 **⚠️ CRITICAL**: Before proceeding to Step 13, you MUST provide explicit evidence that Step 12.2 was executed. This means:
 
-1. Show the actual command that was run: `.venv/bin/python .cortex/synapse/scripts/python/check_types.py`
-2. Show the full command output (not truncated)
-3. Verify the output shows "✅ All type checks passed" or equivalent success message
-4. Verify exit code was 0 (zero)
+1. Show the tool call that was run: `execute_pre_commit_checks(checks=["type_check"], project_root=<project_root>)`
+2. Show the tool response (or key fields: status, results.type_check) (not truncated)
+3. Verify the response shows type check passed (e.g. status "success", results.type_check.errors empty)
+4. Verify tool returned status "success" for type_check
 
 **⚠️ VIOLATION**: Proceeding to commit creation without completing Step 12 with verified zero-error output is a CRITICAL VIOLATION that will cause CI failures.
 
 **⚠️ VIOLATION**: Using output truncation (`| tail`, `| head`, etc.) in Step 12 is a CRITICAL VIOLATION that prevents proper verification and will cause CI failures.
 
-**⚠️ VIOLATION**: Skipping Step 12.2 (type check re-run) or proceeding to Step 13 without executing Step 12.2 is a CRITICAL VIOLATION that will cause CI failures. The CI workflow runs `check_types.py` on tests/ and scripts/ directories - if Step 12.2 is skipped, type errors in these directories will not be caught until CI fails.
+**⚠️ VIOLATION**: Skipping Step 12.2 (type check re-run) or proceeding to Step 13 without executing Step 12.2 is a CRITICAL VIOLATION that will cause CI failures. The tool runs type check on `src/` and `tests/` to match CI - if Step 12.2 is skipped, type errors may not be caught until CI fails.
 
 **⚠️ VIOLATION**: Proceeding to Step 13 without providing explicit evidence (command outputs) that Step 12 was executed is a CRITICAL VIOLATION. You MUST show actual command executions and their outputs, not just state that Step 12 passed.
 
@@ -870,7 +858,7 @@ Before proceeding to commit creation, provide a validation summary confirming al
 - [ ] **Linter Check Validation**: Linter check = 0 errors (parsed from MCP tool response: `results.fix_errors.errors`, CRITICAL - catches non-fixable errors)
 - [ ] **Formatting Validation**: Formatter check = 0 violations (parsed from MCP tool response)
 - [ ] **Type Checking Validation**: Type checker = 0 type errors AND 0 warnings (parsed from MCP tool response, skip if not applicable)
-  - **⚠️ CRITICAL**: Step 12.2 script checks BOTH `src/` AND `tests/` - if script finds errors that Step 2 MCP tool missed, commit MUST be blocked
+  - **⚠️ CRITICAL**: Step 12.2 tool checks BOTH `src/` AND `tests/` - if tool finds errors (even if Step 2 passed earlier), commit MUST be blocked
 - [ ] **Code Quality Validation**: File size = 0 violations, Function length = 0 violations (parsed from MCP tool response)
 - [ ] **Test Execution Validation**:
   - Test failures = 0 (parsed from test output)
@@ -1150,33 +1138,33 @@ Use this ordering when numbering results:
 #### **12. ⚠️ Final Validation Gate (MANDATORY)**
 
 - **Status**: Success/Failure (MUST be Success to proceed)
-- **⚠️ EXECUTION VERIFICATION REQUIRED**: You MUST provide explicit evidence that Step 12 was executed. This means showing actual command executions and their outputs, not just stating that Step 12 passed.
-- **⚠️ AUTHORITATIVE**: Step 12 scripts check MORE directories than earlier MCP tool checks (e.g., scripts check `src/` + `tests/`, while MCP tool may only check `src/`)
-- **⚠️ PRECEDENCE**: Script results take precedence - if script finds errors that MCP tool missed, commit MUST be blocked
-- **Formatting Fix Run**: Full output of `.venv/bin/python .cortex/synapse/scripts/python/fix_formatting.py` (MUST run to format any new files, output MUST be shown)
-- **Formatting Check Re-run**: Full output of `.venv/bin/python .cortex/synapse/scripts/python/check_formatting.py` (MUST show check passed, output MUST be shown)
-- **Type Check Re-run**: Full output of `.venv/bin/python .cortex/synapse/scripts/python/check_types.py` (MUST be executed for Python projects, output MUST be shown)
-  - **⚠️ CRITICAL**: Script checks BOTH `src/` AND `tests/` - if script finds errors (even if Step 2 MCP tool passed), commit MUST be blocked
-  - **⚠️ NO EXCEPTIONS**: Script errors take precedence over MCP tool results
-  - **⚠️ EXECUTION MANDATORY**: This command MUST be executed - do not skip or assume it passed. Show the actual command output.
-- **Linter Re-run**: Full output of `.venv/bin/python .cortex/synapse/scripts/python/check_linting.py` (MUST show check passed with 0 errors - ZERO ERRORS TOLERANCE, NO EXCEPTIONS, output MUST be shown)
-- **Markdown Lint Re-run**: Full output of `fix_markdown_lint(check_all_files=True)` MCP tool (MUST show check passed with 0 errors in ALL files - ZERO ERRORS TOLERANCE, NO EXCEPTIONS, matches CI behavior, output MUST be shown)
-- **Test Naming Re-run**: Full output of `.venv/bin/python .cortex/synapse/scripts/python/check_test_naming.py` (MUST show check passed, output MUST be shown)
-- **File Sizes Re-run**: Full output of `.venv/bin/python .cortex/synapse/scripts/python/check_file_sizes.py` (MUST show 0 violations, output MUST be shown)
-- **Function Lengths Re-run**: Full output of `.venv/bin/python .cortex/synapse/scripts/python/check_function_lengths.py` (MUST show 0 violations, output MUST be shown)
+- **⚠️ EXECUTION VERIFICATION REQUIRED**: You MUST provide explicit evidence that Step 12 was executed. This means showing actual MCP tool calls and their results (or key result fields), not just stating that Step 12 passed.
+- **⚠️ AUTHORITATIVE**: Step 12 tool checks use the same scope as CI (e.g. `src/` + `tests/` for type check, format, quality).
+- **⚠️ PRECEDENCE**: Step 12 tool results are AUTHORITATIVE - if a check finds errors, commit MUST be blocked.
+- **Formatting Fix Run**: Result of `execute_pre_commit_checks(checks=["format"])` (MUST run to format any new files; show status and results.format).
+- **Formatting Check Re-run**: Result of `execute_pre_commit_checks(checks=["format"])` (MUST show check passed; verify results.format indicates success).
+- **Type Check Re-run**: Result of `execute_pre_commit_checks(checks=["type_check"])` (MUST be executed for typed projects; show status and results.type_check).
+  - **⚠️ CRITICAL**: Tool checks BOTH `src/` AND `tests/` - if tool finds errors (even if Step 2 passed earlier), commit MUST be blocked.
+  - **⚠️ NO EXCEPTIONS**: Step 12.2 result is AUTHORITATIVE.
+  - **⚠️ EXECUTION MANDATORY**: This tool MUST be executed - do not skip or assume it passed. Show the tool result.
+- **Linter Re-run**: Result of `execute_pre_commit_checks(checks=["quality"])` (MUST show 0 lint errors - ZERO ERRORS TOLERANCE, NO EXCEPTIONS).
+- **Markdown Lint Re-run**: Result of `fix_markdown_lint(check_all_files=True)` MCP tool (MUST show check passed with 0 errors in ALL files - ZERO ERRORS TOLERANCE, NO EXCEPTIONS, matches CI behavior).
+- **Test Naming Re-run**: Result of `execute_pre_commit_checks(checks=["test_naming"])` (MUST show check passed).
+- **File Sizes Re-run**: Result of `execute_pre_commit_checks(checks=["quality"])` (MUST show results.quality.file_size_violations empty).
+- **Function Lengths Re-run**: Result of `execute_pre_commit_checks(checks=["quality"])` (MUST show results.quality.function_length_violations empty).
 - **Output Verified**: Whether actual command output was parsed (not assumed) - MUST be Yes for all Step 12 checks
 - **New Files Created Since Step 1**: List any new files created during steps 4-11 (especially test files for coverage)
 - **Code Changes Since Step 4**: List any code changes made during steps 5-11 that required re-verification
-- **Discrepancy Handling**: If Step 12 script finds errors that Step 2 MCP tool missed, document the discrepancy and BLOCK commit
+- **Discrepancy Handling**: If any Step 12 check finds errors (even if an earlier step passed), document and BLOCK commit
 - **Validation Results**:
   - Step 12.0 executed: Yes/No (MUST be Yes - markdown re-validation on modified files executed)
   - Step 12.1 executed: Yes/No (MUST be Yes - formatting fix AND check commands executed)
   - Formatting fix executed: Yes/No (MUST be Yes)
   - Formatting check passed: Yes/No (MUST be Yes)
-  - Step 12.2 executed: Yes/No (MUST be Yes for Python projects - type check script command executed)
+  - Step 12.2 executed: Yes/No (MUST be Yes for typed projects - type check tool executed)
   - Type check command shown: Yes/No (MUST be Yes - actual command output displayed)
   - Type check passed: Yes/No (MUST be Yes, or N/A if project doesn't use types)
-    - **⚠️ CRITICAL**: If script found errors that MCP tool missed, this MUST be No and commit MUST be blocked
+    - **⚠️ CRITICAL**: If Step 12.2 tool found errors (even if Step 2 passed earlier), this MUST be No and commit MUST be blocked
   - Step 12.3 executed: Yes/No (MUST be Yes - linter check command executed)
   - Linter passed: Yes/No (MUST be Yes - error count explicitly parsed and verified = 0, ZERO ERRORS TOLERANCE, NO EXCEPTIONS even for pre-existing errors)
   - Step 12.4 executed: Yes/No (MUST be Yes - test naming check command executed)
@@ -1186,9 +1174,9 @@ Use this ordering when numbering results:
   - Step 12.6 executed: Yes/No (MUST be Yes - markdown lint check command executed)
   - Markdown lint passed: Yes/No (MUST be Yes - zero errors in ALL markdown files, matches CI behavior, ZERO ERRORS TOLERANCE, NO EXCEPTIONS)
   - Output fully read: Yes/No (MUST be Yes for all Step 12 checks)
-  - Script errors take precedence: Yes/No (MUST be Yes - if script finds errors, commit blocked regardless of MCP tool results)
+  - Step 12 tool results take precedence: Yes/No (MUST be Yes - if any Step 12 check finds errors, commit blocked)
   - Step 12 execution verified: Yes/No (MUST be Yes - explicit evidence provided that all Step 12 sub-steps were executed)
-- **BLOCK COMMIT** if any check in Step 12 fails (including script errors that MCP tool missed) OR if Step 12 execution cannot be verified
+- **BLOCK COMMIT** if any check in Step 12 fails OR if Step 12 execution cannot be verified
 
 #### **13. Commit Creation**
 

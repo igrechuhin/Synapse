@@ -75,11 +75,12 @@ When executing steps, delegate to the appropriate agent for specialized work, th
 
 1. **Use Cortex MCP tool `get_structure_info(project_root=None)`** to get structure information
 2. Parse the JSON response to extract:
-   - Plans directory path: `structure_info.paths.plans` (e.g., `/path/to/project/.cortex/plans`)
+   - **Plans directory path**: Use the **absolute path** from `structure_info.paths.plans` (e.g., `/path/to/project/.cortex/plans`) for creating and updating plan files. **Do not hardcode** `.cortex/plans` or derive the path from `structure_info.root` plus a layout segment. The canonical plans path is always `structure_info.paths.plans`.
    - Memory bank path: `structure_info.paths.memory_bank` (e.g., `/path/to/project/.cortex/memory-bank`)
-   - Project root: `structure_info.root`
+   - Project root: `structure_info.root` (note: `structure_info.root` may be the Cortex directory (e.g. `.cortex`) or the project root depending on configuration; the canonical plans path is always `structure_info.paths.plans`)
 3. Verify that the plans directory exists (check `structure_info.exists.plans`)
 4. If plans directory doesn't exist, note this in the plan creation process
+5. **When reporting paths** (e.g. in plan summary or "Issues encountered"), use the value from `structure_info.paths.plans` (e.g. `/path/to/project/.cortex/plans`) so it is unambiguous. Do not report a relative path or an inferred path; report the actual path returned by the tool.
 
 ### Step 2: Load Project Context
 
@@ -236,8 +237,9 @@ When executing steps, delegate to the appropriate agent for specialized work, th
      - Ensure the link to the plan file remains correct and roadmap formatting is preserved.
 
 4. **Update roadmap file**:
-   - **Use Cortex MCP tool `manage_file(file_name="roadmap.md", operation="write", content="[updated roadmap content]", change_description="Added new plan: [plan title]")`** to save updated roadmap
-   - **When calling `manage_file(file_name="roadmap.md", operation="write", content=...)`, the `content` parameter MUST be the complete, unabridged roadmap text.** Read the current roadmap first (Step 6.1), apply only the intended change (add or update one plan entry), and pass the full resulting content. **Never truncate, summarize, or shorten existing roadmap bullets** to fit length limits.
+   - **PROHIBITED**: Updating the roadmap during plan creation by any method other than `manage_file(file_name="roadmap.md", operation="write", content=..., change_description=...)`. This includes: using StrReplace (or any search_replace) on the roadmap file, using the Write tool to write directly to the roadmap file path, or any edit that bypasses the `manage_file` MCP tool.
+   - **REQUIRED**: Read the current roadmap with `manage_file(file_name="roadmap.md", operation="read")`, apply only the intended change (add or update one plan entry), then call `manage_file(file_name="roadmap.md", operation="write", content=<complete resulting text>, change_description="Added new plan: [plan title]" or similar)`. The `content` parameter MUST be the full, unabridged roadmap text. If the content is large, the agent must still pass the full content in one call. **Never truncate, summarize, or shorten existing roadmap bullets** to fit length limits.
+   - **VIOLATION**: Using StrReplace or direct Write for the roadmap during plan creation is a critical violation of the plan creation workflow and must not be used.
    - Ensure roadmap formatting is preserved
    - Verify the update was successful
 
@@ -248,7 +250,7 @@ When executing steps, delegate to the appropriate agent for specialized work, th
    - Verify file content is complete and accurate
 
 2. **Verify roadmap was updated**:
-   - **Re-read roadmap via `manage_file(file_name="roadmap.md", operation="read")`** and confirm: (1) the new or updated plan entry is present and correct, and (2) **all existing roadmap entries are unchanged (no truncation or removal)**. If any existing entry was shortened or removed, restore the full content (e.g. via standard file edits) and repeat the write with complete content.
+   - **Re-read roadmap via `manage_file(file_name="roadmap.md", operation="read")`** and confirm: (1) the new or updated plan entry is present and correct, and (2) **all existing roadmap entries are unchanged (no truncation or removal)**. If any existing entry was shortened or removed, the agent must restore the full content and repeat the update using **`manage_file(file_name="roadmap.md", operation="write", content=<complete content>, ...)`** with the complete content—**not** StrReplace or direct Write.
    - Check that roadmap entry is properly formatted and linked
 
 3. **Provide summary**:
@@ -284,11 +286,21 @@ When executing steps, delegate to the appropriate agent for specialized work, th
 
 ### Path Resolution
 
+- **Plans directory**: Always use the **absolute path** from `structure_info.paths.plans` for creating/updating plan files. **Do not** hardcode `.cortex/plans` or infer the path from `structure_info.root` plus a layout segment.
+- **Reporting**: When reporting paths (e.g. in plan summary or "Issues encountered"), use the value from `structure_info.paths.plans` (e.g. `/path/to/project/.cortex/plans`) so it is unambiguous.
 - **Dynamic paths**: Always use `get_structure_info()` to get paths, never hardcode
 - **Relative paths**: Use relative paths in roadmap links when possible
 - **Validation**: Verify paths exist before using them
+- **VIOLATION**: Hardcoding plans path or inferring it from root + layout is a violation of the plan creation workflow.
 
 ## ERROR HANDLING
+
+### Path resolution
+
+- The plans directory for creating/writing plan files must always be taken from `structure_info.paths.plans` (absolute path returned by the tool).
+- **Do not** hardcode `.cortex/plans` or infer paths from `structure_info.root` + layout.
+- In "Issues encountered" or summaries, report the actual path used (e.g. `structure_info.paths.plans` value) so it is unambiguous.
+- Hardcoding or inferring the plans path is a **violation** of the plan creation workflow.
 
 If you encounter any issues during plan creation:
 
