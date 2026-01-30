@@ -178,13 +178,13 @@ The following error patterns MUST be detected and fixed before commit. These are
 
 - **Pattern**: Coverage percentage < 90%
 - **Detection**: Parse coverage report from test output (MANDATORY - must extract exact percentage)
-- **Action**: Add tests to increase coverage, re-run tests, verify coverage ≥ 90%
-- **Block Commit**: Yes - coverage below threshold violates project standards
+- **Action**: Add tests to increase coverage, re-run tests, verify coverage ≥ 90% — **in this same run** (same as other violations). Do NOT stop and report; keep adding tests and re-running until coverage ≥ 90% or context is insufficient.
+- **Block Commit**: Yes - do not proceed to Step 5 (memory bank, etc.) until coverage ≥ 90%. "Block commit" means do not advance to the next step; it does NOT mean stop the commit procedure and report.
 - **CRITICAL**: Coverage MUST be parsed from test output, not estimated or assumed
-- **CRITICAL**: If coverage is below 90%, DO NOT proceed with commit - fix coverage first
+- **CRITICAL**: If coverage is below 90%, DO NOT proceed to Step 5 - fix coverage first **in this same run** (add tests, re-run, repeat until ≥ 90%)
 - **CRITICAL**: Coverage validation is MANDATORY - there are NO exceptions or "slightly below" allowances
 - **Validation**: Coverage percentage MUST be explicitly extracted and verified ≥ 90.0% before proceeding
-- **Enforcement**: If coverage < 90.0%, the commit procedure MUST stop immediately and coverage MUST be fixed before continuing
+- **Enforcement**: If coverage < 90.0%, do not advance to Step 5; fix coverage in this same run (add tests, re-run tests) until coverage ≥ 90.0%. Only stop and provide summary if context is insufficient AFTER attempting fixes, per "Context Assessment" in Failure Handling.
 - **Re-run tests / coverage report (MANDATORY)**: When re-running tests or when you need a coverage report to fix coverage, use **only** the Cortex MCP tool:
   - `execute_pre_commit_checks(checks=["tests"], timeout=300, coverage_threshold=0.90)`
   Do **NOT** run raw test commands in a Shell - use the MCP tool only. Running the test runner directly can produce huge output and long runs and bypass project timeout/configuration.
@@ -1320,6 +1320,19 @@ Use this ordering when numbering results:
 - **No Partial Fixes**: Fix ALL test failures before proceeding or stopping - never stop with failures remaining
 - **Coverage Enforcement**: Coverage threshold of 90% is absolute - if coverage < 90.0%, commit MUST be blocked
 - **BLOCK COMMIT**: If any test validation fails, including coverage below 90.0%, do not proceed with commit
+
+### Coverage Below Threshold
+
+- **Action**: **PRIMARY FOCUS** - Fix coverage **in this same run** by adding tests and re-running until coverage ≥ 90.0%. Do NOT stop and report; treat like other violations (fix until resolved or context insufficient).
+- **Process**:
+  1. **IMMEDIATE FIX**: Parse `results.tests.coverage` from test output; if < 0.90, coverage is a violation to fix in this run.
+  2. **FIX IN SAME RUN**: Add or improve tests (e.g. target recently changed or low-coverage modules), then re-run `execute_pre_commit_checks(checks=["tests"], timeout=300, coverage_threshold=0.90)`.
+  3. **CRITICAL**: Continue adding tests and re-running until `results.tests.coverage` ≥ 0.90 - do not stop after one or two attempts and report "blocked".
+  4. **NEVER stop and report** with coverage < 90% unless: (a) context is insufficient after fixing, or (b) you have made multiple fix attempts with no coverage gain and need to recommend a dedicated coverage phase.
+  5. **VALIDATION**: Re-run tests, verify `results.tests.success` = true AND `results.tests.coverage` ≥ 0.90 before proceeding to Step 5.
+  6. **CONTEXT ASSESSMENT**: Only after coverage ≥ 90% (or genuine context exhaustion): continue pipeline or provide summary and re-run recommendation.
+- **No Partial Commits**: Do not proceed to Step 5 until coverage ≥ 90.0%.
+- **No Partial Fixes**: Treat coverage below 90% like any other violation - fix in this same run, do not stop and report.
 
 ### Submodule Failure
 
