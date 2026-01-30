@@ -189,12 +189,18 @@ The following error patterns MUST be detected and fixed before commit. These are
   - `execute_pre_commit_checks(checks=["tests"], timeout=300, coverage_threshold=0.90)`
   Do **NOT** run raw test commands in a Shell - use the MCP tool only. Running the test runner directly can produce huge output and long runs and bypass project timeout/configuration.
 
-**Coverage Interpretation for Focused Work**:
+**Coverage at commit (full test run)**:
 
-- **New or modified code**: Must meet ≥95% coverage for Phase 62 changes, even when running focused tests
-- **Global `fail-under=90` failures**: When running targeted tests (e.g., `pytest tests/unit/test_roadmap_sync.py`), global coverage failures dominated by untouched modules should be logged as technical debt in `progress.md` / `activeContext.md` (and, where appropriate, new coverage-raising phases), not "fixed ad hoc" during unrelated, narrow tasks
-- **Recording coverage debt**: Document in Memory Bank with wording like: "Global coverage at 21.7% due to untested analysis/structure modules. This is expected legacy debt and does not block focused roadmap sync work. Coverage improvement tracked in Phase XX."
-- **Reference coverage plans**: Reference relevant coverage-improvement plan from roadmap entries instead of attempting broad, unscheduled coverage work
+- **Mandatory**: For the normal commit pipeline, the **full** test suite runs with `fail-under=90`. If total coverage is below 90%, the commit is **blocked** and you **must** add or improve tests until coverage ≥ 90% before committing. There is no exception for "technical debt" on the main commit run.
+
+**Coverage interpretation for focused work (targeted test runs only)**:
+
+- **New or modified code**: Must meet ≥95% coverage for Phase 62 changes, even when running focused tests.
+- **Global `fail-under=90` failures when running targeted tests**: When you run a **subset** of tests (e.g. only tests for one module), the **global** coverage number can still be below 90% because many modules were not exercised. In that situation only:
+  - **"Logged as technical debt"** means: **document** the shortfall in Memory Bank (e.g. in `progress.md` or `activeContext.md`) and, where appropriate, add or reference a roadmap phase for coverage improvement — instead of blocking the current focused task or trying to fix all coverage ad hoc during unrelated work.
+  - You must still **improve the test set** to achieve the 90% target; that work is tracked as a dedicated phase/plan (e.g. "Phase XX: raise coverage for module Y") rather than done ad hoc in the current change.
+- **Recording coverage debt**: Use wording like: "Global coverage at 21.7% due to untested analysis/structure modules. This is expected legacy debt and does not block focused roadmap sync work. Coverage improvement tracked in Phase XX."
+- **Reference coverage plans**: Reference relevant coverage-improvement plan from roadmap entries instead of attempting broad, unscheduled coverage work.
 
 **Testing MCP JSON in tests**: When adding tests that assert on MCP tool JSON (e.g., manage_file, rules, execute_pre_commit_checks), follow the project's language-specific testing rules for structured JSON (see language rules and tests/tools/ for the required pattern).
 
@@ -226,7 +232,7 @@ The following error patterns MUST be detected and fixed before commit. These are
 ### Formatting Violations
 
 - **Pattern**: Formatter check reports formatting issues
-- **Detection**: Parse formatter check output for file count (e.g., `black --check` for Python, `prettier --check` for JavaScript/TypeScript)
+- **Detection**: Parse MCP tool response (e.g., `execute_pre_commit_checks(checks=["format"])`) or formatter check script output for file count
 - **Action**: Run formatter, re-run formatter check, verify zero violations
 - **Block Commit**: Yes - formatting violations will cause CI to fail
 
@@ -265,7 +271,7 @@ The following error patterns MUST be detected and fixed before commit. These are
 - **Root Cause 2**: Agent creates new test files during Step 4 to fix coverage, but Step 1 (Formatting) already ran
 - **Example Failure 1**: Agent adds constants to fix tests, those constants have type errors, agent commits without re-checking
 - **Example Failure 2**: Agent creates `test_new_module.py` during Step 4 coverage fix, file is never formatted, CI fails on Black check
-- **Action**: ALWAYS run Step 12 (Final Validation Gate) immediately before commit - this includes running `fix_formatting.py` THEN `check_formatting.py`
+- **Action**: ALWAYS run Step 12 (Final Validation Gate) immediately before commit - use `execute_pre_commit_checks(checks=["format"])` (fix then check) and verify success
 - **Block Commit**: Yes - Step 12 is MANDATORY and cannot be skipped
 - **Prevention**: ANY code change OR new file creation after Step 1 REQUIRES re-running formatting fix AND verification before commit
 - **Note**: This is the most common cause of CI failures that "should have been caught"

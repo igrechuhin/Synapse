@@ -182,7 +182,7 @@ Before defining new data structures (classes, types, models, interfaces):
      - **ALL structured data MUST use Pydantic `BaseModel`** - NO EXCEPTIONS
      - **TypedDict is STRICTLY FORBIDDEN** for new code
      - **Example**: Use `class MergeOpportunity(BaseModel):` NOT `class MergeOpportunity(TypedDict):`
-     - **Validation**: Run `.venv/bin/pyright src/cortex/{new_module}/` and verify no TypedDict usage
+     - **Validation**: Use Cortex MCP tool `execute_pre_commit_checks(checks=["type_check"])` or `.venv/bin/python .cortex/synapse/scripts/{language}/check_types.py` and verify no TypedDict usage
      - **BLOCKING**: If TypedDict is detected, convert to Pydantic BaseModel before proceeding
    - **Run language-specific validation script**: `.venv/bin/python .cortex/synapse/scripts/{language}/check_data_models.py` (if available) - will verify data modeling compliance automatically
 
@@ -204,9 +204,9 @@ Before defining new data structures (classes, types, models, interfaces):
      - **FORBIDDEN**: String concatenation for paths without using resolver utilities
      - **FORBIDDEN**: Assuming path structure without checking project patterns
 2. **MANDATORY: Format code immediately after creation** (before type checking):
-   - **For Python**: Run `.venv/bin/black src/cortex/{new_module}/` to format all new/modified files
+   - Use Cortex MCP tool `execute_pre_commit_checks(checks=["format"])` or `.venv/bin/python .cortex/synapse/scripts/{language}/fix_formatting.py` to format all new/modified files
    - **BLOCKING**: All files MUST be formatted before proceeding to type checking
-   - **Verify**: Check Black output - if files were reformatted, they're already updated
+   - **Verify**: Check formatter output - if files were reformatted, they're already updated
    - **Do not skip**: Formatting is mandatory, not optional - prevents user from having to format manually
 3. **MANDATORY: Run type checking immediately after code creation** (before writing tests):
    - **BLOCKING**: Fix ALL type errors before proceeding to test writing
@@ -216,7 +216,7 @@ Before defining new data structures (classes, types, models, interfaces):
      - Unused call results: Assign to `_` if intentionally unused
      - Missing type annotations: Add explicit types to all functions/methods
    - **If type errors exist**: Fix them immediately, do not continue to test writing
-   - **Verification**: Re-run pyright until 0 errors, 0 warnings
+   - **Verification**: Re-run type check via MCP tool or script until 0 errors, 0 warnings
 4. Write or update tests (MANDATORY - comprehensive test coverage required):
    - Follow AAA pattern (MANDATORY)
    - No blanket skips (MANDATORY)
@@ -238,7 +238,7 @@ Before defining new data structures (classes, types, models, interfaces):
 ### Step 4.5: Verify Test Coverage (MANDATORY)
 
 1. **Run coverage analysis**:
-   - Execute test suite with coverage reporting enabled (e.g., `pytest --cov=src --cov-report=term-missing`)
+   - Use **only** Cortex MCP tool `execute_pre_commit_checks(checks=["tests"], timeout=300, coverage_threshold=0.90)` or, as fallback, `.venv/bin/python .cortex/synapse/scripts/{language}/run_tests.py`. Do **NOT** run raw `pytest` (or other test commands) in a Shell.
    - Review coverage report for new/modified files
 2. **Verify coverage threshold** (per project's testing standards):
    - Check project's testing standards for required coverage threshold
@@ -366,7 +366,7 @@ Before defining new data structures (classes, types, models, interfaces):
 **Coverage Interpretation for Focused Work**:
 
 - **New or modified code**: Must meet ≥95% coverage for Phase 62 changes, even when running focused tests
-- **Global `fail-under=90` failures**: When running targeted tests (e.g., `pytest tests/unit/test_roadmap_sync.py`), global coverage failures dominated by untouched modules should be logged as technical debt in `progress.md` / `activeContext.md` (and, where appropriate, new coverage-raising phases), not "fixed ad hoc" during unrelated, narrow tasks
+- **Global `fail-under=90` failures**: When running targeted tests (e.g., via `execute_pre_commit_checks(checks=["tests"], ...)` or `.venv/bin/python .cortex/synapse/scripts/{language}/run_tests.py` with path args), global coverage failures dominated by untouched modules should be logged as technical debt in `progress.md` / `activeContext.md` (and, where appropriate, new coverage-raising phases), not "fixed ad hoc" during unrelated, narrow tasks
 - **Recording coverage debt**: Document in Memory Bank with wording like: "Global coverage at 21.7% due to untested analysis/structure modules. This is expected legacy debt and does not block focused roadmap sync work. Coverage improvement tracked in Phase XX."
 - **Reference coverage plans**: Reference relevant coverage-improvement plan from roadmap entries instead of attempting broad, unscheduled coverage work
 

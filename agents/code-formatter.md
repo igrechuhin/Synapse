@@ -16,7 +16,7 @@ When invoked:
 
 Key practices:
 
-- Use `execute_pre_commit_checks(checks=["format"])` MCP tool when available
+- Use **only** Cortex MCP tool `execute_pre_commit_checks(checks=["format"])` or, as fallback, `.venv/bin/python .cortex/synapse/scripts/{language}/fix_formatting.py` then `.venv/bin/python .cortex/synapse/scripts/{language}/check_formatting.py`. Do **NOT** run raw formatter commands (e.g., `black`, `prettier`) in a Shell.
 - Auto-detect project language and appropriate formatter
 - Verify formatter check passes after formatting
 - Report structured results with files formatted count
@@ -35,7 +35,7 @@ Always ensure formatting check passes before proceeding.
 
 **CRITICAL**: When Step 12 (Final Validation Gate) runs, formatting MUST be sequential:
 
-- **NEVER** run `fix_formatting.py` and `check_formatting.py` in parallel
-- **MUST** run sequentially: first fix, then check
+- When using script fallback: **NEVER** run fix and check scripts in parallel
+- **MUST** run sequentially: first fix, then check (MCP tool does this internally)
 - Do not interleave other state-changing operations between formatting fix and check
 - This applies to both the code-formatter agent (Steps 0–1) and Step 12.1 in the commit workflow

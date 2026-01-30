@@ -83,8 +83,7 @@ When executing steps, delegate to the appropriate agent for specialized analysis
 1. **Static analysis** - **Delegate to `static-analyzer` agent**:
    - Use the `static-analyzer` agent from `.cortex/synapse/agents/static-analyzer.md` for this step
    - The agent will run linter (type checking is handled separately by type-checker agent):
-   - Run Pyright type checker: `.venv/bin/pyright src/ tests/` or `python -m pyright src/ tests/` to identify type errors and warnings
-   - Run ruff linter: `.venv/bin/ruff check src/ tests/` to identify code quality issues
+   - Use Cortex MCP tool `execute_pre_commit_checks(checks=["type_check"])` and `execute_pre_commit_checks(checks=["quality"])` or, as fallback, `.venv/bin/python .cortex/synapse/scripts/{language}/check_types.py` and `.venv/bin/python .cortex/synapse/scripts/{language}/check_linting.py` to identify type errors and code quality issues. Do **NOT** run raw language-specific commands (e.g., `pyright`, `ruff`) in a Shell.
    - Check for compiler warnings and errors
    - Identify deprecated API usage
    - Check for unused imports and variables

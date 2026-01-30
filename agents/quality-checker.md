@@ -36,7 +36,7 @@ When invoked:
 
 Key practices:
 
-- Use `execute_pre_commit_checks(checks=["quality"])` MCP tool when available
+- Use **only** Cortex MCP tool `execute_pre_commit_checks(checks=["quality"])` or, as fallback, `.venv/bin/python .cortex/synapse/scripts/{language}/check_linting.py`, `check_file_sizes.py`, `check_function_lengths.py`, `check_test_naming.py` as needed. Do **NOT** run raw linter/check commands in a Shell.
 - Auto-detect project language and source directories
 - Verify `results.quality.success` = true (PRIMARY indicator)
 - Verify `len(results.quality.file_size_violations)` = 0 (MUST be empty)

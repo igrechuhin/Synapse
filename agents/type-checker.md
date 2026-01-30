@@ -35,7 +35,7 @@ When invoked:
 
 Key practices:
 
-- Use `execute_pre_commit_checks(checks=["type_check"])` MCP tool when available
+- Use **only** Cortex MCP tool `execute_pre_commit_checks(checks=["type_check"])` or, as fallback, `.venv/bin/python .cortex/synapse/scripts/{language}/check_types.py`. Do **NOT** run raw type checker commands (e.g., `pyright`, `tsc`) in a Shell.
 - **⚠️ IMPORTANT**: MCP tool may only check `src/` directory. Step 12.2 (Final Validation Gate) uses script which checks BOTH `src/` AND `tests/` - script results are AUTHORITATIVE and take precedence.
 - Auto-detect project language and type checker
 - Parse output to extract exact error and warning counts
