@@ -244,6 +244,8 @@ def main():
                             # errors (e.g., indexing None)
                             "reportCallIssue",  # Call issues
                             # (e.g., no matching overloads)
+                            "reportRedeclaration",  # Duplicate declaration (e.g. same field twice)
+                            "reportPrivateUsage",  # Private/protected member used outside class
                         ]
                         if rule in error_rules:
                             has_errors = True
@@ -336,6 +338,8 @@ def main():
                     # errors (e.g., indexing None)
                     r"reportCallIssue",  # Call issues
                     # (e.g., no matching overloads)
+                    r"reportRedeclaration",  # Duplicate declaration
+                    r"reportPrivateUsage",  # Private member used outside class
                 ]
 
                 has_error_pattern = any(

@@ -41,6 +41,7 @@ Key practices:
 - Return structured results with error counts and files modified
 - **CRITICAL**: This step MUST run BEFORE testing to ensure code contains no errors
 - **CRITICAL**: This prevents committing/pushing poor code that would fail CI checks
+- **Type checker alignment**: The project uses `pyrightconfig.json` with strict rules (e.g. reportRedeclaration, reportArgumentType, reportPrivateUsage). Run the type check script (`.cortex/synapse/scripts/python/check_types.py`) on **both** `src/` and `tests/` so IDE (basedpyright/pyright) and CI see the same errors. Fix reportRedeclaration (duplicate field names), reportArgumentType (use enum types e.g. RulesOperation.INDEX not `"index"`), and reportPrivateUsage (add `# pyright: ignore[reportPrivateUsage]` in tests when testing private methods) before commit.
 
 For each error fixing operation:
 

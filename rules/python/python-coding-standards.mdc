@@ -46,7 +46,7 @@ alwaysApply: false
 - ✅ Use `model_validate()` instead of `parse_obj()` or `from_orm()`
 - ✅ Use `model_dump()` instead of `.dict()`
 - ✅ Use `ConfigDict` instead of `class Config:`
-- ✅ Use `Literal` types for status/enum fields
+- ✅ Use `Literal` or **prefer `class X(str, Enum)`** for status/fixed-set fields; use Enum when the set is reused or branched on (see "Fixed Sets of Values: Prefer Enums")
 
 ### Type Hints (MANDATORY)
 
@@ -82,6 +82,54 @@ alwaysApply: false
 - ❌ `object` when concrete types available
 - ❌ Replacing concrete types with `object`
 - ❌ Using abstractions like `Mapping` when `dict` works
+
+### Fixed Sets of Values: Prefer Enums (MANDATORY)
+
+- **Use `class X(str, Enum)` for fixed sets of string values** - PREFERRED over `Literal[...]` or raw strings when the set is reused, branched on, or validated (e.g. operation names, check types, actions, status codes).
+- **Wire format stays string**: At MCP/JSON boundaries, continue to accept and return strings; use `.value` when writing to JSON or response dicts so the API shape is unchanged.
+- **Validate at boundary**: In MCP handlers, accept `str` from the client; parse to enum (e.g. `try: PreCommitCheck(name)` / `except ValueError`) and use enum members internally; invalid names skip or return a clear error.
+- **Literal remains acceptable** for one-off or single-field constraints (e.g. a single Pydantic field that will not be branched on elsewhere). For any set that appears in multiple places or in `if x == "value"` branches, use an enum.
+
+**REQUIRED:**
+
+- ✅ Define `class X(str, Enum): MEMBER = "value"` for closed sets (operations, check types, actions, etc.)
+- ✅ Use enum members in branching: `if PreCommitCheck.FIX_ERRORS in checks_to_perform:`
+- ✅ Use `.value` when writing to dict/JSON: `results[PreCommitCheck.FIX_ERRORS.value] = result`
+- ✅ Validate input strings to enum at the boundary; reject or skip invalid values with a clear error
+
+**FORBIDDEN:**
+
+- ❌ Repeated raw string literals for the same fixed set (e.g. `"fix_errors"` in multiple files or branches) when an enum exists or should be introduced
+- ❌ Using only `Literal["a", "b", "c"]` for a set that is branched on in multiple places—prefer a shared enum
+
+**Example** (from pre_commit_helpers / pre_commit_tools):
+
+```python
+class PreCommitCheck(str, Enum):
+    """Fixed set of pre-commit check names."""
+    FIX_ERRORS = "fix_errors"
+    FORMAT = "format"
+    TYPE_CHECK = "type_check"
+    QUALITY = "quality"
+    TESTS = "tests"
+
+def determine_checks_to_perform(checks: Sequence[str] | None) -> list[PreCommitCheck]:
+    if not checks:
+        return list(DEFAULT_CHECKS)
+    result: list[PreCommitCheck] = []
+    for name in checks:
+        try:
+            result.append(PreCommitCheck(name))
+        except ValueError:
+            continue
+    return result if result else list(DEFAULT_CHECKS)
+
+# In handler: use enum in branching, .value for JSON
+if PreCommitCheck.FIX_ERRORS in checks_to_perform:
+    results[PreCommitCheck.FIX_ERRORS.value] = fix_result
+```
+
+**Reference**: Existing pattern: `PreCommitCheck` in `pre_commit_helpers` / `pre_commit_tools`.
 
 ### JsonValue at MCP Boundaries (MANDATORY)
 
@@ -381,7 +429,8 @@ def validate_data(data: dict) -> None:
 - ❌ Use of `object` when concrete types available (FORBIDDEN)
 - ❌ Missing Pydantic models for structured return types (STRICTLY FORBIDDEN)
 - ❌ Converting Pydantic models to dicts before returning (STRICTLY FORBIDDEN)
-- ❌ Missing `Literal` types for status/enum fields (STRICTLY FORBIDDEN)
+- ❌ Missing `Literal` or enum types for status/fixed-set fields (STRICTLY FORBIDDEN)
+- ❌ Repeated raw string literals for a fixed set that is branched on or validated—use `class X(str, Enum)` instead (see "Fixed Sets of Values: Prefer Enums")
 - ❌ Synchronous I/O in async contexts
 - ❌ Type-checker suppressions for private usage (FORBIDDEN)
 - ❌ Using Pydantic 1 API: `.dict()`, `.json()`, `parse_obj()`, `from_orm()` (STRICTLY FORBIDDEN)

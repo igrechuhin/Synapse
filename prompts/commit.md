@@ -184,6 +184,10 @@ The following error patterns MUST be detected and fixed before commit. These are
 - **CRITICAL**: Coverage validation is MANDATORY - there are NO exceptions or "slightly below" allowances
 - **Validation**: Coverage percentage MUST be explicitly extracted and verified ≥ 90.0% before proceeding
 - **Enforcement**: If coverage < 90.0%, the commit procedure MUST stop immediately and coverage MUST be fixed before continuing
+- **Re-run tests / coverage report (MANDATORY)**: When re-running tests or when you need a coverage report to fix coverage, use **only**:
+  - `execute_pre_commit_checks(checks=["tests"], timeout=300, coverage_threshold=0.90)` MCP tool, or
+  - `.venv/bin/python .cortex/synapse/scripts/{language}/run_tests.py` as fallback.
+  Do **NOT** run raw test commands in a Shell - use the script or MCP only. Running the test runner directly can produce huge output and long runs and bypass project timeout/configuration.
 
 **Coverage Interpretation for Focused Work**:
 

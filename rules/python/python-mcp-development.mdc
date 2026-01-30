@@ -136,7 +136,7 @@ def _load_context_impl(root: str, max_tokens: int, strategy: str) -> LoadContext
 
 1. Define Pydantic models at module level
 2. Use Pydantic models in handler return types
-3. Use `Literal` types for status/enum fields
+3. Use `Literal` or **prefer `class X(str, Enum)`** for status/fixed-set fields (see python-coding-standards: "Fixed Sets of Values: Prefer Enums"); at the MCP boundary accept `str`, validate to enum inside the handler, use `.value` when writing to JSON/dict
 4. Use optional fields with `None` defaults
 5. Use nested Pydantic models for complex structures
 6. Return models directly (do NOT convert to dicts)

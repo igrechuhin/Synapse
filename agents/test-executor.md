@@ -32,6 +32,7 @@ When invoked:
 Key practices:
 
 - Use `execute_pre_commit_checks(checks=["tests"], timeout=300, coverage_threshold=0.90)` MCP tool when available
+- When re-running tests or when coverage fails and a report is needed, use **only** the MCP tool or `.venv/bin/python .cortex/synapse/scripts/{language}/run_tests.py` as fallback. Do **NOT** run raw `pytest` (or other test commands) in a Shell.
 - Auto-detect project language and test framework
 - Parse test output to extract exact counts
 - **PRIMARY VALIDATION**: Verify `results.tests.success` = true (MUST be true - this now includes coverage validation)
