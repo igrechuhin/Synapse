@@ -31,7 +31,18 @@ except ImportError:
         get_project_root,
     )
 
-MAX_LINES = get_config_int("MAX_FILE_LINES", 400)
+# Reuse cortex.core.constants when run from Cortex repo; else config or 400
+_default_max_file_lines = 400
+try:
+    _script_path = Path(__file__).resolve()
+    _proj_root = get_project_root(_script_path)
+    _src = _proj_root / "src"
+    if _src.exists() and str(_src) not in sys.path:
+        sys.path.insert(0, str(_src))
+    from cortex.core.constants import MAX_FILE_LINES as _default_max_file_lines
+except (ImportError, RuntimeError):
+    pass
+MAX_LINES = get_config_int("MAX_FILE_LINES", _default_max_file_lines)
 
 
 def count_lines(path: Path) -> int:
