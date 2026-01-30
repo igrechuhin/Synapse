@@ -85,7 +85,7 @@ alwaysApply: false
 
 ### Fixed Sets of Values: Prefer Enums (MANDATORY)
 
-- **Use `class X(str, Enum)` for fixed sets of string values** - PREFERRED over `Literal[...]` or raw strings when the set is reused, branched on, or validated (e.g. operation names, check types, actions, status codes).
+- **Use `class X(str, Enum)` for fixed sets of string values; reserve Literal for one-off or external API constraints.** Prefer enums over `Literal[...]` or raw strings when the set is reused, branched on, or validated (e.g. operation names, check types, actions, status codes).
 - **Wire format stays string**: At MCP/JSON boundaries, continue to accept and return strings; use `.value` when writing to JSON or response dicts so the API shape is unchanged.
 - **Validate at boundary**: In MCP handlers, accept `str` from the client; parse to enum (e.g. `try: PreCommitCheck(name)` / `except ValueError`) and use enum members internally; invalid names skip or return a clear error.
 - **Literal remains acceptable** for one-off or single-field constraints (e.g. a single Pydantic field that will not be branched on elsewhere). For any set that appears in multiple places or in `if x == "value"` branches, use an enum.
