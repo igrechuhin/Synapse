@@ -46,6 +46,7 @@ Key practices:
 
 ## Session Review Filename Conventions
 
-- **Canonical pattern**: `session-optimization-YYYY-MM-DDTHH-MM.md` (e.g., `session-optimization-2026-01-28T17-58.md`).
-- **Timestamp suffix**: The suffix after `T` MUST be a full time-of-day component (hours and minutes), not a bare counter. Use the actual session time (e.g., `T17-58`), not ad-hoc names like `T02` that do not encode a true timestamp.
-- **Malformed names**: If a review file has a malformed suffix (e.g., `TNN` with no minutes), suggest renaming it to match the canonical pattern before referencing it in plans, roadmap entries, or memory-bank files.
+- **Suffix MUST always be YYYY-MM-DDTHH-mm**: Review filenames in `.cortex/reviews/` MUST end with a date-time suffix in this exact form (e.g., `session-optimization-2026-01-28T17-58.md`). No date-only or other formats.
+- **Canonical pattern**: `{basename}-YYYY-MM-DDTHH-MM.md` (e.g., `session-optimization-2026-01-28T17-58.md`).
+- **Timestamp suffix**: The suffix after `T` MUST be a full time-of-day component (hours and minutes, hyphen-separated). Use the actual session time (e.g., `T17-58`), not ad-hoc names like `T02` that do not encode a true timestamp.
+- **Malformed names**: If a review file has a malformed suffix (e.g., `TNN` with no minutes, or `T-session`), suggest renaming it to match the canonical pattern before referencing it in plans, roadmap entries, or memory-bank files.

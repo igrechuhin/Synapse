@@ -155,17 +155,17 @@
      1. Call `get_structure_info(project_root=None)` MCP tool to get structure information
      2. Extract the reviews directory path from the response: `structure_info.paths.reviews` (e.g., `/path/to/project/.cortex/reviews`)
      3. **Canonical filename pattern**: `session-optimization-YYYY-MM-DDTHH-MM.md` (e.g., `session-optimization-2026-01-28T17-58.md`)
-     4. **Timestamp format rules**:
+     4. **Timestamp format rules** (suffix MUST always be YYYY-MM-DDTHH-mm):
         - **Date component**: `YYYY-MM-DD` (e.g., `2026-01-28`)
-        - **Time component**: `HH-MM` (hours and minutes, e.g., `17-58` for 5:58 PM)
-        - **CRITICAL**: The `T` separator MUST be followed by a full time-of-day component (`HH-MM`), not arbitrary text or counters
+        - **Time component**: `HH-mm` (hours and minutes, hyphen-separated, e.g., `17-58` for 5:58 PM)
+        - **CRITICAL**: The suffix MUST always be `YYYY-MM-DDTHH-mm`. No date-only or other formats.
+        - **CRITICAL**: The `T` separator MUST be followed by a full time-of-day component (`HH-mm`), not arbitrary text or counters
         - **Derive from actual session time**: Use the actual session time (e.g., `T17-58`), avoiding ad-hoc names like `T02` that don't encode a true timestamp
-        - **Date-only fallback**: If no time component is available, use `session-optimization-YYYY-MM-DD.md` (e.g., `session-optimization-2026-01-28.md`)
-        - **Avoid conflicts**: If a file with the same date already exists, use date + time format to make it unique
+        - **Avoid conflicts**: If a file with the same date already exists, use a different time (e.g., `T17-59`) to make it unique
      5. Construct the full file path: `{reviews_path}/session-optimization-YYYY-MM-DDTHH-MM.md`
      6. Use the `Write` tool with this dynamically constructed path (it will create parent directories automatically)
    - **NEVER use hardcoded paths like `.cortex/reviews/session-optimization-*.md`** - Always use `get_structure_info()` to get the path dynamically
-   - **NEVER use invalid timestamp formats** like `T02`, `T-session`, or `T-{arbitrary-text}` - The `T` separator requires a valid time component (`HH-MM`)
+   - **NEVER use invalid timestamp formats** like `T02`, `T-session`, or `T-{arbitrary-text}` - The `T` separator requires a valid time component (`HH-mm`)
    - **Filename validation**: Before saving, verify the filename matches the canonical pattern; detect malformed filenames (e.g., `TNN` with no minutes) and suggest renaming
    - Include full analysis, recommendations, and implementation suggestions
    - Link report in roadmap if significant improvements are identified
