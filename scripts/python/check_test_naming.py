@@ -65,12 +65,10 @@ class TestNamingVisitor(ast.NodeVisitor):
         func_name = node.name
 
         # Check if function name starts with "test" but not "test_"
-        # Pattern: "test" followed by a lowercase letter (invalid)
         # Valid: "test_", "test_something", "test_read"
-        # Invalid: "testread", "testgenerate", "testcreate"
+        # Invalid: "testread", "testRun", "testgenerate" (missing underscore after "test")
         if func_name.startswith("test") and len(func_name) > 4:
-            # Check if it's "test" followed directly by a letter (no underscore)
-            if func_name[4].isalpha() and func_name[4].islower():
+            if func_name[4] != "_":
                 self.violations.append((func_name, node.lineno))
 
 
