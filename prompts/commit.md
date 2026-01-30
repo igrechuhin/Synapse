@@ -454,7 +454,7 @@ git -C .cortex/synapse status --porcelain
 - **⚠️ ABSOLUTE MANDATORY**: Step 12 CANNOT be skipped, bypassed, or assumed to have passed. It MUST be executed in full before Step 13.
 - **⚠️ EXECUTION VERIFICATION REQUIRED**: Before proceeding to Step 13, you MUST provide explicit evidence that ALL Step 12 sub-steps were executed:
   - Step 12.0: Markdown re-validation on modified files executed (output shown)
-  - Step 12.1: Formatting fix AND check executed (output shown)
+  - Step 12.1: Formatting fix AND check executed (output shown); Step 12.1.2 result parsed and verified before Step 12.2; CI parity (12.1.3) recommended
   - Step 12.2: Type check script executed (output shown with "✅ All type checks passed" or error count = 0)
   - Step 12.3: Linter check executed (output shown with error count = 0)
   - Step 12.4: Test naming check executed (output shown)
@@ -552,6 +552,8 @@ The original checks in Steps 0-4 are INVALIDATED by any subsequent code changes 
 
 **CRITICAL RULE**: ANY code change OR new file creation after Step 1 REQUIRES re-running formatting AND verification before commit.
 
+**⚠️ STEP 12.1 MUST NOT RUN IN PARALLEL WITH 12.2/12.3**: You MUST run Step 12.1.2 (formatting check), wait for its result, and verify exit code 0 and success message BEFORE starting Step 12.2 or 12.3. If you run 12.1.2 in parallel with 12.2/12.3, the formatting result can be missed and unformatted code may be committed (this has caused CI failures: Black formatting check failed on push).
+
 **⚠️ ZERO ERRORS TOLERANCE**: This project has ZERO errors tolerance. ANY errors found in Step 12 (formatting, types, linting, quality) MUST block commit - NO EXCEPTIONS, even if errors are pre-existing or in files you didn't modify. You MUST explicitly parse error counts from output and verify they are ZERO before proceeding.
 
 **⚠️ AUTHORITATIVE CHECKS**: Step 12 uses scripts that check MORE directories than earlier MCP tool checks. For example:
@@ -588,8 +590,9 @@ The original checks in Steps 0-4 are INVALIDATED by any subsequent code changes 
 **⚠️ SEQUENTIAL EXECUTION REQUIRED (MANDATORY)**:
 
 - **Do not interleave other state-changing operations** between final formatting fix and check.
+- **Do NOT run Step 12.1.2 in parallel with Step 12.2 or 12.3** - you MUST run Step 12.1.2, wait for its result, parse the FULL output and verify exit code 0 and success message (e.g. "✅ All formatting checks passed") BEFORE starting Step 12.2. Running 12.1.2 in parallel can cause the formatting result to be ignored and allow unformatted code to be committed (this has caused CI failures).
 
-- **Recommended pattern**: Run fix, wait for completion, then run check immediately after.
+- **Recommended pattern**: Run fix, wait for completion, then run check immediately after, then verify result before proceeding.
 
 **Step 12.1.1 - Run formatting FIX** (always run this, not just on failure):
 
@@ -608,9 +611,24 @@ The original checks in Steps 0-4 are INVALIDATED by any subsequent code changes 
 **⚠️ CRITICAL**: Do NOT truncate output - read FULL output to verify check passed
 
 - **MUST verify**: Exit code is 0 (zero) - command must succeed
+- **MUST verify**: Output contains explicit success indicator (e.g. "✅ All formatting checks passed") - if output is empty or missing success message, BLOCK COMMIT and re-run without truncation
 - **BLOCK COMMIT** if ANY formatting violations are reported OR if exit code is non-zero
 - **BLOCK COMMIT** if output is truncated or unclear - re-run without truncation
+- **BLOCK COMMIT** if you did not wait for and parse Step 12.1.2 result before proceeding to Step 12.2
 - **Scope verification**: Ensure formatting check covers same directories as CI (`src/`, `tests/`, `.cortex/synapse/scripts/`)
+
+**Step 12.1.3 - CI parity (RECOMMENDED)** - Match CI formatting step exactly:
+
+After Step 12.1.2 passes, run the exact command the CI workflow runs for the main formatting check (same paths as CI) and verify exit code 0. This prevents path/scope mismatch between local scripts and CI.
+
+```bash
+.venv/bin/black --check src/ tests/
+```
+
+Or if using uv: `uv run black --check src/ tests/`
+
+- **Purpose**: CI runs `black --check src/ tests/` as its first quality step. Running the same command locally ensures no discrepancy (e.g. scripts checking different dirs or order).
+- **BLOCK COMMIT** if this command returns non-zero - fix formatting and re-run from Step 12.1.1
 
 ### 12.2 Re-run Type Check (MANDATORY for typed projects)
 
@@ -789,9 +807,10 @@ fix_markdown_lint(check_all_files=True, include_untracked_markdown=True)
 **⚠️ MANDATORY**: This checklist MUST be completed and verified BEFORE proceeding to Step 13. Each item MUST be checked with explicit evidence (command outputs, exit codes, parsed error counts).
 
 - [ ] **Step 12.0 executed**: Markdown re-validation on modified files executed, full output shown
-- [ ] **Step 12.1 executed**: Formatting fix AND check commands executed, full output shown
-- [ ] Formatting re-run: **check passed** confirmed in FULL output (exit code 0, success message visible)
+- [ ] **Step 12.1 executed**: Formatting fix AND check commands executed, full output shown; Step 12.1.2 run and result verified BEFORE starting Step 12.2 (not in parallel)
+- [ ] Formatting re-run: **check passed** confirmed in FULL output (exit code 0, success message visible e.g. "✅ All formatting checks passed")
 - [ ] Formatting re-run: **NO output truncation** - full output read and verified
+- [ ] **Step 12.1.3 (recommended)**: CI parity command (e.g. `.venv/bin/black --check src/ tests/`) executed and exit code 0
 - [ ] **Step 12.2 executed**: Type check script command executed, full output shown
 - [ ] Type check re-run: **Command executed**: `.venv/bin/python .cortex/synapse/scripts/python/check_types.py` was run (MANDATORY for Python projects)
 - [ ] Type check re-run: **Output shown**: Full command output displayed in response (not just "passed")
