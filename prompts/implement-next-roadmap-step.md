@@ -49,7 +49,7 @@ When executing steps, delegate to the appropriate agent for specialized work, th
    - Use Cortex MCP tool `rules(operation="get_relevant", task_description="Implementation, code quality, memory bank, testing")` to load rules, or read from the rules directory (path from `get_structure_info()` → `structure_info.paths.rules`)
    - Ensure coding standards, language-specific standards, memory-bank workflow, and testing standards are in context
 
-4. ✅ **Verify implementation against rules** - After implementation, verify conformance:
+4. ✅ **Verify implementation against rules and run quality gate** - After implementation, verify conformance:
    - Review all new/modified code to ensure it conforms to coding standards
    - Verify type annotations are complete per language-specific standards
    - Verify structured data types follow project's data modeling standards (check language-specific rules)
@@ -57,6 +57,7 @@ When executing steps, delegate to the appropriate agent for specialized work, th
    - Verify files are within project's size limits
    - Verify dependency injection patterns are followed (no global state or singletons)
    - Verify naming conventions follow project standards
+   - **MANDATORY**: Run the automated quality gate (Step 4.7)—`execute_pre_commit_checks(checks=["quality"])`—and fix any violations before proceeding to memory bank updates. Do NOT leave lint, function-length, or file-size violations for the commit pipeline.
    - **If violations found**: Fix them BEFORE proceeding to memory bank updates
 
 **VIOLATION**: Executing this command without following this checklist is a CRITICAL violation that blocks proper implementation.
@@ -275,6 +276,24 @@ Before defining new data structures (classes, types, models, interfaces):
    - If naming violations: Rename following conventions
 6. **BLOCKING**: Do NOT proceed to memory bank updates until all code conforms to rules
 
+### Step 4.7: Run Quality Gate Before Finish (MANDATORY)
+
+**Purpose**: Ensure no rot code is left for the commit pipeline to fix. The same quality gate as the commit pipeline MUST pass before marking the implementation complete.
+
+1. **Run automated quality check**:
+   - Use Cortex MCP tool `execute_pre_commit_checks(checks=["quality"])` (or the language-specific scripts from the Synapse scripts directory: `check_linting.py`, `check_file_sizes.py`, `check_function_lengths.py`). Prefer the MCP tool. Pass `project_root` only if needed (e.g. when not running from repo root).
+   - **Scope**: Same as CI (e.g. `src/` and `tests/` for this project). Do NOT skip quality check.
+2. **Verify success**:
+   - **MUST verify**: Tool returns `status` = "success" and `results.quality.success` = true
+   - **MUST verify**: `results.quality.file_size_violations` is empty (length 0)
+   - **MUST verify**: `results.quality.function_length_violations` is empty (length 0)
+   - **MUST verify**: No lint errors in the quality result (same as commit pipeline quality step)
+3. **If any violations**:
+   - Fix all reported violations (refactor long functions, split oversized files, fix lint issues)
+   - Re-run `execute_pre_commit_checks(checks=["quality"])` until all checks pass
+   - Do NOT proceed to Step 5 until the quality gate passes
+4. **BLOCKING**: Do NOT proceed to memory bank updates (Step 5) until the quality gate passes. Leaving function-length, file-size, or lint violations for the commit pipeline to fix is a violation of this prompt.
+
 ### Step 5: Update Memory Bank - **Delegate to `memory-bank-updater` agent**
 
 **Use the `memory-bank-updater` agent (Synapse agents directory) for this step.**
@@ -314,6 +333,7 @@ Before defining new data structures (classes, types, models, interfaces):
    - All requirements are met
    - All tests pass
    - Code follows all standards
+   - **Quality gate passed**: Step 4.7 was run and `execute_pre_commit_checks(checks=["quality"])` returned success with zero file-size and function-length violations (no rot code left for commit pipeline)
    - Memory bank is updated
    - **If a plan file exists and work is incomplete**: Plan file is updated with current status
 2. If the step is not fully complete:
@@ -385,6 +405,7 @@ The roadmap step is considered complete when:
 - ✅ All implementation tasks are finished
 - ✅ All code follows coding standards
 - ✅ **Code conformance verified**: All new/modified code verified against project rules (Step 4.6)
+- ✅ **Quality gate passed (Step 4.7)**: `execute_pre_commit_checks(checks=["quality"])` run and passed—zero lint, file-size, and function-length violations; no rot code left for the commit pipeline
 - ✅ **Type system compliance**: Complete type annotations, proper data modeling per language-specific rules
 - ✅ **Structural compliance**: Functions/methods and files within project limits, DI patterns followed
 - ✅ All tests pass
