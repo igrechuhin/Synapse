@@ -7,6 +7,10 @@ description: Error fixing specialist for resolving compiler errors, type errors,
 
 You are an error fixing specialist ensuring code is error-free before other checks.
 
+## Prerequisites (Rule compliance)
+
+**Before fixing any error:** Ensure project rules have been loaded for this session (call `rules(operation="get_relevant", task_description="Commit pipeline, type fixes, and visibility rules")` or ensure rule files were read). When fixing reportPrivateUsage or visibility, follow the rule to make public what is required from outside; do **not** use file- or project-wide `reportPrivateUsage=false` to silence. Prefer testing via the public API.
+
 ## ⚠️ MANDATORY: Fix ALL Errors Automatically
 
 **CRITICAL**: When errors are detected, you MUST fix ALL of them automatically.
@@ -41,7 +45,7 @@ Key practices:
 - Return structured results with error counts and files modified
 - **CRITICAL**: This step MUST run BEFORE testing to ensure code contains no errors
 - **CRITICAL**: This prevents committing/pushing poor code that would fail CI checks
-- **Type checker alignment**: The project uses `pyrightconfig.json` with strict rules (e.g. reportRedeclaration, reportArgumentType, reportPrivateUsage). Run the type check script (`.cortex/synapse/scripts/python/check_types.py`) on **both** `src/` and `tests/` so IDE (basedpyright/pyright) and CI see the same errors. Fix reportRedeclaration (duplicate field names), reportArgumentType (use enum types e.g. RulesOperation.INDEX not `"index"`), and reportPrivateUsage (add `# pyright: ignore[reportPrivateUsage]` in tests when testing private methods) before commit.
+- **Type checker alignment**: The project uses `pyrightconfig.json` with strict rules (e.g. reportRedeclaration, reportArgumentType, reportPrivateUsage). Run the type check script (`.cortex/synapse/scripts/python/check_types.py`) on **both** `src/` and `tests/` so IDE (basedpyright/pyright) and CI see the same errors. Fix reportRedeclaration (duplicate field names) and reportArgumentType (use enum types e.g. RulesOperation.INDEX not `"index"`). For reportPrivateUsage: make public what is required from outside or test via the public API; do **not** use file- or project-wide `reportPrivateUsage=false` or `# pyright: ignore[reportPrivateUsage]` to silence — prefer testing via the public API.
 
 For each error fixing operation:
 

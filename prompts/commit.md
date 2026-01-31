@@ -100,9 +100,12 @@ Steps without agents are handled directly by the orchestration workflow.
    - **Note**: The canonical memory bank is under `.cortex/memory-bank/`. Some workspaces may also provide a `.cursor/memory-bank/` symlink for IDE compatibility.
 
 1. ✅ **Read relevant rules** - Understand commit requirements:
+   - **Skipping the rules load step is a CRITICAL violation.** Any fix (especially type, lint, or visibility) must be validated against **loaded** rules before applying.
+   - Call `rules(operation="get_relevant", task_description="Commit pipeline, test coverage, type fixes, and visibility rules")`. If the rules tool is unavailable (e.g. disabled), read Synapse rules under `.cortex/synapse/rules/` (general and language-specific) so that coding standards and visibility/API rules are in context.
    - Read Synapse rules under `.cortex/synapse/rules/`:
      - General: `.cortex/synapse/rules/general/*`
      - Language-specific: `.cortex/synapse/rules/{language}/*`
+   - **Rules loaded via MCP (rules tool) or rule files read for this run: Yes / No. If No, do not proceed to Step 0.**
    - **Note**: Some workspaces may also provide `.cursor/rules/` as a symlink; treat it as optional.
 
 1. ✅ **Verify code conformance to rules** - Before running checks, verify code follows rules:
@@ -134,6 +137,16 @@ Steps without agents are handled directly by the orchestration workflow.
    - **BLOCK COMMIT**: MCP validation errors indicate bugs in orchestration prompts/agents that MUST be fixed
 
 **VIOLATION**: Executing this command without following this checklist is a CRITICAL violation that blocks proper commit procedure.
+
+## Pre-Step: Load Rules (MANDATORY — BEFORE Step 0)
+
+**Before running Step 0 (Fix Errors) or any code-modifying step:**
+
+1. **Load rules**: Call `rules(operation="get_relevant", task_description="Commit pipeline, test coverage, type fixes, and visibility rules")`. If the rules tool is unavailable (e.g. disabled), read Synapse rules under `.cortex/synapse/rules/` (general and language-specific) so that coding standards and visibility/API rules are in context.
+2. Do **not** run Step 0 (fix_errors) or any code-modifying step until rules have been loaded or read.
+3. **BLOCK**: If rules have not been loaded/read for this run, do not proceed to Step 0.
+
+**Checklist item**: Rules loaded via MCP (rules tool) or rule files read: Yes / No. If No, do not proceed.
 
 ## ⚠️ CRITICAL: Synapse Architecture (MANDATORY)
 
@@ -253,6 +266,13 @@ The following error patterns MUST be detected and fixed before commit. These are
 - **Detection**: Parse test output to identify integration test failures
 - **Action**: Fix integration test issues, re-run tests, verify all pass
 - **Block Commit**: Yes - integration test failures indicate broken functionality
+
+### Fixing type/visibility without loaded rules
+
+- **Pattern**: Agent applies type or visibility fixes (e.g. reportPrivateUsage, silencing) without having loaded rules first.
+- **Detection**: No `rules()` call (or rule files read) before Step 0 or before applying fixes.
+- **Action**: Load rules first, then re-validate fix against rules (e.g. test via public API, do not use reportPrivateUsage=false). BLOCK commit if fixes were applied without rule context.
+- **Block Commit**: Yes - fixes applied without rule context must be re-validated; do not proceed until rules are loaded and fix is rule-compliant.
 
 ### Type Checker Warnings
 

@@ -1,0 +1,30 @@
+---
+alwaysApply: true
+---
+
+# Real-Time References (MANDATORY)
+
+**ENFORCEMENT**: All time references across the project MUST use real time. Inventing a value to satisfy a format is a CRITICAL violation.
+
+## Rule
+
+**ALL time references MUST use real time.**
+
+Any timestamp — in filenames, report body, memory bank, roadmap, plans, or any other artifact — MUST be derived from an actual source, for example:
+
+- File modification time (mtime)
+- Tool that returns session or current time
+- Another documented source
+
+**Do NOT** invent a value (e.g. `15-00`, `T02`) to satisfy a format. Using an invented or ad-hoc time is a **CRITICAL** violation.
+
+## Per-procedure requirement
+
+For every command or prompt that emits or uses time:
+
+1. **Derive time from an explicit source** — Use mtime, a tool that returns time, or another documented source.
+2. **Fallback when time cannot be determined** — If no source is available (e.g. no file mtime, no session time tool), use a defined fallback (e.g. `T00-00` with a note that the time component is unknown). Do **not** invent a plausible-looking time.
+
+## BLOCK
+
+State that inventing time is a CRITICAL violation in the same place as other CRITICAL requirements. Do not proceed with invented timestamps.

@@ -90,6 +90,9 @@ When executing steps, delegate to the appropriate agent for specialized work, th
      - This is the item you MUST implement (highest priority)
    - **Only if NO blockers exist or all blockers are completed**:
      - Select the next pending step from regular roadmap sections
+   - **If NO pending step exists** (all discrete roadmap items are complete):
+     - **Proceed with plan sync**: Check `.cortex/plans/` for unarchived plans that correspond to completed roadmap items (e.g. phase-NN-*.md, enhance-tool-descriptions, roadmap-sync-*). Move them to `.cortex/plans/archive/PhaseNN/`. Then update progress.md and activeContext.md via `manage_file` with a short entry (e.g. "Implement run: no pending step; synced plans with roadmap"). Do not report "stuck"—treat plan sync as the executed step.
+     - If no plans need archiving, add a one-line progress entry and set activeContext next focus to "Add a new roadmap entry for next work, or run commit pipeline when ready."
 4. Extract the following information from the selected step (blocker or regular item):
    - Description/title of the step
    - Any specific requirements or acceptance criteria

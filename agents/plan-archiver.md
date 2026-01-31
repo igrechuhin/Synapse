@@ -24,7 +24,7 @@ You are a plan archiving specialist ensuring completed plans are properly organi
 - **Use `Grep` tool to search for status markers**: `Grep(pattern="Status.*COMPLETE|Status.*COMPLETED|Status.*Complete|✅ COMPLETE|🟢 COMPLETE|\\*\\*Status:\\*\\*.*COMPLETE", path=".cortex/plans", files=["phase-*.md"])`
 - **NEVER use shell `find` or `grep`**: Use standard tools (`Glob`, `Grep`, `Read`, `LS`) instead
 - **Exclude archive directory**: Ensure `Glob` pattern excludes `.cortex/plans/archive/` (use `path=".cortex/plans"` and filter results)
-- **Exclude non-plan files**: Ignore non-plan files like `README.md`, `STATUS.md`, `QUICK_START.md` when processing results
+- **Exclude non-plan files**: Ignore non-plan files like `README.md`, `QUICK_START.md` when processing results
 - List all matching plan files (must exclude any files in `.cortex/plans/archive/`)
 
 ### 2. Archive each completed plan
@@ -74,7 +74,7 @@ For each completed plan found:
 - **Archive structure**: Always create PhaseX subdirectories, never place plans directly in archive root
 - **Link updates**: Update all memory bank file links to point to archive locations
 - **Validation**: Always validate links and archive structure after archiving
-- **Exclude non-plan files**: Ignore non-plan files like `README.md`, `STATUS.md`, `QUICK_START.md` when processing results
+- **Exclude non-plan files**: Ignore non-plan files like `README.md`, `QUICK_START.md` when processing results
 
 CRITICAL: Plan files MUST be archived in `.cortex/plans/archive/PhaseX/`, never left in `.cortex/plans/`.
 

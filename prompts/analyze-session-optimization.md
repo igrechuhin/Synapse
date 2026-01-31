@@ -156,11 +156,13 @@
      2. Extract the reviews directory path from the response: `structure_info.paths.reviews` (e.g., `/path/to/project/.cortex/reviews`)
      3. **Canonical filename pattern**: `session-optimization-YYYY-MM-DDTHH-MM.md` (e.g., `session-optimization-2026-01-28T17-58.md`)
      4. **Timestamp format rules** (suffix MUST always be YYYY-MM-DDTHH-mm):
+        - **Project rule (real-time-references.mdc)**: ALL time references MUST use real time. Any timestamp must be derived from an actual source (e.g. file mtime, tool that returns session/current time). Do NOT invent a value to satisfy a format. Inventing time is a CRITICAL violation.
         - **Date component**: `YYYY-MM-DD` (e.g., `2026-01-28`)
         - **Time component**: `HH-mm` (hours and minutes, hyphen-separated, e.g., `17-58` for 5:58 PM)
         - **CRITICAL**: The suffix MUST always be `YYYY-MM-DDTHH-mm`. No date-only or other formats.
         - **CRITICAL**: The `T` separator MUST be followed by a full time-of-day component (`HH-mm`), not arbitrary text or counters
-        - **Derive from actual session time**: Use the actual session time (e.g., `T17-58`), avoiding ad-hoc names like `T02` that don't encode a true timestamp
+        - **Derive from actual session time**: Use the actual session time (e.g., transcript file mtime, or a tool that returns session/current time). Do NOT invent a value (e.g. `15-00`, `T02`).
+        - **Fallback when time cannot be determined**: If no real source exists (e.g. no file mtime, no session time tool), use `T00-00` and note in the report that the time component is unknown. Do NOT invent a plausible-looking time.
         - **Avoid conflicts**: If a file with the same date already exists, use a different time (e.g., `T17-59`) to make it unique
      5. Construct the full file path: `{reviews_path}/session-optimization-YYYY-MM-DDTHH-MM.md`
      6. Use the `Write` tool with this dynamically constructed path (it will create parent directories automatically)
