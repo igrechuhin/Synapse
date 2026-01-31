@@ -341,19 +341,19 @@ When encountering **NON-CRITICAL** errors, you may use alternative approaches:
    - **For NON-CRITICAL errors**: See "Alternative Approaches for Non-Critical Errors" section above
 
 2. **Create investigation plan** (For CRITICAL errors):
-   - **Use the `create-plan.md` prompt** (located at `.cortex/synapse/prompts/create-plan.md`) to create a plan
-   - Follow ALL steps in `create-plan.md` to create a comprehensive investigation plan
+   - **Use the create-plan prompt** (Synapse prompts directory) to create a plan
+   - Follow ALL steps in the create-plan prompt to create a comprehensive investigation plan
    - Plan must include:
      - Problem statement describing the tool failure
      - Root cause analysis approach
      - Investigation tasks
      - Expected outcomes
    - Mark plan as **BLOCKER** status with **ASAP** priority
-   - Save plan file at `.cortex/plans/` with descriptive name (e.g., `phase-X-investigate-tool-name-failure.md`)
+   - Save plan file in the plans directory (path from `get_structure_info()` → `structure_info.paths.plans`) with descriptive name (e.g., `phase-X-investigate-tool-name-failure.md`)
    - **For NON-CRITICAL errors**: Document error and alternative approach used (see "Alternative Approaches" section)
 
 3. **Link in roadmap** (For CRITICAL errors):
-   - Add plan to `.cortex/memory-bank/roadmap.md` under "Blockers (ASAP Priority)" section
+   - Add plan to roadmap via Cortex MCP tool `manage_file(file_name="roadmap.md", operation="read")` then `manage_file(..., operation="write", content=...)` under "Blockers (ASAP Priority)" section
    - Include in "Active Work" section if blocking current work
    - Add to "Recent Findings" with critical bug indicator (🔴)
    - **For NON-CRITICAL errors**: Note in session/work log if significant

@@ -1,28 +1,26 @@
 # Analyze Session for Synapse Optimization
 
-**AI EXECUTION COMMAND**: Analyze the current session to identify mistakes, anti-patterns, and optimization opportunities. Generate actionable recommendations to improve `.cortex/synapse` prompts and rules to prevent similar issues in future sessions.
+**AI EXECUTION COMMAND**: Analyze the current session to identify mistakes, anti-patterns, and optimization opportunities. Generate actionable recommendations to improve Synapse prompts and rules to prevent similar issues in future sessions.
 
 **CRITICAL**: This command analyzes the CURRENT session (not historical sessions) to find patterns of mistakes that could be prevented by improving Synapse prompts and rules. Execute all steps AUTOMATICALLY without asking for permission.
 
-**Agent Delegation**: This prompt delegates to the **`session-optimization-analyzer` agent** from `.cortex/synapse/agents/session-optimization-analyzer.md` for specialized session analysis.
+**Agent Delegation**: This prompt delegates to the **`session-optimization-analyzer` agent** (Synapse agents directory) for specialized session analysis.
 
-**Tooling Note**: Use Cortex MCP tools for session analysis and memory bank operations. Use standard Cursor tools for file operations outside `.cortex/` directory.
+**Tooling Note**: Use Cortex MCP tools for session analysis and memory bank operations. Use standard Cursor tools for file operations outside Cortex structure directories. Resolve paths via `get_structure_info()` and memory bank via `manage_file()`.
 
 ## ⚠️ MANDATORY PRE-ACTION CHECKLIST
 
 **BEFORE executing this command, you MUST:**
 
 1. ✅ **Read relevant memory bank files** - Understand current project context:
-   - **Use Cortex MCP tool `manage_file()`** to read `.cursor/memory-bank/activeContext.md` to understand current work focus
-   - **Use Cortex MCP tool `manage_file()`** to read `.cursor/memory-bank/progress.md` to see recent achievements
-   - **Use Cortex MCP tool `manage_file()`** to read `.cursor/memory-bank/systemPatterns.md` to understand architectural patterns
-   - **Use Cortex MCP tool `manage_file()`** to read `.cursor/memory-bank/techContext.md` to understand technical context
+   - **Use Cortex MCP tool `manage_file(file_name="activeContext.md", operation="read")`** to understand current work focus
+   - **Use Cortex MCP tool `manage_file(file_name="progress.md", operation="read")`** to see recent achievements
+   - **Use Cortex MCP tool `manage_file(file_name="systemPatterns.md", operation="read")`** to understand architectural patterns
+   - **Use Cortex MCP tool `manage_file(file_name="techContext.md", operation="read")`** to understand technical context
 
 2. ✅ **Read relevant rules** - Understand project requirements:
-   - Read `.cursor/rules/coding-standards.mdc` for core coding standards
-   - Read `.cursor/rules/maintainability.mdc` for architecture rules
-   - Read language-specific coding standards (e.g., `.cursor/rules/python-coding-standards.mdc`) for type system requirements
-   - Read `.cortex/synapse/rules/` for existing Synapse rules
+   - Use Cortex MCP tool `rules(operation="get_relevant", task_description="Coding standards, maintainability, session analysis")` or read from the rules directory (path from `get_structure_info()` → `structure_info.paths.rules`)
+   - Ensure core coding standards, architecture rules, language-specific standards, and Synapse rules are in context
 
 3. ✅ **Understand session analysis scope**:
    - Identify the current session context (what work was done)
@@ -31,7 +29,7 @@
 
 4. ✅ **Verify prerequisites** - Ensure all prerequisites are met:
    - Confirm session logs/transcripts are accessible
-   - Verify access to `.cortex/synapse/` directory
+   - Verify access to Synapse directory (path from project structure or `get_structure_info()` if available)
    - Check that analysis tools are available
 
 **VIOLATION**: Executing this command without following this checklist is a CRITICAL violation that blocks proper analysis.
@@ -47,7 +45,7 @@
      - Memory-bank diffs (`activeContext.md`, `progress.md`, `roadmap.md`)
      - Git/file diffs showing code changes
      - Recent MCP tool invocations and their results
-   - Review session logs/transcripts if available (check `.cursor/agent-transcripts/` or similar)
+   - Review session logs/transcripts if available (path from project structure or IDE)
    - Identify all code changes made during the session
    - Identify all user comments, corrections, or feedback about mistakes
 
@@ -74,12 +72,12 @@
      - Estimate impact (how many similar mistakes would this prevent?)
 
 5. **Categorize recommendations by target**:
-   - **Prompt improvements**: Changes to `.cortex/synapse/prompts/*.md` files
+   - **Prompt improvements**: Changes to Synapse prompts directory (prompts/*.md)
      - Add missing validation steps
      - Clarify ambiguous instructions
      - Add examples of correct patterns
      - Add explicit anti-pattern warnings
-   - **Rule improvements**: Changes to `.cortex/synapse/rules/*.mdc` files
+   - **Rule improvements**: Changes to Synapse rules directory (rules/*.mdc)
      - Add new rules for common mistake patterns
      - Strengthen existing rules with examples
      - Add validation requirements
@@ -153,7 +151,7 @@
 1. **Save analysis report** - Store findings for future reference:
    - **MANDATORY: Use Cortex MCP tools to get the correct path**:
      1. Call `get_structure_info(project_root=None)` MCP tool to get structure information
-     2. Extract the reviews directory path from the response: `structure_info.paths.reviews` (e.g., `/path/to/project/.cortex/reviews`)
+     2. Extract the reviews directory path from the response: `structure_info.paths.reviews` (use the value returned by the Cortex tool; do not hardcode)
      3. **Canonical filename pattern**: `session-optimization-YYYY-MM-DDTHH-MM.md` (e.g., `session-optimization-2026-01-28T17-58.md`)
      4. **Timestamp format rules** (suffix MUST always be YYYY-MM-DDTHH-mm):
         - **Project rule (real-time-references.mdc)**: ALL time references MUST use real time. Any timestamp must be derived from an actual source (e.g. file mtime, tool that returns session/current time). Do NOT invent a value to satisfy a format. Inventing time is a CRITICAL violation.
@@ -166,7 +164,7 @@
         - **Avoid conflicts**: If a file with the same date already exists, use a different time (e.g., `T17-59`) to make it unique
      5. Construct the full file path: `{reviews_path}/session-optimization-YYYY-MM-DDTHH-MM.md`
      6. Use the `Write` tool with this dynamically constructed path (it will create parent directories automatically)
-   - **NEVER use hardcoded paths like `.cortex/reviews/session-optimization-*.md`** - Always use `get_structure_info()` to get the path dynamically
+   - **NEVER use hardcoded paths** - Always use `get_structure_info()` to get the reviews path dynamically (`structure_info.paths.reviews`)
    - **NEVER use invalid timestamp formats** like `T02`, `T-session`, or `T-{arbitrary-text}` - The `T` separator requires a valid time component (`HH-mm`)
    - **Filename validation**: Before saving, verify the filename matches the canonical pattern; detect malformed filenames (e.g., `TNN` with no minutes) and suggest renaming
    - Include full analysis, recommendations, and implementation suggestions

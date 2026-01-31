@@ -40,7 +40,7 @@
 - Consistent error handling
 - Type safety
 
-**Agent Delegation**: This prompt orchestrates the commit workflow and delegates specialized tasks to dedicated agents in `.cortex/synapse/agents/`.
+**Agent Delegation**: This prompt orchestrates the commit workflow and delegates specialized tasks to dedicated agents in the Synapse agents directory.
 
 **IMPORTANT**: This prompt focuses on **orchestration** (order, dependencies, workflow coordination). For **implementation details** (MCP tool calls, validation logic, specific checks), see the referenced agent files.
 
@@ -76,14 +76,14 @@
 
 **Steps without dedicated agents** (handled directly in orchestration):
 
-- **Step 11**: Submodule handling (`.cortex/synapse`)
+- **Step 11**: Submodule handling (Synapse submodule)
 - **Step 12**: Final validation gate (re-verification of formatting, types, linting, quality)
 - **Step 13**: Commit creation
 - **Step 14**: Push branch
 
 **When executing steps**: For steps that delegate to agents, you MUST:
 
-1. **READ** the agent file from `.cortex/synapse/agents/{agent-name}.md`
+1. **READ** the agent file from the Synapse agents directory (`{agent-name}.md`); resolve path via project structure or `get_structure_info()` if needed
 2. **EXECUTE** all execution steps from the agent file
 3. **VERIFY** success and proceed with orchestration
 
@@ -97,16 +97,12 @@ Steps without agents are handled directly by the orchestration workflow.
    - **Use Cortex MCP tool `manage_file(file_name="activeContext.md", operation="read")`** to understand current work focus
    - **Use Cortex MCP tool `manage_file(file_name="progress.md", operation="read")`** to see recent achievements
    - **Use Cortex MCP tool `manage_file(file_name="roadmap.md", operation="read")`** to understand project priorities
-   - **Note**: The canonical memory bank is under `.cortex/memory-bank/`. Some workspaces may also provide a `.cursor/memory-bank/` symlink for IDE compatibility.
+   - **Note**: Access memory bank files via Cortex MCP tool `manage_file(file_name="...", operation="read"|"write")`; do not hardcode paths. Resolve memory bank path via `get_structure_info()` → `structure_info.paths.memory_bank` if needed.
 
 1. ✅ **Read relevant rules** - Understand commit requirements:
    - **Skipping the rules load step is a CRITICAL violation.** Any fix (especially type, lint, or visibility) must be validated against **loaded** rules before applying.
-   - Call `rules(operation="get_relevant", task_description="Commit pipeline, test coverage, type fixes, and visibility rules")`. If the rules tool is unavailable (e.g. disabled), read Synapse rules under `.cortex/synapse/rules/` (general and language-specific) so that coding standards and visibility/API rules are in context.
-   - Read Synapse rules under `.cortex/synapse/rules/`:
-     - General: `.cortex/synapse/rules/general/*`
-     - Language-specific: `.cortex/synapse/rules/{language}/*`
+   - Call `rules(operation="get_relevant", task_description="Commit pipeline, test coverage, type fixes, and visibility rules")`. If the rules tool is unavailable (e.g. disabled), read rules from the rules directory (path from `get_structure_info()` → `structure_info.paths.rules`) or the Synapse rules directory so that coding standards and visibility/API rules are in context.
    - **Rules loaded via MCP (rules tool) or rule files read for this run: Yes / No. If No, do not proceed to Step 0.**
-   - **Note**: Some workspaces may also provide `.cursor/rules/` as a symlink; treat it as optional.
 
 1. ✅ **Verify code conformance to rules** - Before running checks, verify code follows rules:
    - Review changed files to ensure they conform to coding standards read above
@@ -142,7 +138,7 @@ Steps without agents are handled directly by the orchestration workflow.
 
 **Before running Step 0 (Fix Errors) or any code-modifying step:**
 
-1. **Load rules**: Call `rules(operation="get_relevant", task_description="Commit pipeline, test coverage, type fixes, and visibility rules")`. If the rules tool is unavailable (e.g. disabled), read Synapse rules under `.cortex/synapse/rules/` (general and language-specific) so that coding standards and visibility/API rules are in context.
+1. **Load rules**: Call `rules(operation="get_relevant", task_description="Commit pipeline, test coverage, type fixes, and visibility rules")`. If the rules tool is unavailable (e.g. disabled), read rules from the rules directory (path from `get_structure_info()` → `structure_info.paths.rules`) or Synapse rules directory so that coding standards and visibility/API rules are in context.
 2. Do **not** run Step 0 (fix_errors) or any code-modifying step until rules have been loaded or read.
 3. **BLOCK**: If rules have not been loaded/read for this run, do not proceed to Step 0.
 
@@ -150,7 +146,7 @@ Steps without agents are handled directly by the orchestration workflow.
 
 ## ⚠️ CRITICAL: Synapse Architecture (MANDATORY)
 
-When modifying `.cortex/synapse/` files:
+When modifying Synapse (prompts/rules/agents) files:
 
 - **Prompts (`prompts/*.md`)**: MUST be language-agnostic and project-agnostic
   - DO NOT hardcode language-specific commands (e.g., `ruff`, `black`, `prettier`)
@@ -304,25 +300,23 @@ The following error patterns MUST be detected and fixed before commit. These are
 
 ### Branch Safety Rule
 
-- **Default to a feature branch**: NEVER push to `main` unless explicitly requested by the user.
+- **Push on commit**: When the user invokes `/cortex/commit`, run the full pipeline including push. Push the current branch (including `main`) without requiring extra confirmation.
 - **Pre-commit checks**: Before any `git add`, `git commit`, or `git push`, verify:
   1. User explicitly requested commit/push (via `/cortex/commit` or explicit "commit"/"push" instruction)
-  2. Current branch is not `main` (unless user explicitly requested push to `main`)
-  3. All validation gates have passed
+  2. All validation gates have passed
 
 ### Git Write Preconditions
 
 Before any `git add`, `git commit`, or `git push`:
 
 1. **User explicitly requested** commit/push (via `/cortex/commit` or explicit "commit"/"push" instruction).
-2. **Current branch** is not `main` (unless user explicitly requested push to `main`).
-3. **All validation gates** (Steps 0–12) have passed.
+2. **All validation gates** (Steps 0–12) have passed.
 
 Step 13 and Step 14 below contain mandatory precondition checks; do not skip them.
 
 ### Step 1.5: Markdown linting (delegate to `markdown-linter`)
 
-- **Agent**: Use `.cortex/synapse/agents/markdown-linter.md` for implementation details
+- **Agent**: Use the markdown-linter agent (Synapse agents directory) for implementation details
 - **Dependency**: Must run AFTER Step 1 (code formatting)
 - **CRITICAL**: Must check ALL markdown files (like CI does) - use `check_all_files=True` to match CI behavior
 - **CRITICAL**: CI checks ALL markdown files and fails on ANY error - commit pipeline MUST match this behavior
@@ -333,7 +327,7 @@ Step 13 and Step 14 below contain mandatory precondition checks; do not skip the
 
 ### Step 2: Type checking (delegate to `type-checker`)
 
-- **Agent**: Use `.cortex/synapse/agents/type-checker.md` for implementation details
+- **Agent**: Use the type-checker agent (Synapse agents directory) for implementation details
 - **Dependency**: Must run AFTER Step 1.5 (markdown linting)
 - **Conditional**: Only execute if project uses a type system (Python with type hints, TypeScript, etc.)
 - **CRITICAL**: Must verify zero type errors AND zero warnings
@@ -344,7 +338,7 @@ Step 13 and Step 14 below contain mandatory precondition checks; do not skip the
 
 ### Step 3: Code quality checks (delegate to `quality-checker`)
 
-- **Agent**: Use `.cortex/synapse/agents/quality-checker.md` for implementation details
+- **Agent**: Use the quality-checker agent (Synapse agents directory) for implementation details
 - **Dependency**: Must run AFTER Step 2 (type checking)
 - **CRITICAL**: Must verify zero file size violations AND zero function length violations
 - **⚠️ ABSOLUTE BLOCK**: If any violations exist (pre-existing or new), stop immediately - CI will fail
@@ -354,7 +348,7 @@ Step 13 and Step 14 below contain mandatory precondition checks; do not skip the
 
 ### Step 4: Test execution (delegate to `test-executor`)
 
-- **Agent**: Use `.cortex/synapse/agents/test-executor.md` for implementation details
+- **Agent**: Use the test-executor agent (Synapse agents directory) for implementation details
 - **Dependency**: Must run AFTER Steps 0-3 (errors, formatting, type checking, quality checks are fixed)
 - **CRITICAL**: Tests must pass with 100% pass rate AND coverage ≥ 90% (NO exceptions)
 - **BLOCK COMMIT**: If any test fails OR coverage < 90%, stop immediately
@@ -362,24 +356,24 @@ Step 13 and Step 14 below contain mandatory precondition checks; do not skip the
 
 ### Step 5: Memory bank operations (delegate to `memory-bank-updater`)
 
-- **Agent**: Use `.cortex/synapse/agents/memory-bank-updater.md` for implementation details
+- **Agent**: Use the memory-bank-updater agent (Synapse agents directory) for implementation details
 - **Dependency**: Must run AFTER Step 4 (test execution)
 - **Workflow**: Agent updates activeContext.md, progress.md, and roadmap.md with current changes
 
 ### Step 6: Update roadmap (delegate to `memory-bank-updater`)
 
-- **Agent**: Use `.cortex/synapse/agents/memory-bank-updater.md` for implementation details
+- **Agent**: Use the memory-bank-updater agent (Synapse agents directory) for implementation details
 - **Dependency**: Runs as part of Step 5 (memory bank operations)
 - **Workflow**: Agent updates roadmap.md with completed items and new milestones
 
 ### Step 7: Archive completed plans (delegate to `plan-archiver`)
 
-- **Agent**: **MANDATORY** - Read `.cortex/synapse/agents/plan-archiver.md` and execute ALL its execution steps
+- **Agent**: **MANDATORY** - Read the plan-archiver agent (Synapse agents directory) and execute ALL its execution steps
 - **Dependency**: Must run AFTER Step 5 (memory bank operations)
 - **CRITICAL**: If no completed plans are found, report "0 plans archived" but DO NOT skip this step
 - **BLOCK COMMIT**: If completed plans are found but not archived, or if link validation fails
 - **Workflow**:
-  1. **READ** `.cortex/synapse/agents/plan-archiver.md` agent file
+  1. **READ** the plan-archiver agent file (Synapse agents directory)
   2. **EXECUTE** all execution steps from the agent file (detect completed plans, archive them, update links, validate)
   3. After agent completes, verify all plans archived and links updated before proceeding to Step 8
 
@@ -387,7 +381,7 @@ Step 13 and Step 14 below contain mandatory precondition checks; do not skip the
 
 - **Agent**: This validation is handled by `plan-archiver` agent in Step 7
 - **Dependency**: Runs as part of Step 7 (plan archiving)
-- **CRITICAL**: Verify no completed plans remain in `.cortex/plans/` directory (and `.cursor/plans/` if symlinked)
+- **CRITICAL**: Verify no completed plans remain in the plans directory; resolve path via `get_structure_info()` → `structure_info.paths.plans`
 - **BLOCK COMMIT**: If any completed plans remain unarchived or in wrong locations
 - **Workflow**: After Step 7 completes, verify archive validation passed before proceeding to Step 9
 
@@ -395,7 +389,7 @@ Step 13 and Step 14 below contain mandatory precondition checks; do not skip the
 
 ### Step 9: Validate memory bank timestamps (delegate to `timestamp-validator`)
 
-- **Agent**: Use `.cortex/synapse/agents/timestamp-validator.md` for implementation details
+- **Agent**: Use the timestamp-validator agent (Synapse agents directory) for implementation details
 - **Dependency**: Must run AFTER Step 5 (memory bank operations)
 - **CRITICAL**: All timestamps must use YYYY-MM-DD format (no time components)
 - **BLOCK COMMIT**: If any timestamp violations are found
@@ -403,18 +397,19 @@ Step 13 and Step 14 below contain mandatory precondition checks; do not skip the
 
 ### Step 10: Roadmap synchronization validation (delegate to `roadmap-sync-validator`)
 
-- **Agent**: Use `.cortex/synapse/agents/roadmap-sync-validator.md` for implementation details
+- **Agent**: Use the roadmap-sync-validator agent (Synapse agents directory) for implementation details
 - **Dependency**: Must run AFTER Step 5 (memory bank operations, including roadmap updates)
-- **Conditional**: Only execute if `.cortex/prompts/validate-roadmap-sync.md` exists
+- **Conditional**: Only execute if the validate-roadmap-sync prompt exists in the Synapse prompts directory
 - **Workflow**: Agent validates roadmap.md is synchronized with codebase TODOs
 - **⚠️ BLOCKING RULE (MANDATORY)**: If `validate(check_type="roadmap_sync")` returns `valid: false`, STOP the commit workflow immediately. Do NOT proceed to Step 11. This is a hard gate, not a warning.
 - **Blocking criteria** (all `valid: false` outcomes block commit):
   - `missing_roadmap_entries`: ALWAYS blocks commit (critical - TODOs not tracked)
-  - `invalid_references`: ALWAYS blocks commit (validator resolves `.cortex/plans/`, `cortex/plans/`, and `plans/` to `.cortex/plans/`; fix references or paths until validation passes)
+  - `invalid_references`: ALWAYS blocks commit (validator resolves plans directory paths; fix references or paths until validation passes)
 - **Skip if**: Command file does not exist
 
-### Step 11: Submodule handling (`.cortex/synapse`)
+### Step 11: Submodule handling (Synapse submodule)
 
+- **Path resolution**: Resolve the Synapse directory path via `get_structure_info()` (e.g. `structure_info.paths.synapse` if available) or use the project-relative path to the Synapse submodule. Use this path for all `git -C <Synapse-directory-path>` and `git add <Synapse-directory-path>` commands.
 - **Dependency**: Must run AFTER Step 10 (roadmap sync validation)
 - **Workflow**: Follow explicit command sequence below to handle submodule changes deterministically.
 - **Strict decision rule**: Execute sub-steps 11.1 → 11.5 in order. At each step, only proceed to the next sub-step when the condition is met; otherwise skip to Step 12 (or, in 11.5, block commit). Do not run sub-steps in parallel or reorder them.
@@ -425,13 +420,13 @@ Step 13 and Step 14 below contain mandatory precondition checks; do not skip the
 git status --porcelain
 ```
 
-- **If output contains `m .cortex/synapse`** (dirty submodule): Proceed to Step 11.2
-- **If no `m .cortex/synapse`**: Skip to Step 12 (submodule pointer is clean)
+- **If output contains dirty Synapse submodule** (e.g. `m` on Synapse path): Proceed to Step 11.2
+- **If Synapse submodule is clean**: Skip to Step 12 (submodule pointer is clean)
 
 **Step 11.2 - Check submodule working tree**:
 
 ```bash
-git -C .cortex/synapse status --porcelain
+git -C <Synapse-directory-path> status --porcelain
 ```
 
 - **If empty**: Skip to Step 12 (submodule pointer changed but no local edits)
@@ -440,9 +435,9 @@ git -C .cortex/synapse status --porcelain
 **Step 11.3 - Commit and push in submodule**:
 
 ```bash
-git -C .cortex/synapse add -A
-git -C .cortex/synapse commit -m "Update Synapse prompts/rules"
-git -C .cortex/synapse push
+git -C <Synapse-directory-path> add -A
+git -C <Synapse-directory-path> commit -m "Update Synapse prompts/rules"
+git -C <Synapse-directory-path> push
 ```
 
 - **Verify**: Each command succeeds before proceeding to next
@@ -451,8 +446,8 @@ git -C .cortex/synapse push
 **Step 11.4 - Update parent repo submodule pointer**:
 
 ```bash
-git add .cortex/synapse
-git diff --submodule=log -- .cortex/synapse
+git add <Synapse-directory-path>
+git diff --submodule=log -- <Synapse-directory-path>
 ```
 
 - **Verify**: `git diff` shows pointer movement (submodule commit hash changed)
@@ -465,7 +460,7 @@ git diff --submodule=log -- .cortex/synapse
 - Run:
 
 ```bash
-git -C .cortex/synapse status --porcelain
+git -C <Synapse-directory-path> status --porcelain
 ```
 
 - **If output is empty**: Proceed to Step 12 (submodule is clean).
@@ -497,13 +492,12 @@ git -C .cortex/synapse status --porcelain
 - **Dependency**: Must run AFTER Step 12 (final validation gate passes)
 - **⚠️ PRECONDITION CHECK (MANDATORY)**: Before executing Step 13, you MUST verify:
   1. **User explicitly requested commit**: Verify user invoked `/cortex/commit` or explicitly requested commit. If not, STOP and ask for confirmation.
-  2. **Current branch check**: Verify current branch is not `main` (unless user explicitly requested push to `main`). If on `main` without explicit request, STOP and ask for confirmation.
-  3. **Step 12 was fully executed**: All Step 12 sub-steps (12.1-12.6) were executed and their outputs were verified
-  4. **Step 12.2 type check passed**: The type check tool (`execute_pre_commit_checks(checks=["type_check"])`) was executed and returned success with 0 errors
-  5. **No errors in any Step 12 check**: All Step 12 checks passed with zero errors
-  6. **Explicit verification provided**: You have documented the execution of Step 12 with actual command outputs
-  7. **All validation gates passed**: Steps 0-12 have completed successfully
-- **⚠️ BLOCK COMMIT**: If user did not explicitly request commit OR if current branch is `main` without explicit request OR if Step 12 execution cannot be verified OR if any Step 12 check failed, DO NOT proceed to Step 13
+  2. **Step 12 was fully executed**: All Step 12 sub-steps (12.1-12.6) were executed and their outputs were verified
+  3. **Step 12.2 type check passed**: The type check tool (`execute_pre_commit_checks(checks=["type_check"])`) was executed and returned success with 0 errors
+  4. **No errors in any Step 12 check**: All Step 12 checks passed with zero errors
+  5. **Explicit verification provided**: You have documented the execution of Step 12 with actual command outputs
+  6. **All validation gates passed**: Steps 0-12 have completed successfully
+- **⚠️ BLOCK COMMIT**: If user did not explicitly request commit OR if Step 12 execution cannot be verified OR if any Step 12 check failed, DO NOT proceed to Step 13
 - **Workflow**: Stage all changes, generate comprehensive commit message, create commit
 - **Includes**: All changes from Steps 0-11, including submodule reference if Step 11 was executed
 - **Note**: Use user-provided commit message if provided, otherwise generate from changes
@@ -513,11 +507,9 @@ git -C .cortex/synapse status --porcelain
 - **Dependency**: Must run AFTER Step 13 (commit created)
 - **⚠️ PRECONDITION CHECK (MANDATORY)**: Before executing Step 14, you MUST verify:
   1. **User explicitly requested push**: Verify user invoked `/cortex/commit` or explicitly requested push. If not, STOP and ask for confirmation.
-  2. **Current branch check**: Verify current branch is not `main` (unless user explicitly requested push to `main`). If on `main` without explicit request, STOP and ask for confirmation.
-  3. **Push to main confirmation**: If pushing to `main`, require explicit confirmation from user. If not confirmed, STOP and ask for confirmation.
-  4. **Commit was created**: Step 13 completed successfully and commit exists
-- **⚠️ BLOCK PUSH**: If user did not explicitly request push OR if current branch is `main` without explicit request and confirmation OR if commit was not created, DO NOT proceed to Step 14
-- **Workflow**: Determine current branch, push to remote, verify success
+  2. **Commit was created**: Step 13 completed successfully and commit exists
+- **⚠️ BLOCK PUSH**: If user did not explicitly request push OR if commit was not created, DO NOT proceed to Step 14
+- **Workflow**: Determine current branch, push to remote, verify success. Push the current branch (including `main`) without asking for extra confirmation.
 - **Error handling**: Handle push errors (remote tracking, authentication issues)
 
 ## Command Execution Order
@@ -559,7 +551,7 @@ The commit procedure executes steps in this specific order to ensure dependencie
 8. **Archive Validation** (Validate Archive Locations) - Ensures archived files are in correct locations
 9. **Optimization** (Memory Bank Validation) - Validates and optimizes memory bank
 10. **Roadmap Sync** (Roadmap-Codebase Synchronization) - Ensures roadmap.md matches Sources/ codebase
-11. **Submodule Handling** - Commits and pushes `.cortex/synapse` submodule changes if any
+11. **Submodule Handling** - Commits and pushes Synapse submodule changes if any (resolve Synapse directory path via project structure or `get_structure_info()` if available)
 12. **⚠️ FINAL VALIDATION GATE** - **MANDATORY re-verification before commit** (see details below)
 13. **Commit** - Creates the commit with all changes (including updated submodule reference)
 14. **Push** - Pushes committed changes to remote repository
@@ -604,8 +596,8 @@ The original checks in Steps 0-4 are INVALIDATED by any subsequent code changes 
 
 - **When**: Run immediately at the start of Step 12, before Step 12.1
 - **What**: Identify markdown files modified during Steps 0-11 and run markdown lint check on those files
-- **How**: Use `fix_markdown_lint(check_all_files=True, include_untracked_markdown=True)` so that all current markdown files (including any session review files in `.cortex/reviews/` created or updated during this session) are linted
-- **If you wrote session review files**: If you created or updated any markdown files during Steps 0–11 (e.g. `.cortex/reviews/session-optimization-*.md`), run `fix_markdown_lint(check_all_files=True, include_untracked_markdown=True)` so those files are included before proceeding to Step 12.1
+- **How**: Use `fix_markdown_lint(check_all_files=True, include_untracked_markdown=True)` so that all current markdown files (including any session review files in the reviews directory created or updated during this session) are linted. Resolve reviews path via `get_structure_info()` → `structure_info.paths.reviews` if needed.
+- **If you wrote session review files**: If you created or updated any markdown files during Steps 0–11 (e.g. session-optimization-*.md in the reviews directory), run `fix_markdown_lint(check_all_files=True, include_untracked_markdown=True)` so those files are included before proceeding to Step 12.1
 - **Fix**: Resolve any markdown lint errors before proceeding to Step 12.1
 - **BLOCK COMMIT**: If markdown lint errors are found on modified files, fix them before continuing to Step 12.1
 - **Rationale**: Reduces extra iterations by catching markdown lint errors immediately after modification, before Step 12.6 full check
@@ -1112,9 +1104,9 @@ Use this ordering when numbering results:
 #### **8. Archive Location Validation**
 
 - **Status**: Success/Failure
-- **Completed Plans Re-check**: Count of completed plans found in `.cortex/plans/` (must be 0)
-- **Unarchived Plans**: List of any completed plans still in `.cortex/plans/` (must be empty)
-- **Plan Archive Checked**: Count of files in `.cortex/plans/archive/`
+- **Completed Plans Re-check**: Count of completed plans found in the plans directory (path from `get_structure_info()` → `structure_info.paths.plans`) (must be 0)
+- **Unarchived Plans**: List of any completed plans still in the plans directory (must be empty)
+- **Plan Archive Checked**: Count of files in the plans archive subdirectory (e.g. `structure_info.paths.plans_archived` if available)
 - **Archive Structure Valid**: Whether all archived plans are in PhaseX subdirectories
 - **Violations Found**: Count of violations (unarchived completed plans + wrong locations, must be 0)
 - **Violations List**: List of any plan files in wrong locations or unarchived completed plans
@@ -1154,7 +1146,7 @@ Use this ordering when numbering results:
 #### **11. Submodule Handling**
 
 - **Status**: Success/Failure/Skipped
-- **Submodule Changes Detected**: Whether `.cortex/synapse` submodule had changes
+- **Submodule Changes Detected**: Whether the Synapse submodule had changes
 - **Submodule Committed**: Whether submodule changes were committed
 - **Submodule Pushed**: Whether submodule changes were pushed to remote
 - **Submodule Commit Hash**: Git commit hash of submodule commit (if committed)
@@ -1508,12 +1500,12 @@ Use this ordering when numbering results:
 - ✅ All integration tests pass - explicitly verified from test output
 - ✅ Memory bank updated with current information
 - ✅ Roadmap.md updated with completed items and current progress
-- ✅ Completed build plans archived to `.cortex/plans/archive/` (or `.cursor/plans/archive/` if symlinked)
+- ✅ Completed build plans archived to the plans archive directory (path from `get_structure_info()`)
 - ✅ Plan archive locations validated (no violations)
 - ✅ Memory bank timestamps validated (all use YYYY-MM-DD format, no time components)
 - ✅ Roadmap.md synchronized with Sources/ codebase
 - ✅ All production TODOs properly tracked
-- ✅ `.cortex/synapse` submodule changes committed and pushed (if any changes exist)
+- ✅ Synapse submodule changes committed and pushed (if any changes exist)
 - ✅ Parent repository's submodule reference updated (if submodule was committed)
 - ✅ Commit created with descriptive message
 - ✅ All changes committed successfully

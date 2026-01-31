@@ -4,7 +4,7 @@
 
 **CRITICAL**: These steps are for the AI to execute AUTOMATICALLY. DO NOT ask the user for permission or confirmation. Execute immediately.
 
-**CURSOR COMMAND**: This is a Cursor command located in `.cortex/synapse/prompts/` directory, NOT a terminal command.
+**CURSOR COMMAND**: This is a Cursor command from the Synapse prompts directory, NOT a terminal command.
 
 **Tooling Note**: Use standard Cursor tools (`Read`, `ApplyPatch`, `Write`, `LS`, `Glob`, `Grep`) by default; MCP filesystem tools are optional fallbacks only when standard tools are unavailable or explicitly requested. **MANDATORY: Use Cortex MCP tools for all memory bank operations** - do NOT access memory bank files directly via file paths.
 
@@ -18,7 +18,7 @@
 
 **Memory Bank Update Note**: After implementing the roadmap step, you MUST update memory bank files using `manage_file(operation="write", ...)` to reflect the completed work.
 
-**Agent Delegation**: This prompt orchestrates roadmap implementation and delegates specialized tasks to dedicated agents in `.cortex/synapse/agents/`:
+**Agent Delegation**: This prompt orchestrates roadmap implementation and delegates specialized tasks to dedicated agents in the Synapse agents directory.
 
 - **roadmap-implementer** - Implements the roadmap step with tests and validation
 - **memory-bank-updater** - Updates memory bank files after completion
@@ -53,10 +53,8 @@ When executing steps, delegate to the appropriate agent for specialized work, th
    - **DO NOT** read memory bank files directly via file paths - always use Cortex MCP tools
 
 3. ✅ **Read relevant rules** - Understand implementation requirements:
-   - Read `.cursor/rules/coding-standards.mdc` for code quality standards
-   - Read language-specific coding standards (e.g., `.cursor/rules/python-coding-standards.mdc` for Python)
-   - Read `.cursor/rules/memory-bank-workflow.mdc` for memory bank update requirements
-   - Read `.cursor/rules/testing-standards.mdc` for testing requirements
+   - Use Cortex MCP tool `rules(operation="get_relevant", task_description="Implementation, code quality, memory bank, testing")` to load rules, or read from the rules directory (path from `get_structure_info()` → `structure_info.paths.rules`)
+   - Ensure coding standards, language-specific standards, memory-bank workflow, and testing standards are in context
 
 4. ✅ **Verify implementation against rules** - After implementation, verify conformance:
    - Review all new/modified code to ensure it conforms to coding standards
@@ -76,7 +74,7 @@ When executing steps, delegate to the appropriate agent for specialized work, th
 
 ### Step 1: Read and Parse Roadmap - **Delegate to `roadmap-implementer` agent**
 
-**Use the `roadmap-implementer` agent from `.cortex/synapse/agents/roadmap-implementer.md` for roadmap implementation steps.**
+**Use the `roadmap-implementer` agent (Synapse agents directory) for roadmap implementation steps.**
 
 1. **Use Cortex MCP tool `manage_file(file_name="roadmap.md", operation="read")`** to get the roadmap content
 2. Parse the roadmap structure from the returned JSON to identify:
@@ -91,7 +89,7 @@ When executing steps, delegate to the appropriate agent for specialized work, th
    - **Only if NO blockers exist or all blockers are completed**:
      - Select the next pending step from regular roadmap sections
    - **If NO pending step exists** (all discrete roadmap items are complete):
-     - **Proceed with plan sync**: Check `.cortex/plans/` for unarchived plans that correspond to completed roadmap items (e.g. phase-NN-*.md, enhance-tool-descriptions, roadmap-sync-*). Move them to `.cortex/plans/archive/PhaseNN/`. Then update progress.md and activeContext.md via `manage_file` with a short entry (e.g. "Implement run: no pending step; synced plans with roadmap"). Do not report "stuck"—treat plan sync as the executed step.
+     - **Proceed with plan sync**: Use `get_structure_info()` to get the plans directory path (`structure_info.paths.plans`). Check the plans directory for unarchived plans that correspond to completed roadmap items (e.g. phase-NN-*.md, enhance-tool-descriptions, roadmap-sync-*). Move them to the plans archive subdirectory (e.g. plans/archive/PhaseNN/). Then update progress.md and activeContext.md via `manage_file` with a short entry (e.g. "Implement run: no pending step; synced plans with roadmap"). Do not report "stuck"—treat plan sync as the executed step.
      - If no plans need archiving, add a one-line progress entry and set activeContext next focus to "Add a new roadmap entry for next work, or run commit pipeline when ready."
 4. Extract the following information from the selected step (blocker or regular item):
    - Description/title of the step
@@ -175,7 +173,7 @@ Before defining new data structures (classes, types, models, interfaces):
    - Check language-specific rules for data model organization requirements
    - Ensure data models are placed according to project's file structure standards
    - Use existing model patterns as templates
-   - **Run language-specific validation script**: `.venv/bin/python .cortex/synapse/scripts/{language}/check_data_models.py` (if available)
+   - **Run language-specific validation**: Use Cortex MCP tool `execute_pre_commit_checks()` with appropriate checks, or the language-specific validation script from the Synapse scripts directory (path resolved via project structure; prefer MCP tools)
 
 3. **Verify model type compliance**:
    - Check language-specific rules for required model types
@@ -185,9 +183,9 @@ Before defining new data structures (classes, types, models, interfaces):
      - **ALL structured data MUST use Pydantic `BaseModel`** - NO EXCEPTIONS
      - **TypedDict is STRICTLY FORBIDDEN** for new code
      - **Example**: Use `class MergeOpportunity(BaseModel):` NOT `class MergeOpportunity(TypedDict):`
-     - **Validation**: Use Cortex MCP tool `execute_pre_commit_checks(checks=["type_check"])` or `.venv/bin/python .cortex/synapse/scripts/{language}/check_types.py` and verify no TypedDict usage
+     - **Validation**: Use Cortex MCP tool `execute_pre_commit_checks(checks=["type_check"])` (or the language-specific type-check script from the Synapse scripts directory) and verify no TypedDict usage
      - **BLOCKING**: If TypedDict is detected, convert to Pydantic BaseModel before proceeding
-   - **Run language-specific validation script**: `.venv/bin/python .cortex/synapse/scripts/{language}/check_data_models.py` (if available) - will verify data modeling compliance automatically
+   - **Run language-specific validation**: Use Cortex MCP tool `execute_pre_commit_checks()` with appropriate checks, or the language-specific validation script from the Synapse scripts directory (path resolved via project structure; prefer MCP tools) - will verify data modeling compliance automatically
 
 ### Step 4: Implement the Step
 
@@ -199,15 +197,13 @@ Before defining new data structures (classes, types, models, interfaces):
    - Keep functions/methods and files within project's length/size limits (check language-specific standards)
    - Use dependency injection (no global state or singletons)
    - **Path and Resource Resolution**:
-     - **CRITICAL**: Never hardcode paths. Always use project's path resolver utilities.
-     - **REQUIRED**: Use path resolver utilities (e.g., `get_cortex_path()`, `CortexResourceType`) instead of hardcoded paths
+     - **CRITICAL**: Never hardcode paths. Resolve paths via Cortex MCP tools or project path resolver utilities.
+     - **REQUIRED**: Use `get_structure_info()` for structure paths (plans, memory bank, rules); use `manage_file()` for memory bank files; use path resolver utilities in code (e.g., `get_cortex_path()`, `CortexResourceType`)
      - **REQUIRED**: Check existing code for path resolution patterns
-     - **REQUIRED**: Use project's standard path resolution approach
-     - **FORBIDDEN**: Hardcoding paths like `.cortex/.session`, `.cursor/memory-bank`, etc.
-     - **FORBIDDEN**: String concatenation for paths without using resolver utilities
-     - **FORBIDDEN**: Assuming path structure without checking project patterns
+     - **FORBIDDEN**: Hardcoding the session directory, memory bank path, or plans path
+     - **FORBIDDEN**: String concatenation for paths without using resolver utilities or Cortex tools
 2. **MANDATORY: Format code immediately after creation** (before type checking):
-   - Use Cortex MCP tool `execute_pre_commit_checks(checks=["format"])` or `.venv/bin/python .cortex/synapse/scripts/{language}/fix_formatting.py` to format all new/modified files
+   - Use Cortex MCP tool `execute_pre_commit_checks(checks=["format"])` (or the language-specific fix script from the Synapse scripts directory) to format all new/modified files
    - **BLOCKING**: All files MUST be formatted before proceeding to type checking
    - **Verify**: Check formatter output - if files were reformatted, they're already updated
    - **Do not skip**: Formatting is mandatory, not optional - prevents user from having to format manually
@@ -241,7 +237,7 @@ Before defining new data structures (classes, types, models, interfaces):
 ### Step 4.5: Verify Test Coverage (MANDATORY)
 
 1. **Run coverage analysis**:
-   - Use **only** Cortex MCP tool `execute_pre_commit_checks(checks=["tests"], timeout=300, coverage_threshold=0.90)` or, as fallback, `.venv/bin/python .cortex/synapse/scripts/{language}/run_tests.py`. Do **NOT** run raw `pytest` (or other test commands) in a Shell.
+   - Use **only** Cortex MCP tool `execute_pre_commit_checks(checks=["tests"], timeout=300, coverage_threshold=0.90)` or, as fallback, the language-specific run_tests script from the Synapse scripts directory. Do **NOT** run raw `pytest` (or other test commands) in a Shell.
    - Review coverage report for new/modified files
 2. **Verify coverage threshold** (per project's testing standards):
    - Check project's testing standards for required coverage threshold
@@ -258,7 +254,7 @@ Before defining new data structures (classes, types, models, interfaces):
 ### Step 4.6: Verify Code Conformance to Rules (MANDATORY)
 
 1. **Review all new/modified files** against project rules:
-   - Re-read `.cursor/rules/coding-standards.mdc` and language-specific standards
+   - Re-read project rules via `rules(operation="get_relevant", ...)` or from the rules directory (path from `get_structure_info()`)
    - Compare each new/modified file against these standards
 2. **Verify type system compliance** (per language-specific rules):
    - Type annotations are complete on all new functions, methods, classes
@@ -282,7 +278,7 @@ Before defining new data structures (classes, types, models, interfaces):
      - Check language-specific rules for data model organization requirements
      - Ensure data models are placed according to project's file structure standards
      - One public type per file (check project's file organization standards)
-     - **Run language-specific validation script**: `.venv/bin/python .cortex/synapse/scripts/{language}/check_data_models.py` (if available)
+     - **Run language-specific validation**: Use Cortex MCP tool `execute_pre_commit_checks()` with appropriate checks, or the language-specific validation script from the Synapse scripts directory (path resolved via project structure; prefer MCP tools)
      - **BLOCKING**: If data models are in wrong files, they MUST be moved to correct location
 4. **Verify naming conventions** (per language-specific rules):
    - Check language-specific coding standards for naming requirements
@@ -298,7 +294,7 @@ Before defining new data structures (classes, types, models, interfaces):
 
 ### Step 5: Update Memory Bank - **Delegate to `memory-bank-updater` agent**
 
-**Use the `memory-bank-updater` agent from `.cortex/synapse/agents/memory-bank-updater.md` for this step.**
+**Use the `memory-bank-updater` agent (Synapse agents directory) for this step.**
 
 1. **Use Cortex MCP tool `manage_file(file_name="roadmap.md", operation="read")`** to get current roadmap content
 2. Update the roadmap content:
@@ -317,8 +313,8 @@ Before defining new data structures (classes, types, models, interfaces):
    - Update current work focus if the completed step was the active focus
    - Note any new work that should be prioritized next
 9. **Use `manage_file(file_name="activeContext.md", operation="write", content="[updated content]", change_description="Updated active context after roadmap step completion")`** to save the updated active context
-10. **⚠️ MANDATORY: If the roadmap step references a plan file (e.g., `.cortex/plans/phase-XX-*.md`) and the work is too long to complete in one session**:
-    - **Read the plan file** using standard file tools (plans are in `.cortex/plans/`, not memory bank)
+10. **⚠️ MANDATORY: If the roadmap step references a plan file (e.g., phase-XX-*.md in the plans directory) and the work is too long to complete in one session**:
+    - **Read the plan file** using standard file tools; resolve the plans directory path via `get_structure_info()` → `structure_info.paths.plans` (plans are not in memory bank)
     - **Update the plan file** to reflect the current implementation status:
       - Mark completed steps/tasks as "COMPLETED" or "✅"
       - Mark in-progress steps/tasks as "IN PROGRESS" or "🔄"
@@ -369,13 +365,13 @@ Before defining new data structures (classes, types, models, interfaces):
 **Coverage Interpretation for Focused Work**:
 
 - **New or modified code**: Must meet ≥95% coverage for Phase 62 changes, even when running focused tests
-- **Global `fail-under=90` failures**: When running targeted tests (e.g., via `execute_pre_commit_checks(checks=["tests"], ...)` or `.venv/bin/python .cortex/synapse/scripts/{language}/run_tests.py` with path args), global coverage failures dominated by untouched modules should be logged as technical debt in `progress.md` / `activeContext.md` (and, where appropriate, new coverage-raising phases), not "fixed ad hoc" during unrelated, narrow tasks
+- **Global `fail-under=90` failures**: When running targeted tests (e.g., via `execute_pre_commit_checks(checks=["tests"], ...)` or the Synapse run_tests script with path args), global coverage failures dominated by untouched modules should be logged as technical debt in progress.md / activeContext.md via `manage_file()` (and, where appropriate, new coverage-raising phases), not "fixed ad hoc" during unrelated, narrow tasks
 - **Recording coverage debt**: Document in Memory Bank with wording like: "Global coverage at 21.7% due to untested analysis/structure modules. This is expected legacy debt and does not block focused roadmap sync work. Coverage improvement tracked in Phase XX."
 - **Reference coverage plans**: Reference relevant coverage-improvement plan from roadmap entries instead of attempting broad, unscheduled coverage work
 
 ### Memory Bank Updates
 
-- **Location**: All memory bank files MUST be in `.cursor/memory-bank/` directory
+- **Location**: All memory bank files MUST be accessed via Cortex MCP tool `manage_file()`; do not hardcode the memory bank path (resolve via `get_structure_info()` if needed)
 - **Timestamps**: Use YY-MM-DD format only
 - **Format**: Keep entries reverse-chronological
 - **Completeness**: Update after significant changes (MANDATORY)
@@ -389,7 +385,7 @@ If you encounter any issues during implementation:
 3. **Test failures**: Fix all test failures before considering the step complete. Do not skip tests without justification.
 4. **Memory bank errors (CRITICAL)**: If Cortex MCP tools crash, disconnect, or exhibit unexpected behavior:
    - **STOP IMMEDIATELY**: Current process MUST stop - do not continue with implementation
-   - **Create investigation plan**: Use the `create-plan.md` prompt (`.cortex/synapse/prompts/create-plan.md`) to create an investigation plan
+   - **Create investigation plan**: Use the create-plan prompt (Synapse prompts directory) to create an investigation plan
    - **Link in roadmap**: Add plan to roadmap.md under "Blockers (ASAP Priority)" section
    - **Provide summary to user**:
      - Description: What tool failed and how (crash, disconnect, unexpected behavior)
@@ -421,11 +417,11 @@ The roadmap step is considered complete when:
 - This is a generic command that can be reused for any roadmap step
 - The agent should be thorough and complete the entire step, not just part of it
 - If a step is too large, break it down into smaller sub-tasks and complete them systematically
-- **MANDATORY PLAN UPDATES**: If the roadmap step references a plan file (e.g., `.cortex/plans/phase-XX-*.md`) and the work cannot be completed in one session, you MUST update the plan file at the end of the session to reflect the current implementation status. This ensures continuity and allows future sessions to pick up where you left off.
+- **MANDATORY PLAN UPDATES**: If the roadmap step references a plan file (e.g., phase-XX-*.md in the plans directory) and the work cannot be completed in one session, you MUST update the plan file at the end of the session to reflect the current implementation status. Resolve the plans directory path via `get_structure_info()` → `structure_info.paths.plans`. This ensures continuity and allows future sessions to pick up where you left off.
 - Always update the memory bank after completing work using Cortex MCP tools
 - Follow all workspace rules and coding standards throughout implementation
 - **CRITICAL**: Never access memory bank files directly via file paths - always use Cortex MCP tools for structured access
-- **Plan files**: Plan files are located in `.cortex/plans/` directory and should be accessed using standard file tools (not MCP tools, as they are not part of the memory bank)
+- **Plan files**: Plan files are in the plans directory (path from `get_structure_info()` → `structure_info.paths.plans`) and should be accessed using standard file tools (not MCP tools, as they are not part of the memory bank)
 
 ## MISSING TOOLS (If Required)
 

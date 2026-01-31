@@ -46,7 +46,7 @@
 
 ```markdown
 0. **Fix errors and warnings** - **Delegate to `error-fixer` agent**:
-   - Use the `error-fixer` agent from `.cortex/synapse/agents/error-fixer.md` for this step
+   - Use the `error-fixer` agent (Synapse agents directory) for this step
    - The agent will use `execute_pre_commit_checks()` MCP tool:
    - **Call MCP tool**: `execute_pre_commit_checks(checks=["fix_errors"], strict_mode=False)`
    - **CRITICAL - MCP TOOL VALIDATION**: After tool call, validate response:
@@ -61,7 +61,7 @@
 
 ```markdown
 0. **Fix errors and warnings** - **Delegate to `error-fixer` agent**:
-   - **Agent**: Use `.cortex/synapse/agents/error-fixer.md` for implementation details
+   - **Agent**: Use the error-fixer agent (Synapse agents directory) for implementation details
    - **CRITICAL**: This step MUST complete successfully before proceeding to Step 1
    - **BLOCK COMMIT**: If any errors remain after this step, stop immediately
    - **Dependency**: Must run BEFORE all other pre-commit checks

@@ -7,7 +7,7 @@ alwaysApply: true
 
 ## Memory Bank Adoption (ENFORCED)
 
-1. The project **MUST** include a `.cursor/memory-bank` directory with core files: `projectbrief.md`, `productContext.md`, `systemPatterns.md`, `techContext.md`, `activeContext.md`, `progress.md`, `roadmap.md`.
+1. The project **MUST** include a memory bank with core files: projectBrief.md, productContext.md, systemPatterns.md, techContext.md, activeContext.md, progress.md, roadmap.md. Access memory bank files via Cortex MCP tool `manage_file(file_name="...", operation="read"|"write")`; resolve path via `get_structure_info()` → `structure_info.paths.memory_bank` if needed. Do not hardcode `.cursor/memory-bank` or `.cortex/memory-bank` in procedures.
 2. **Follow Plan → Act workflow** when starting tasks and updating documentation.
 3. **After every significant change** (or when triggered by **update memory bank / umb**), update all memory-bank files.
 4. **Keep synchronized** - Memory bank files must be consistent with each other.
@@ -115,12 +115,12 @@ When completing any plan, the following checklist MUST be followed in order:
    - Fix any broken links found
 
 5. **Plan archival** - Archive completed plans:
-   - Check `.cursor/plans/` directory for completed plan files
-   - Use standard tools (`mv` or equivalent) to move completed plans to `.cursor/plans/archive/PhaseX/MilestoneY/` directory matching the plan's Phase/Milestone
-   - Create archive directory structure if it doesn't exist: `mkdir -p .cursor/plans/archive/PhaseX/MilestoneY`
+   - Resolve the plans directory path via `get_structure_info()` → `structure_info.paths.plans` (and archive subdirectory, e.g. `structure_info.paths.plans_archived` or `plans/archive/PhaseX/MilestoneY`).
+   - Check the plans directory for completed plan files; move them to the plans archive directory matching the plan's Phase/Milestone.
+   - Create archive directory structure if it doesn't exist.
    - Update plan status to "archived" if not already done
    - Ensure no active plans remain in the plans directory
-   - **CRITICAL**: Plan files MUST be archived in `.cursor/plans/archive/`, never in `.cursor/plans/`
+   - **CRITICAL**: Plan files MUST be archived in the plans archive directory (e.g. `structure_info.paths.plans_archived` or plans/archive/PhaseX/), never left in the active plans directory
    - **MANDATORY**: After moving files, update all links in memory bank files to point to new archive location
    - **MANDATORY**: Run `validate_links()` to verify all links are valid after archival
    - Fix any broken links found

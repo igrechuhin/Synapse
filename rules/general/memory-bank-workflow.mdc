@@ -5,6 +5,17 @@ alwaysApply: true
 
 **ENFORCEMENT**: CI MUST fail on violations. All rules are MANDATORY. NO exceptions.
 
+## Path Resolution and Cortex Tools (MANDATORY)
+
+**Use semantic names and Cortex MCP tools** for all structure and memory bank paths. Do not hardcode paths.
+
+- **Memory bank files**: Use Cortex MCP tool `manage_file(file_name="...", operation="read"|"write")` to read or write memory bank files. Do not hardcode the memory bank directory path.
+- **Structure paths** (plans, rules, reviews, memory bank directory): Use Cortex MCP tool `get_structure_info()` and use the returned paths (e.g. `structure_info.paths.plans`, `structure_info.paths.memory_bank`, `structure_info.paths.rules`, `structure_info.paths.reviews`). Do not hardcode `.cortex/` or `.cursor/` paths.
+- **Rules content**: Prefer Cortex MCP tool `rules(operation="get_relevant", task_description="...")` to load rules; if reading rule files, resolve the rules directory path via `get_structure_info()` → `structure_info.paths.rules`.
+- **Semantic names in procedures**: In prompts and procedures, refer to "plans directory", "memory bank", "rules directory", "reviews directory", "Synapse agents directory", etc., and instruct to resolve actual paths via Cortex tools.
+
+**VIOLATION**: Hardcoding paths like `.cortex/plans/`, `.cursor/memory-bank/`, or similar is a violation; use Cortex tools and semantic names instead.
+
 ## Link Validation Requirements (ENFORCED)
 
 **CRITICAL**: Links in Memory Bank files MUST be validated after ANY file operation that could affect link integrity.
@@ -81,8 +92,8 @@ Link validation MUST be performed immediately after:
 
 **Required Actions**:
 
-1. Add the plan file to `.cortex/plans/` or `.cursor/plans/`
-2. Add link to roadmap.md: `[Phase X: Description](../plans/phase-x-description.md)`
+1. Add the plan file to the plans directory (path from `get_structure_info()` → `structure_info.paths.plans`).
+2. Add link to roadmap via `manage_file(file_name="roadmap.md", operation="read")` then `manage_file(..., operation="write", content=...)` with new entry; use relative path in link text, e.g. `[Phase X: Description](../plans/phase-x-description.md)`.
 3. Run `validate_links(file_name="roadmap.md")` to verify link is valid
 4. Fix any broken links if validation fails
 
@@ -92,7 +103,7 @@ Link validation MUST be performed immediately after:
 
 **Required Actions**:
 
-1. Move plan file: `mv .cursor/plans/phase-x.md .cursor/plans/archive/PhaseX/phase-x.md`
+1. Move plan file to the plans archive (resolve plans path via `get_structure_info()` → `structure_info.paths.plans` and archive subdirectory, e.g. `plans_archived` or `plans/archive/PhaseX/`).
 2. Update all links in memory bank files to point to new location
 3. Run `validate_links()` to check all memory bank files
 4. Fix any broken links found

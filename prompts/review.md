@@ -4,9 +4,9 @@
 
 **CRITICAL**: These steps are for the AI to execute AUTOMATICALLY. DO NOT ask the user for permission or confirmation. Execute immediately.
 
-**CURSOR COMMAND**: This is a Cursor command located in `.cortex/synapse/prompts/` directory, NOT a terminal command.
+**CURSOR COMMAND**: This is a Cursor command from the Synapse prompts directory, NOT a terminal command.
 
-**Agent Delegation**: This prompt orchestrates code review and delegates specialized analysis to dedicated agents in `.cortex/synapse/agents/`:
+**Agent Delegation**: This prompt orchestrates code review and delegates specialized analysis to dedicated agents in the Synapse agents directory:
 
 - **static-analyzer** - Step 1: Static analysis (linting)
 - **bug-detector** - Step 2: Bug detection
@@ -19,13 +19,12 @@
 
 When executing steps, delegate to the appropriate agent for specialized analysis, then aggregate results into the review report.
 
-**Tooling Note**: **MANDATORY: All file operations within `.cortex/` directory MUST use Cortex MCP tools** - do NOT access files directly via hardcoded paths. Use standard Cursor tools (`Read`, `ApplyPatch`, `Write`, `LS`, `Glob`, `Grep`) for files outside `.cortex/` directory only. For `.cortex/` files:
+**Tooling Note**: **MANDATORY: All memory bank and structure operations MUST use Cortex MCP tools** - do NOT access files directly via hardcoded paths. Use standard Cursor tools (`Read`, `ApplyPatch`, `Write`, `LS`, `Glob`, `Grep`) for source files outside Cortex structure. For memory bank and structure paths:
 
-- Use `manage_file()` for memory bank files (read/write)
-- Use `rules()` to obtain relevant rules context when needed
-- Use `get_structure_info()` to get directory paths dynamically
-- Use path resolver utilities to construct safe paths
-- For review reports: Use `Write` tool with path obtained from `get_cortex_path(project_root, CortexResourceType.REVIEWS)` or `get_structure_info()`
+- Use `manage_file(file_name="...", operation="read"|"write")` for memory bank files
+- Use `rules(operation="get_relevant", task_description="...")` to obtain relevant rules context
+- Use `get_structure_info()` to get directory paths dynamically (e.g. `structure_info.paths.reviews`, `structure_info.paths.plans`)
+- For review reports: Use `Write` tool with path from `get_structure_info()` → `structure_info.paths.reviews`
 
 **MCP TOOL USAGE (USE WHEN / EXAMPLES)**:
 
@@ -54,17 +53,15 @@ When executing steps, delegate to the appropriate agent for specialized analysis
 **BEFORE executing this command, you MUST:**
 
 1. ✅ **Read relevant memory bank files** - Understand current project context:
-   - **Use Cortex MCP tool `manage_file()`** to read `.cursor/memory-bank/activeContext.md` to understand current work focus
-   - **Use Cortex MCP tool `manage_file()`** to read `.cursor/memory-bank/progress.md` to see recent achievements
-   - **Use Cortex MCP tool `manage_file()`** to read `.cursor/memory-bank/roadmap.md` to understand project priorities
-   - **Use Cortex MCP tool `manage_file()`** to read `.cursor/memory-bank/systemPatterns.md` to understand architectural patterns
-   - **Use Cortex MCP tool `manage_file()`** to read `.cursor/memory-bank/techContext.md` to understand technical context
+   - **Use Cortex MCP tool `manage_file(file_name="activeContext.md", operation="read")`** to understand current work focus
+   - **Use Cortex MCP tool `manage_file(file_name="progress.md", operation="read")`** to see recent achievements
+   - **Use Cortex MCP tool `manage_file(file_name="roadmap.md", operation="read")`** to understand project priorities
+   - **Use Cortex MCP tool `manage_file(file_name="systemPatterns.md", operation="read")`** to understand architectural patterns
+   - **Use Cortex MCP tool `manage_file(file_name="techContext.md", operation="read")`** to understand technical context
 
 2. ✅ **Read relevant rules** - Understand project requirements:
-   - Read `.cursor/rules/coding-standards.mdc` for core coding standards
-   - Read `.cursor/rules/maintainability.mdc` for architecture rules
-   - Read `.cursor/rules/testing-standards.mdc` for testing requirements
-   - Read any other rules relevant to the code being reviewed
+   - Use Cortex MCP tool `rules(operation="get_relevant", task_description="Code review, coding standards, maintainability, testing")` or read from the rules directory (path from `get_structure_info()` → `structure_info.paths.rules`)
+   - Ensure core coding standards, maintainability rules, testing standards, and other rules relevant to the code being reviewed are in context
 
 3. ✅ **Understand review scope** - Determine what needs to be reviewed:
    - Identify the module, directory, or files to review
@@ -81,15 +78,15 @@ When executing steps, delegate to the appropriate agent for specialized analysis
 ## Steps
 
 1. **Static analysis** - **Delegate to `static-analyzer` agent**:
-   - Use the `static-analyzer` agent from `.cortex/synapse/agents/static-analyzer.md` for this step
+   - Use the `static-analyzer` agent (Synapse agents directory) for this step
    - The agent will run linter (type checking is handled separately by type-checker agent):
-   - Use Cortex MCP tool `execute_pre_commit_checks(checks=["type_check"])` and `execute_pre_commit_checks(checks=["quality"])` or, as fallback, `.venv/bin/python .cortex/synapse/scripts/{language}/check_types.py` and `.venv/bin/python .cortex/synapse/scripts/{language}/check_linting.py` to identify type errors and code quality issues. Do **NOT** run raw language-specific commands (e.g., `pyright`, `ruff`) in a Shell.
+   - Use Cortex MCP tool `execute_pre_commit_checks(checks=["type_check"])` and `execute_pre_commit_checks(checks=["quality"])` (or the language-specific type/lint scripts from the Synapse scripts directory) to identify type errors and code quality issues. Do **NOT** run raw language-specific commands (e.g., `pyright`, `ruff`) in a Shell.
    - Check for compiler warnings and errors
    - Identify deprecated API usage
    - Check for unused imports and variables
    - Verify code follows best practices
 2. **Bug detection** - **Delegate to `bug-detector` agent**:
-   - Use the `bug-detector` agent from `.cortex/synapse/agents/bug-detector.md` for this step
+   - Use the `bug-detector` agent (Synapse agents directory) for this step
    - The agent will search for potential bugs and logic errors:
    - Search for force unwraps (`!`) and analyze safety
    - Check for null pointer dereferences
@@ -99,7 +96,7 @@ When executing steps, delegate to the appropriate agent for specialized analysis
    - Verify array bounds checking
    - Check for integer overflow possibilities
 3. **Consistency check** - **Delegate to `consistency-checker` agent**:
-   - Use the `consistency-checker` agent from `.cortex/synapse/agents/consistency-checker.md` for this step
+   - Use the `consistency-checker` agent (Synapse agents directory) for this step
    - The agent will verify cross-file consistency (naming conventions, code style uniformity):
    - Check naming consistency (camelCase, PascalCase)
    - Verify file organization (one type per file, file naming)
@@ -108,7 +105,7 @@ When executing steps, delegate to the appropriate agent for specialized analysis
    - Check architectural pattern consistency
    - Verify API design patterns are consistent
 4. **Rules compliance check** - **Delegate to `rules-compliance-checker` agent**:
-   - Use the `rules-compliance-checker` agent from `.cortex/synapse/agents/rules-compliance-checker.md` for this step
+   - Use the `rules-compliance-checker` agent (Synapse agents directory) for this step
    - The agent will verify all @rules/ requirements are met:
    - **Coding Standards**: SOLID principles, DRY, YAGNI compliance
    - **File Organization**: One type per file, max 400 lines per file, max 30 lines per function
@@ -117,7 +114,7 @@ When executing steps, delegate to the appropriate agent for specialized analysis
    - **Error Handling**: No fatalError in production, typed errors
    - **Dependency Injection**: No singletons, proper injection
 5. **Completeness verification** - **Delegate to `completeness-verifier` agent**:
-   - Use the `completeness-verifier` agent from `.cortex/synapse/agents/completeness-verifier.md` for this step
+   - Use the `completeness-verifier` agent (Synapse agents directory) for this step
    - The agent will identify incomplete implementations:
    - Search for `TODO:` and `FIXME:` comments in production code
    - Identify placeholder implementations (`fatalError("Not implemented")`)
@@ -126,7 +123,7 @@ When executing steps, delegate to the appropriate agent for specialized analysis
    - Check for incomplete test coverage
    - Identify missing documentation
 6. **Test coverage review** - **Delegate to `test-coverage-reviewer` agent**:
-   - Use the `test-coverage-reviewer` agent from `.cortex/synapse/agents/test-coverage-reviewer.md` for this step
+   - Use the `test-coverage-reviewer` agent (Synapse agents directory) for this step
    - The agent will check that all public APIs have adequate test coverage:
    - Identify all public APIs (public/open declarations)
    - Check for corresponding test files
@@ -136,14 +133,14 @@ When executing steps, delegate to the appropriate agent for specialized analysis
    - **Pydantic v2 for JSON testing**: Verify that tests for MCP tool responses use Pydantic v2 `BaseModel` types and `model_validate_json()` / `model_validate()` instead of raw `dict` assertions. See `tests/tools/test_file_operations.py` for examples (e.g., `ManageFileErrorResponse` pattern).
    - Identify gaps in test coverage
 7. **Security assessment** - **Delegate to `security-assessor` agent**:
-   - Use the `security-assessor` agent from `.cortex/synapse/agents/security-assessor.md` for this step
+   - Use the `security-assessor` agent (Synapse agents directory) for this step
    - The agent will look for potential security vulnerabilities:
    - Check for hardcoded secrets or credentials
    - Verify input validation at boundaries
    - Verify secure logging (no secrets in logs)
    - Check for proper authentication/authorization
 8. **Performance review** - **Delegate to `performance-reviewer` agent**:
-   - Use the `performance-reviewer` agent from `.cortex/synapse/agents/performance-reviewer.md` for this step
+   - Use the `performance-reviewer` agent (Synapse agents directory) for this step
    - The agent will identify potential performance bottlenecks:
    - Check for O(n²) algorithms on large collections
    - Identify unnecessary memory allocations
@@ -193,11 +190,11 @@ When executing steps, delegate to the appropriate agent for specialized analysis
 - File naming: `code-review-report-YYYY-MM-DDTHH-mm.md` (e.g., `code-review-report-2026-01-15T00-00.md`). Suffix MUST always be YYYY-MM-DDTHH-mm.
 - **MANDATORY: Use Cortex MCP tools to get the correct path**:
   1. Call `get_structure_info(project_root=None)` MCP tool to get structure information
-  2. Extract the reviews directory path from the response: `structure_info.paths.reviews` (e.g., `/path/to/project/.cortex/reviews`)
+  2. Extract the reviews directory path from the response: `structure_info.paths.reviews` (use the value returned by the Cortex tool; do not hardcode)
   3. Construct the full file path: `{reviews_path}/code-review-report-YYYY-MM-DDTHH-mm.md`
   4. Use the `Write` tool with this dynamically constructed path (it will create parent directories automatically)
-- **NEVER use hardcoded paths like `.cortex/code-review-report-*.md` or `.cortex/reviews/`** - Always use `get_structure_info()` to get the path dynamically
-- Do NOT save review reports in `.cortex/` root or other locations
+- **NEVER use hardcoded paths** - Always use `get_structure_info()` to get the reviews path dynamically (`structure_info.paths.reviews`)
+- Do NOT save review reports in the Cortex root or other locations; use the reviews directory path from the Cortex tool
 
 **CRITICAL: Report Structure for Plan Creation**
 The report structure MUST be optimized for use by `create-plan.md` prompt. Each issue and improvement MUST include:
@@ -410,8 +407,8 @@ This command provides comprehensive code quality assurance before commits and re
   3. Construct file path: `{reviews_path}/code-review-report-YYYY-MM-DDTHH-mm.md`
   4. Use the `Write` tool with this dynamically constructed path (it will create parent directories automatically)
 - Use format: `code-review-report-2026-01-15T00-00.md` (suffix MUST be YYYY-MM-DDTHH-mm)
-- **NEVER use hardcoded paths like `.cortex/reviews/`** - Always use `get_structure_info()` to get the path dynamically
-- Never save reports in `.cortex/` root or other locations
+- **NEVER use hardcoded paths** - Always use `get_structure_info()` to get the reviews path dynamically (`structure_info.paths.reviews`)
+- Never save reports in the Cortex root or other locations; use the reviews directory from the Cortex tool
 
 **Report Structure for Plan Creation:**
 The review report MUST be structured to enable efficient plan creation by `create-plan.md`. Each section should provide:

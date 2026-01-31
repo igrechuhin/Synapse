@@ -4,7 +4,7 @@
 
 **CRITICAL**: Execute this automatically. DO NOT ask user for permission.
 
-**Agent Delegation**: This prompt delegates to the **`context-effectiveness-analyzer` agent** from `.cortex/synapse/agents/context-effectiveness-analyzer.md` for specialized context analysis.
+**Agent Delegation**: This prompt delegates to the **`context-effectiveness-analyzer` agent** (Synapse agents directory) for specialized context analysis.
 
 ## Purpose
 
@@ -23,9 +23,9 @@ analyze_context_effectiveness()
 
 This tool will:
 
-- Read the current session log from `.cortex/.session/context-session-{session_id}.json`
+- Read the current session log from the session directory (path resolved by the tool; e.g. context-session-{session_id}.json)
 - Analyze each `load_context` call made in THIS session
-- Update global statistics in `.cortex/.session/context-usage-statistics.json`
+- Update global statistics in the session directory (e.g. context-usage-statistics.json)
 - Return current session analysis and statistics update status
 
 ### Step 2: Review Results
@@ -144,8 +144,8 @@ To generate data:
 
 ## Data Files
 
-- **Session logs**: `.cortex/.session/context-session-{session_id}.json`
-- **Statistics**: `.cortex/.session/context-usage-statistics.json`
+- **Session logs**: Session directory, file pattern `context-session-{session_id}.json` (path resolved by the tool or via `get_structure_info()` if available)
+- **Statistics**: Session directory, file `context-usage-statistics.json`
 
 Each session log contains:
 

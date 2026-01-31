@@ -49,6 +49,7 @@ alwaysApply: true
 
 - **Docs sync**: Update memory bank and roadmap after significant changes or on request.
 - **Markdown rules**: Follow markdown formatting standards (blank lines, fenced languages, no trailing spaces).
+- **Path resolution**: Use semantic names (e.g. "plans directory", "memory bank") and Cortex MCP tools (`get_structure_info()` for structure paths, `manage_file()` for memory bank files, `rules()` for rules). Do not hardcode `.cortex/` or `.cursor/` paths in prompts or procedures.
 
 ## Tooling Requirements
 

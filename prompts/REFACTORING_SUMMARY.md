@@ -24,7 +24,7 @@ Each step now follows this pattern:
 
 ```markdown
 X. **Step Name** - **Delegate to `agent-name` agent**:
-   - **Agent**: Use `.cortex/synapse/agents/agent-name.md` for implementation details
+   - **Agent**: Use the agent-name agent (Synapse agents directory) for implementation details
    - **Dependency**: Must run AFTER Step Y (or BEFORE Step Z)
    - **CRITICAL**: Success criteria that affects workflow
    - **BLOCK COMMIT**: Conditions that stop the workflow

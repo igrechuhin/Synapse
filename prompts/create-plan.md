@@ -1,10 +1,10 @@
 # Create Plan from Description
 
-**AI EXECUTION COMMAND**: Create a development plan based on user description, add it to the plans directory, and update the roadmap.
+**AI EXECUTION COMMAND**: Create a development plan based on user description, add it to the **plans directory**, **and register it in the roadmap**. Plan creation is NOT complete until both (1) the plan file exists in the plans directory and (2) the roadmap contains an entry for that plan. **Resolve paths via Cortex MCP**: use `get_structure_info()` for the plans directory path; use `manage_file()` for the roadmap (memory bank).
 
 **CRITICAL**: These steps are for the AI to execute AUTOMATICALLY. DO NOT ask the user for permission or confirmation unless clarification is needed. Execute immediately after gathering necessary information.
 
-**CURSOR COMMAND**: This is a Cursor command located in `.cortex/synapse/prompts/` directory, NOT a terminal command.
+**CURSOR COMMAND**: This is a Cursor command from the Synapse prompts directory, NOT a terminal command.
 
 **⚠️ MANDATORY: When a plan is requested, ALL additional context is INPUT for plan creation, NOT separate issues to fix.**
 
@@ -15,14 +15,14 @@
 
 **Tooling Note**: Use standard Cursor tools (`Read`, `ApplyPatch`, `Write`, `LS`, `Glob`, `Grep`) by default; MCP filesystem tools are optional fallbacks only when standard tools are unavailable or explicitly requested. **MANDATORY: Use Cortex MCP tools for all memory bank and structure operations** - do NOT access files directly via hardcoded paths.
 
-**Path Resolution**: All paths MUST be obtained dynamically using Cortex MCP tools:
+**Path Resolution**: All paths MUST be obtained dynamically using Cortex MCP tools. Do not hardcode paths; use semantic names and resolve actual paths via Cortex tools:
 
-- Use `get_structure_info()` to get plans directory path (not hardcode `.cortex/plans`)
-- Use `manage_file()` to read/write roadmap.md (not hardcode `.cortex/memory-bank/roadmap.md`)
+- **Plans directory**: Use `get_structure_info()` → `structure_info.paths.plans` for the plans directory path
+- **Roadmap (memory bank)**: Use `manage_file(file_name="roadmap.md", operation="read"|"write", ...)` to read/write the roadmap; do not hardcode the memory-bank path or filename
 
 **Sequential Thinking**: If sequential thinking MCP is available, use it to ensure best results when creating the plan.
 
-**Agent Delegation**: This prompt orchestrates plan creation and delegates specialized tasks to dedicated agents in `.cortex/synapse/agents/`:
+**Agent Delegation**: This prompt orchestrates plan creation and delegates specialized tasks to dedicated agents in the Synapse agents directory:
 
 - **plan-creator** - Creates the development plan from description
 - **memory-bank-updater** - Updates roadmap.md with new plan entry
@@ -43,8 +43,8 @@ When executing steps, delegate to the appropriate agent for specialized work, th
      - Plans directory path (`structure_info.paths.plans`)
      - Memory bank path (`structure_info.paths.memory_bank`)
      - Project root path (`structure_info.root`)
-   - **DO NOT** hardcode paths like `.cortex/plans` or `.cortex/memory-bank/roadmap.md`
-   - Parse the JSON response to extract the actual paths
+   - **DO NOT** hardcode paths; use Cortex MCP tools to resolve the **plans directory** and **memory-bank** (roadmap) paths
+   - Parse the JSON response from `get_structure_info()` and `manage_file()` to get actual paths
 
 2. ✅ **Read relevant memory bank files** - Understand current project context:
    - **Use Cortex MCP tool `manage_file(file_name="roadmap.md", operation="read")`** to understand current roadmap structure and priorities
@@ -75,12 +75,12 @@ When executing steps, delegate to the appropriate agent for specialized work, th
 
 1. **Use Cortex MCP tool `get_structure_info(project_root=None)`** to get structure information
 2. Parse the JSON response to extract:
-   - **Plans directory path**: Use the **absolute path** from `structure_info.paths.plans` (e.g., `/path/to/project/.cortex/plans`) for creating and updating plan files. **Do not hardcode** `.cortex/plans` or derive the path from `structure_info.root` plus a layout segment. The canonical plans path is always `structure_info.paths.plans`.
-   - Memory bank path: `structure_info.paths.memory_bank` (e.g., `/path/to/project/.cortex/memory-bank`)
+   - **Plans directory path**: Use the **absolute path** from `structure_info.paths.plans` returned by `get_structure_info()`. Do not hardcode the plans path or derive it from `structure_info.root` plus a segment; the canonical plans path is always `structure_info.paths.plans`.
+   - Memory bank path: `structure_info.paths.memory_bank` (use the value returned by `get_structure_info()`; do not hardcode)
    - Project root: `structure_info.root` (note: `structure_info.root` may be the Cortex directory (e.g. `.cortex`) or the project root depending on configuration; the canonical plans path is always `structure_info.paths.plans`)
 3. Verify that the plans directory exists (check `structure_info.exists.plans`)
 4. If plans directory doesn't exist, note this in the plan creation process
-5. **When reporting paths** (e.g. in plan summary or "Issues encountered"), use the value from `structure_info.paths.plans` (e.g. `/path/to/project/.cortex/plans`) so it is unambiguous. Do not report a relative path or an inferred path; report the actual path returned by the tool.
+5. **When reporting paths** (e.g. in plan summary or "Issues encountered"), use the value from `get_structure_info()` (e.g. `structure_info.paths.plans`) so it is unambiguous. Do not report a relative or inferred path; report the actual path returned by the Cortex tool.
 
 ### Step 2: Load Project Context
 
@@ -102,8 +102,8 @@ When executing steps, delegate to the appropriate agent for specialized work, th
    - Use standard tools (`LS`, `Read`, `Grep`) to inspect existing plan files and their titles.
    - Cross-check `roadmap.md` entries (via `manage_file(read)`) for plan titles and short descriptions.
 2. **Check for roadmap references to non-existent plans**:
-   - **CRITICAL**: If `roadmap.md` references a Phase with status PLANNED but no corresponding plan file exists in `.cortex/plans/`, you MUST create the plan file now.
-   - At minimum, create a plan stub such as `phase-XX-<slug>.plan.md` that uses DRY transclusion (e.g., `{{include:../memory-bank/phase-XX-...plan.md}}`) to avoid duplicated content.
+   - **CRITICAL**: If the roadmap (read via `manage_file(file_name="roadmap.md", operation="read")`) references a Phase with status PLANNED but no corresponding plan file exists in the **plans directory** (path from `get_structure_info()` → `structure_info.paths.plans`), you MUST create the plan file now.
+   - At minimum, create a plan stub such as `phase-XX-<slug>.plan.md` in the plans directory; use DRY transclusion where appropriate to avoid duplicated content.
    - This prevents `roadmap_sync` from reporting `invalid_references` for missing plans.
 3. **Identify same/similar plans**:
    - Compare the user description (title, keywords, problem domain) against:
@@ -153,7 +153,7 @@ When executing steps, delegate to the appropriate agent for specialized work, th
 
 ### Step 5: Create or Enrich the Plan - **Delegate to `plan-creator` agent**
 
-**Use the `plan-creator` agent from `.cortex/synapse/agents/plan-creator.md` for this step.**
+**Use the `plan-creator` agent (Synapse agents directory) for this step.**
 
 1. **Generate plan content** based on:
    - User's description (and clarifications if any)
@@ -209,9 +209,11 @@ When executing steps, delegate to the appropriate agent for specialized work, th
    - Check file content is complete and well-structured
    - Ensure all required sections are present
 
-### Step 6: Update Roadmap - **Delegate to `memory-bank-updater` agent**
+### Step 6: Register Plan in Roadmap (MANDATORY) - **Delegate to `memory-bank-updater` agent**
 
-**Use the `memory-bank-updater` agent from `.cortex/synapse/agents/memory-bank-updater.md` for this step.**
+**Use the `memory-bank-updater` agent (Synapse agents directory) for this step.**
+
+Every new or enriched plan MUST be registered in the roadmap. Do not skip this step.
 
 1. **Read current roadmap**:
    - **Use Cortex MCP tool `manage_file(file_name="roadmap.md", operation="read")`** to get current roadmap content
@@ -219,9 +221,9 @@ When executing steps, delegate to the appropriate agent for specialized work, th
 2. **Parse roadmap structure** to understand:
    - Current roadmap format and structure
    - Existing milestones and phases
-   - Where to add the new plan entry
+   - Where to add the new plan entry (e.g. "Pending plans (from plans directory)" or appropriate phase section; use roadmap structure from `manage_file(read)`)
 
-3. **Add or update plan entry in roadmap**:
+3. **Add or update plan entry in roadmap** (register the plan):
    - **If this is a new plan**:
      - Create a new roadmap entry for the plan.
      - Include plan title, description, status, and priority.
@@ -286,21 +288,22 @@ When executing steps, delegate to the appropriate agent for specialized work, th
 
 ### Path Resolution
 
-- **Plans directory**: Always use the **absolute path** from `structure_info.paths.plans` for creating/updating plan files. **Do not** hardcode `.cortex/plans` or infer the path from `structure_info.root` plus a layout segment.
-- **Reporting**: When reporting paths (e.g. in plan summary or "Issues encountered"), use the value from `structure_info.paths.plans` (e.g. `/path/to/project/.cortex/plans`) so it is unambiguous.
-- **Dynamic paths**: Always use `get_structure_info()` to get paths, never hardcode
-- **Relative paths**: Use relative paths in roadmap links when possible
-- **Validation**: Verify paths exist before using them
-- **VIOLATION**: Hardcoding plans path or inferring it from root + layout is a violation of the plan creation workflow.
+- **Plans directory**: Resolve the plans directory path via Cortex MCP tool `get_structure_info()` → use `structure_info.paths.plans` (absolute path) for creating/updating plan files. Do not hardcode or infer from root + segment.
+- **Roadmap / memory bank**: Use `manage_file(file_name="roadmap.md", ...)` for roadmap; do not hardcode the memory-bank path or filename.
+- **Reporting**: When reporting paths, use the value returned by the Cortex tool (e.g. `structure_info.paths.plans`) so it is unambiguous.
+- **Dynamic resolution**: Always resolve paths via Cortex tools (`get_structure_info`, `manage_file`); never hardcode.
+- **Relative paths**: Use relative paths in roadmap entry links when appropriate.
+- **Validation**: Verify paths exist (e.g. `structure_info.exists.plans`) before using them.
+- **VIOLATION**: Hardcoding paths or inferring them without the Cortex tool is a violation of the plan creation workflow.
 
 ## ERROR HANDLING
 
 ### Path resolution
 
-- The plans directory for creating/writing plan files must always be taken from `structure_info.paths.plans` (absolute path returned by the tool).
-- **Do not** hardcode `.cortex/plans` or infer paths from `structure_info.root` + layout.
-- In "Issues encountered" or summaries, report the actual path used (e.g. `structure_info.paths.plans` value) so it is unambiguous.
-- Hardcoding or inferring the plans path is a **violation** of the plan creation workflow.
+- **Plans directory**: Must be resolved via Cortex MCP tool `get_structure_info()`; use `structure_info.paths.plans` (absolute path) for creating/writing plan files.
+- **Do not** hardcode the plans path or infer it from `structure_info.root` + layout; use the Cortex tool to get the actual path.
+- In "Issues encountered" or summaries, report the actual path used (the value from the Cortex tool) so it is unambiguous.
+- Hardcoding or inferring paths without the Cortex tool is a **violation** of the plan creation workflow.
 
 If you encounter any issues during plan creation:
 
@@ -346,8 +349,8 @@ The plan creation is considered complete when:
 - ✅ Plan content is complete with all required sections
 - ✅ **Testing strategy included with 95% coverage target (MANDATORY)**
 - ✅ **Test specifications defined for all new functionality (MANDATORY)**
-- ✅ Roadmap updated with new plan entry
-- ✅ Roadmap entry properly formatted and linked
+- ✅ **Plan registered in roadmap (MANDATORY)** – roadmap updated with new or updated plan entry; plan is not complete until registered
+- ✅ Roadmap entry properly formatted and linked to the plan file
 - ✅ All paths obtained dynamically using MCP tools
 - ✅ Sequential-thinking MCP used if available
 - ✅ Clarifying questions asked if needed
