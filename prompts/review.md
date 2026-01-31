@@ -187,7 +187,7 @@ When executing steps, delegate to the appropriate agent for specialized analysis
 ## CRITICAL: Report File Location
 
 - All review reports MUST be saved to the reviews directory (configured in structure)
-- File naming: `code-review-report-YYYY-MM-DDTHH-mm.md` (e.g., `code-review-report-2026-01-15T00-00.md`). Suffix MUST always be YYYY-MM-DDTHH-mm.
+- File naming: `code-review-report-YYYY-MM-DDTHH-mm.md`. Suffix MUST be derived from real time (e.g. run `date +%Y-%m-%dT%H-%M`). NEVER use fallback or invented time (e.g. no `T00-00`).
 - **MANDATORY: Use Cortex MCP tools to get the correct path**:
   1. Call `get_structure_info(project_root=None)` MCP tool to get structure information
   2. Extract the reviews directory path from the response: `structure_info.paths.reviews` (use the value returned by the Cortex tool; do not hardcode)
@@ -406,7 +406,7 @@ This command provides comprehensive code quality assurance before commits and re
   2. Extract the reviews directory path: `structure_info.paths.reviews`
   3. Construct file path: `{reviews_path}/code-review-report-YYYY-MM-DDTHH-mm.md`
   4. Use the `Write` tool with this dynamically constructed path (it will create parent directories automatically)
-- Use format: `code-review-report-2026-01-15T00-00.md` (suffix MUST be YYYY-MM-DDTHH-mm)
+- Use format: `code-review-report-YYYY-MM-DDTHH-mm.md`; suffix MUST be derived from real time (e.g. `date +%Y-%m-%dT%H-%M`). NEVER use fallback or invented time.
 - **NEVER use hardcoded paths** - Always use `get_structure_info()` to get the reviews path dynamically (`structure_info.paths.reviews`)
 - Never save reports in the Cortex root or other locations; use the reviews directory from the Cortex tool
 

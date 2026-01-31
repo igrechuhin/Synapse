@@ -22,8 +22,8 @@ Any timestamp — in filenames, report body, memory bank, roadmap, plans, or any
 
 For every command or prompt that emits or uses time:
 
-1. **Derive time from an explicit source** — Use mtime, a tool that returns time, or another documented source.
-2. **Fallback when time cannot be determined** — If no source is available (e.g. no file mtime, no session time tool), use a defined fallback (e.g. `T00-00` with a note that the time component is unknown). Do **not** invent a plausible-looking time.
+1. **Derive time from an explicit source** — Use mtime, a tool that returns time, system date (e.g. `date +%Y-%m-%dT%H-%M`), or another documented source.
+2. **NEVER use fallback or invented time** — Do NOT use `T00-00`, "unknown", or any placeholder. If you need a timestamp, obtain real time (e.g. run `date +%Y-%m-%dT%H-%M`). Do not create or save artifacts with non-real timestamps.
 
 ## BLOCK
 

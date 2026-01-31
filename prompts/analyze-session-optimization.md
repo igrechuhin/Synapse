@@ -159,9 +159,8 @@
         - **Time component**: `HH-mm` (hours and minutes, hyphen-separated, e.g., `17-58` for 5:58 PM)
         - **CRITICAL**: The suffix MUST always be `YYYY-MM-DDTHH-mm`. No date-only or other formats.
         - **CRITICAL**: The `T` separator MUST be followed by a full time-of-day component (`HH-mm`), not arbitrary text or counters
-        - **Derive from actual session time**: Use the actual session time (e.g., transcript file mtime, or a tool that returns session/current time). Do NOT invent a value (e.g. `15-00`, `T02`).
-        - **Fallback when time cannot be determined**: If no real source exists (e.g. no file mtime, no session time tool), use `T00-00` and note in the report that the time component is unknown. Do NOT invent a plausible-looking time.
-        - **Avoid conflicts**: If a file with the same date already exists, use a different time (e.g., `T17-59`) to make it unique
+        - **Derive from real time only**: Use a real source (e.g. run `date +%Y-%m-%dT%H-%M` in shell, transcript file mtime, or a tool that returns session/current time). Do NOT invent a value (e.g. `15-00`, `T02`). NEVER use fallback or placeholder time (e.g. `T00-00`, "unknown").
+        - **Avoid conflicts**: If a file with the same date already exists, use a different time (e.g. run `date` again or use mtime from another file) to make it unique.
      5. Construct the full file path: `{reviews_path}/session-optimization-YYYY-MM-DDTHH-MM.md`
      6. Use the `Write` tool with this dynamically constructed path (it will create parent directories automatically)
    - **NEVER use hardcoded paths** - Always use `get_structure_info()` to get the reviews path dynamically (`structure_info.paths.reviews`)

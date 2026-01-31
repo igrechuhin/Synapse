@@ -46,9 +46,8 @@ Key practices:
 
 ## Session Review Filename Conventions
 
-- **Project rule (real-time-references.mdc)**: ALL time references MUST use real time. Derive time from an actual source (e.g. file mtime, tool that returns session/current time). Do NOT invent a value. If time cannot be determined, use fallback `T00-00` and note that time component is unknown.
+- **Project rule (real-time-references.mdc)**: ALL time references MUST use real time. NEVER use fallback or invented time (e.g. `T00-00`, "unknown"). Derive time from a real source (e.g. run `date +%Y-%m-%dT%H-%M` in shell, file mtime, or a tool that returns session/current time).
 - **Suffix MUST always be YYYY-MM-DDTHH-mm**: Review filenames in `.cortex/reviews/` MUST end with a date-time suffix in this exact form (e.g., `session-optimization-2026-01-28T17-58.md`). No date-only or other formats.
 - **Canonical pattern**: `{basename}-YYYY-MM-DDTHH-MM.md` (e.g., `session-optimization-2026-01-28T17-58.md`).
-- **Timestamp suffix**: The suffix after `T` MUST be a full time-of-day component (hours and minutes, hyphen-separated). Derive from actual session time (e.g., transcript file mtime, or a tool that returns session/current time). Do NOT use ad-hoc names like `T02` that do not encode a true timestamp.
-- **Fallback**: When no real time source is available, use `T00-00` and note in the report that the time component is unknown.
+- **Timestamp suffix**: The suffix after `T` MUST be a full time-of-day component (hours and minutes, hyphen-separated). Derive from a real source (e.g. system `date +%Y-%m-%dT%H-%M`, transcript file mtime, or a tool that returns session/current time). Do NOT use ad-hoc names like `T02` or placeholder `T00-00`.
 - **Malformed names**: If a review file has a malformed suffix (e.g., `TNN` with no minutes, or `T-session`), suggest renaming it to match the canonical pattern before referencing it in plans, roadmap entries, or memory-bank files.

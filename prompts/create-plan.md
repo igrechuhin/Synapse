@@ -220,15 +220,13 @@ Every new or enriched plan MUST be registered in the roadmap. Do not skip this s
 
 2. **Parse roadmap structure** to understand:
    - Current roadmap format and structure
-   - Existing milestones and phases
-   - Where to add the new plan entry (e.g. "Pending plans (from plans directory)" or appropriate phase section; use roadmap structure from `manage_file(read)`)
+   - **Implementation sequence** (see roadmap intro): section order is Blockers → Active Work → Future Enhancements → Implementation queue (Pending plans). Order within each section is top-to-bottom; the implement command picks the first PENDING item in this order.
+   - Where to add the new plan entry so **execution order is correct**: use roadmap structure from `manage_file(read)` to place the entry in the right section and position.
 
-3. **Add or update plan entry in roadmap** (register the plan):
+3. **Add or update plan entry in roadmap** (register the plan in correct order for execution):
    - **If this is a new plan**:
-     - Create a new roadmap entry for the plan.
-     - Include plan title, description, status, and priority.
-     - Link to the plan file (relative path from memory-bank directory).
-     - Add to the appropriate phase/milestone section.
+     - Create a new roadmap entry for the plan (title, description, status PENDING, link to plan file).
+     - **Place it in the correct position for implementation sequence**: (1) If the plan is a blocker, add to **Blockers (ASAP Priority)** at the top of that section. (2) Otherwise add to **Implementation queue** (section "Pending plans (from .cortex/plans)") at the **end** of that section so it runs after current queue items. (3) If the plan belongs to a specific phase section (e.g. Active Work, Future Enhancements), add there in the appropriate order (e.g. after last PENDING in that section). This ensures the implement command will pick steps in the intended order.
    - **If enriching an existing plan**:
      - Locate the existing roadmap entry that links to the target plan.
      - **Enrich** the entry to reflect the new context and scope (e.g., expand description, reference new constraints or logs).
@@ -281,10 +279,10 @@ Every new or enriched plan MUST be registered in the roadmap. Do not skip this s
 
 ### Roadmap Integration
 
+- **Implementation sequence**: The roadmap defines execution order (see roadmap intro). Place new plans so that order is preserved: blockers in Blockers (ASAP Priority); normal plans at the end of Implementation queue (Pending plans); phase-specific plans in the correct phase section in order.
 - **Consistency**: Follow existing roadmap format and structure
-- **Prioritization**: Add plan to appropriate priority/phase section
-- **Linking**: Include proper links to plan file
-- **Status**: Set appropriate initial status
+- **Linking**: Include proper links to plan file (e.g. `.cortex/plans/<name>.md`)
+- **Status**: Set appropriate initial status (e.g. PENDING for new plans)
 
 ### Path Resolution
 

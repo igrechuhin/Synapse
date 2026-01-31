@@ -29,16 +29,9 @@ When executing steps, delegate to the appropriate agent for specialized work, th
 
 **BEFORE executing this command, you MUST:**
 
-1. ✅ **Read the roadmap** - Understand project priorities:
-   - **Use Cortex MCP tool `manage_file(file_name="roadmap.md", operation="read")`** to get all roadmap items
-   - Parse the roadmap structure to identify:
-     - **CRITICAL: Check for "Blockers (ASAP Priority)" section first** (typically around line 217 in roadmap.md)
-     - All roadmap items/entries
-     - Their current status (pending, in-progress, completed, etc.)
-     - **PRIORITY RULE: Blockers MUST be handled before any other roadmap items**
-   - **MANDATORY PRIORITY CHECK**:
-     - **If blockers exist in "Blockers (ASAP Priority)" section**: Handle the FIRST blocker item (first uncompleted blocker)
-     - **Only if NO blockers exist**: Proceed with the next pending step from regular roadmap sections
+1. ✅ **Read the roadmap** - Get next step from implementation sequence:
+   - **Use Cortex MCP tool `manage_file(file_name="roadmap.md", operation="read")`** to get the roadmap
+   - **Next step** = first PENDING item when reading the roadmap in implementation order (see roadmap intro: Blockers → Active Work → Future Enhancements → Implementation queue / Pending plans). Extract description, plan path if present, and requirements from that entry.
    - Extract the following information from the selected step (blocker or regular item):
      - Description/title of the step
      - Any specific requirements or acceptance criteria
@@ -70,33 +63,23 @@ When executing steps, delegate to the appropriate agent for specialized work, th
 
 ## EXECUTION STEPS
 
-**⚠️ CRITICAL PRIORITY RULE**: Blockers in the "Blockers (ASAP Priority)" section (typically around line 217 in roadmap.md) MUST be handled FIRST before any other roadmap items. Only proceed with regular roadmap items if no blockers exist.
+### Step 1: Read Roadmap and Pick Next Step - **Delegate to `roadmap-implementer` agent**
 
-### Step 1: Read and Parse Roadmap - **Delegate to `roadmap-implementer` agent**
+The **roadmap defines the implementation sequence** (see the "Implementation sequence" note at the top of roadmap.md). You pick the **next** step only—no priority logic in this prompt.
 
-**Use the `roadmap-implementer` agent (Synapse agents directory) for roadmap implementation steps.**
-
-1. **Use Cortex MCP tool `manage_file(file_name="roadmap.md", operation="read")`** to get the roadmap content
-2. Parse the roadmap structure from the returned JSON to identify:
-   - **CRITICAL: First check for "Blockers (ASAP Priority)" section** (typically starts around line 217)
-   - All roadmap items/entries
-   - Their current status (pending, in-progress, completed, etc.)
-   - **PRIORITY RULE: Blockers MUST be handled before any other roadmap items**
-3. **MANDATORY PRIORITY SELECTION**:
-   - **If "Blockers (ASAP Priority)" section exists and contains uncompleted items**:
-     - Select the FIRST uncompleted blocker item from that section
-     - This is the item you MUST implement (highest priority)
-   - **Only if NO blockers exist or all blockers are completed**:
-     - Select the next pending step from regular roadmap sections
-   - **If NO pending step exists** (all discrete roadmap items are complete):
-     - **Proceed with plan sync**: Use `get_structure_info()` to get the plans directory path (`structure_info.paths.plans`). Check the plans directory for unarchived plans that correspond to completed roadmap items (e.g. phase-NN-*.md, enhance-tool-descriptions, roadmap-sync-*). Move them to the plans archive subdirectory (e.g. plans/archive/PhaseNN/). Then update progress.md and activeContext.md via `manage_file` with a short entry (e.g. "Implement run: no pending step; synced plans with roadmap"). Do not report "stuck"—treat plan sync as the executed step.
-     - If no plans need archiving, add a one-line progress entry and set activeContext next focus to "Add a new roadmap entry for next work, or run commit pipeline when ready."
-4. Extract the following information from the selected step (blocker or regular item):
-   - Description/title of the step
-   - Any specific requirements or acceptance criteria
-   - Dependencies or prerequisites
-   - Estimated scope/complexity
-   - **If it's a blocker**: Note the urgency and impact described in the blocker entry
+1. **Use Cortex MCP tool `manage_file(file_name="roadmap.md", operation="read")`** to get the roadmap content.
+2. **Next step** = first PENDING item when reading the roadmap in this order (top to bottom within each section):
+   - Blockers (ASAP Priority) — if present
+   - Active Work
+   - Future Enhancements
+   - Implementation queue (section "Pending plans (from .cortex/plans)" or "Implementation queue")
+3. **If you found a PENDING step**:
+   - If the entry references a plan file (e.g. `Plan: .cortex/plans/phase-XX-....md`): resolve the plan path via `get_structure_info()` → `structure_info.paths.plans`; read the plan file with standard file tools; implement the plan (or as much as possible in one session).
+   - Otherwise implement the step from the roadmap entry (description, requirements).
+4. **If no PENDING step exists** (all items complete in every section):
+   - **Plan sync**: Use `get_structure_info()` → `structure_info.paths.plans`. Move unarchived plans that correspond to completed roadmap items to `plans/archive/PhaseNN/`. Update progress.md and activeContext.md via `manage_file` with a short entry (e.g. "Implement run: no pending step; synced plans with roadmap").
+   - If no plans need archiving, add a one-line progress entry and set activeContext next focus to "Add a new roadmap entry for next work, or run commit pipeline when ready."
+5. Extract from the selected step (for implementation): description/title, requirements, plan path if present, dependencies.
 
 ### Step 2: Load Relevant Context
 
