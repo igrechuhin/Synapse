@@ -37,7 +37,8 @@ except ImportError:
 def get_linter_command(project_root: Path) -> list[str]:
     """Get linter command to run.
 
-    Uses pyproject.toml rule set (E, F, I, B, UP) - matches CI workflow.
+    Option A (quality-issues-missed-investigation): Uses pyproject.toml rule set
+    (E, F, I, B, UP); do not add --select F,E,W. Matches CI workflow.
 
     Args:
         project_root: Path to project root

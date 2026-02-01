@@ -254,7 +254,7 @@ The following error patterns MUST be detected and fixed before commit. These are
 - **⚠️ ZERO ERRORS TOLERANCE**: The project has ZERO errors tolerance - ANY errors (new or pre-existing) MUST block commit
 - **⚠️ NO EXCEPTIONS**: Pre-existing linting errors are NOT acceptable - they MUST be fixed before commit
 - **⚠️ ABSOLUTE BLOCK**: If error count > 0 (even if errors are in files you didn't modify), stop immediately - DO NOT proceed to commit
-- **Note**: **Use `execute_pre_commit_checks()` MCP tool for all pre-commit operations** (e.g. `execute_pre_commit_checks(checks=["quality"])` for linting; quality includes lint, file sizes, function lengths)
+- **Note**: **Use `execute_pre_commit_checks()` MCP tool for all pre-commit operations** (e.g. `execute_pre_commit_checks(checks=["quality"])` for the quality gate; quality gate runs both quality (lint, file sizes, function lengths) and type_check so type diagnostics match IDE/CI)
 
 ### Integration Test Failures
 
@@ -679,9 +679,9 @@ execute_pre_commit_checks(checks=["type_check"], project_root=<project_root>)
 - **Skip if**: Project does not use a type system (Python projects use type hints, so this step is NOT skipped for Python)
 - **If you fixed type errors in this step**: Re-run Step 12.1 (format → format check → format_ci_parity via tools) and verify all pass before proceeding to Step 12.3 (see "CRITICAL RULE (Step 12)" above).
 
-### 12.3 Re-run Linter Check (MANDATORY)
+### 12.3 Re-run Linter and Type Check (MANDATORY)
 
-Use the Cortex MCP tool (quality check includes lint; same scope as CI):
+Use the Cortex MCP tool (quality gate runs quality + type_check; same scope as CI):
 
 ```text
 execute_pre_commit_checks(checks=["quality"], project_root=<project_root>)
@@ -689,14 +689,15 @@ execute_pre_commit_checks(checks=["quality"], project_root=<project_root>)
 
 **⚠️ CRITICAL**: Do NOT truncate output - read FULL tool response to verify check passed
 
-- **MUST verify**: Tool returns `status` = "success" and quality check indicates passed (no lint errors)
-- **MUST verify**: Parse `results.quality` - errors list must be empty (error count = 0)
-- **⚠️ ABSOLUTE BLOCK**: If ANY linter violations are reported (even 1 error), stop immediately - DO NOT proceed to commit
-- **⚠️ NO EXCEPTIONS**: Pre-existing linting errors are NOT acceptable - they MUST be fixed before commit
+- **MUST verify**: Tool returns `status` = "success"
+- **MUST verify**: Parse `results.quality` - errors list must be empty (error count = 0); quality check indicates passed (no lint errors)
+- **MUST verify**: Parse `results.type_check` - success = true and errors list empty (quality gate includes type_check; catches reportRedeclaration etc.)
+- **⚠️ ABSOLUTE BLOCK**: If ANY linter or type violations are reported (even 1 error), stop immediately - DO NOT proceed to commit
+- **⚠️ NO EXCEPTIONS**: Pre-existing linting or type errors are NOT acceptable - they MUST be fixed before commit
 - **⚠️ ZERO ERRORS TOLERANCE**: The project has ZERO errors tolerance - ANY errors (new or pre-existing) MUST block commit
-- **BLOCK COMMIT** if ANY linter violations are reported OR if tool returns status "error" for quality
+- **BLOCK COMMIT** if ANY linter or type violations are reported OR if tool returns status "error" for quality or type_check
 - **If you fixed lint in this step**: Re-run Step 12.1 (format → format check → format_ci_parity via tools) and verify all pass before proceeding to Step 12.4 (see "CRITICAL RULE (Step 12)" above).
-- **BLOCK COMMIT** if quality check reports any errors
+- **BLOCK COMMIT** if quality or type_check reports any errors
 - **DO NOT rely on memory of earlier checks** - you MUST re-run and verify result NOW
 - **DO NOT dismiss errors as "pre-existing"** - ALL errors must be fixed before commit
 
@@ -743,20 +744,20 @@ execute_pre_commit_checks(checks=["tests"], timeout=300, coverage_threshold=0.90
 
 **Step 12.5.1 - Check file sizes** (MANDATORY):
 
-Use the Cortex MCP tool (quality check includes file sizes):
+Use the Cortex MCP tool (quality gate runs quality + type_check; quality includes file sizes):
 
 ```text
 execute_pre_commit_checks(checks=["quality"], project_root=<project_root>)
 ```
 
-- **MUST verify**: Tool returns `status` = "success" and `results.quality.file_size_violations` is empty
-- **MUST verify**: No file size violations (all files within 400 lines)
-- **BLOCK COMMIT** if ANY file size violations are reported
+- **MUST verify**: Tool returns `status` = "success"; `results.quality.file_size_violations` empty; `results.type_check.success` true and `results.type_check.errors` empty
+- **MUST verify**: No file size violations (all files within 400 lines); no type errors
+- **BLOCK COMMIT** if ANY file size or type violations are reported
 - **NO EXCEPTIONS**: Pre-existing violations are NOT acceptable
 
 **Step 12.5.2 - Check function lengths** (MANDATORY):
 
-Same tool as 12.5.1 (quality includes function lengths):
+Same tool as 12.5.1 (quality gate includes quality + type_check):
 
 ```text
 execute_pre_commit_checks(checks=["quality"], project_root=<project_root>)

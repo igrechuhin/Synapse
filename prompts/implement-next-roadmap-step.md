@@ -57,7 +57,7 @@ When executing steps, delegate to the appropriate agent for specialized work, th
    - Verify files are within project's size limits
    - Verify dependency injection patterns are followed (no global state or singletons)
    - Verify naming conventions follow project standards
-   - **MANDATORY**: Run the automated quality gate (Step 4.7)—`execute_pre_commit_checks(checks=["quality"])`—and fix any violations before proceeding to memory bank updates. Do NOT leave lint, function-length, or file-size violations for the commit pipeline.
+   - **MANDATORY**: Run the automated quality gate (Step 4.7)—`execute_pre_commit_checks(checks=["quality"])`—and fix any violations before proceeding to memory bank updates. The quality gate runs both quality (lint, file size, function length) and type_check so type diagnostics (e.g. reportRedeclaration) are caught. Do NOT leave lint, function-length, file-size, or type violations for the commit pipeline.
    - **If violations found**: Fix them BEFORE proceeding to memory bank updates
 
 **VIOLATION**: Executing this command without following this checklist is a CRITICAL violation that blocks proper implementation.
@@ -278,21 +278,20 @@ Before defining new data structures (classes, types, models, interfaces):
 
 ### Step 4.7: Run Quality Gate Before Finish (MANDATORY)
 
-**Purpose**: Ensure no rot code is left for the commit pipeline to fix. The same quality gate as the commit pipeline MUST pass before marking the implementation complete.
+**Purpose**: Ensure no rot code is left for the commit pipeline to fix. The same quality gate as the commit pipeline MUST pass before marking the implementation complete. The quality gate includes **quality** (lint, file size, function length) and **type_check** so type diagnostics (e.g. reportRedeclaration) match IDE/CI.
 
 1. **Run automated quality check**:
-   - Use Cortex MCP tool `execute_pre_commit_checks(checks=["quality"])` (or the language-specific scripts from the Synapse scripts directory: `check_linting.py`, `check_file_sizes.py`, `check_function_lengths.py`). Prefer the MCP tool. Pass `project_root` only if needed (e.g. when not running from repo root).
+   - Use Cortex MCP tool `execute_pre_commit_checks(checks=["quality"])`. This runs both quality and type_check. Prefer the MCP tool. Pass `project_root` only if needed (e.g. when not running from repo root).
    - **Scope**: Same as CI (e.g. `src/` and `tests/` for this project). Do NOT skip quality check.
 2. **Verify success**:
-   - **MUST verify**: Tool returns `status` = "success" and `results.quality.success` = true
-   - **MUST verify**: `results.quality.file_size_violations` is empty (length 0)
-   - **MUST verify**: `results.quality.function_length_violations` is empty (length 0)
-   - **MUST verify**: No lint errors in the quality result (same as commit pipeline quality step)
+   - **MUST verify**: Tool returns `status` = "success"
+   - **MUST verify**: `results.quality.success` = true; `results.quality.file_size_violations` empty; `results.quality.function_length_violations` empty; no lint errors in quality result
+   - **MUST verify**: `results.type_check.success` = true and `results.type_check.errors` empty (type_check runs as part of quality gate)
 3. **If any violations**:
-   - Fix all reported violations (refactor long functions, split oversized files, fix lint issues)
+   - Fix all reported violations (refactor long functions, split oversized files, fix lint issues, fix type errors)
    - Re-run `execute_pre_commit_checks(checks=["quality"])` until all checks pass
    - Do NOT proceed to Step 5 until the quality gate passes
-4. **BLOCKING**: Do NOT proceed to memory bank updates (Step 5) until the quality gate passes. Leaving function-length, file-size, or lint violations for the commit pipeline to fix is a violation of this prompt.
+4. **BLOCKING**: Do NOT proceed to memory bank updates (Step 5) until the quality gate passes. Leaving function-length, file-size, lint, or type violations for the commit pipeline to fix is a violation of this prompt.
 
 ### Step 5: Update Memory Bank - **Delegate to `memory-bank-updater` agent**
 
@@ -333,7 +332,7 @@ Before defining new data structures (classes, types, models, interfaces):
    - All requirements are met
    - All tests pass
    - Code follows all standards
-   - **Quality gate passed**: Step 4.7 was run and `execute_pre_commit_checks(checks=["quality"])` returned success with zero file-size and function-length violations (no rot code left for commit pipeline)
+   - **Quality gate passed**: Step 4.7 was run and `execute_pre_commit_checks(checks=["quality"])` returned success with zero file-size, function-length, lint, and type_check violations (no rot code left for commit pipeline)
    - Memory bank is updated
    - **If a plan file exists and work is incomplete**: Plan file is updated with current status
 2. If the step is not fully complete:
@@ -405,7 +404,7 @@ The roadmap step is considered complete when:
 - ✅ All implementation tasks are finished
 - ✅ All code follows coding standards
 - ✅ **Code conformance verified**: All new/modified code verified against project rules (Step 4.6)
-- ✅ **Quality gate passed (Step 4.7)**: `execute_pre_commit_checks(checks=["quality"])` run and passed—zero lint, file-size, and function-length violations; no rot code left for the commit pipeline
+- ✅ **Quality gate passed (Step 4.7)**: `execute_pre_commit_checks(checks=["quality"])` run and passed—zero lint, file-size, function-length, and type_check violations; no rot code left for the commit pipeline
 - ✅ **Type system compliance**: Complete type annotations, proper data modeling per language-specific rules
 - ✅ **Structural compliance**: Functions/methods and files within project limits, DI patterns followed
 - ✅ All tests pass
