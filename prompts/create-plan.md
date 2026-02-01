@@ -174,7 +174,7 @@ When executing steps, delegate to the appropriate agent for specialized work, th
    - **Goal**: Clear statement of what this plan achieves
    - **Context**: Why this plan is needed, user needs, business requirements
    - **Approach**: High-level implementation strategy
-   - **Implementation Steps**: Detailed breakdown of tasks
+   - **Implementation Steps**: Detailed breakdown of tasks. Steps define an **implementation sequence** (like the roadmap): the implement command will execute them in order (Step 1, then Step 2, then Step 3, …). Number steps clearly and list them in the order they should be implemented; do not rely on agents to reorder or skip steps.
    - **Dependencies**: Dependencies on other plans or external work
    - **Success Criteria**: Measurable outcomes
    - **Technical Design**: Architecture, data model, UI/UX changes (if applicable)

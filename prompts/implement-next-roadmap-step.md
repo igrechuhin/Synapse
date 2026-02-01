@@ -75,19 +75,11 @@ The **roadmap defines the implementation sequence** (see the "Implementation seq
    - Future Enhancements
    - Implementation queue (section "Pending plans (from .cortex/plans)" or "Implementation queue")
 3. **If you found a PENDING step**:
-   - If the entry references a plan file (e.g. `Plan: .cortex/plans/phase-XX-....md`): resolve the plan path via `get_structure_info()` → `structure_info.paths.plans`; read the plan file with standard file tools; implement the plan (or as much as possible in one session).
+   - If the entry references a plan file (e.g. `Plan: .cortex/plans/phase-XX-....md`): resolve the plan path via `get_structure_info()` → `structure_info.paths.plans`; read the plan file with standard file tools; implement the plan **in sequential step order** (see "Plan step sequence" below).
    - Otherwise implement the step from the roadmap entry (description, requirements).
-4. **If no PENDING step exists** (all items complete in every section):
-   - **Plan sync**: Use `get_structure_info()` → `structure_info.paths.plans`. Move unarchived plans that correspond to completed roadmap items to `plans/archive/PhaseNN/`. Update progress.md and activeContext.md via `manage_file` with a short entry (e.g. "Implement run: no pending step; synced plans with roadmap").
-   - If no plans need archiving, add a one-line progress entry and set activeContext next focus to "Add a new roadmap entry for next work, or run commit pipeline when ready."
-5. Extract from the selected step (for implementation): description/title, requirements, plan path if present, dependencies.
 
-### Step 2: Load Relevant Context
+**Plan step sequence (MANDATORY when implementing a plan)**:
 
-**Task-Aware Token Budget Selection**:
-
-- **Fix/debug tasks**: Use `token_budget=15000` (narrow, focused work)
-- **Small feature/refactor**: Use `token_budget=20000-30000` (moderate scope); 20000 or 20000–25000 often sufficient; for narrow implement steps when high-value files (activeContext, roadmap, progress) are sufficient, consider **15000–20000**
 - **Architecture/large design**: Use `token_budget=40000-50000` (broad scope)
 - **Increase budget only when utilization regularly exceeds ~70%** from previous runs
 
