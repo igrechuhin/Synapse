@@ -39,27 +39,37 @@ class BadMCPServer:
 - **Proper return types**: Return proper MCP response formats - MANDATORY
 - **Type hints**: All handlers MUST have complete type hints - MANDATORY
 
-### MCP Tool Timeout Wrapper (MANDATORY)
+### MCP Tool Required Decorator Stack (MANDATORY)
 
-- **Every `@mcp.tool()` handler MUST be guarded with `@mcp_tool_wrapper(timeout=...)`** - MANDATORY, NO EXCEPTIONS
+- **Every `@mcp.tool()` MUST use the full stack in order** - MANDATORY, NO EXCEPTIONS:
+  1. `@mcp.tool()`
+  2. `@ensure_usage_context` — enables usage recording for analytics
+  3. `@mcp_tool_wrapper(timeout=...)` — timeout and stability
 - **Prevents session hangs**: Long-running or blocking tool execution is bounded; the event loop stays responsive
 - **Use timeout constants** from `cortex.core.constants`: `MCP_TOOL_TIMEOUT_FAST` (60s), `MCP_TOOL_TIMEOUT_MEDIUM` (120s), `MCP_TOOL_TIMEOUT_COMPLEX` (300s), `MCP_TOOL_TIMEOUT_VERY_COMPLEX` (600s), `MCP_TOOL_TIMEOUT_EXTERNAL` (120s)
-- **Decorator order**: Place `@mcp_tool_wrapper(timeout=...)` immediately below `@mcp.tool()` and above `async def`
+- **CI enforcement**: `test_every_mcp_tool_has_required_wrappers` fails if any tool in `src/cortex/tools` lacks this exact stack
 
 ```python
 # ✅ REQUIRED
 from cortex.core.constants import MCP_TOOL_TIMEOUT_MEDIUM
-from cortex.core.mcp_stability import mcp_tool_wrapper
+from cortex.core.mcp_stability import ensure_usage_context, mcp_tool_wrapper
 from cortex.server import mcp
 
 @mcp.tool()
+@ensure_usage_context
 @mcp_tool_wrapper(timeout=MCP_TOOL_TIMEOUT_MEDIUM)
 async def my_tool(project_root: str | None = None) -> str:
     ...
 
+# ❌ PROHIBITED - Missing required stack
+@mcp.tool()
+@mcp_tool_wrapper(timeout=MCP_TOOL_TIMEOUT_MEDIUM)  # BLOCKED - missing @ensure_usage_context
+async def my_tool(...) -> str:
+    ...
+
 # ❌ PROHIBITED - Missing timeout wrapper
 @mcp.tool()
-async def my_tool(...) -> str:  # BLOCKED - will hang on long runs
+async def my_tool(...) -> str:  # BLOCKED - will hang on long runs, no usage tracking
     ...
 ```
 
@@ -221,7 +231,7 @@ async def validate_memory_bank(...) -> dict[str, object]:  # BLOCKED
 
 ## Violations (BLOCKED)
 
-- ❌ **MCP tool without timeout wrapper**: Every `@mcp.tool()` MUST have `@mcp_tool_wrapper(timeout=...)` immediately below it (STRICTLY FORBIDDEN)
+- ❌ **MCP tool without full decorator stack**: Every `@mcp.tool()` MUST have `@ensure_usage_context` then `@mcp_tool_wrapper(timeout=...)` in that order (STRICTLY FORBIDDEN)
 - ❌ Async main functions in script entry points
 - ❌ Passing server objects to stdio_server()
 - ❌ Registering MCP handlers on wrapper classes instead of MCP Server instances
