@@ -417,6 +417,7 @@ The roadmap step is considered complete when:
 - Follow all workspace rules and coding standards throughout implementation
 - **CRITICAL**: Never access memory bank files directly via file paths - always use Cortex MCP tools for structured access
 - **Plan files**: Plan files are in the plans directory (path from `get_structure_info()` → `structure_info.paths.plans`) and should be accessed using standard file tools (not MCP tools, as they are not part of the memory bank)
+- **Script generation prevention**: Before generating a temporary script, use `suggest_tool_improvements(task_description=...)` to discover existing tools/scripts. If you do create a script, use `capture_session_script` to record it for analysis and potential promotion; use `analyze_session_scripts` and `promote_session_script` to validate and get templates.
 
 ## MISSING TOOLS (If Required)
 
