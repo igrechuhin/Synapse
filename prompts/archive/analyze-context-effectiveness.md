@@ -1,3 +1,5 @@
+**DEPRECATED**: Use the unified end-of-session prompt `analyze.md` instead. This file is archived for reference.
+
 # Analyze Context Effectiveness
 
 **AI EXECUTION COMMAND**: Analyze `load_context` effectiveness for the current session.
