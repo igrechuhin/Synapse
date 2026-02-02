@@ -490,8 +490,9 @@ git -C <Synapse-directory-path> status --porcelain
   - Step 12.2: Type check tool executed (`execute_pre_commit_checks(checks=["type_check"])` result shown with success and 0 errors)
   - Step 12.3: Linter check executed (output shown with error count = 0)
   - Step 12.4: Test naming check executed (output shown)
-  - Step 12.5: File sizes AND function lengths checks executed (output shown)
-  - Step 12.6: Markdown lint check executed (output shown)
+  - Step 12.5: Markdown lint check executed (output shown)
+  - Step 12.6: File sizes AND function lengths checks executed (output shown)
+  - Step 12.7: Tests with coverage validation executed (output shown)
 - **Workflow**: Re-run formatting, type checking, linting, and quality checks to catch any new issues
 - **⚠️ ZERO ERRORS TOLERANCE**: The project has ZERO errors tolerance - ANY errors (new or pre-existing) MUST block commit
 - **⚠️ NO EXCEPTIONS**: Pre-existing errors are NOT acceptable - they MUST be fixed before commit
@@ -504,7 +505,7 @@ git -C <Synapse-directory-path> status --porcelain
 - **Dependency**: Must run AFTER Step 12 (final validation gate passes)
 - **⚠️ PRECONDITION CHECK (MANDATORY)**: Before executing Step 13, you MUST verify:
   1. **User explicitly requested commit**: Verify user invoked `/cortex/commit` or explicitly requested commit. If not, STOP and ask for confirmation.
-  2. **Step 12 was fully executed**: All Step 12 sub-steps (12.1-12.6) were executed and their outputs were verified
+  2. **Step 12 was fully executed**: All Step 12 sub-steps (12.1-12.7) were executed and their outputs were verified
   3. **Step 12.2 type check passed**: The type check tool (`execute_pre_commit_checks(checks=["type_check"])`) was executed and returned success with 0 errors
   4. **No errors in any Step 12 check**: All Step 12 checks passed with zero errors
   5. **Explicit verification provided**: You have documented the execution of Step 12 with actual command outputs
@@ -612,7 +613,7 @@ The original checks in Steps 0-4 are INVALIDATED by any subsequent code changes 
 - **If you wrote session review files**: If you created or updated any markdown files during Steps 0–11 (e.g. session-optimization-*.md in the reviews directory), run `fix_markdown_lint(check_all_files=True, include_untracked_markdown=True)` so those files are included before proceeding to Step 12.1
 - **Fix**: Resolve any markdown lint errors before proceeding to Step 12.1
 - **BLOCK COMMIT**: If markdown lint errors are found on modified files, fix them before continuing to Step 12.1
-- **Rationale**: Reduces extra iterations by catching markdown lint errors immediately after modification, before Step 12.6 full check
+- **Rationale**: Reduces extra iterations by catching markdown lint errors immediately after modification, before Step 12.5 full check
 
 ### 12.1 Re-run Formatting FIX then CHECK (MANDATORY)
 
@@ -731,62 +732,15 @@ execute_pre_commit_checks(checks=["test_naming"], project_root=<project_root>)
   - Invalid: `testread`, `testgenerate`, `testcreate`, `testsetup` (missing underscore)
   - Valid: `test_read`, `test_generate`, `test_create`, `test_setup` (with underscore)
 
-### 12.5 Re-run Tests with Coverage Validation (MANDATORY)
-
-**CRITICAL**: Code changes during Steps 5-11 may affect test coverage. Tests MUST be re-run and coverage MUST be validated.
-
-**Step 12.4.1 - Re-run tests with coverage** (MANDATORY):
-
-Use the MCP tool:
-
-```python
-execute_pre_commit_checks(checks=["tests"], timeout=300, coverage_threshold=0.90)
-```
-
-- **MUST verify**: `results.tests.success` = true (PRIMARY indicator)
-- **MUST verify**: `results.tests.tests_failed` = 0 (zero failures)
-- **MUST verify**: `results.tests.pass_rate` = 100.0 (100% pass rate)
-- **MUST verify**: `results.tests.coverage` ≥ 0.90 (coverage ≥ 90%, parsed as float)
-- **BLOCK COMMIT** if `results.tests.success` = false OR `results.tests.coverage` < 0.90 OR any test fails
-- **CRITICAL**: Coverage validation is MANDATORY - NO EXCEPTIONS
-
-### 12.5 Re-run Quality Checks (MANDATORY)
-
-**CRITICAL**: Quality violations (file sizes, function lengths) can be introduced during Steps 4-11 and MUST be validated before commit.
-
-**Step 12.5.1 - Check file sizes** (MANDATORY):
-
-Use the Cortex MCP tool (quality gate runs quality + type_check; quality includes file sizes):
-
-```text
-execute_pre_commit_checks(checks=["quality"], project_root=<project_root>)
-```
-
-- **MUST verify**: Tool returns `status` = "success"; `results.quality.file_size_violations` empty; `results.type_check.success` true and `results.type_check.errors` empty
-- **MUST verify**: No file size violations (all files within 400 lines); no type errors
-- **BLOCK COMMIT** if ANY file size or type violations are reported
-- **NO EXCEPTIONS**: Pre-existing violations are NOT acceptable
-
-**Step 12.5.2 - Check function lengths** (MANDATORY):
-
-Same tool as 12.5.1 (quality gate includes quality + type_check):
-
-```text
-execute_pre_commit_checks(checks=["quality"], project_root=<project_root>)
-```
-
-- **MUST verify**: Tool returns `status` = "success" and `results.quality.function_length_violations` is empty
-- **MUST verify**: No function length violations (all functions within 30 lines)
-- **BLOCK COMMIT** if ANY function length violations are reported
-- **NO EXCEPTIONS**: Pre-existing violations are NOT acceptable
-
-### 12.6 Re-run Markdown Lint Check (MANDATORY)
+### 12.5 Re-run Markdown Lint Check (MANDATORY)
 
 **CRITICAL**: Markdown files may have been modified during Steps 5-11. Markdown lint MUST be re-checked.
 
-**⚠️ AUTHORITATIVE**: Step 12.6 checks ALL markdown files (like CI does) - this is the final validation before commit.
+**⚠️ AUTHORITATIVE**: Step 12.5 checks ALL markdown files (like CI does) - this is the final markdown validation before commit.
 
-**Step 12.6.1 - Re-run markdown lint check on ALL files** (MANDATORY):
+**⚠️ ORDERING RATIONALE**: Markdown lint runs BEFORE tests to avoid MCP connection staleness. The test suite can take several minutes, and running markdown lint after tests has historically caused "Connection closed" errors due to the MCP connection timing out during the long test run.
+
+**Step 12.5.1 - Re-run markdown lint check on ALL files** (MANDATORY):
 
 Use the MCP tool to check ALL markdown files (matching CI behavior):
 
@@ -806,11 +760,61 @@ fix_markdown_lint(check_all_files=True, include_untracked_markdown=True)
 - **BLOCK COMMIT** if output is truncated or unclear - re-run without truncation
 - **DO NOT rely on memory of earlier checks** - you MUST re-run and verify output NOW
 - **DO NOT dismiss errors as "pre-existing"** - ALL errors must be fixed before commit
-- **Match CI behavior**: CI checks ALL markdown files and fails on ANY error - Step 12.6 MUST match this exactly
-- **Optional narrower scope**: If `fix_markdown_lint(check_all_files=True)` has previously timed out or returned "Connection closed," the agent may run markdown lint on modified/added markdown files only (with a one-line note) to reduce duration; then record "MCP connection closed; fallback used" if fallback was used.
+- **Match CI behavior**: CI checks ALL markdown files and fails on ANY error - Step 12.5 MUST match this exactly
 - **Example fallback command** (when MCP tool unavailable): Run markdown lint via shell with the same scope. Example (match CI scope): `npx markdownlint-cli2 '**/*.md' '**/*.mdc' !**/node_modules/** !**/.venv/** !**/venv/** !**/__pycache__/** !**/.git/**` with `--fix` to fix, or without `--fix` for check-only. Record "MCP connection closed; fallback used" in the commit output.
 
-### 12.7 Verification Requirements (CRITICAL)
+### 12.6 Re-run Quality Checks (MANDATORY)
+
+**CRITICAL**: Quality violations (file sizes, function lengths) can be introduced during Steps 4-11 and MUST be validated before commit.
+
+**Step 12.6.1 - Check file sizes** (MANDATORY):
+
+Use the Cortex MCP tool (quality gate runs quality + type_check; quality includes file sizes):
+
+```text
+execute_pre_commit_checks(checks=["quality"], project_root=<project_root>)
+```
+
+- **MUST verify**: Tool returns `status` = "success"; `results.quality.file_size_violations` empty; `results.type_check.success` true and `results.type_check.errors` empty
+- **MUST verify**: No file size violations (all files within 400 lines); no type errors
+- **BLOCK COMMIT** if ANY file size or type violations are reported
+- **NO EXCEPTIONS**: Pre-existing violations are NOT acceptable
+
+**Step 12.6.2 - Check function lengths** (MANDATORY):
+
+Same tool as 12.6.1 (quality gate includes quality + type_check):
+
+```text
+execute_pre_commit_checks(checks=["quality"], project_root=<project_root>)
+```
+
+- **MUST verify**: Tool returns `status` = "success" and `results.quality.function_length_violations` is empty
+- **MUST verify**: No function length violations (all functions within 30 lines)
+- **BLOCK COMMIT** if ANY function length violations are reported
+- **NO EXCEPTIONS**: Pre-existing violations are NOT acceptable
+
+### 12.7 Re-run Tests with Coverage Validation (MANDATORY)
+
+**CRITICAL**: Code changes during Steps 5-11 may affect test coverage. Tests MUST be re-run and coverage MUST be validated.
+
+**⚠️ ORDERING RATIONALE**: Tests run AFTER markdown lint (12.5) and quality checks (12.6) because the test suite takes several minutes and can cause MCP connection staleness for subsequent tool calls. Running tests last in the validation sequence ensures all other checks complete reliably.
+
+**Step 12.7.1 - Re-run tests with coverage** (MANDATORY):
+
+Use the MCP tool:
+
+```python
+execute_pre_commit_checks(checks=["tests"], timeout=300, coverage_threshold=0.90)
+```
+
+- **MUST verify**: `results.tests.success` = true (PRIMARY indicator)
+- **MUST verify**: `results.tests.tests_failed` = 0 (zero failures)
+- **MUST verify**: `results.tests.pass_rate` = 100.0 (100% pass rate)
+- **MUST verify**: `results.tests.coverage` ≥ 0.90 (coverage ≥ 90%, parsed as float)
+- **BLOCK COMMIT** if `results.tests.success` = false OR `results.tests.coverage` < 0.90 OR any test fails
+- **CRITICAL**: Coverage validation is MANDATORY - NO EXCEPTIONS
+
+### 12.9 Verification Requirements (CRITICAL)
 
 ## ⚠️ MANDATORY: NO OUTPUT TRUNCATION IN STEP 12 (Verification)
 
@@ -823,7 +827,7 @@ fix_markdown_lint(check_all_files=True, include_untracked_markdown=True)
 - **If any check fails**: Fix issues and restart from Step 12.1
 - **BLOCK COMMIT**: If ANY check in Step 12 fails OR if output cannot be fully verified, DO NOT proceed to commit
 
-### 12.8 Checklist Before Proceeding to Commit
+### 12.10 Checklist Before Proceeding to Commit
 
 **⚠️ MANDATORY**: This checklist MUST be completed and verified BEFORE proceeding to Step 13. Each item MUST be checked with explicit evidence (command outputs, exit codes, parsed error counts).
 
@@ -843,15 +847,15 @@ fix_markdown_lint(check_all_files=True, include_untracked_markdown=True)
 - [ ] Linter re-run: **NO output truncation** - full output read and verified
 - [ ] Linter re-run: **ZERO ERRORS TOLERANCE** - verified that error count = 0 (NO exceptions, even for pre-existing errors)
 - [ ] **Step 12.4 executed**: Test naming check tool executed, full result shown
-- [ ] **Step 12.5 executed**: File sizes AND function lengths via quality tool executed, full results shown
+- [ ] **Step 12.5 executed**: Markdown lint tool executed, full result shown
+- [ ] Markdown lint re-run: **0 errors in ALL markdown files** confirmed (matching CI behavior)
+- [ ] Markdown lint re-run: **check_all_files=True** used to match CI comprehensive check
+- [ ] **Step 12.6 executed**: File sizes AND function lengths via quality tool executed, full results shown
 - [ ] File sizes re-run: **0 violations** confirmed in FULL output
 - [ ] File sizes re-run: **NO output truncation** - full output read and verified
 - [ ] Function lengths re-run: **0 violations** confirmed in FULL output
 - [ ] Function lengths re-run: **NO output truncation** - full output read and verified
-- [ ] **Step 12.6 executed**: Markdown lint tool executed, full result shown
-- [ ] Markdown lint re-run: **0 errors in ALL markdown files** confirmed (matching CI behavior)
-- [ ] Markdown lint re-run: **check_all_files=True** used to match CI comprehensive check
-- [ ] **Tests re-run**: `results.tests.success` = true AND `results.tests.coverage` ≥ 0.90 confirmed (MANDATORY)
+- [ ] **Step 12.7 executed (Tests)**: `results.tests.success` = true AND `results.tests.coverage` ≥ 0.90 confirmed (MANDATORY)
 - [ ] **Coverage validation**: `results.tests.coverage` ≥ 0.90 (parsed as float, MANDATORY)
 - [ ] All output was **fully read and parsed**, not assumed
 - [ ] All commands in Step 12 executed **WITHOUT** `| tail`, `| head`, or any output truncation
@@ -1201,11 +1205,12 @@ Use this ordering when numbering results:
   - Step 12.3 executed: Yes/No (MUST be Yes - linter check command executed)
   - Linter passed: Yes/No (MUST be Yes - error count explicitly parsed and verified = 0, ZERO ERRORS TOLERANCE, NO EXCEPTIONS even for pre-existing errors)
   - Step 12.4 executed: Yes/No (MUST be Yes - test naming check command executed)
-  - Step 12.5 executed: Yes/No (MUST be Yes - file sizes AND function lengths checks executed)
+  - Step 12.5 executed: Yes/No (MUST be Yes - markdown lint check command executed)
+  - Markdown lint passed: Yes/No (MUST be Yes - zero errors in ALL markdown files, matches CI behavior, ZERO ERRORS TOLERANCE, NO EXCEPTIONS)
+  - Step 12.6 executed: Yes/No (MUST be Yes - file sizes AND function lengths checks executed)
   - File sizes check passed: Yes/No (MUST be Yes)
   - Function lengths check passed: Yes/No (MUST be Yes)
-  - Step 12.6 executed: Yes/No (MUST be Yes - markdown lint check command executed)
-  - Markdown lint passed: Yes/No (MUST be Yes - zero errors in ALL markdown files, matches CI behavior, ZERO ERRORS TOLERANCE, NO EXCEPTIONS)
+  - Step 12.7 executed: Yes/No (MUST be Yes - tests with coverage validation executed)
   - Output fully read: Yes/No (MUST be Yes for all Step 12 checks)
   - Step 12 tool results take precedence: Yes/No (MUST be Yes - if any Step 12 check finds errors, commit blocked)
   - Step 12 execution verified: Yes/No (MUST be Yes - explicit evidence provided that all Step 12 sub-steps were executed)
