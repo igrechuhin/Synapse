@@ -106,7 +106,7 @@ Steps without agents are handled directly by the orchestration workflow.
 1. ✅ **Read relevant rules** - Understand commit requirements:
    - **Skipping the rules load step is a CRITICAL violation.** Any fix (especially type, lint, or visibility) must be validated against **loaded** rules before applying.
    - Call `rules(operation="get_relevant", task_description="Commit pipeline, test coverage, type fixes, and visibility rules")`. If the rules tool is unavailable (e.g. disabled), read rules from the rules directory (path from `get_structure_info()` → `structure_info.paths.rules`) or the Synapse rules directory so that coding standards and visibility/API rules are in context.
-   - **Rules loaded via MCP (rules tool) or rule files read for this run: Yes / No. If No, do not proceed to Step 0.**
+   - **Rules loaded via MCP (rules tool) or rule files read for this run: Yes / No. If No, do not proceed to Step 0. When `rules()` returns `disabled`, read rule files via Read tool and record "Rules loaded: Yes (via file read)".**
 
 1. ✅ **Verify code conformance to rules** - Before running checks, verify code follows rules:
    - Review changed files to ensure they conform to coding standards read above
@@ -143,10 +143,11 @@ Steps without agents are handled directly by the orchestration workflow.
 **Before running Step 0 (Fix Errors) or any code-modifying step:**
 
 1. **Load rules**: Call `rules(operation="get_relevant", task_description="Commit pipeline, test coverage, type fixes, and visibility rules")`. If the rules tool is unavailable (e.g. disabled), read rules from the rules directory (path from `get_structure_info()` → `structure_info.paths.rules`) or Synapse rules directory so that coding standards and visibility/API rules are in context.
-2. Do **not** run Step 0 (fix_errors) or any code-modifying step until rules have been loaded or read.
-3. **BLOCK**: If rules have not been loaded/read for this run, do not proceed to Step 0.
+2. **When `rules()` returns status `disabled`**: Resolve the rules or Synapse rules path via `get_structure_info()` (e.g. `structure_info.paths.rules` or Synapse rules directory), then use the Read tool to load at least the rule files relevant to the commit task (e.g. python-coding-standards.mdc, python-mcp-development.mdc, no-test-skipping.mdc from Synapse rules, or equivalent). Record **Rules loaded: Yes (via file read)** so the checklist is satisfied.
+3. Do **not** run Step 0 (fix_errors) or any code-modifying step until rules have been loaded or read.
+4. **BLOCK**: If rules have not been loaded/read for this run, do not proceed to Step 0.
 
-**Checklist item**: Rules loaded via MCP (rules tool) or rule files read: Yes / No. If No, do not proceed.
+**Checklist item**: Rules loaded via MCP (rules tool) or rule files read: Yes / No. If No, do not proceed. When the rules tool returns `disabled`, satisfy via file read and record "Rules loaded: Yes (via file read)".
 
 ## ⚠️ CRITICAL: Synapse Architecture (MANDATORY)
 
@@ -807,6 +808,7 @@ fix_markdown_lint(check_all_files=True, include_untracked_markdown=True)
 - **DO NOT dismiss errors as "pre-existing"** - ALL errors must be fixed before commit
 - **Match CI behavior**: CI checks ALL markdown files and fails on ANY error - Step 12.6 MUST match this exactly
 - **Optional narrower scope**: If `fix_markdown_lint(check_all_files=True)` has previously timed out or returned "Connection closed," the agent may run markdown lint on modified/added markdown files only (with a one-line note) to reduce duration; then record "MCP connection closed; fallback used" if fallback was used.
+- **Example fallback command** (when MCP tool unavailable): Run markdown lint via shell with the same scope. Example (match CI scope): `npx markdownlint-cli2 '**/*.md' '**/*.mdc' !**/node_modules/** !**/.venv/** !**/venv/** !**/__pycache__/** !**/.git/**` with `--fix` to fix, or without `--fix` for check-only. Record "MCP connection closed; fallback used" in the commit output.
 
 ### 12.7 Verification Requirements (CRITICAL)
 
@@ -1381,9 +1383,9 @@ Use this ordering when numbering results:
 ### Connection Closed During Long Tool (Retry Then Fallback)
 
 - **When**: An MCP tool returns an error whose message or code indicates "Connection closed" or "ClosedResourceError" (e.g. the client disconnected or timed out while the tool was still running or had just completed on the server).
-- **Action**: (1) **Retry the tool once.** (2) If it fails again with the same class of error, perform the documented fallback for that step and record "MCP connection closed; fallback used" so the pipeline can proceed.
+- **Action**: (1) **Retry the tool once.** (2) If it fails again with the same class of error (or with "tool not found" / similar after a connection closed error), perform the documented fallback for that step and record "MCP connection closed; fallback used" so the pipeline can proceed. Do not block the pipeline on "tool not found" after a disconnect—use the documented fallback.
 - **Fallbacks** (documented):
-  - For `fix_markdown_lint`: Run markdown lint via shell with the same scope (e.g. same file set or equivalent of `check_all_files`). Record "MCP connection closed; fallback used" in the commit output so it can be audited.
+  - For `fix_markdown_lint`: Run markdown lint via shell with the same scope (e.g. same file set or equivalent of `check_all_files`). Example (match CI scope): `npx markdownlint-cli2 '**/*.md' '**/*.mdc' !**/node_modules/** !**/.venv/** !**/venv/** !**/__pycache__/** !**/.git/**` with `--fix` to fix, or without `--fix` for check-only. Record "MCP connection closed; fallback used" in the commit output so it can be audited.
   - For other long-running tools: Use the fallback documented in the commit prompt for that step, or stop and report if no fallback is defined.
 - **Rationale**: Long-running tools may complete on the server after the client has closed the connection; "Connection closed" can mean client timeout/disconnect, not necessarily tool failure. Retry once then fallback allows the pipeline to complete without blocking.
 
