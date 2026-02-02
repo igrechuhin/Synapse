@@ -42,37 +42,72 @@ class BadMCPServer:
 ### MCP Tool Required Decorator Stack (MANDATORY)
 
 - **Every `@mcp.tool()` MUST use the full stack in order** - MANDATORY, NO EXCEPTIONS:
-  1. `@mcp.tool()`
+  1. `@mcp.tool(annotations=...)` — with appropriate annotations from `cortex.core.mcp_annotations`
   2. `@ensure_usage_context` — enables usage recording for analytics
   3. `@mcp_tool_wrapper(timeout=...)` — timeout and stability
 - **Prevents session hangs**: Long-running or blocking tool execution is bounded; the event loop stays responsive
 - **Use timeout constants** from `cortex.core.constants`: `MCP_TOOL_TIMEOUT_FAST` (60s), `MCP_TOOL_TIMEOUT_MEDIUM` (120s), `MCP_TOOL_TIMEOUT_COMPLEX` (300s), `MCP_TOOL_TIMEOUT_VERY_COMPLEX` (600s), `MCP_TOOL_TIMEOUT_EXTERNAL` (120s)
 - **CI enforcement**: `test_every_mcp_tool_has_required_wrappers` fails if any tool in `src/cortex/tools` lacks this exact stack
 
+### MCP Tool Annotations (MANDATORY)
+
+- **Every `@mcp.tool()` MUST include `annotations=...`** - MANDATORY, NO EXCEPTIONS
+- **Use annotation helpers** from `cortex.core.mcp_annotations`:
+  - `read_only_annotations(title)` — for tools that only read data (queries, stats, health checks)
+  - `safe_write_annotations(title)` — for tools that create/update data non-destructively
+  - `destructive_annotations(title)` — for tools that delete or overwrite data irreversibly
+  - `external_annotations(title, read_only=...)` — for tools that interact with external systems (subprocesses, network)
+- **Annotations communicate tool behavior to MCP clients** (Claude, ChatGPT, etc.) for better UX:
+  - `readOnlyHint=True` allows clients to skip confirmation prompts for safe operations
+  - `destructiveHint=True` signals irreversible changes requiring user confirmation
+  - `openWorldHint=True` indicates external system interactions
+  - `idempotentHint=True` indicates repeated calls have no additional effect
+
 ```python
-# ✅ REQUIRED
+# ✅ REQUIRED - Full stack with annotations
 from cortex.core.constants import MCP_TOOL_TIMEOUT_MEDIUM
+from cortex.core.mcp_annotations import read_only_annotations, safe_write_annotations
 from cortex.core.mcp_stability import ensure_usage_context, mcp_tool_wrapper
 from cortex.server import mcp
 
-@mcp.tool()
+@mcp.tool(annotations=read_only_annotations("Get Stats"))
+@ensure_usage_context
+@mcp_tool_wrapper(timeout=MCP_TOOL_TIMEOUT_FAST)
+async def get_stats(project_root: str | None = None) -> str:
+    """Read-only tool that retrieves statistics."""
+    ...
+
+@mcp.tool(annotations=safe_write_annotations("Update Config"))
 @ensure_usage_context
 @mcp_tool_wrapper(timeout=MCP_TOOL_TIMEOUT_MEDIUM)
-async def my_tool(project_root: str | None = None) -> str:
+async def update_config(key: str, value: str) -> str:
+    """Safe write tool that updates configuration."""
+    ...
+
+# ❌ PROHIBITED - Missing annotations
+@mcp.tool()  # BLOCKED - missing annotations parameter
+@ensure_usage_context
+@mcp_tool_wrapper(timeout=MCP_TOOL_TIMEOUT_MEDIUM)
+async def my_tool(...) -> str:
     ...
 
 # ❌ PROHIBITED - Missing required stack
-@mcp.tool()
+@mcp.tool(annotations=read_only_annotations("My Tool"))
 @mcp_tool_wrapper(timeout=MCP_TOOL_TIMEOUT_MEDIUM)  # BLOCKED - missing @ensure_usage_context
 async def my_tool(...) -> str:
     ...
 
 # ❌ PROHIBITED - Missing timeout wrapper
-@mcp.tool()
+@mcp.tool(annotations=read_only_annotations("My Tool"))
 async def my_tool(...) -> str:  # BLOCKED - will hang on long runs, no usage tracking
     ...
 ```
 
+- **Choosing annotation helper**:
+  - `read_only_annotations`: Stats, queries, health checks, version history, structure info
+  - `safe_write_annotations`: File creation/update, config changes, non-destructive modifications
+  - `destructive_annotations`: Rollback, delete, overwrite operations
+  - `external_annotations`: Pre-commit checks, subprocess execution, network calls
 - **Choosing timeout**: Use FAST for health/stats/queries; MEDIUM for single-file or config; COMPLEX for analysis/multi-file; VERY_COMPLEX for full tests or large refactors; EXTERNAL for git/network
 
 ## stdio Communication (ENFORCED)
@@ -231,6 +266,7 @@ async def validate_memory_bank(...) -> dict[str, object]:  # BLOCKED
 
 ## Violations (BLOCKED)
 
+- ❌ **MCP tool without annotations**: Every `@mcp.tool()` MUST include `annotations=...` parameter using helpers from `cortex.core.mcp_annotations` (STRICTLY FORBIDDEN)
 - ❌ **MCP tool without full decorator stack**: Every `@mcp.tool()` MUST have `@ensure_usage_context` then `@mcp_tool_wrapper(timeout=...)` in that order (STRICTLY FORBIDDEN)
 - ❌ Async main functions in script entry points
 - ❌ Passing server objects to stdio_server()
