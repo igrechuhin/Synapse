@@ -508,8 +508,9 @@ git -C <Synapse-directory-path> status --porcelain
   2. **Step 12 was fully executed**: All Step 12 sub-steps (12.1-12.7) were executed and their outputs were verified
   3. **Step 12.2 type check passed**: The type check tool (`execute_pre_commit_checks(checks=["type_check"])`) was executed and returned success with 0 errors
   4. **No errors in any Step 12 check**: All Step 12 checks passed with zero errors
-  5. **Explicit verification provided**: You have documented the execution of Step 12 with actual command outputs
-  6. **All validation gates passed**: Steps 0-12 have completed successfully
+  5. **If you fixed type errors (12.2) or lint errors (12.3) during this run**: Step 12.3 was executed again after the fix and `results.quality.success` is true with zero errors; do not proceed if 12.3 was not re-run after a code change in 12.2 or 12.3
+  6. **Explicit verification provided**: You have documented the execution of Step 12 with actual command outputs
+  7. **All validation gates passed**: Steps 0-12 have completed successfully
 - **⚠️ BLOCK COMMIT**: If user did not explicitly request commit OR if Step 12 execution cannot be verified OR if any Step 12 check failed, DO NOT proceed to Step 13
 - **Workflow**: Stage all changes, generate comprehensive commit message, create commit
 - **Includes**: All changes from Steps 0-11, including submodule reference if Step 11 was executed
@@ -582,7 +583,9 @@ The original checks in Steps 0-4 are INVALIDATED by any subsequent code changes 
 
 **CRITICAL RULE**: ANY code change OR new file creation after Step 1 REQUIRES re-running formatting AND verification before commit.
 
-**CRITICAL RULE (Step 12)**: After ANY code change during Step 12 (e.g. fixing type errors in 12.2, fixing lint in 12.3, or any other edit to `src/` or `tests/`), you MUST re-run Step 12.1 (format → format check → format_ci_parity via `execute_pre_commit_checks`) and verify they pass BEFORE continuing to the next Step 12 sub-step or to Step 13. Edits made inside the final gate must be formatted before commit; otherwise CI will fail on the formatting check.
+**CRITICAL RULE (Step 12)**: After ANY code change during Step 12 (e.g. fixing type errors in 12.2, fixing lint in 12.3, or any other edit to `src/` or `tests/`), you MUST re-run Step 12.1 (format → format check → format_ci_parity via `execute_pre_commit_checks`) and verify they pass, then MUST re-run Step 12.3 (quality) and verify `results.quality.success` is true and error count is zero. Do NOT proceed to Step 12.4 or Step 13 until Step 12.3 has been run again and passed. Edits made inside the final gate must be formatted before commit; otherwise CI will fail on the formatting check.
+
+- **Type or lint fixes can introduce new lint**: Fixes applied in Step 12.2 or 12.3 can introduce new lint issues (e.g. Ruff E402 if a non-import line is placed between imports). You MUST re-run Step 12.3 (quality) after any such fix and parse the full tool output; verify zero errors before proceeding. Do not assume an earlier 12.3 run still applies. When adding `_ = module` to satisfy reportUnusedImport, place it after all imports to avoid E402.
 
 **⚠️ STEP 12.1 MUST NOT RUN IN PARALLEL WITH 12.2/12.3**: You MUST run Step 12.1.2 (formatting check), wait for its result, and verify exit code 0 and success message BEFORE starting Step 12.2 or 12.3. If you run 12.1.2 in parallel with 12.2/12.3, the formatting result can be missed and unformatted code may be committed (this has caused CI failures: Black formatting check failed on push).
 
@@ -619,7 +622,7 @@ The original checks in Steps 0-4 are INVALIDATED by any subsequent code changes 
 
 **CRITICAL**: New files created during Steps 4-11 (especially test files added to fix coverage) will NOT have been formatted by Step 1. You MUST run the format tool (`execute_pre_commit_checks(checks=["format"])`) first, then verify.
 
-**CRITICAL (re-run after fixes in Step 12)**: If you fix type errors (12.2), lint (12.3), or make any other code edit to `src/` or `tests/` during Step 12, you MUST re-run 12.1.1 (format via tool), then 12.1.2 (format check via same tool), then 12.1.3 (format_ci_parity via tool) and verify all pass before continuing to 12.3 (or the next sub-step) or Step 13.
+**CRITICAL (re-run after fixes in Step 12)**: If you fix type errors (12.2), lint (12.3), or make any other code edit to `src/` or `tests/` during Step 12, you MUST re-run 12.1.1 (format via tool), then 12.1.2 (format check), then 12.1.3 (format_ci_parity), then MUST re-run Step 12.3 (quality) and verify `results.quality.success` is true with zero errors. Do NOT proceed to Step 12.4 or Step 13 until Step 12.3 has been executed again and passed.
 
 **⚠️ SEQUENTIAL EXECUTION REQUIRED (MANDATORY)**:
 
@@ -690,7 +693,7 @@ execute_pre_commit_checks(checks=["type_check"], project_root=<project_root>)
 - **DO NOT rely on memory of earlier checks** - you MUST re-run and verify result NOW
 - **DO NOT dismiss errors as "pre-existing"** - ALL errors must be fixed before commit
 - **Skip if**: Project does not use a type system (Python projects use type hints, so this step is NOT skipped for Python)
-- **If you fixed type errors in this step**: Re-run Step 12.1 (format → format check → format_ci_parity via tools) and verify all pass before proceeding to Step 12.3 (see "CRITICAL RULE (Step 12)" above).
+- **If you fixed type errors in this step**: Re-run Step 12.1 (format → format check → format_ci_parity via tools) and verify all pass, then MUST re-run Step 12.3 (quality) and verify `results.quality.success` is true and error count is zero. Do NOT proceed to Step 12.4 or Step 13 until Step 12.3 has been run again and passed (see "CRITICAL RULE (Step 12)" above).
 
 ### 12.3 Re-run Linter and Type Check (MANDATORY)
 
@@ -709,7 +712,7 @@ execute_pre_commit_checks(checks=["quality"], project_root=<project_root>)
 - **⚠️ NO EXCEPTIONS**: Pre-existing linting or type errors are NOT acceptable - they MUST be fixed before commit
 - **⚠️ ZERO ERRORS TOLERANCE**: The project has ZERO errors tolerance - ANY errors (new or pre-existing) MUST block commit
 - **BLOCK COMMIT** if ANY linter or type violations are reported OR if tool returns status "error" for quality or type_check
-- **If you fixed lint in this step**: Re-run Step 12.1 (format → format check → format_ci_parity via tools) and verify all pass before proceeding to Step 12.4 (see "CRITICAL RULE (Step 12)" above).
+- **If you fixed lint in this step**: Re-run Step 12.1 (format → format check → format_ci_parity via tools) and verify all pass, then MUST re-run Step 12.3 (quality) again and verify `results.quality.success` is true with zero errors before proceeding to Step 12.4 (see "CRITICAL RULE (Step 12)" above).
 - **BLOCK COMMIT** if quality or type_check reports any errors
 - **DO NOT rely on memory of earlier checks** - you MUST re-run and verify result NOW
 - **DO NOT dismiss errors as "pre-existing"** - ALL errors must be fixed before commit

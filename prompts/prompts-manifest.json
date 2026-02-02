@@ -33,6 +33,12 @@
           "name": "Analyze Session Optimization",
           "description": "Analyze current session to find optimization opportunities for Synapse prompts and rules to avoid similar mistakes in future",
           "keywords": ["session", "analysis", "optimization", "mistakes", "synapse", "improvement", "prevention"]
+        },
+        {
+          "file": "analyze-context-effectiveness.md",
+          "name": "Analyze Context Effectiveness",
+          "description": "Analyze load_context effectiveness at end of session and provide structured feedback for context optimization",
+          "keywords": ["context", "load_context", "optimization", "effectiveness", "feedback", "relevance"]
         }
       ]
     }
