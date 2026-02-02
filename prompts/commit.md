@@ -81,6 +81,10 @@
 - **Step 13**: Commit creation
 - **Step 14**: Push branch
 
+**Script use (MANDATORY)**:
+
+- If during this run you created or executed any script (inline snippet or file), you MUST call `capture_session_script` and/or `analyze_session_scripts` or `suggest_tool_improvements` as appropriate. Do not run scripts without using script tooling.
+
 **When executing steps**: For steps that delegate to agents, you MUST:
 
 1. **READ** the agent file from the Synapse agents directory (`{agent-name}.md`); resolve path via project structure or `get_structure_info()` if needed
@@ -269,6 +273,13 @@ The following error patterns MUST be detected and fixed before commit. These are
 - **Detection**: No `rules()` call (or rule files read) before Step 0 or before applying fixes.
 - **Action**: Load rules first, then re-validate fix against rules (e.g. test via public API, do not use reportPrivateUsage=false). BLOCK commit if fixes were applied without rule context.
 - **Block Commit**: Yes - fixes applied without rule context must be re-validated; do not proceed until rules are loaded and fix is rule-compliant.
+
+### Script run without analysis
+
+- **Pattern**: Agent ran a script (e.g. Python/shell snippet) during the pipeline without using script tooling.
+- **Detection**: Script was created or executed (inline or file) but no call to `capture_session_script`, `analyze_session_scripts`, or `suggest_tool_improvements` was made.
+- **Action**: Use script tooling: call `capture_session_script` and/or `analyze_session_scripts` or `suggest_tool_improvements` as appropriate. Not using script tooling is a process violation.
+- **Block Commit**: Yes - script runs without analysis violate Phase 27 script-generation-prevention and implement-next-roadmap-step guidance; do not proceed until script tooling has been used.
 
 ### Type Checker Warnings
 
@@ -795,6 +806,7 @@ fix_markdown_lint(check_all_files=True, include_untracked_markdown=True)
 - **DO NOT rely on memory of earlier checks** - you MUST re-run and verify output NOW
 - **DO NOT dismiss errors as "pre-existing"** - ALL errors must be fixed before commit
 - **Match CI behavior**: CI checks ALL markdown files and fails on ANY error - Step 12.6 MUST match this exactly
+- **Optional narrower scope**: If `fix_markdown_lint(check_all_files=True)` has previously timed out or returned "Connection closed," the agent may run markdown lint on modified/added markdown files only (with a one-line note) to reduce duration; then record "MCP connection closed; fallback used" if fallback was used.
 
 ### 12.7 Verification Requirements (CRITICAL)
 
@@ -1366,9 +1378,19 @@ Use this ordering when numbering results:
   3. Suggest resolution steps (e.g., set upstream branch, check authentication)
   4. Commit remains successful even if push fails
 
+### Connection Closed During Long Tool (Retry Then Fallback)
+
+- **When**: An MCP tool returns an error whose message or code indicates "Connection closed" or "ClosedResourceError" (e.g. the client disconnected or timed out while the tool was still running or had just completed on the server).
+- **Action**: (1) **Retry the tool once.** (2) If it fails again with the same class of error, perform the documented fallback for that step and record "MCP connection closed; fallback used" so the pipeline can proceed.
+- **Fallbacks** (documented):
+  - For `fix_markdown_lint`: Run markdown lint via shell with the same scope (e.g. same file set or equivalent of `check_all_files`). Record "MCP connection closed; fallback used" in the commit output so it can be audited.
+  - For other long-running tools: Use the fallback documented in the commit prompt for that step, or stop and report if no fallback is defined.
+- **Rationale**: Long-running tools may complete on the server after the client has closed the connection; "Connection closed" can mean client timeout/disconnect, not necessarily tool failure. Retry once then fallback allows the pipeline to complete without blocking.
+
 ### MCP Tool Failure (CRITICAL)
 
 - **Action**: **STOP IMMEDIATELY** - Do not continue with commit pipeline
+- **Exception**: For errors indicating "Connection closed" or "ClosedResourceError" only, see "Connection Closed During Long Tool (Retry Then Fallback)" above (retry once, then use documented fallback and record "MCP connection closed; fallback used").
 - **Protocol Enforcement**: **AUTOMATIC AND MANDATORY** - The MCP tool failure protocol is automatically enforced by the `mcp_tool_wrapper` decorator. Agents cannot bypass this protocol.
 - **Process**:
   1. **STOP**: Current commit process MUST stop immediately when Cortex MCP tool crashes, disconnects, or exhibits unexpected behavior

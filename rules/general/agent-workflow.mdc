@@ -234,6 +234,14 @@ If you find yourself about to ask any of these, STOP and just fix the issues ins
 - ✅ Re-run quality check to verify zero violations
 - ✅ Then either continue commit procedure or provide summary (if context insufficient)
 
+## Script use (when creating or executing scripts) (MANDATORY)
+
+When you create or execute any script (inline snippet or file) during a session:
+
+- **MANDATORY**: Use the project's script tooling: call `capture_session_script` and/or `analyze_session_scripts` or `suggest_tool_improvements` as appropriate.
+- Do not run scripts without using script tooling; not using it is a process violation.
+- This aligns with Phase 27 script-generation-prevention and implement-next-roadmap-step guidance.
+
 ## General Behavioral Principles
 
 - Be concise but never cryptic.
