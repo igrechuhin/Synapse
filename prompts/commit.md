@@ -33,9 +33,9 @@
     - Load rules relevant to commit/test work:
       - `rules(operation="get_relevant", task_description="Commit pipeline and test coverage enforcement")`
 
-**Pre-Commit Checks**: Use the `execute_pre_commit_checks()` MCP tool for all pre-commit operations (fix errors, format, type check, quality, tests). This tool provides:
+**Pre-Commit Checks**: Use the `execute_pre_commit_checks()` MCP tool for all pre-commit operations (fix errors, format, type check, quality, tests). The tool resolves project root (via MCP roots when available) and language on its own; call it without gathering project_root or language from other tools. It provides:
 
-- Language auto-detection
+- Language auto-detection (resolved internally)
 - Structured parameters and return values
 - Consistent error handling
 - Type safety
@@ -80,6 +80,7 @@
 - **Step 12**: Final validation gate (re-verification of formatting, types, linting, quality)
 - **Step 13**: Commit creation
 - **Step 14**: Push branch
+- **Step 15**: Execute Analyze (End of Session) prompt (`analyze.md`)
 
 **Script use (MANDATORY)**:
 
@@ -526,6 +527,12 @@ git -C <Synapse-directory-path> status --porcelain
 - **Workflow**: Determine current branch, push to remote, verify success. Push the current branch (including `main`) without asking for extra confirmation.
 - **Error handling**: Handle push errors (remote tracking, authentication issues)
 
+### Step 15: Execute end-of-session Analyze (MANDATORY)
+
+- **Dependency**: Must run AFTER Step 14 (push completed).
+- **MANDATORY**: At the end of the commit workflow, you MUST execute the **Analyze (End of Session)** prompt (`analyze.md` from the Synapse prompts directory). Read and execute that prompt in full: it runs context effectiveness analysis and session optimization, saves a report to the reviews directory, and optionally creates an improvements plan. Do not skip this step.
+- **Path**: Resolve the Analyze prompt path via project structure or `get_structure_info()` (e.g. Synapse prompts directory); the prompt file is `analyze.md`.
+
 ## Command Execution Order
 
 The commit procedure executes steps in this specific order to ensure dependencies are met:
@@ -569,6 +576,7 @@ The commit procedure executes steps in this specific order to ensure dependencie
 12. **⚠️ FINAL VALIDATION GATE** - **MANDATORY re-verification before commit** (see details below)
 13. **Commit** - Creates the commit with all changes (including updated submodule reference)
 14. **Push** - Pushes committed changes to remote repository
+15. **Analyze** - **MANDATORY**: Execute the Analyze (End of Session) prompt (`analyze.md`) to run context effectiveness and session optimization analysis.
 
 **MCP Tools**: Steps 0 (Fix Errors), 1 (Formatting), 2 (Type Checking), 3 (Code Quality), and 4 (Testing) use the `execute_pre_commit_checks()` MCP tool. Step 12 (Final Validation Gate) also uses only Cortex MCP tools (format, format_ci_parity, type_check, quality, test_naming, tests, and fix_markdown_lint). This provides structured parameters, type safety, and consistent error handling. Do NOT run scripts directly; use tools only.
 
@@ -612,7 +620,7 @@ The original checks in Steps 0-4 are INVALIDATED by any subsequent code changes 
 
 - **When**: Run immediately at the start of Step 12, before Step 12.1
 - **What**: Identify markdown files modified during Steps 0-11 and run markdown lint check on those files
-- **How**: Use `fix_markdown_lint(check_all_files=True, include_untracked_markdown=True)` so that all current markdown files (including any session review files in the reviews directory created or updated during this session) are linted. Resolve reviews path via `get_structure_info()` → `structure_info.paths.reviews` if needed.
+- **How**: Use `fix_markdown_lint(check_all_files=True, include_untracked_markdown=True)` so that all current markdown files (including any session review files in the reviews directory created or updated during this session) are linted. The tool resolves project root via MCP roots when the client supports them. Resolve reviews path via `get_structure_info()` → `structure_info.paths.reviews` if needed.
 - **If you wrote session review files**: If you created or updated any markdown files during Steps 0–11 (e.g. session-optimization-*.md in the reviews directory), run `fix_markdown_lint(check_all_files=True, include_untracked_markdown=True)` so those files are included before proceeding to Step 12.1
 - **Fix**: Resolve any markdown lint errors before proceeding to Step 12.1
 - **BLOCK COMMIT**: If markdown lint errors are found on modified files, fix them before continuing to Step 12.1
@@ -695,9 +703,9 @@ execute_pre_commit_checks(checks=["type_check"], project_root=<project_root>)
 - **Skip if**: Project does not use a type system (Python projects use type hints, so this step is NOT skipped for Python)
 - **If you fixed type errors in this step**: Re-run Step 12.1 (format → format check → format_ci_parity via tools) and verify all pass, then MUST re-run Step 12.3 (quality) and verify `results.quality.success` is true and error count is zero. Do NOT proceed to Step 12.4 or Step 13 until Step 12.3 has been run again and passed (see "CRITICAL RULE (Step 12)" above).
 
-### 12.3 Re-run Linter and Type Check (MANDATORY)
+### 12.3 Re-run Linter, Spelling, and Type Check (MANDATORY)
 
-Use the Cortex MCP tool (quality gate runs quality + type_check; same scope as CI):
+Use the Cortex MCP tool (quality gate runs quality + spelling + type_check; same scope as CI):
 
 ```text
 execute_pre_commit_checks(checks=["quality"], project_root=<project_root>)
@@ -707,8 +715,9 @@ execute_pre_commit_checks(checks=["quality"], project_root=<project_root>)
 
 - **MUST verify**: Tool returns `status` = "success"
 - **MUST verify**: Parse `results.quality` - errors list must be empty (error count = 0); quality check indicates passed (no lint errors)
+- **MUST verify**: Parse `results.spelling` (if present) - success = true and errors list empty (quality gate includes spelling to match CI)
 - **MUST verify**: Parse `results.type_check` - success = true and errors list empty (quality gate includes type_check; catches reportRedeclaration etc.)
-- **⚠️ ABSOLUTE BLOCK**: If ANY linter or type violations are reported (even 1 error), stop immediately - DO NOT proceed to commit
+- **⚠️ ABSOLUTE BLOCK**: If ANY linter, spelling, or type violations are reported (even 1 error), stop immediately - DO NOT proceed to commit
 - **⚠️ NO EXCEPTIONS**: Pre-existing linting or type errors are NOT acceptable - they MUST be fixed before commit
 - **⚠️ ZERO ERRORS TOLERANCE**: The project has ZERO errors tolerance - ANY errors (new or pre-existing) MUST block commit
 - **BLOCK COMMIT** if ANY linter or type violations are reported OR if tool returns status "error" for quality or type_check
@@ -745,7 +754,7 @@ execute_pre_commit_checks(checks=["test_naming"], project_root=<project_root>)
 
 **Step 12.5.1 - Re-run markdown lint check on ALL files** (MANDATORY):
 
-Use the MCP tool to check ALL markdown files (matching CI behavior):
+Use the MCP tool to check ALL markdown files (matching CI behavior). Project root is resolved by the server (MCP roots when available):
 
 ```python
 fix_markdown_lint(check_all_files=True, include_untracked_markdown=True)
@@ -1543,6 +1552,7 @@ Use this ordering when numbering results:
 - ✅ Commit created with descriptive message
 - ✅ All changes committed successfully
 - ✅ Branch pushed to remote repository successfully
+- ✅ **Analyze prompt executed** - Analyze (End of Session) prompt (`analyze.md`) run to complete context effectiveness and session optimization analysis
 
 ## Usage
 

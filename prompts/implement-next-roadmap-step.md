@@ -331,6 +331,12 @@ Before defining new data structures (classes, types, models, interfaces):
    - **If work cannot be completed in this session**: Ensure the plan file (if referenced) is updated with current status before ending
    - **If work can continue**: Continue implementation until it is complete
 
+### Step 7: Execute end-of-session Analyze (MANDATORY)
+
+- **Dependency**: Must run AFTER Step 6 (verify completion).
+- **MANDATORY**: At the end of this prompt, you MUST execute the **Analyze (End of Session)** prompt (`analyze.md` from the Synapse prompts directory). Read and execute that prompt in full: it runs context effectiveness analysis and session optimization, saves a report to the reviews directory, and optionally creates an improvements plan. Do not skip this step.
+- **Path**: Resolve the Analyze prompt path via project structure or `get_structure_info()` (e.g. Synapse prompts directory); the prompt file is `analyze.md`.
+
 ## IMPLEMENTATION GUIDELINES
 
 ### Code Quality
@@ -405,6 +411,7 @@ The roadmap step is considered complete when:
 - ✅ **Coverage verified**: Coverage report generated and reviewed
 - ✅ Memory bank is updated
 - ✅ The roadmap reflects the completed status
+- ✅ **Analyze prompt executed** - Analyze (End of Session) prompt (`analyze.md`) run to complete context effectiveness and session optimization analysis
 
 ## NOTES
 

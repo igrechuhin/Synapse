@@ -365,6 +365,11 @@ For each improvement suggestion, provide the following structure to enable effic
 - Suggest implementation order based on dependencies
 - Identify quick wins (low effort, high impact)
 
+## After the review (MANDATORY): Execute Analyze prompt
+
+- **MANDATORY**: After saving the review report, you MUST execute the **Analyze (End of Session)** prompt (`analyze.md` from the Synapse prompts directory). Read and execute that prompt in full: it runs context effectiveness analysis and session optimization, saves a report to the reviews directory, and optionally creates an improvements plan. Do not skip this step.
+- **Path**: Resolve the Analyze prompt path via project structure or `get_structure_info()` (e.g. Synapse prompts directory); the prompt file is `analyze.md`.
+
 ## Success Criteria
 
 - ✅ Comprehensive review completed
@@ -385,6 +390,7 @@ For each improvement suggestion, provide the following structure to enable effic
   - Risk assessment and mitigation
   - File locations and code examples
 - ✅ **Report structure optimized for `create-plan.md`** - Report can be directly used to create comprehensive plans
+- ✅ **Analyze prompt executed** - Analyze (End of Session) prompt (`analyze.md`) run after the review to complete context effectiveness and session optimization analysis
 
 ## Failure Handling
 

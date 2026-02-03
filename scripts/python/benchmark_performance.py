@@ -184,9 +184,9 @@ class PerformanceBenchmark:
         print("  ✅ Day 5: Frozenset patterns + pre-compiled regex (rules/insights)")
 
     def _save_results(self) -> None:
-        """Save benchmark results to JSON."""
-        output_dir = Path("benchmark_results")
-        output_dir.mkdir(exist_ok=True)
+        """Save benchmark results to JSON (under .cortex to avoid repo-root artifacts)."""
+        output_dir = Path(".cortex/benchmark_results")
+        output_dir.mkdir(parents=True, exist_ok=True)
         output_path = output_dir / "phase_10_3_1_day6_results.json"
 
         results_data = {
