@@ -22,6 +22,7 @@
 
 - **roadmap-implementer** - Implements the roadmap step with tests and validation
 - **memory-bank-updater** - Updates memory bank files after completion
+- **plan-archiver** - Archives completed plans to appropriate archive directories
 
 When executing steps, delegate to the appropriate agent for specialized work, then continue with orchestration.
 
@@ -199,7 +200,7 @@ Before defining new data structures (classes, types, models, interfaces):
    - **Minimum code coverage per project's testing standards (check testing-standards.mdc)**
    - **Unit tests**: Test all new public functions, methods, and classes individually
    - **Integration tests**: Test component interactions and data flow between modules
-   - **Edge case tests**: Test boundary conditions, error handling, invalid inputs, and empty states
+   - **Edge cases (MANDATORY)**: Always ensure to cover all edge cases—boundary conditions, error handling, invalid inputs, empty states, min/max values, null/empty collections, and both success and failure paths. Applies to any project/language/code.
    - **Test documentation**: Include clear docstrings explaining test purpose and expected behavior
    - **Pydantic v2 for JSON testing**: When testing MCP tool responses (e.g., `manage_file`, `rules`, `execute_pre_commit_checks`), use Pydantic v2 `BaseModel` types and `model_validate_json()` / `model_validate()` instead of asserting on raw `dict` shapes. See `tests/tools/test_file_operations.py` for examples (e.g., `ManageFileErrorResponse` pattern).
    - **Verify coverage**: Run coverage tool and ensure project's coverage threshold is met before considering implementation complete
@@ -208,12 +209,12 @@ Before defining new data structures (classes, types, models, interfaces):
    - Fix type errors
    - Fix formatting issues using project's code formatter
    - Ensure all tests pass
-   - **Before Step 4.5**, run ReadLints on all new/modified files (or call `fix_quality_issues(project_root=...)`) and fix any reported type or lint errors.
+   - **Before Step 4.5**, run ReadLints on all new/modified files (or call `fix_quality_issues()`) and fix any reported type or lint errors. Note: All Cortex MCP tools resolve project root internally; do NOT pass `project_root` as a parameter.
 
 ### Step 4.5: Verify Test Coverage (MANDATORY)
 
 1. **Run coverage analysis**:
-   - Use **only** Cortex MCP tool `execute_pre_commit_checks(checks=["tests"], timeout=300, coverage_threshold=0.90)` or, as fallback, the language-specific run_tests script from the Synapse scripts directory. Do **NOT** run raw `pytest` (or other test commands) in a Shell.
+   - Use **only** Cortex MCP tool `execute_pre_commit_checks(checks=["tests"], test_timeout=300, coverage_threshold=0.90, strict_mode=False)` or, as fallback, the language-specific run_tests script from the Synapse scripts directory. Do **NOT** run raw `pytest` (or other test commands) in a Shell.
    - Review coverage report for new/modified files
 2. **Verify coverage threshold** (per project's testing standards):
    - Check project's testing standards for required coverage threshold
@@ -273,7 +274,7 @@ Before defining new data structures (classes, types, models, interfaces):
 **Purpose**: Ensure no rot code is left for the commit pipeline to fix. The same quality gate as the commit pipeline MUST pass before marking the implementation complete. The quality gate includes **quality** (lint, file size, function length) and **type_check** so type diagnostics (e.g. reportRedeclaration) match IDE/CI.
 
 1. **Run automated quality check**:
-   - Use Cortex MCP tool `execute_pre_commit_checks(checks=["quality"])`. This runs both quality and type_check. Prefer the MCP tool. Pass `project_root` only if needed (e.g. when not running from repo root).
+   - Use Cortex MCP tool `execute_pre_commit_checks(checks=["quality"])`. This runs both quality and type_check. Prefer the MCP tool. Do not pass `project_root`; tools resolve the project root internally.
    - **Scope**: Same as CI (e.g. `src/` and `tests/` for this project). Do NOT skip quality check.
 2. **Verify success**:
    - **MUST verify**: Tool returns `status` = "success"
@@ -291,10 +292,10 @@ Before defining new data structures (classes, types, models, interfaces):
 
 1. **Use Cortex MCP tool `manage_file(file_name="roadmap.md", operation="read")`** to get current roadmap content
 2. Update the roadmap content:
-   - Mark the completed step as "completed" or remove it if appropriate
-   - Add completion date/timestamp if the roadmap format requires it
-   - Update any status indicators
-3. **Use `manage_file(file_name="roadmap.md", operation="write", content="[updated content]", change_description="Marked roadmap step as completed")`** to save the updated roadmap
+   - **CRITICAL: REMOVE the completed step from roadmap.md** (do not mark as "COMPLETE" or leave it in the roadmap)
+   - Roadmap.md records future/upcoming work only; completed work belongs in activeContext.md only
+   - Do not duplicate entries between roadmap and activeContext
+3. **Use `manage_file(file_name="roadmap.md", operation="write", content="[updated content]", change_description="Removed completed roadmap step (moved to activeContext.md)")`** to save the updated roadmap
 4. **Use `manage_file(file_name="progress.md", operation="read")`** to get current progress content
 5. Update progress content:
    - Add entry describing what was completed
@@ -330,6 +331,32 @@ Before defining new data structures (classes, types, models, interfaces):
 2. If the step is not fully complete:
    - **If work cannot be completed in this session**: Ensure the plan file (if referenced) is updated with current status before ending
    - **If work can continue**: Continue implementation until it is complete
+
+3. **Run roadmap sync validation (MANDATORY)**:
+   - Use Cortex MCP validation for roadmap synchronization (either via `validate(check_type="roadmap_sync")` or the dedicated roadmap-sync MCP tool).
+   - Treat any `valid: false` result, invalid references, or non-empty `unlinked_plans` as **BLOCKING**: fix roadmap/plan/archive/memory-bank inconsistencies (e.g., completed plans still in `.cortex/plans/`, plans removed from roadmap but not archived, stale plan links) before proceeding to Step 6.5 and Step 7.
+
+### Step 6.5: Archive Completed Plans - **Delegate to `plan-archiver` agent**
+
+**Use the `plan-archiver` agent (Synapse agents directory) for this step.**
+
+- **Dependency**: Must run AFTER Step 5 (memory bank updates) and Step 6 (verify completion)
+- **MANDATORY**: If the roadmap step references a plan file and the plan is now COMPLETE, archive it immediately
+- **CRITICAL**: Do not leave completed plans in `.cortex/plans/` - archive them as soon as status becomes COMPLETE
+- **Workflow**:
+  1. **READ** the plan-archiver agent file (Synapse agents directory: `.cortex/synapse/agents/plan-archiver.md`)
+  2. **EXECUTE** all execution steps from the agent file:
+     - Detect completed plans in `.cortex/plans/` directory (excluding archive)
+     - Archive each completed plan to appropriate archive directory:
+       - Phase plans (`phase-X-*.md`): Archive to `archive/PhaseX/`
+       - Investigation plans (`phase-investigate-*.md`): Archive to `archive/Investigations/YYYY-MM-DD/`
+       - Session optimization plans (`session-optimization-*.md`): Archive to `archive/SessionOptimization/`
+     - Update links in memory bank files to point to archive locations
+     - Validate links using `validate_links()` MCP tool
+     - Validate archive locations (verify zero completed plans remain in `.cortex/plans/`)
+  3. **Report results**: Count of plans found, archived, links updated, validation status
+  4. **If no completed plans found**: Report "0 plans archived" but DO NOT skip this step
+- **BLOCKING**: If completed plans are found but not archived, or if link validation fails, this is a violation
 
 ### Step 7: Execute end-of-session Analyze (MANDATORY)
 
@@ -383,7 +410,7 @@ If you encounter any issues during implementation:
 1. **Roadmap parsing errors**: If the roadmap format is unclear, read it carefully and identify the structure. If still unclear, proceed with the first uncompleted item you can identify.
 2. **Implementation blockers**: If you cannot complete the step due to missing information or dependencies, document what is needed and update the roadmap accordingly.
 3. **Test failures**: Fix all test failures before considering the step complete. Do not skip tests without justification.
-4. **Memory bank errors (CRITICAL)**: If Cortex MCP tools crash, disconnect, or exhibit unexpected behavior:
+4. **Memory bank errors (CRITICAL)**: If Cortex MCP tools crash, disconnect, or exhibit unexpected behavior **on core Memory Bank operations** (e.g. `manage_file`, `load_context`, `validate`):
    - **STOP IMMEDIATELY**: Current process MUST stop - do not continue with implementation
    - **Create investigation plan**: Use the create-plan prompt (Synapse prompts directory) to create an investigation plan
    - **Link in roadmap**: Add plan to roadmap.md under "Blockers (ASAP Priority)" section
@@ -394,6 +421,15 @@ If you encounter any issues during implementation:
      - Plan Location: Path to created investigation plan
    - **DO NOT** use standard file tools as fallback - the tool failure must be investigated first
    - **DO NOT** continue with implementation until the tool issue is resolved
+5. **Connection closed during `fix_quality_issues` (special case)**:
+   - **When**: `fix_quality_issues` returns an MCP error whose message or code indicates "Connection closed" or "ClosedResourceError" (e.g. `MCP error -32000: Connection closed`) while running as a pre-flight helper (before new work or after code changes).
+   - **Action**:
+     1. Use `check_mcp_connection_health` to confirm the MCP connection is healthy.
+     2. If healthy, **retry `fix_quality_issues` once**.
+     3. If the second attempt fails with the same class of error (or "tool not found" immediately after a connection closed error), **do not attempt a shell fallback**; instead:
+        - Treat the workspace as potentially stale but **continue the roadmap implementation**, relying on `execute_pre_commit_checks` for strict quality/type/test gates.
+        - Note in your summary that "`fix_quality_issues` could not complete due to client connection closure; quality gates were enforced via `execute_pre_commit_checks` only."
+   - **Rationale**: `fix_quality_issues` is a convenience helper, not a hard gate. Connection-closed errors here usually indicate client timeout/disconnect rather than a server bug; retry-once then proceed with strict quality gates prevents the implementation flow from being blocked while still enforcing correctness.
 
 ## SUCCESS CRITERIA
 
@@ -411,6 +447,8 @@ The roadmap step is considered complete when:
 - ✅ **Coverage verified**: Coverage report generated and reviewed
 - ✅ Memory bank is updated
 - ✅ The roadmap reflects the completed status
+- ✅ **Completed plans archived** - Plan archiver agent executed; any completed plans moved to archive directories; links updated and validated
+- ✅ **Roadmap sync validation passed** - Roadmap synchronization check (`roadmap_sync`) reports valid, with no unlinked non-archived plans and no invalid references
 - ✅ **Analyze prompt executed** - Analyze (End of Session) prompt (`analyze.md`) run to complete context effectiveness and session optimization analysis
 
 ## NOTES
@@ -420,6 +458,7 @@ The roadmap step is considered complete when:
 - The agent should be thorough and complete the entire step, not just part of it
 - If a step is too large, break it down into smaller sub-tasks and complete them systematically
 - **MANDATORY PLAN UPDATES**: If the roadmap step references a plan file (e.g., phase-XX-*.md in the plans directory) and the work cannot be completed in one session, you MUST update the plan file at the end of the session to reflect the current implementation status. Resolve the plans directory path via `get_structure_info()` → `structure_info.paths.plans`. This ensures continuity and allows future sessions to pick up where you left off.
+- **MANDATORY PLAN ARCHIVING**: If a plan file is marked as COMPLETE (status changed to COMPLETED/COMPLETE), you MUST archive it immediately using the plan-archiver agent (Step 6.5). Do not leave completed plans in `.cortex/plans/` - archive them as soon as status becomes COMPLETE.
 - Always update the memory bank after completing work using Cortex MCP tools
 - Follow all workspace rules and coding standards throughout implementation
 - **CRITICAL**: Never access memory bank files directly via file paths - always use Cortex MCP tools for structured access

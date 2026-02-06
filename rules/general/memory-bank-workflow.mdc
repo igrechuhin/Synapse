@@ -5,6 +5,13 @@ alwaysApply: true
 
 **ENFORCEMENT**: CI MUST fail on violations. All rules are MANDATORY. NO exceptions.
 
+## Memory Bank File Responsibilities (MANDATORY)
+
+- **activeContext.md** = **Completed work only**. Record summaries of work that is done. Do not list in-progress or future work here.
+- **roadmap.md** = **Future/upcoming work only**. List in-progress and pending items, blockers, and planned work. Do not use roadmap for completed-work history.
+- **No overlap**: The same item must not appear as "to do" in roadmap and "done" in activeContext at the same time in a way that duplicates the same scope. When work is completed: add a summary to activeContext.md and mark complete or remove from roadmap.md so that completed work lives in activeContext only.
+- **Flow**: Work is planned and tracked in roadmap → when completed, move it to activeContext (add to activeContext, update/remove from roadmap).
+
 ## Path Resolution and Cortex Tools (MANDATORY)
 
 **Use semantic names and Cortex MCP tools** for all structure and memory bank paths. Do not hardcode paths.
@@ -136,11 +143,13 @@ Link validation MUST be performed immediately after:
 
 ```python
 # Validate all memory bank files
-validate_links(project_root="/path/to/project")
+validate_links()
 
 # Validate specific file
-validate_links(file_name="roadmap.md", project_root="/path/to/project")
+validate_links(file_name="roadmap.md")
 ```
+
+**Note**: All Cortex MCP tools resolve project root internally via the `@ensure_usage_context` decorator. Do NOT pass `project_root` as a parameter.
 
 **Fallback Method**: If MCP tool is unavailable, manually verify:
 

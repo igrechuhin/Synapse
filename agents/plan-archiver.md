@@ -20,8 +20,8 @@ You are a plan archiving specialist ensuring completed plans are properly organi
 ### 1. Detect completed plans
 
 - Scan `.cortex/plans/` directory (excluding `.cortex/plans/archive/`) for plan files with completed status
-- **Use `Glob` tool to find plan files**: `Glob(pattern="phase-*.md", path=".cortex/plans")` (excludes archive automatically)
-- **Use `Grep` tool to search for status markers**: `Grep(pattern="Status.*COMPLETE|Status.*COMPLETED|Status.*Complete|✅ COMPLETE|🟢 COMPLETE|\\*\\*Status:\\*\\*.*COMPLETE", path=".cortex/plans", files=["phase-*.md"])`
+- **Use `Glob` tool to find plan files**: `Glob(pattern="*.md", path=".cortex/plans")` (excludes archive automatically)
+- **Use `Grep` tool to search for status markers**: `Grep(pattern="Status.*COMPLETE|Status.*COMPLETED|Status.*Complete|✅ COMPLETE|🟢 COMPLETE|\\*\\*Status:\\*\\*.*COMPLETE|^## Status:.*COMPLETED", path=".cortex/plans", files=["*.md"])`
 - **NEVER use shell `find` or `grep`**: Use standard tools (`Glob`, `Grep`, `Read`, `LS`) instead
 - **Exclude archive directory**: Ensure `Glob` pattern excludes `.cortex/plans/archive/` (use `path=".cortex/plans"` and filter results)
 - **Exclude non-plan files**: Ignore non-plan files like `README.md`, `QUICK_START.md` when processing results
@@ -31,9 +31,18 @@ You are a plan archiving specialist ensuring completed plans are properly organi
 
 For each completed plan found:
 
-- Extract phase number from filename (e.g., `phase-53-*.md` → Phase53, `phase-9-*.md` → Phase9)
-- Create archive directory if needed: `mkdir -p .cortex/plans/archive/PhaseX/` (where X is the phase number)
-- Move plan file to archive: `mv .cortex/plans/phase-X-*.md .cortex/plans/archive/PhaseX/`
+- **Determine archive location**:
+  - **Phase plans** (filename matches `phase-X-*.md` or `phase-XY-*.md`): Extract phase number from filename (e.g., `phase-53-*.md` → Phase53, `phase-9-*.md` → Phase9)
+    - Create archive directory: `mkdir -p .cortex/plans/archive/PhaseX/` (where X is the phase number)
+    - Move plan file: `mv .cortex/plans/phase-X-*.md .cortex/plans/archive/PhaseX/`
+  - **Investigation plans** (filename matches `phase-investigate-*.md` or `*-investigate-*.md`): Extract date from filename or plan content
+    - If filename contains date (e.g., `*-20260204-*.md`): Use that date (format: YYYY-MM-DD)
+    - Otherwise, read plan file to find completion date or creation date
+    - Create archive directory: `mkdir -p .cortex/plans/archive/Investigations/YYYY-MM-DD/`
+    - Move plan file: `mv .cortex/plans/phase-investigate-*.md .cortex/plans/archive/Investigations/YYYY-MM-DD/`
+  - **Session optimization plans** (filename matches `session-optimization-*.md`): Extract date from filename or use creation date
+    - Create archive directory: `mkdir -p .cortex/plans/archive/SessionOptimization/`
+    - Move plan file: `mv .cortex/plans/session-optimization-*.md .cortex/plans/archive/SessionOptimization/`
 - Verify file was moved successfully
 
 ### 3. Update links in memory bank files
@@ -71,12 +80,17 @@ For each completed plan found:
 - **Tool usage**: **NEVER use shell `find` or `grep` for file operations. Use standard tools (`Glob`, `Grep`, `Read`, `LS`) instead.**
 - **Detection patterns**: Use multiple patterns to find completed plans (plain text, markdown-formatted, emoji indicators)
 - **Phase extraction**: Extract phase number from filename consistently
-- **Archive structure**: Always create PhaseX subdirectories, never place plans directly in archive root
+- **Archive structure**: Always create appropriate subdirectories (PhaseX/, Investigations/YYYY-MM-DD/, SessionOptimization/), never place plans directly in archive root
 - **Link updates**: Update all memory bank file links to point to archive locations
 - **Validation**: Always validate links and archive structure after archiving
 - **Exclude non-plan files**: Ignore non-plan files like `README.md`, `QUICK_START.md` when processing results
 
-CRITICAL: Plan files MUST be archived in `.cortex/plans/archive/PhaseX/`, never left in `.cortex/plans/`.
+CRITICAL: Plan files MUST be archived in appropriate archive subdirectories:
+
+- Phase plans: `.cortex/plans/archive/PhaseX/`
+- Investigation plans: `.cortex/plans/archive/Investigations/YYYY-MM-DD/`
+- Session optimization plans: `.cortex/plans/archive/SessionOptimization/`
+Never leave completed plans in `.cortex/plans/`.
 
 ## Step 12 Sequential Execution Note
 

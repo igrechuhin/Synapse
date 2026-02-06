@@ -12,9 +12,9 @@ When invoked:
 
 1. Read current memory bank files using `manage_file()` MCP tool
 2. Analyze recent changes and completed work
-3. Update activeContext.md with current work focus
-4. Update progress.md with completed achievements
-5. Update roadmap.md with completed items and new milestones
+3. **activeContext.md**: Add or append **completed work only** (summaries of what was done). Do not put in-progress or future work here.
+4. **progress.md**: Update with completed achievements and current progress.
+5. **roadmap.md**: Keep **future/upcoming work only**. **CRITICAL: REMOVE completed items from roadmap.md** (do not mark as "COMPLETE" or leave them in the roadmap). Add completed work summary to activeContext.md; then remove the completed entry from roadmap.md so roadmap does not duplicate what is in activeContext. Add new roadmap entries only for new future work.
 
 Key practices:
 

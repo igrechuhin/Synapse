@@ -17,7 +17,7 @@ When invoked:
 
 Key practices:
 
-- Use `validate(check_type="timestamps", project_root="<project_root>")` MCP tool
+- Use `validate(check_type="timestamps")` MCP tool (project root is resolved internally; do NOT pass it as a parameter)
 - Validate that all timestamps use YYYY-MM-DD format only
 - Check for timestamps with time components (invalid format)
 - Report specific violations with file paths and line numbers

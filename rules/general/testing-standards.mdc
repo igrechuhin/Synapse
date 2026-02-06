@@ -5,7 +5,7 @@ alwaysApply: false
 
 # Testing Standards (MANDATORY)
 
-**ENFORCEMENT**: CI MUST fail on violations. Applies to all test files.
+**ENFORCEMENT**: CI MUST fail on violations. Applies to all test files and to any project/language/code.
 
 ## Core Principles
 
@@ -16,6 +16,18 @@ alwaysApply: false
   - New code paths must be covered; critical logic needs edge/error cases.
   - "Pre-existing condition" is NOT a valid excuse for low coverage.
   - Coverage threshold failures MUST be fixed before commit.
+
+## Edge Cases (MANDATORY - ALL PROJECTS/LANGUAGES)
+
+When adding tests, **always ensure to cover all edge cases**. This applies to any project, language, or codebase.
+
+- **Boundary conditions**: Min/max values, empty collections, zero, null/nil/None, single-element lists, exact thresholds.
+- **Error handling**: Invalid inputs, malformed data, missing required fields, wrong types, out-of-range values.
+- **Empty and degenerate states**: Empty strings, empty arrays, no-op inputs, identity cases.
+- **Success and failure paths**: Both happy path and every documented error path must have tests.
+- **Integration edge cases**: Timeouts, partial failures, concurrent access, resource exhaustion where relevant.
+
+Do not limit tests to the happy path; edge-case coverage is mandatory for new and modified behavior.
 
 ## Skips and Marks
 

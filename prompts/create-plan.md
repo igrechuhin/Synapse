@@ -39,7 +39,7 @@ When executing steps, delegate to the appropriate agent for specialized work, th
 **BEFORE executing this command, you MUST:**
 
 1. ✅ **Get project structure information** - Obtain paths dynamically:
-   - **Use Cortex MCP tool `get_structure_info(project_root=None)`** to get:
+   - **Use Cortex MCP tool `get_structure_info()`** to get (project root is resolved internally; do NOT pass it as a parameter):
      - Plans directory path (`structure_info.paths.plans`)
      - Memory bank path (`structure_info.paths.memory_bank`)
      - Project root path (`structure_info.root`)
@@ -73,7 +73,7 @@ When executing steps, delegate to the appropriate agent for specialized work, th
 
 ### Step 1: Get Project Structure and Paths
 
-1. **Use Cortex MCP tool `get_structure_info(project_root=None)`** to get structure information
+1. **Use Cortex MCP tool `get_structure_info()`** to get structure information (the tool resolves project root internally)
 2. Parse the JSON response to extract:
    - **Plans directory path**: Use the **absolute path** from `structure_info.paths.plans` returned by `get_structure_info()`. Do not hardcode the plans path or derive it from `structure_info.root` plus a segment; the canonical plans path is always `structure_info.paths.plans`.
    - Memory bank path: `structure_info.paths.memory_bank` (use the value returned by `get_structure_info()`; do not hardcode)

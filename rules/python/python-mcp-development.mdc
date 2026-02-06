@@ -39,11 +39,43 @@ class BadMCPServer:
 - **Proper return types**: Return proper MCP response formats - MANDATORY
 - **Type hints**: All handlers MUST have complete type hints - MANDATORY
 
+### Project Root Resolution (CRITICAL MANDATORY)
+
+- **ALL Cortex MCP tools resolve project root internally** - MANDATORY, NO EXCEPTIONS
+- **NEVER accept `project_root` as a parameter** - STRICTLY FORBIDDEN
+- **Project root is resolved automatically** via the `@ensure_usage_context` decorator using `resolve_project_root_async(None, ctx)`
+- **Tools access project root internally** by calling `resolve_project_root_async(None, ctx)` where `ctx` is the MCP context injected by FastMCP
+- **External callers MUST NOT pass `project_root`** - tools will raise `TypeError` if it's passed (enforces migration away from legacy patterns)
+- **This ensures consistency**: All tools use the same root resolution logic, preventing path resolution errors
+
+```python
+# ✅ CORRECT - Project root resolved internally
+from cortex.core.project_root_resolver import resolve_project_root_async
+from cortex.core.context_logging import MCPContext
+
+@mcp.tool(annotations=read_only_annotations("Get Stats"))
+@ensure_usage_context
+@mcp_tool_wrapper(timeout=MCP_TOOL_TIMEOUT_FAST)
+async def get_stats(ctx: MCPContext | None = None) -> str:
+    """Read-only tool that retrieves statistics."""
+    root = await resolve_project_root_async(None, ctx)
+    # Use root internally...
+    ...
+
+# ❌ PROHIBITED - Accepting project_root as parameter
+@mcp.tool(annotations=read_only_annotations("Get Stats"))
+@ensure_usage_context
+@mcp_tool_wrapper(timeout=MCP_TOOL_TIMEOUT_FAST)
+async def get_stats(project_root: str | None = None) -> str:  # BLOCKED
+    """Tools must NOT accept project_root."""
+    ...
+```
+
 ### MCP Tool Required Decorator Stack (MANDATORY)
 
 - **Every `@mcp.tool()` MUST use the full stack in order** - MANDATORY, NO EXCEPTIONS:
   1. `@mcp.tool(annotations=...)` — with appropriate annotations from `cortex.core.mcp_annotations`
-  2. `@ensure_usage_context` — enables usage recording for analytics
+  2. `@ensure_usage_context` — enables usage recording for analytics AND resolves project root internally
   3. `@mcp_tool_wrapper(timeout=...)` — timeout and stability
 - **Prevents session hangs**: Long-running or blocking tool execution is bounded; the event loop stays responsive
 - **Use timeout constants** from `cortex.core.constants`: `MCP_TOOL_TIMEOUT_FAST` (60s), `MCP_TOOL_TIMEOUT_MEDIUM` (120s), `MCP_TOOL_TIMEOUT_COMPLEX` (300s), `MCP_TOOL_TIMEOUT_VERY_COMPLEX` (600s), `MCP_TOOL_TIMEOUT_EXTERNAL` (120s)
@@ -73,8 +105,12 @@ from cortex.server import mcp
 @mcp.tool(annotations=read_only_annotations("Get Stats"))
 @ensure_usage_context
 @mcp_tool_wrapper(timeout=MCP_TOOL_TIMEOUT_FAST)
-async def get_stats(project_root: str | None = None) -> str:
-    """Read-only tool that retrieves statistics."""
+async def get_stats() -> str:
+    """Read-only tool that retrieves statistics.
+    
+    Note: Project root is resolved internally via @ensure_usage_context decorator.
+    Tools should NEVER accept project_root as a parameter.
+    """
     ...
 
 @mcp.tool(annotations=safe_write_annotations("Update Config"))
@@ -266,6 +302,7 @@ async def validate_memory_bank(...) -> dict[str, object]:  # BLOCKED
 
 ## Violations (BLOCKED)
 
+- ❌ **MCP tool accepting project_root parameter**: Tools MUST resolve project root internally via `@ensure_usage_context`; accepting `project_root` as a parameter is STRICTLY FORBIDDEN
 - ❌ **MCP tool without annotations**: Every `@mcp.tool()` MUST include `annotations=...` parameter using helpers from `cortex.core.mcp_annotations` (STRICTLY FORBIDDEN)
 - ❌ **MCP tool without full decorator stack**: Every `@mcp.tool()` MUST have `@ensure_usage_context` then `@mcp_tool_wrapper(timeout=...)` in that order (STRICTLY FORBIDDEN)
 - ❌ Async main functions in script entry points

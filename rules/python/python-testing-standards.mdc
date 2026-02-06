@@ -86,6 +86,15 @@ def test_invalid_input_raises_validation_error():
     assert "must be positive" in str(exc_info.value)
 ```
 
+## Edge Cases (ENFORCED - MANDATORY)
+
+When adding tests, **always ensure to cover all edge cases**. This is mandatory for any new or modified behavior.
+
+- **Boundary conditions**: Min/max values, empty lists/dicts, zero, None, single-element sequences, exact thresholds.
+- **Error handling**: Invalid inputs, malformed data, missing keys, wrong types, out-of-range, domain-specific validation errors.
+- **Empty and degenerate states**: Empty string, `[]`, `{}`, no-op inputs, identity cases.
+- **Success and failure paths**: Test both happy path and every raised error path; avoid happy-path-only coverage.
+
 ## Test Coverage (ENFORCED - NO EXCEPTIONS)
 
 - **100% Coverage Target**: Aim for 100% test coverage on new code - MANDATORY

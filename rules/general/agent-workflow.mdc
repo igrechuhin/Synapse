@@ -266,8 +266,9 @@ When using Cortex MCP tools inside Cursor, follow these rules to avoid "missing 
 
 - **Memory bank file access**: `manage_file(file_name="roadmap.md", operation="read")`
   - For writes, include `content="..."` and a concise `change_description="..."`.
-- **Pre-commit checks**: `execute_pre_commit_checks(checks=["quality"], project_root="...")`
+- **Pre-commit checks**: `execute_pre_commit_checks(checks=["quality"])`
   - Treat `checks` as an explicit list; do not assume implied ordering.
+  - **CRITICAL**: All Cortex MCP tools resolve project root internally; do NOT pass `project_root` as a parameter.
 - **Markdown lint**:
   - **Commit pipeline (Step 1.5 and Step 12.6)**: MUST use `check_all_files=True` to match CI behavior (checks ALL markdown files)
   - **General use**: `fix_markdown_lint(check_all_files=False, include_untracked_markdown=True)` - default to modified/new markdown files

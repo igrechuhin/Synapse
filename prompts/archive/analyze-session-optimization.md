@@ -152,7 +152,7 @@
 
 1. **Save analysis report** - Store findings for future reference:
    - **MANDATORY: Use Cortex MCP tools to get the correct path**:
-     1. Call `get_structure_info(project_root=None)` MCP tool to get structure information
+     1. Call `get_structure_info()` MCP tool to get structure information (project root is resolved internally; do NOT pass it as a parameter)
      2. Extract the reviews directory path from the response: `structure_info.paths.reviews` (use the value returned by the Cortex tool; do not hardcode)
      3. **Canonical filename pattern**: `session-optimization-YYYY-MM-DDTHH-MM.md` (e.g., `session-optimization-2026-01-28T17-58.md`)
      4. **Timestamp format rules** (suffix MUST always be YYYY-MM-DDTHH-mm): Use real time only; derive from shell or file mtime. Do NOT invent values.

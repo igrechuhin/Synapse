@@ -33,7 +33,7 @@
     - Load rules relevant to commit/test work:
       - `rules(operation="get_relevant", task_description="Commit pipeline and test coverage enforcement")`
 
-**Pre-Commit Checks**: Use the `execute_pre_commit_checks()` MCP tool for all pre-commit operations (fix errors, format, type check, quality, tests). The tool resolves project root (via MCP roots when available) and language on its own; call it without gathering project_root or language from other tools. It provides:
+**Pre-Commit Checks**: Use the `execute_pre_commit_checks()` MCP tool for all pre-commit operations (fix errors, format, type check, quality, tests). **CRITICAL**: The tool resolves project root internally (via MCP context when available) and language on its own. **NEVER pass `project_root` as a parameter** - all Cortex MCP tools resolve project root internally. It provides:
 
 - Language auto-detection (resolved internally)
 - Structured parameters and return values
@@ -201,7 +201,7 @@ The following error patterns MUST be detected and fixed before commit. These are
 - **Validation**: Coverage percentage MUST be explicitly extracted and verified ≥ 90.0% before proceeding
 - **Enforcement**: If coverage < 90.0%, do not advance to Step 5; fix coverage in this same run (add tests, re-run tests) until coverage ≥ 90.0%. Only stop and provide summary if context is insufficient AFTER attempting fixes, per "Context Assessment" in Failure Handling.
 - **Re-run tests / coverage report (MANDATORY)**: When re-running tests or when you need a coverage report to fix coverage, use **only** the Cortex MCP tool:
-  - `execute_pre_commit_checks(checks=["tests"], timeout=300, coverage_threshold=0.90)`
+  - `execute_pre_commit_checks(checks=["tests"], test_timeout=300, coverage_threshold=0.90, strict_mode=False)`
   Do **NOT** run raw test commands in a Shell - use the MCP tool only. Running the test runner directly can produce huge output and long runs and bypass project timeout/configuration.
 
 **Coverage at commit (full test run)**:
@@ -644,7 +644,7 @@ The original checks in Steps 0-4 are INVALIDATED by any subsequent code changes 
 Use the Cortex MCP tool:
 
 ```text
-execute_pre_commit_checks(checks=["format"], project_root=<project_root>)
+execute_pre_commit_checks(checks=["format"])
 ```
 
 **⚠️ CRITICAL**: Do NOT run format check in parallel - wait for fix to complete first
@@ -654,7 +654,7 @@ execute_pre_commit_checks(checks=["format"], project_root=<project_root>)
 Use the same tool again (idempotent; verify no files were formatted and success):
 
 ```text
-execute_pre_commit_checks(checks=["format"], project_root=<project_root>)
+execute_pre_commit_checks(checks=["format"])
 ```
 
 **⚠️ CRITICAL**: Do NOT truncate output - read FULL tool response to verify check passed
@@ -670,7 +670,7 @@ execute_pre_commit_checks(checks=["format"], project_root=<project_root>)
 After Step 12.1.2 passes, run the format_ci_parity check via the Cortex MCP tool so the same formatter and paths as CI are used:
 
 ```text
-execute_pre_commit_checks(checks=["format_ci_parity"], project_root=<project_root>)
+execute_pre_commit_checks(checks=["format_ci_parity"])
 ```
 
 - **Purpose**: CI runs a language-specific formatter on the main source and test trees. This check runs the same validation locally (e.g. for Python: formatter check on `src/` and `tests/`).
@@ -684,7 +684,7 @@ execute_pre_commit_checks(checks=["format_ci_parity"], project_root=<project_roo
 Use the Cortex MCP tool (checks `src/` and `tests/` to match CI):
 
 ```text
-execute_pre_commit_checks(checks=["type_check"], project_root=<project_root>)
+execute_pre_commit_checks(checks=["type_check"])
 ```
 
 **⚠️ CRITICAL**: Do NOT truncate output - read FULL tool response to verify check passed
@@ -708,7 +708,7 @@ execute_pre_commit_checks(checks=["type_check"], project_root=<project_root>)
 Use the Cortex MCP tool (quality gate runs quality + spelling + type_check; same scope as CI):
 
 ```text
-execute_pre_commit_checks(checks=["quality"], project_root=<project_root>)
+execute_pre_commit_checks(checks=["quality"])
 ```
 
 **⚠️ CRITICAL**: Do NOT truncate output - read FULL tool response to verify check passed
@@ -731,7 +731,7 @@ execute_pre_commit_checks(checks=["quality"], project_root=<project_root>)
 Use the Cortex MCP tool (runs language-specific test naming check):
 
 ```text
-execute_pre_commit_checks(checks=["test_naming"], project_root=<project_root>)
+execute_pre_commit_checks(checks=["test_naming"])
 ```
 
 **⚠️ CRITICAL**: Do NOT truncate output - read FULL tool response to verify check passed
@@ -784,7 +784,7 @@ fix_markdown_lint(check_all_files=True, include_untracked_markdown=True)
 Use the Cortex MCP tool (quality gate runs quality + type_check; quality includes file sizes):
 
 ```text
-execute_pre_commit_checks(checks=["quality"], project_root=<project_root>)
+execute_pre_commit_checks(checks=["quality"])
 ```
 
 - **MUST verify**: Tool returns `status` = "success"; `results.quality.file_size_violations` empty; `results.type_check.success` true and `results.type_check.errors` empty
@@ -797,7 +797,7 @@ execute_pre_commit_checks(checks=["quality"], project_root=<project_root>)
 Same tool as 12.6.1 (quality gate includes quality + type_check):
 
 ```text
-execute_pre_commit_checks(checks=["quality"], project_root=<project_root>)
+execute_pre_commit_checks(checks=["quality"])
 ```
 
 - **MUST verify**: Tool returns `status` = "success" and `results.quality.function_length_violations` is empty
@@ -816,7 +816,7 @@ execute_pre_commit_checks(checks=["quality"], project_root=<project_root>)
 Use the MCP tool:
 
 ```python
-execute_pre_commit_checks(checks=["tests"], timeout=300, coverage_threshold=0.90)
+execute_pre_commit_checks(checks=["tests"], test_timeout=300, coverage_threshold=0.90, strict_mode=False)
 ```
 
 - **MUST verify**: `results.tests.success` = true (PRIMARY indicator)
@@ -875,7 +875,7 @@ execute_pre_commit_checks(checks=["tests"], timeout=300, coverage_threshold=0.90
 
 **⚠️ CRITICAL**: Before proceeding to Step 13, you MUST provide explicit evidence that Step 12.2 was executed. This means:
 
-1. Show the tool call that was run: `execute_pre_commit_checks(checks=["type_check"], project_root=<project_root>)`
+1. Show the tool call that was run: `execute_pre_commit_checks(checks=["type_check"])`
 2. Show the tool response (or key fields: status, results.type_check) (not truncated)
 3. Verify the response shows type check passed (e.g. status "success", results.type_check.errors empty)
 4. Verify tool returned status "success" for type_check
@@ -1071,7 +1071,7 @@ Use this ordering when numbering results:
 #### **4. Test Execution**
 
 - **Status**: Success/Failure
-- **Command Used**: `execute_pre_commit_checks(checks=["tests"], timeout=300, coverage_threshold=0.90)` MCP tool
+- **Command Used**: `execute_pre_commit_checks(checks=["tests"], test_timeout=300, coverage_threshold=0.90, strict_mode=False)` MCP tool
 - **Tests Executed**: Count of tests executed (from tool response: `results.tests.tests_run`)
 - **Tests Passed**: Count of passing tests (from tool response: `results.tests.tests_passed`)
 - **Tests Failed**: Count of failing tests (from tool response: `results.tests.tests_failed`, must be 0)
@@ -1370,7 +1370,7 @@ Use this ordering when numbering results:
 - **Action**: **PRIMARY FOCUS** - Fix coverage **in this same run** by adding tests and re-running until coverage ≥ 90.0%. Do NOT stop and report; treat like other violations (fix until resolved or context insufficient).
 - **Process**:
   1. **IMMEDIATE FIX**: Parse `results.tests.coverage` from test output; if < 0.90, coverage is a violation to fix in this run.
-  2. **FIX IN SAME RUN**: Add or improve tests (e.g. target recently changed or low-coverage modules), then re-run `execute_pre_commit_checks(checks=["tests"], timeout=300, coverage_threshold=0.90)`.
+  2. **FIX IN SAME RUN**: Add or improve tests (e.g. target recently changed or low-coverage modules), then re-run `execute_pre_commit_checks(checks=["tests"], test_timeout=300, coverage_threshold=0.90, strict_mode=False)`.
   3. **CRITICAL**: Continue adding tests and re-running until `results.tests.coverage` ≥ 0.90 - do not stop after one or two attempts and report "blocked".
   4. **NEVER stop and report** with coverage < 90% unless: (a) context is insufficient after fixing, or (b) you have made multiple fix attempts with no coverage gain and need to recommend a dedicated coverage phase.
   5. **VALIDATION**: Re-run tests, verify `results.tests.success` = true AND `results.tests.coverage` ≥ 0.90 before proceeding to Step 5.
@@ -1401,10 +1401,8 @@ Use this ordering when numbering results:
 
 - **When**: An MCP tool returns an error whose message or code indicates "Connection closed" or "ClosedResourceError" (e.g. the client disconnected or timed out while the tool was still running or had just completed on the server).
 - **Action**: (1) **Retry the tool once.** (2) If it fails again with the same class of error (or with "tool not found" / similar after a connection closed error), perform the documented fallback for that step and record "MCP connection closed; fallback used" so the pipeline can proceed. Do not block the pipeline on "tool not found" after a disconnect—use the documented fallback.
-- **Fallbacks** (documented):
-  - For `fix_markdown_lint`: Run markdown lint via shell with the same scope (e.g. same file set or equivalent of `check_all_files`). Example (match CI scope): `npx markdownlint-cli2 '**/*.md' '**/*.mdc' !**/node_modules/** !**/.venv/** !**/venv/** !**/__pycache__/** !**/.git/**` with `--fix` to fix, or without `--fix` for check-only. Record "MCP connection closed; fallback used" in the commit output so it can be audited.
-  - For other long-running tools: Use the fallback documented in the commit prompt for that step, or stop and report if no fallback is defined.
-- **Rationale**: Long-running tools may complete on the server after the client has closed the connection; "Connection closed" can mean client timeout/disconnect, not necessarily tool failure. Retry once then fallback allows the pipeline to complete without blocking.
+- **Fallbacks** (documented): Stop and report.
+- **Rationale**: Long-running tools may complete on the server after the client has closed the connection; "Connection closed" can mean client timeout/disconnect, not necessarily tool failure. Retry once then fallback (or explicit commit block for `fix_quality_issues`) allows the pipeline to behave predictably instead of silently failing.
 
 ### MCP Tool Failure (CRITICAL)
 

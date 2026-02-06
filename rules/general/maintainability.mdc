@@ -8,10 +8,11 @@ alwaysApply: true
 ## Memory Bank Adoption (ENFORCED)
 
 1. The project **MUST** include a memory bank with core files: projectBrief.md, productContext.md, systemPatterns.md, techContext.md, activeContext.md, progress.md, roadmap.md. Access memory bank files via Cortex MCP tool `manage_file(file_name="...", operation="read"|"write")`; resolve path via `get_structure_info()` → `structure_info.paths.memory_bank` if needed. Do not hardcode `.cursor/memory-bank` or `.cortex/memory-bank` in procedures.
-2. **Follow Plan → Act workflow** when starting tasks and updating documentation.
-3. **After every significant change** (or when triggered by **update memory bank / umb**), update all memory-bank files.
-4. **Keep synchronized** - Memory bank files must be consistent with each other.
-5. **Link validation** - After ANY file operation (add/move/remove/rename), validate all links in memory bank files using `validate_links()` tool. See [memory-bank-workflow.mdc](memory-bank-workflow.mdc) for details.
+2. **File responsibilities (no overlap)** - **activeContext.md** = completed work only; **roadmap.md** = future/upcoming work only. When work is completed, move it from roadmap to activeContext (add summary to activeContext, mark complete or remove from roadmap). Do not list the same work in both files.
+3. **Follow Plan → Act workflow** when starting tasks and updating documentation.
+4. **After every significant change** (or when triggered by **update memory bank / umb**), update all memory-bank files.
+5. **Keep synchronized** - Memory bank files must be consistent with each other.
+6. **Link validation** - After ANY file operation (add/move/remove/rename), validate all links in memory bank files using `validate_links()` tool. See [memory-bank-workflow.mdc](memory-bank-workflow.mdc) for details.
 
 ## File / Type Size Limits (ENFORCED)
 
@@ -99,28 +100,31 @@ When completing any plan, the following checklist MUST be followed in order:
 
 3. **Memory bank update** - Update memory bank files:
    - Execute Cursor command: `update-memory-bank`
-   - Update all relevant memory bank files with current changes
-   - Focus on `activeContext.md` and `progress.md` for current state
-   - Ensure consistency across all memory bank files
+   - **activeContext.md**: Add summaries of **completed** work only (do not add in-progress or future work here)
+   - **progress.md**: Update with current achievements and progress
+   - **roadmap.md**: Keep only future/upcoming work; mark completed items complete and add their summary to activeContext, then remove or archive from roadmap so completed work lives only in activeContext
+   - Ensure consistency and no overlap between activeContext (completed) and roadmap (future/upcoming)
    - **MANDATORY**: Run `validate_links()` after updating memory bank files
    - Fix any broken links found
 
 4. **Roadmap update** - Update roadmap.md:
-   - Review recent changes and completed work
-   - Mark completed milestones and tasks in roadmap.md
-   - Add new roadmap items if significant new work is identified
-   - Update completion status and progress indicators
-   - Ensure roadmap accurately reflects current project state
+   - **roadmap.md** holds future/upcoming work only
+   - For completed work: add summary to activeContext.md, then mark complete or remove from roadmap.md (do not duplicate in both)
+   - Add new roadmap items only for new future work
+   - Ensure roadmap does not list completed work as active; completed work belongs in activeContext.md
    - **MANDATORY**: Run `validate_links(file_name="roadmap.md")` after updating
    - Fix any broken links found
 
 5. **Plan archival** - Archive completed plans:
    - Resolve the plans directory path via `get_structure_info()` → `structure_info.paths.plans` (and archive subdirectory, e.g. `structure_info.paths.plans_archived` or `plans/archive/PhaseX/MilestoneY`).
-   - Check the plans directory for completed plan files; move them to the plans archive directory matching the plan's Phase/Milestone.
+   - Check the plans directory for completed plan files; move them to the plans archive directory matching the plan's type:
+     - **Phase plans** (`phase-X-*.md`): Archive to `plans/archive/PhaseX/`
+     - **Investigation plans** (`phase-investigate-*.md`): Archive to `plans/archive/Investigations/YYYY-MM-DD/` (use completion date or creation date from filename/content)
+     - **Session optimization plans** (`session-optimization-*.md`): Archive to `plans/archive/SessionOptimization/`
    - Create archive directory structure if it doesn't exist.
    - Update plan status to "archived" if not already done
    - Ensure no active plans remain in the plans directory
-   - **CRITICAL**: Plan files MUST be archived in the plans archive directory (e.g. `structure_info.paths.plans_archived` or plans/archive/PhaseX/), never left in the active plans directory
+   - **CRITICAL**: Plan files MUST be archived in the appropriate archive subdirectory, never left in the active plans directory
    - **MANDATORY**: After moving files, update all links in memory bank files to point to new archive location
    - **MANDATORY**: Run `validate_links()` to verify all links are valid after archival
    - Fix any broken links found

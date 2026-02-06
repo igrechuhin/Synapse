@@ -189,7 +189,7 @@ When executing steps, delegate to the appropriate agent for specialized analysis
 - All review reports MUST be saved to the reviews directory (configured in structure)
 - File naming: `code-review-report-YYYY-MM-DDTHH-mm.md`. Suffix MUST be derived from real time (e.g. run `date +%Y-%m-%dT%H-%M`). NEVER use fallback or invented time (e.g. no `T00-00`).
 - **MANDATORY: Use Cortex MCP tools to get the correct path**:
-  1. Call `get_structure_info(project_root=None)` MCP tool to get structure information
+  1. Call `get_structure_info()` MCP tool to get structure information (project root is resolved internally; do NOT pass it as a parameter)
   2. Extract the reviews directory path from the response: `structure_info.paths.reviews` (use the value returned by the Cortex tool; do not hardcode)
   3. Construct the full file path: `{reviews_path}/code-review-report-YYYY-MM-DDTHH-mm.md`
   4. Use the `Write` tool with this dynamically constructed path (it will create parent directories automatically)
@@ -408,7 +408,7 @@ This command provides comprehensive code quality assurance before commits and re
 **Report Output:**
 
 - **MANDATORY: Use Cortex MCP tools to get the correct path**:
-  1. Call `get_structure_info(project_root=None)` MCP tool to get structure information
+  1. Call `get_structure_info()` MCP tool to get structure information (project root is resolved internally; do NOT pass it as a parameter)
   2. Extract the reviews directory path: `structure_info.paths.reviews`
   3. Construct file path: `{reviews_path}/code-review-report-YYYY-MM-DDTHH-mm.md`
   4. Use the `Write` tool with this dynamically constructed path (it will create parent directories automatically)

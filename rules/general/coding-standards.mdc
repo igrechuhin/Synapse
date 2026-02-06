@@ -42,7 +42,7 @@ alwaysApply: true
 ## Testing & Quality Gates
 
 - **pytest + AAA**: Tests use Arrange-Act-Assert with descriptive names (`test_behavior_when_condition`).
-- **Coverage**: Add tests for new behaviors and public APIs; avoid happy-path-only coverage.
+- **Coverage**: Add tests for new behaviors and public APIs; avoid happy-path-only coverage. **Always cover all edge cases** (boundary conditions, error handling, invalid inputs, empty states) for any project/language/code.
 - **Zero warnings**: Treat warnings as errors in tests; keep suites fast and deterministic.
 
 ## Documentation & Memory Bank

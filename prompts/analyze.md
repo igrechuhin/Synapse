@@ -47,7 +47,7 @@ At end of session, run a single "check all" analysis: (1) evaluate `load_context
    - **Root causes**: missing/unclear guidance, incomplete validation, process gaps, tool limitations.
 2. Generate **prioritized recommendations** for Synapse prompts/rules (prompt improvements, rule improvements, process improvements) with target file/section and expected impact.
 3. **Save the report**:
-   - Call `get_structure_info(project_root=None)` and use `structure_info.paths.reviews`.
+   - Call `get_structure_info()` and use `structure_info.paths.reviews` (project root is resolved internally; do NOT pass it as a parameter).
    - **Filename**: `session-optimization-YYYY-MM-DDTHH-MM.md` (e.g. `session-optimization-2026-02-02T17-58.md`).
    - **Timestamp**: Use real time only (e.g. shell `date +%Y-%m-%dT%H-%M` or file mtime). Do not invent values.
    - Write the full report to `{reviews_path}/session-optimization-YYYY-MM-DDTHH-MM.md` (e.g. via Write tool with the resolved path).
