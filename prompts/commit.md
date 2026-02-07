@@ -6,6 +6,8 @@
 
 **⚠️ ZERO ERRORS TOLERANCE (MANDATORY)**: This project has ZERO errors tolerance. ANY errors found in ANY check (formatting, types, linting, quality, tests) MUST block commit - NO EXCEPTIONS. Pre-existing errors are NOT acceptable - they MUST be fixed before commit. You MUST explicitly parse error counts from output and verify they are ZERO before proceeding to commit. DO NOT dismiss errors as "pre-existing" or "in files I didn't modify" - ALL errors must be fixed.
 
+**⚠️ FIXES WITHOUT EXPLICIT REQUEST (MANDATORY)**: When any step fails (formatting, type check, quality, tests, roadmap sync, timestamps, etc.), apply fixes automatically as part of the pipeline. Do NOT wait for or ask the user to request fixes; do NOT stop and report without attempting fixes first. Fixing is the default response to any failure. Only after applying fixes and re-running validation may you report and stop if validation still fails or context is insufficient.
+
 **Tooling Note**: Use standard Cursor tools (`Read`, `ApplyPatch`, `Write`, `LS`, `Glob`, `Grep`) by default; MCP filesystem tools are optional fallbacks only when standard tools are unavailable or explicitly requested. **Use Cortex MCP tools for memory bank and rules operations** (e.g., `manage_file()`, `rules()`, `get_memory_bank_stats()`, `validate()`, `check_structure_health()`).
 
 **MCP TOOL USAGE (USE WHEN / EXAMPLES)**:
@@ -58,7 +60,7 @@
 - **plan-archiver** - Step 7: Plan archiving
 - **plan-archiver** - Step 8: Archive location validation
 - **timestamp-validator** - Step 9: Timestamp validation
-- **roadmap-sync-validator** - Step 10: Roadmap synchronization validation
+- **Step 10** - Ensure roadmap and activeContext reflect actual state (orchestration only; no dedicated agent)
 
 **Subagent execution strategy (MANDATORY)**:
 
@@ -408,22 +410,22 @@ Step 13 and Step 14 below contain mandatory precondition checks; do not skip the
 - **BLOCK COMMIT**: If any timestamp violations are found
 - **Workflow**: After agent completes, verify zero violations before proceeding to Step 10
 
-### Step 10: Roadmap synchronization validation (delegate to `roadmap-sync-validator`)
+### Step 10: Ensure roadmap and activeContext reflect actual state
 
-- **Agent**: Use the roadmap-sync-validator agent (Synapse agents directory) for implementation details
-- **Dependency**: Must run AFTER Step 5 (memory bank operations, including roadmap updates)
-- **Conditional**: Only execute if the validate-roadmap-sync prompt exists in the Synapse prompts directory
-- **Workflow**: Agent validates roadmap.md is synchronized with codebase TODOs
-- **⚠️ BLOCKING RULE (MANDATORY)**: If `validate(check_type="roadmap_sync")` returns `valid: false`, STOP the commit workflow immediately. Do NOT proceed to Step 11. This is a hard gate, not a warning.
-- **Blocking criteria** (all `valid: false` outcomes block commit):
-  - `missing_roadmap_entries`: ALWAYS blocks commit (critical - TODOs not tracked)
-  - `invalid_references`: ALWAYS blocks commit (validator resolves plans directory paths; fix references or paths until validation passes)
-- **Skip if**: Command file does not exist
+- **When reporting this step** (e.g. in todos or failure messages), use the name: **"Ensure roadmap and activeContext reflect actual state"**. Do not use "Roadmap synchronization validation".
+- **Dependency**: Must run AFTER Step 5 and Step 6 (memory bank and roadmap updates)
+- **Workflow** (orchestration only; no `validate(check_type="roadmap_sync")`):
+  1. **Read** `roadmap.md` and `activeContext.md` via `manage_file(file_name="roadmap.md", operation="read")` and `manage_file(file_name="activeContext.md", operation="read")`.
+  2. **Verify split**: Roadmap must contain only **future/upcoming** work. activeContext must contain **completed** work only (per memory bank workflow).
+  3. **Fix if needed**: If any bullet in `roadmap.md` clearly represents completed work (e.g. contains " - COMPLETE", " - COMPLETED", "✅ ... COMPLETE"), add a brief summary to `activeContext.md` (if not already there) and **remove** those lines from `roadmap.md` via `manage_file(file_name="roadmap.md", operation="write", content=...)` (or equivalent). Do not scan the codebase for TODOs or validate plan references.
+  4. **Proceed**: Once roadmap and activeContext reflect the actual split (future vs completed), consider Step 10 complete and proceed to Step 11.
+- **No codebase scan**: Do NOT run `validate(check_type="roadmap_sync")`. Do NOT match production TODOs to roadmap entries or validate unlinked plans as part of this step.
+- **Non-blocking**: This step ensures state consistency only. If the content is already consistent, no changes are required. No hard gate that blocks commit.
 
 ### Step 11: Submodule handling (Synapse submodule)
 
 - **Path resolution**: Resolve the Synapse directory path via `get_structure_info()` (e.g. `structure_info.paths.synapse` if available) or use the project-relative path to the Synapse submodule. Use this path for all `git -C <Synapse-directory-path>` and `git add <Synapse-directory-path>` commands.
-- **Dependency**: Must run AFTER Step 10 (roadmap sync validation)
+- **Dependency**: Must run AFTER Step 10 (roadmap/activeContext state)
 - **Workflow**: Follow explicit command sequence below to handle submodule changes deterministically.
 - **Strict decision rule**: Execute sub-steps 11.1 → 11.5 in order. At each step, only proceed to the next sub-step when the condition is met; otherwise skip to Step 12 (or, in 11.5, block commit). Do not run sub-steps in parallel or reorder them.
 
@@ -571,7 +573,7 @@ The commit procedure executes steps in this specific order to ensure dependencie
 7. **Plan Archiving** (Archive Completed Plans) - Cleans up completed build plans
 8. **Archive Validation** (Validate Archive Locations) - Ensures archived files are in correct locations
 9. **Optimization** (Memory Bank Validation) - Validates and optimizes memory bank
-10. **Roadmap Sync** (Roadmap-Codebase Synchronization) - Ensures roadmap.md matches Sources/ codebase
+10. **Roadmap/activeContext state** - Ensures roadmap and activeContext reflect actual state (future work in roadmap, completed work in activeContext)
 11. **Submodule Handling** - Commits and pushes Synapse submodule changes if any (resolve Synapse directory path via project structure or `get_structure_info()` if available)
 12. **⚠️ FINAL VALIDATION GATE** - **MANDATORY re-verification before commit** (see details below)
 13. **Commit** - Creates the commit with all changes (including updated submodule reference)
@@ -957,7 +959,7 @@ Use this ordering when numbering results:
 - Step 7: Plan Archiving
 - Step 8: Archive Validation
 - Step 9: Memory Bank Timestamp Validation
-- Step 10: Roadmap Synchronization Validation
+- Step 10: Ensure roadmap and activeContext reflect actual state
 - Step 11: Submodule Handling
 - Step 12: ⚠️ Final Validation Gate (MANDATORY)
 - Step 13: Commit Creation
@@ -1165,14 +1167,13 @@ Use this ordering when numbering results:
 - **Details**: Summary of timestamp validation results, including any violations found
 - **Commit Blocked**: Yes/No (blocked if any violations found)
 
-#### **10. Roadmap Synchronization Validation**
+#### **10. Roadmap and activeContext state**
 
-- **Status**: Success/Failure/Skipped
-- **Command File Available**: Whether validate-roadmap-sync.md exists
-- **Roadmap TODOs Validated**: Count of TODOs checked in roadmap.md (if command executed)
-- **Codebase TODOs Scanned**: Count of production TODOs found in Sources/ (if command executed)
-- **Synchronization Issues**: Count of issues found (must be 0 if command executed)
-- **Details**: Summary from validate-roadmap-sync command (if executed) or reason for skipping
+- **Status**: Success/Done
+- **Roadmap read**: Whether roadmap.md was read via manage_file
+- **activeContext read**: Whether activeContext.md was read via manage_file
+- **Completed-in-roadmap fixed**: Whether any completed-work bullets were moved from roadmap to activeContext and removed from roadmap
+- **Details**: Brief summary (e.g. "State consistent" or "Moved N completed items from roadmap to activeContext")
 
 #### **11. Submodule Handling**
 
@@ -1256,7 +1257,7 @@ Use this ordering when numbering results:
 - **Roadmap Update Issues**: Any issues updating roadmap.md with completed items
 - **Plan Archiving Issues**: Any issues archiving completed build plans
 - **Archive Validation Issues**: Any archive location violations found and their resolution
-- **Roadmap Sync Issues**: Any roadmap-codebase synchronization problems and their resolution
+- **Roadmap/activeContext state issues**: Any issues ensuring roadmap (future only) and activeContext (completed only) reflect actual state
 - **Submodule Issues**: Any submodule commit or push errors and their resolution
 - **Push Issues**: Any push errors and their resolution
 
@@ -1278,18 +1279,20 @@ Use this ordering when numbering results:
 
 ## ⚠️ MANDATORY: Fix ALL Issues Automatically
 
-**CRITICAL RULE**: When ANY error or violation is detected, you MUST fix ALL of them automatically.
+**CRITICAL RULE**: When ANY error or violation is detected, you MUST fix ALL of them automatically. No explicit user request is required to apply fixes—fixing is part of the pipeline.
 
+- **No explicit request needed**: The user does not need to say "fix it" or "yes, fix that". Apply fixes as soon as a failure is detected.
 - **NEVER ask for permission** to fix issues - just fix them all
 - **NEVER ask "should I continue?"** - continue fixing until ALL issues are resolved
 - **NEVER stop after fixing some issues** - fix ALL of them, no matter how many
-- **It's OK to stop the commit procedure** if context is insufficient, but ALL issues must still be fixed
+- **NEVER report and stop without attempting fixes first** - always try to fix before reporting
+- **It's OK to stop the commit procedure** if context is insufficient after fixing, but ALL issues must still be fixed first
 - **After fixing ALL issues**: Re-run validation, verify zero issues remain, then proceed or provide summary
 - **No exceptions**: Whether it's 1 issue or 100 issues, fix ALL of them automatically
 
 ## Error/Violation Handling Strategy
 
-**PRIMARY FOCUS**: When any error or violation is detected during the commit procedure, the agent's PRIMARY FOCUS must be to fix ALL of them immediately.
+**PRIMARY FOCUS**: When any error or violation is detected during the commit procedure, the agent's PRIMARY FOCUS must be to fix ALL of them immediately. **Do not wait for explicit user requests to fix**—apply fixes as part of the pipeline.
 
 **After Fixing ALL Issues**:
 
@@ -1403,6 +1406,7 @@ Use this ordering when numbering results:
 - **Action**: (1) **Retry the tool once.** (2) If it fails again with the same class of error (or with "tool not found" / similar after a connection closed error), perform the documented fallback for that step and record "MCP connection closed; fallback used" so the pipeline can proceed. Do not block the pipeline on "tool not found" after a disconnect—use the documented fallback.
 - **Fallbacks** (documented): Stop and report.
 - **Rationale**: Long-running tools may complete on the server after the client has closed the connection; "Connection closed" can mean client timeout/disconnect, not necessarily tool failure. Retry once then fallback (or explicit commit block for `fix_quality_issues`) allows the pipeline to behave predictably instead of silently failing.
+- **Note (fix_markdown_lint)**: The server sends per-file progress and a 15 s heartbeat for `fix_markdown_lint`; MCP error -32000 ("Connection closed") can still occur due to client-side timeout (e.g. ~60 s). Retry once, then use the documented fallback and record "MCP connection closed; fallback used".
 
 ### MCP Tool Failure (CRITICAL)
 
@@ -1435,13 +1439,17 @@ Use this ordering when numbering results:
   - `execute_pre_commit_checks()` (fix_errors, format, type_check, quality, tests)
   - `fix_markdown_lint()` (markdown linting)
   - `manage_file()` (memory bank operations)
-  - `validate()` (timestamp validation, roadmap sync)
+  - `validate()` (timestamp validation); Step 10 uses `manage_file()` for roadmap/activeContext state only
   - Any other Cortex MCP tools used during commit
 - **Automatic Enforcement**: Protocol violations are automatically detected and blocked:
   - Attempts to use workarounds are prevented
   - Fallback methods are blocked when tool fails
   - Commit procedure stops immediately on tool failure
   - Investigation plans are created automatically
+
+### Step 10 (Roadmap/activeContext state)
+
+- **Action**: Read roadmap.md and activeContext.md; if completed-work bullets appear in roadmap, move their summary to activeContext and remove them from roadmap. Then proceed to Step 11. No codebase scan or `validate(check_type="roadmap_sync")` in this step.
 
 ### Other Step Failures
 
@@ -1460,12 +1468,14 @@ Use this ordering when numbering results:
 
 ### General Rules
 
+- **Fixes without explicit request**: All fixes (type, lint, format, quality, tests, roadmap sync, timestamps, etc.) are applied automatically when a step fails. The user does not need to request fixes explicitly; switch to the fix flow as soon as a failure is detected.
 - **Error/Violation Priority**: When any error or violation is detected, **PRIMARY FOCUS** is to fix ALL of them immediately
 - **Fix ALL Issues Automatically**:
   - **NEVER ask for permission** to fix issues - just fix them all
   - **NEVER ask "should I continue?"** - continue fixing until ALL issues are resolved
   - **NEVER stop after fixing some** - fix ALL of them, no matter how many
-  - **It's OK to stop the commit procedure** if context is insufficient, but ALL issues must still be fixed
+  - **NEVER report and stop without attempting fixes first** - always apply fixes, then re-validate; only then report if still failing or context insufficient
+  - **It's OK to stop the commit procedure** if context is insufficient after fixing, but ALL issues must still be fixed first
 - **Execution Continuity**: Once this command starts, you MUST continue the pipeline until you either (a) complete Step 14 (push), or (b) hit a hard blocker (Cortex MCP tool failure, missing dependency, or explicit ZERO ERRORS violation). Do **not** stop mid-pipeline for planning-only reasons.
 - **Context Management**: Keep narrative output between tool calls extremely concise (1–3 short sentences). Never restate this prompt or paste large tool outputs verbatim; summarize them to avoid exhausting context and causing premature termination.
 - **Context-Aware Continuation**: After fixing ALL errors/violations:
@@ -1487,8 +1497,8 @@ Use this ordering when numbering results:
   - Step 0 (Fix Errors) MUST use `execute_pre_commit_checks(checks=["fix_errors"])` MCP tool
   - Step 4 (Testing) MUST use `execute_pre_commit_checks(checks=["tests"])` MCP tool
   - Step 4 (Memory Bank) MUST use `manage_file()` MCP tool for memory bank operations
-  - Step 8 (Memory Bank Timestamp Validation) MUST use `validate(check_type="timestamps")` MCP tool
-  - Step 9 (Roadmap Sync) MUST use `validate-roadmap-sync.md` command if it exists
+  - Step 9 (Memory Bank Timestamp Validation) MUST use `validate(check_type="timestamps")` MCP tool
+  - Step 10 (Roadmap/activeContext state) MUST use `manage_file()` to read roadmap.md and activeContext.md and ensure completed work is only in activeContext, future work only in roadmap (no `validate(check_type="roadmap_sync")`)
   - If optional command files don't exist, skip those steps gracefully without searching for alternatives
   - This ensures consistency, maintainability, type safety, and single source of truth
 - **Real-Time Checklist Updates**: AI MUST update the todo checklist immediately as each step completes:
@@ -1543,8 +1553,7 @@ Use this ordering when numbering results:
 - ✅ Completed build plans archived to the plans archive directory (path from `get_structure_info()`)
 - ✅ Plan archive locations validated (no violations)
 - ✅ Memory bank timestamps validated (all use YYYY-MM-DD format, no time components)
-- ✅ Roadmap.md synchronized with Sources/ codebase
-- ✅ All production TODOs properly tracked
+- ✅ Roadmap and activeContext reflect actual state (roadmap = future work only, activeContext = completed work only)
 - ✅ Synapse submodule changes committed and pushed (if any changes exist)
 - ✅ Parent repository's submodule reference updated (if submodule was committed)
 - ✅ Commit created with descriptive message

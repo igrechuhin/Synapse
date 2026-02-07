@@ -20,10 +20,16 @@ except ImportError:
     sys.path.insert(0, str(Path(__file__).parent))
     from _utils import get_project_root
 
+try:
+    from cortex.core.path_resolver import get_venv_bin_path
+except ImportError:
+    sys.path.insert(0, str(get_project_root(Path(__file__)) / "src"))
+    from cortex.core.path_resolver import get_venv_bin_path
+
 
 def get_ci_formatter_command(project_root: Path) -> list[str]:
     """Build the formatter command CI uses (e.g. uv run black --check)."""
-    venv_black = project_root / ".venv" / "bin" / "black"
+    venv_black = get_venv_bin_path(project_root) / "black"
     if venv_black.exists():
         return [str(venv_black), "--check"]
     try:

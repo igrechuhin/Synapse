@@ -14,11 +14,24 @@ Days 1-5 optimizations:
 
 import json
 import subprocess
+import sys
 import time
 from dataclasses import asdict, dataclass
 from pathlib import Path
 
 from pydantic import BaseModel, ConfigDict, Field
+
+try:
+    from _utils import get_project_root
+except ImportError:
+    sys.path.insert(0, str(Path(__file__).parent))
+    from _utils import get_project_root
+
+try:
+    from cortex.core.path_resolver import get_venv_bin_path
+except ImportError:
+    sys.path.insert(0, str(get_project_root(Path(__file__)) / "src"))
+    from cortex.core.path_resolver import get_venv_bin_path
 
 
 class TestModuleInfo(BaseModel):
@@ -95,9 +108,12 @@ class PerformanceBenchmark:
             Tuple of (execution_time_s, test_count, passed, failed)
         """
         start = time.perf_counter()
+        project_root = get_project_root(Path(__file__))
+        pytest_bin = str(get_venv_bin_path(project_root) / "pytest")
 
         result = subprocess.run(
-            [".venv/bin/pytest", test_file, "-v", "--tb=short"],
+            [pytest_bin, test_file, "-v", "--tb=short"],
+            cwd=project_root,
             capture_output=True,
             text=True,
         )

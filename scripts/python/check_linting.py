@@ -33,6 +33,12 @@ except ImportError:
         get_synapse_scripts_dir,
     )
 
+try:
+    from cortex.core.path_resolver import get_venv_bin_path
+except ImportError:
+    sys.path.insert(0, str(get_project_root(Path(__file__)) / "src"))
+    from cortex.core.path_resolver import get_venv_bin_path
+
 
 def get_linter_command(project_root: Path) -> list[str]:
     """Get linter command to run.
@@ -47,7 +53,7 @@ def get_linter_command(project_root: Path) -> list[str]:
         List of command parts to run
     """
     # Try .venv/bin/ruff first
-    venv_ruff = project_root / ".venv" / "bin" / "ruff"
+    venv_ruff = get_venv_bin_path(project_root) / "ruff"
     if venv_ruff.exists():
         return [str(venv_ruff), "check"]
 

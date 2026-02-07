@@ -32,6 +32,12 @@ except ImportError:
         get_synapse_scripts_dir,
     )
 
+try:
+    from cortex.core.path_resolver import get_venv_bin_path
+except ImportError:
+    sys.path.insert(0, str(get_project_root(Path(__file__)) / "src"))
+    from cortex.core.path_resolver import get_venv_bin_path
+
 
 def get_type_checker_command(project_root: Path) -> list[str]:
     """Get type checker command to run.
@@ -43,7 +49,7 @@ def get_type_checker_command(project_root: Path) -> list[str]:
         List of command parts to run
     """
     # Try .venv/bin/pyright first
-    venv_pyright = project_root / ".venv" / "bin" / "pyright"
+    venv_pyright = get_venv_bin_path(project_root) / "pyright"
     if venv_pyright.exists():
         return [str(venv_pyright)]
 

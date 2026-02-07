@@ -32,6 +32,12 @@ except ImportError:
         get_synapse_scripts_dir,
     )
 
+try:
+    from cortex.core.path_resolver import get_venv_bin_path
+except ImportError:
+    sys.path.insert(0, str(get_project_root(Path(__file__)) / "src"))
+    from cortex.core.path_resolver import get_venv_bin_path
+
 
 def get_formatter_command(project_root: Path) -> list[str]:
     """Get formatter command to run.
@@ -43,7 +49,7 @@ def get_formatter_command(project_root: Path) -> list[str]:
         List of command parts to run
     """
     # Try .venv/bin/black first
-    venv_black = project_root / ".venv" / "bin" / "black"
+    venv_black = get_venv_bin_path(project_root) / "black"
     if venv_black.exists():
         return [str(venv_black), "--check"]
 

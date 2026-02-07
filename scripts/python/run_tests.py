@@ -31,6 +31,12 @@ except ImportError:
         get_project_root,
     )
 
+try:
+    from cortex.core.path_resolver import get_venv_bin_path
+except ImportError:
+    sys.path.insert(0, str(get_project_root(Path(__file__)) / "src"))
+    from cortex.core.path_resolver import get_venv_bin_path
+
 
 COVERAGE_THRESHOLD = get_config_int("COVERAGE_THRESHOLD", 90)
 TEST_TIMEOUT = get_config_int("TEST_TIMEOUT", 300)
@@ -46,7 +52,7 @@ def get_test_command(project_root: Path) -> list[str]:
         List of command parts to run
     """
     # Try .venv/bin/pytest first
-    venv_pytest = project_root / ".venv" / "bin" / "pytest"
+    venv_pytest = get_venv_bin_path(project_root) / "pytest"
     if venv_pytest.exists():
         return [str(venv_pytest)]
 
