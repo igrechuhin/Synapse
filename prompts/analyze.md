@@ -15,7 +15,8 @@ At end of session, run a single "check all" analysis: (1) evaluate `load_context
 **BEFORE running any analysis step:**
 
 1. **Read relevant memory bank files** (Cortex MCP tool `manage_file`):
-   - `activeContext.md` – current work focus
+   - `activeContext.md` – completed work only (for current status and upcoming work see roadmap.md)
+   - `roadmap.md` – current status and upcoming work
    - `progress.md` – recent achievements
    - `systemPatterns.md` – architectural patterns
    - `techContext.md` – technical context

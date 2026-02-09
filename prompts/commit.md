@@ -1413,7 +1413,7 @@ Use this ordering when numbering results:
 - **Action**: (1) **Retry the tool once.** (2) If it fails again with the same class of error (or with "tool not found" / similar after a connection closed error), perform the documented fallback for that step and record "MCP connection closed; fallback used" so the pipeline can proceed. Do not block the pipeline on "tool not found" after a disconnect—use the documented fallback.
 - **Fallbacks** (documented): Stop and report.
 - **Rationale**: Long-running tools may complete on the server after the client has closed the connection; "Connection closed" can mean client timeout/disconnect, not necessarily tool failure. Retry once then fallback (or explicit commit block for `fix_quality_issues`) allows the pipeline to behave predictably instead of silently failing.
-- **Note (fix_markdown_lint)**: The server sends per-file progress and a 15 s heartbeat for `fix_markdown_lint`; MCP error -32000 ("Connection closed") can still occur due to client-side timeout (e.g. ~60 s). Retry once, then use the documented fallback and record "MCP connection closed; fallback used".
+- **Note (fix_markdown_lint)**: The server sends per-file progress and a 15 s heartbeat for `fix_markdown_lint`; MCP error -32000 ("Connection closed") can still occur due to client-side timeout (e.g. ~60 s). Retry once, then use the documented shell fallback (Step 12.5) and record "MCP connection closed; fallback used".
 
 ### MCP Tool Failure (CRITICAL)
 
