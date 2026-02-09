@@ -225,8 +225,10 @@ Every new or enriched plan MUST be registered in the roadmap. Do not skip this s
 
 3. **Add or update plan entry in roadmap** (register the plan in correct order for execution):
    - **If this is a new plan**:
-     - Create a new roadmap entry for the plan (title, description, status PENDING, link to plan file).
-     - **Place it in the correct position for implementation sequence**: (1) If the plan is a blocker, add to **Blockers (ASAP Priority)** at the top of that section. (2) Otherwise add to **Implementation queue** (section "Pending plans (from .cortex/plans)") at the **end** of that section so it runs after current queue items. (3) If the plan belongs to a specific phase section (e.g. Active Work, Future Enhancements), add there in the appropriate order (e.g. after last PENDING in that section). This ensures the implement command will pick steps in the intended order.
+     - **REQUIRED for adding a single new plan entry**: Use the Cortex MCP tool **`register_plan_in_roadmap(plan_title=..., description=..., status="PENDING", section=...)`**. Do **not** build full roadmap content or call `manage_file(roadmap.md, write, content=...)` for adding one plan entry—that causes roadmap corruption. Choose `section` from: `blockers` (for ASAP/blocker plans), `active_work`, `future`, or `pending` (default; use for most new plans). The tool performs server-side read-modify-write and inserts the entry in the correct place.
+     - **Alternative**: If you need to add a single preformatted bullet line, use **`add_roadmap_entry(section=..., entry_text=..., position=...)`** instead of building full content.
+     - **Placement**: (1) If the plan is a blocker, use `section="blockers"`. (2) Otherwise use `section="pending"` so the entry goes into "Pending plans (from .cortex/plans)" at the end. (3) For Active Work or Future Enhancements use `section="active_work"` or `section="future"` as appropriate.
+     - **Fallback**: Use `manage_file(file_name="roadmap.md", operation="write", content=<full roadmap>, change_description=...)` **only** when updating multiple entries at once or when `register_plan_in_roadmap` is unavailable; the `content` MUST be the full, unabridged roadmap text. Never truncate.
    - **If enriching an existing plan**:
      - Locate the existing roadmap entry that links to the target plan.
      - **Enrich** the entry to reflect the new context and scope (e.g., expand description, reference new constraints or logs).
@@ -234,14 +236,14 @@ Every new or enriched plan MUST be registered in the roadmap. Do not skip this s
        - Moving the entry into an “Active Work” / higher-priority section, or
        - Upgrading the status (e.g., from PLANNED to IN PROGRESS), and/or
        - Adding a clear urgency marker such as **FIX-ASAP** when appropriate.
+     - For enrich/update that edits a single existing line, prefer a single `manage_file(roadmap.md, write, content=<full roadmap>, ...)` with the complete content if no tool supports in-place line edit; keep that path rare and never truncate.
      - Ensure the link to the plan file remains correct and roadmap formatting is preserved.
 
-4. **Update roadmap file**:
-   - **PROHIBITED**: Updating the roadmap during plan creation by any method other than `manage_file(file_name="roadmap.md", operation="write", content=..., change_description=...)`. This includes: using StrReplace (or any search_replace) on the roadmap file, using the Write tool to write directly to the roadmap file path, or any edit that bypasses the `manage_file` MCP tool.
-   - **REQUIRED**: Read the current roadmap with `manage_file(file_name="roadmap.md", operation="read")`, apply only the intended change (add or update one plan entry), then call `manage_file(file_name="roadmap.md", operation="write", content=<complete resulting text>, change_description="Added new plan: [plan title]" or similar)`. The `content` parameter MUST be the full, unabridged roadmap text. If the content is large, the agent must still pass the full content in one call. **Never truncate, summarize, or shorten existing roadmap bullets** to fit length limits.
-   - **VIOLATION**: Using StrReplace or direct Write for the roadmap during plan creation is a critical violation of the plan creation workflow and must not be used.
-   - Ensure roadmap formatting is preserved
-   - Verify the update was successful
+4. **Update roadmap file** (mandatory tool usage):
+   - **PROHIBITED**: Updating the roadmap during plan creation by StrReplace, direct Write to the roadmap file path, or any edit that bypasses Cortex MCP tools. Using StrReplace or direct Write is a critical violation.
+   - **REQUIRED for new plan**: For **adding one new plan entry**, you **must** call **`register_plan_in_roadmap`** (or **`add_roadmap_entry`** for a single formatted line). Do **not** use `manage_file(roadmap.md, write, content=...)` for single-entry adds—that leads to roadmap corruption from full-content string assembly.
+   - **Fallback only**: Use `manage_file(file_name="roadmap.md", operation="write", content=<complete resulting text>, change_description=...)` only when (a) updating multiple entries in one go, or (b) enriching an existing entry and no single-entry tool applies, or (c) `register_plan_in_roadmap` is unavailable. When using fallback, the `content` MUST be the full, unabridged roadmap text; never truncate, summarize, or shorten existing bullets.
+   - Ensure roadmap formatting is preserved and verify the update was successful
 
 ### Step 7: Verify Completion
 
@@ -250,7 +252,7 @@ Every new or enriched plan MUST be registered in the roadmap. Do not skip this s
    - Verify file content is complete and accurate
 
 2. **Verify roadmap was updated**:
-   - **Re-read roadmap via `manage_file(file_name="roadmap.md", operation="read")`** and confirm: (1) the new or updated plan entry is present and correct, and (2) **all existing roadmap entries are unchanged (no truncation or removal)**. If any existing entry was shortened or removed, the agent must restore the full content and repeat the update using **`manage_file(file_name="roadmap.md", operation="write", content=<complete content>, ...)`** with the complete content—**not** StrReplace or direct Write.
+   - **Re-read roadmap via `manage_file(file_name="roadmap.md", operation="read")`** and confirm: (1) the new or updated plan entry is present and correct, and (2) **all existing roadmap entries are unchanged (no truncation or removal)**. For new plans, registration should have been done via **`register_plan_in_roadmap`** (or **`add_roadmap_entry`**); if the agent used fallback `manage_file(write, ...)` and any existing entry was shortened or removed, restore the full content and repeat the update with complete content—**not** StrReplace or direct Write.
    - Check that roadmap entry is properly formatted and linked
 
 3. **Provide summary**:

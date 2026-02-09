@@ -290,24 +290,25 @@ Before defining new data structures (classes, types, models, interfaces):
 
 **Use the `memory-bank-updater` agent (Synapse agents directory) for this step.**
 
-1. **Use Cortex MCP tool `manage_file(file_name="roadmap.md", operation="read")`** to get current roadmap content
-2. Update the roadmap content:
-   - **CRITICAL: REMOVE the completed step from roadmap.md** (do not mark as "COMPLETE" or leave it in the roadmap)
-   - Roadmap.md records future/upcoming work only; completed work belongs in activeContext.md only
-   - Do not duplicate entries between roadmap and activeContext
-3. **Use `manage_file(file_name="roadmap.md", operation="write", content="[updated content]", change_description="Removed completed roadmap step (moved to activeContext.md)")`** to save the updated roadmap
-4. **Use `manage_file(file_name="progress.md", operation="read")`** to get current progress content
-5. Update progress content:
-   - Add entry describing what was completed
-   - Use YY-MM-DD timestamp format
-   - Keep entries reverse-chronological
-6. **Use `manage_file(file_name="progress.md", operation="write", content="[updated content]", change_description="Added progress entry for completed roadmap step")`** to save the updated progress
-7. **Use `manage_file(file_name="activeContext.md", operation="read")`** to get current active context
-8. Update active context:
-   - Update current work focus if the completed step was the active focus
-   - Note any new work that should be prioritized next
-9. **Use `manage_file(file_name="activeContext.md", operation="write", content="[updated content]", change_description="Updated active context after roadmap step completion")`** to save the updated active context
-10. **⚠️ MANDATORY: If the roadmap step references a plan file (e.g., phase-XX-*.md in the plans directory) and the work is too long to complete in one session**:
+**CRITICAL – Safe memory bank updates (MANDATORY):** Do NOT use full-content `manage_file(..., operation="write", content=<entire file>)` for roadmap, progress, or activeContext. Use the dedicated MCP tools below to avoid corruption.
+
+1. **Remove the completed step from roadmap**
+   - **MANDATORY:** Call **`remove_roadmap_entry(entry_contains="<unique substring>")`** with a substring that uniquely identifies the completed roadmap bullet (e.g. the step title or plan name). The tool removes that single bullet and writes the file safely.
+   - **FORBIDDEN:** Do NOT read roadmap, build updated content, and call `manage_file(roadmap.md, write, content=...)` with full content. That pattern causes corruption.
+   - Roadmap records future/upcoming work only; completed work belongs in activeContext only.
+
+2. **Add one progress entry**
+   - **MANDATORY:** Call **`append_progress_entry(date_str="YYYY-MM-DD", entry_text="**Title** - COMPLETE. Summary...")`** to add a single entry under the date section. Use today's date (YYYY-MM-DD). The tool appends one bullet safely.
+   - **FORBIDDEN:** Do NOT read progress, build full content, and call `manage_file(progress.md, write, content=...)` with full content.
+
+3. **Add completed work to activeContext**
+   - **MANDATORY:** Call **`append_active_context_entry(date_str="YYYY-MM-DD", title="<step title>", summary="<short summary>")`** to append one completed entry under ## Completed Work (date). The tool creates the section if needed and appends safely.
+   - **FORBIDDEN:** Do NOT read activeContext, build full content, and call `manage_file(activeContext.md, write, content=...)` with full content for this update.
+
+4. **Optional: Current focus / next steps**
+   - If you must update "Current Focus" or "Next Steps" in activeContext (e.g. the completed step was the active focus), prefer a minimal edit (e.g. small search-replace or targeted edit). Only if unavoidable, use read then write with minimal changed content; never build and write the entire file for a single completed-step update.
+
+5. **⚠️ MANDATORY: If the roadmap step references a plan file (e.g., phase-XX-*.md in the plans directory) and the work is too long to complete in one session**:
     - **Read the plan file** using standard file tools; resolve the plans directory path via `get_structure_info()` → `structure_info.paths.plans` (plans are not in memory bank)
     - **Update the plan file** to reflect the current implementation status:
       - Mark completed steps/tasks as "COMPLETED" or "✅"

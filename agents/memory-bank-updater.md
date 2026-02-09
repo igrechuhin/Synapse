@@ -45,13 +45,20 @@ manage_file(
 )
 ```
 
-### Roadmap writes
+### Roadmap – safe tools (MANDATORY for single-entry changes)
 
-For `roadmap.md` writes: always pass the **full file content**. Read the current roadmap via `manage_file(file_name="roadmap.md", operation="read")`, apply the intended edits (add or update one entry), then write the complete result with `manage_file(..., operation="write", content=...)`. **Never truncate or summarize existing entries.**
+- **Adding a single new plan entry** (e.g. when invoked from create-plan): **MUST** use **`register_plan_in_roadmap(...)`** or **`add_roadmap_entry(...)`**. Do **not** build full roadmap content or call `manage_file(roadmap.md, write, content=...)` for single-entry adds—that causes corruption.
+- **Removing a completed roadmap entry** (e.g. when invoked from implement Step 5): **MUST** use **`remove_roadmap_entry(entry_contains="<unique substring of the bullet>")`**. Do **not** read roadmap, build updated content, and call `manage_file(roadmap.md, write, content=...)`—that causes corruption.
+- For **other** roadmap edits (e.g. updating multiple entries at once): only then use read then write with full content. **Never truncate or summarize existing entries.**
 
-### Roadmap update (plan creation)
+### Progress and activeContext – safe tools (MANDATORY for implement-step updates)
 
-When invoked from the plan creation workflow (`/cortex/plan`), roadmap updates MUST use only `manage_file(file_name="roadmap.md", operation="write", content=<full roadmap text>, change_description="...")` with the complete, unabridged roadmap content. Do not use StrReplace, direct Write to the roadmap path, or any method that bypasses `manage_file`.
+When updating memory bank **after completing a roadmap step** (implement Step 5):
+
+- **Adding one progress entry**: **MUST** use **`append_progress_entry(date_str="YYYY-MM-DD", entry_text="**Title** - COMPLETE. Summary...")`**. Do **not** build full progress content or call `manage_file(progress.md, write, content=...)`.
+- **Adding one completed work entry to activeContext**: **MUST** use **`append_active_context_entry(date_str="YYYY-MM-DD", title="...", summary="...")`**. Do **not** build full activeContext content or call `manage_file(activeContext.md, write, content=...)` for this update.
+
+For other edits (e.g. bulk updates or non-append changes), use `manage_file(..., read)` then minimal edits and `manage_file(..., write)` only when necessary; prefer the append/remove tools when they apply.
 
 ### Metadata Query Example
 
