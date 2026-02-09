@@ -8,6 +8,8 @@
 
 **⚠️ FIXES WITHOUT EXPLICIT REQUEST (MANDATORY)**: When any step fails (formatting, type check, quality, tests, roadmap sync, timestamps, etc.), apply fixes automatically as part of the pipeline. Do NOT wait for or ask the user to request fixes; do NOT stop and report without attempting fixes first. Fixing is the default response to any failure. Only after applying fixes and re-running validation may you report and stop if validation still fails or context is insufficient.
 
+**⚠️ PROBLEM RESOLUTION FOCUS (MANDATORY)**: When a step fails, the pipeline must focus on **resolving the problem** in the same run—without waiting for the user to tell you to fix it. Your first response to any failure MUST be to attempt resolution (apply fixes, re-run validation). "Block commit" means: do not advance to the next step and do not create the commit until the failure is resolved. It does NOT mean: stop the pipeline and report to the user. Only after you have attempted fixes and re-run validation may you report and stop—and only if validation still fails after genuine fix attempts or context is insufficient to continue.
+
 **Tooling Note**: Use standard Cursor tools (`Read`, `ApplyPatch`, `Write`, `LS`, `Glob`, `Grep`) by default; MCP filesystem tools are optional fallbacks only when standard tools are unavailable or explicitly requested. **Use Cortex MCP tools for memory bank and rules operations** (e.g., `manage_file()`, `rules()`, `get_memory_bank_stats()`, `validate()`, `check_structure_health()`).
 
 **MCP TOOL USAGE (USE WHEN / EXAMPLES)**:
@@ -203,7 +205,7 @@ The following error patterns MUST be detected and fixed before commit. These are
 - **Validation**: Coverage percentage MUST be explicitly extracted and verified ≥ 90.0% before proceeding
 - **Enforcement**: If coverage < 90.0%, do not advance to Step 5; fix coverage in this same run (add tests, re-run tests) until coverage ≥ 90.0%. Only stop and provide summary if context is insufficient AFTER attempting fixes, per "Context Assessment" in Failure Handling.
 - **Re-run tests / coverage report (MANDATORY)**: When re-running tests or when you need a coverage report to fix coverage, use **only** the Cortex MCP tool:
-  - `execute_pre_commit_checks(checks=["tests"], test_timeout=300, coverage_threshold=0.90, strict_mode=False)`
+  - `execute_pre_commit_checks(checks=["tests"], test_timeout=600, coverage_threshold=0.90, strict_mode=False)`
   Do **NOT** run raw test commands in a Shell - use the MCP tool only. Running the test runner directly can produce huge output and long runs and bypass project timeout/configuration.
 
 **Coverage at commit (full test run)**:
@@ -212,7 +214,7 @@ The following error patterns MUST be detected and fixed before commit. These are
 
 **Coverage interpretation for focused work (targeted test runs only)**:
 
-- **New or modified code**: Must meet ≥95% coverage for Phase 62 changes, even when running focused tests.
+- **New or modified code**: Must meet ≥95% coverage.
 - **Global `fail-under=90` failures when running targeted tests**: When you run a **subset** of tests (e.g. only tests for one module), the **global** coverage number can still be below 90% because many modules were not exercised. In that situation only:
   - **"Logged as technical debt"** means: **document** the shortfall in Memory Bank (e.g. in `progress.md` or `activeContext.md`) and, where appropriate, add or reference a roadmap phase for coverage improvement — instead of blocking the current focused task or trying to fix all coverage ad hoc during unrelated work.
   - You must still **improve the test set** to achieve the 90% target; that work is tracked as a dedicated phase/plan (e.g. "Phase XX: raise coverage for module Y") rather than done ad hoc in the current change.
@@ -818,7 +820,7 @@ execute_pre_commit_checks(checks=["quality"])
 Use the MCP tool:
 
 ```python
-execute_pre_commit_checks(checks=["tests"], test_timeout=300, coverage_threshold=0.90, strict_mode=False)
+execute_pre_commit_checks(checks=["tests"], test_timeout=600, coverage_threshold=0.90, strict_mode=False)
 ```
 
 - **MUST verify**: `results.tests.success` = true (PRIMARY indicator)
@@ -1073,7 +1075,7 @@ Use this ordering when numbering results:
 #### **4. Test Execution**
 
 - **Status**: Success/Failure
-- **Command Used**: `execute_pre_commit_checks(checks=["tests"], test_timeout=300, coverage_threshold=0.90, strict_mode=False)` MCP tool
+- **Command Used**: `execute_pre_commit_checks(checks=["tests"], test_timeout=600, coverage_threshold=0.90, strict_mode=False)` MCP tool
 - **Tests Executed**: Count of tests executed (from tool response: `results.tests.tests_run`)
 - **Tests Passed**: Count of passing tests (from tool response: `results.tests.tests_passed`)
 - **Tests Failed**: Count of failing tests (from tool response: `results.tests.tests_failed`, must be 0)
@@ -1322,6 +1324,11 @@ Use this ordering when numbering results:
 
 ## Failure Handling
 
+**Block commit vs stop pipeline**:
+
+- **Block commit** = Do not advance to the next step; do not create the commit. Correct: keep the pipeline running and focus on resolving the failure (fix, re-validate) in this same run.
+- **Stop pipeline and report** = Only after you have attempted resolution (fixes + re-validation) and either validation still fails or context is insufficient. Wrong: stopping and reporting to the user as the first response to a failure—problem resolution is the first response.
+
 ### Code Quality Check Failure
 
 - **Action**: **PRIMARY FOCUS** - Fix ALL violations immediately, then assess context to continue or summarize
@@ -1370,11 +1377,11 @@ Use this ordering when numbering results:
 
 ### Coverage Below Threshold
 
-- **Action**: **PRIMARY FOCUS** - Fix coverage **in this same run** by adding tests and re-running until coverage ≥ 90.0%. Do NOT stop and report; treat like other violations (fix until resolved or context insufficient).
+- **Action**: **PRIMARY FOCUS** - Focus on **problem resolution**: fix coverage **in this same run** by adding tests and re-running until coverage ≥ 90.0%. Do NOT stop and report to the user as the first response; treat like other violations (fix until resolved or context insufficient).
 - **Process**:
-  1. **IMMEDIATE FIX**: Parse `results.tests.coverage` from test output; if < 0.90, coverage is a violation to fix in this run.
-  2. **FIX IN SAME RUN**: Add or improve tests (e.g. target recently changed or low-coverage modules), then re-run `execute_pre_commit_checks(checks=["tests"], test_timeout=300, coverage_threshold=0.90, strict_mode=False)`.
-  3. **CRITICAL**: Continue adding tests and re-running until `results.tests.coverage` ≥ 0.90 - do not stop after one or two attempts and report "blocked".
+  1. **IMMEDIATE FIX**: Parse `results.tests.coverage` from test output; if < 0.90, coverage is a violation to fix in this run. Do not stop and report—start adding tests.
+  2. **FIX IN SAME RUN**: Add or improve tests (e.g. target recently changed or low-coverage modules), then re-run `execute_pre_commit_checks(checks=["tests"], test_timeout=600, coverage_threshold=0.90, strict_mode=False)`.
+  3. **CRITICAL**: Continue adding tests and re-running until `results.tests.coverage` ≥ 0.90 - do not stop after one or two attempts and report "blocked". Problem resolution is the focus; only report after genuine fix attempts.
   4. **NEVER stop and report** with coverage < 90% unless: (a) context is insufficient after fixing, or (b) you have made multiple fix attempts with no coverage gain and need to recommend a dedicated coverage phase.
   5. **VALIDATION**: Re-run tests, verify `results.tests.success` = true AND `results.tests.coverage` ≥ 0.90 before proceeding to Step 5.
   6. **CONTEXT ASSESSMENT**: Only after coverage ≥ 90% (or genuine context exhaustion): continue pipeline or provide summary and re-run recommendation.
@@ -1468,6 +1475,7 @@ Use this ordering when numbering results:
 
 ### General Rules
 
+- **Problem resolution first**: When any step fails, the pipeline must focus on resolving the problem (fix, re-validate) in the same run. Do not stop and report to the user without attempting resolution first. Only after fixes and re-validation may you report and stop (e.g. validation still fails or context insufficient).
 - **Fixes without explicit request**: All fixes (type, lint, format, quality, tests, roadmap sync, timestamps, etc.) are applied automatically when a step fails. The user does not need to request fixes explicitly; switch to the fix flow as soon as a failure is detected.
 - **Error/Violation Priority**: When any error or violation is detected, **PRIMARY FOCUS** is to fix ALL of them immediately
 - **Fix ALL Issues Automatically**:
@@ -1544,6 +1552,7 @@ Use this ordering when numbering results:
 - ✅ **NO EXCEPTIONS**: Pre-existing violations do NOT bypass this check - CI will fail regardless
 - ✅ All executable tests pass (100% pass rate) - verified via test execution
 - ✅ **VALIDATION**: Test output parsed to confirm zero failures, 100% pass rate (from MCP tool response)
+- ✅ All executable tests pass (100% pass rate) - verified via test execution
 - ✅ Test coverage meets threshold (90%+) - verified via test execution
 - ✅ **VALIDATION**: Coverage percentage parsed from MCP tool response (`results.tests.coverage`) and confirmed ≥ 90.0% (MANDATORY)
 - ✅ **COVERAGE ENFORCEMENT**: Coverage threshold validation is absolute - no exceptions allowed

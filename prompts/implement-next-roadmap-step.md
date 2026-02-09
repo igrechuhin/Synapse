@@ -214,7 +214,7 @@ Before defining new data structures (classes, types, models, interfaces):
 ### Step 4.5: Verify Test Coverage (MANDATORY)
 
 1. **Run coverage analysis**:
-   - Use **only** Cortex MCP tool `execute_pre_commit_checks(checks=["tests"], test_timeout=300, coverage_threshold=0.90, strict_mode=False)` or, as fallback, the language-specific run_tests script from the Synapse scripts directory. Do **NOT** run raw `pytest` (or other test commands) in a Shell.
+   - Use **only** Cortex MCP tool `execute_pre_commit_checks(checks=["tests"], test_timeout=600, coverage_threshold=0.90, strict_mode=False)` or, as fallback, the language-specific run_tests script from the Synapse scripts directory. Do **NOT** run raw `pytest` (or other test commands) in a Shell.
    - Review coverage report for new/modified files
 2. **Verify coverage threshold** (per project's testing standards):
    - Check project's testing standards for required coverage threshold
@@ -392,7 +392,7 @@ Before defining new data structures (classes, types, models, interfaces):
 **Coverage Interpretation for Focused Work**:
 
 - **New or modified code**: Must meet ≥95% coverage for Phase 62 changes, even when running focused tests
-- **Global `fail-under=90` failures**: When running targeted tests (e.g., via `execute_pre_commit_checks(checks=["tests"], ...)` or the Synapse run_tests script with path args), global coverage failures dominated by untouched modules should be logged as technical debt in progress.md / activeContext.md via `manage_file()` (and, where appropriate, new coverage-raising phases), not "fixed ad hoc" during unrelated, narrow tasks
+- **Global `fail-under=95` failures**: When running targeted tests (e.g., via `execute_pre_commit_checks(checks=["tests"], ...)` or the Synapse run_tests script with path args), global coverage failures dominated by untouched modules should be logged as technical debt in progress.md / activeContext.md via `manage_file()` (and, where appropriate, new coverage-raising phases), not "fixed ad hoc" during unrelated, narrow tasks
 - **Recording coverage debt**: Document in Memory Bank with wording like: "Global coverage at 21.7% due to untested analysis/structure modules. This is expected legacy debt and does not block focused roadmap sync work. Coverage improvement tracked in Phase XX."
 - **Reference coverage plans**: Reference relevant coverage-improvement plan from roadmap entries instead of attempting broad, unscheduled coverage work
 
