@@ -43,7 +43,10 @@ For each completed plan found:
   - **Session optimization plans** (filename matches `session-optimization-*.md`): Extract date from filename or use creation date
     - Create archive directory: `mkdir -p .cortex/plans/archive/SessionOptimization/`
     - Move plan file: `mv .cortex/plans/session-optimization-*.md .cortex/plans/archive/SessionOptimization/`
-- Verify file was moved successfully
+- **Verify move and remove any duplicate (MANDATORY)**:
+  - After each move, check whether the same plan file still exists in `.cortex/plans/` (plans root, not archive). Resolve the path via `get_structure_info()` → `structure_info.paths.plans` then join with the plan filename.
+  - If the file exists in the plans root, **delete it** using the Delete tool so that only the archived copy remains. This prevents duplicates when the move does not remove the source (e.g. sandbox, editor save, or different filesystem behavior).
+  - Never leave a completed plan in the plans root; exactly one copy must exist, in the archive only.
 
 ### 3. Update links in memory bank files
 
@@ -62,6 +65,7 @@ For each completed plan found:
 
 - Re-check for completed plans: Run the same detection commands from Step 1 on `.cortex/plans/` directory
 - Verify zero completed plans remain in `.cortex/plans/` (excluding archive)
+- **Duplicate check**: List `.cortex/plans/` (root only) and ensure no file exists that has the same name as any plan just archived. If any such file exists, delete it (Delete tool) so only the archive copy remains.
 - Validate archive structure: Verify all archived plans are in PhaseX subdirectories
 - Check that no plans are directly in `.cortex/plans/archive/` (must be in PhaseX subdirectories)
 - List any violations found (must be empty)

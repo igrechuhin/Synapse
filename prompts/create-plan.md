@@ -223,7 +223,12 @@ Every new or enriched plan MUST be registered in the roadmap. Do not skip this s
    - **Implementation sequence** (see roadmap intro): section order is Blockers → Active Work → Future Enhancements → Implementation queue (Pending plans). Order within each section is top-to-bottom; the implement command picks the first PENDING item in this order.
    - Where to add the new plan entry so **execution order is correct**: use roadmap structure from `manage_file(read)` to place the entry in the right section and position.
 
-3. **Add or update plan entry in roadmap** (register the plan in correct order for execution):
+3. **Full-content rule and pre-write check (MANDATORY)**:
+   - **Prohibition**: Never pass a shortened, summarized, or placeholder version of the roadmap. The `content` parameter MUST be the complete file content as read in Step 6 (read roadmap). If the content would be larger than a safe payload, do not truncate; use the full content.
+   - **Pre-write check**: Before calling `manage_file(roadmap.md, write, content=...)`, confirm that the string length of `content` is at least as long as the roadmap content read in Step 6. If it is shorter, do not write; re-build the full content (current roadmap + new/updated entry only) and try again.
+   - **Prefer single-entry tools**: When available, prefer **`register_plan_in_roadmap`** or **`add_roadmap_entry`** for adding a single new plan entry instead of full-content write.
+
+4. **Add or update plan entry in roadmap** (register the plan in correct order for execution):
    - **If this is a new plan**:
      - **REQUIRED for adding a single new plan entry**: Use the Cortex MCP tool **`register_plan_in_roadmap(plan_title=..., description=..., status="PENDING", section=...)`**. Do **not** build full roadmap content or call `manage_file(roadmap.md, write, content=...)` for adding one plan entry—that causes roadmap corruption. Choose `section` from: `blockers` (for ASAP/blocker plans), `active_work`, `future`, or `pending` (default; use for most new plans). The tool performs server-side read-modify-write and inserts the entry in the correct place.
      - **Alternative**: If you need to add a single preformatted bullet line, use **`add_roadmap_entry(section=..., entry_text=..., position=...)`** instead of building full content.
@@ -239,10 +244,10 @@ Every new or enriched plan MUST be registered in the roadmap. Do not skip this s
      - For enrich/update that edits a single existing line, prefer a single `manage_file(roadmap.md, write, content=<full roadmap>, ...)` with the complete content if no tool supports in-place line edit; keep that path rare and never truncate.
      - Ensure the link to the plan file remains correct and roadmap formatting is preserved.
 
-4. **Update roadmap file** (mandatory tool usage):
+5. **Update roadmap file** (mandatory tool usage):
    - **PROHIBITED**: Updating the roadmap during plan creation by StrReplace, direct Write to the roadmap file path, or any edit that bypasses Cortex MCP tools. Using StrReplace or direct Write is a critical violation.
    - **REQUIRED for new plan**: For **adding one new plan entry**, you **must** call **`register_plan_in_roadmap`** (or **`add_roadmap_entry`** for a single formatted line). Do **not** use `manage_file(roadmap.md, write, content=...)` for single-entry adds—that leads to roadmap corruption from full-content string assembly.
-   - **Fallback only**: Use `manage_file(file_name="roadmap.md", operation="write", content=<complete resulting text>, change_description=...)` only when (a) updating multiple entries in one go, or (b) enriching an existing entry and no single-entry tool applies, or (c) `register_plan_in_roadmap` is unavailable. When using fallback, the `content` MUST be the full, unabridged roadmap text; never truncate, summarize, or shorten existing bullets.
+   - **Fallback only**: Use `manage_file(file_name="roadmap.md", operation="write", content=<complete resulting text>, change_description=...)` only when (a) updating multiple entries in one go, or (b) enriching an existing entry and no single-entry tool applies, or (c) `register_plan_in_roadmap` is unavailable. When using fallback, the `content` MUST be the full, unabridged roadmap text; never truncate, summarize, or shorten existing bullets. Before calling, verify `len(content) >= len(roadmap_as_read_in_step_6)`; if shorter, do not write—re-build full content and try again.
    - Ensure roadmap formatting is preserved and verify the update was successful
 
 ### Step 7: Verify Completion

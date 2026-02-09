@@ -292,6 +292,13 @@ Before defining new data structures (classes, types, models, interfaces):
 
 **CRITICAL – Safe memory bank updates (MANDATORY):** Do NOT use full-content `manage_file(..., operation="write", content=<entire file>)` for roadmap, progress, or activeContext. Use the dedicated MCP tools below to avoid corruption.
 
+**When the completed step references a plan file (e.g. Plan: .cortex/plans/session-optimization-....md):**
+
+- **PREFERRED:** Call **`complete_plan(plan_title="<step title>", summary="<short summary>", completion_date="YYYY-MM-DD", progress_entry="**Title** - COMPLETE. Summary...", plan_file_name="<plan basename>")`** with the plan file basename (e.g. `session-optimization-roadmap-full-content-enforcement.md`). This single tool: removes the roadmap bullet, appends to activeContext, appends to progress, and **moves (archives) the plan file** to the correct archive directory. No separate archive step is needed for that plan.
+- **Alternative:** If you cannot use complete_plan, use the three tools below and then run the plan-archiver agent (Step 6.5) to archive the plan file manually.
+
+**When the step does not reference a plan file, or you use the alternative:**
+
 1. **Remove the completed step from roadmap**
    - **MANDATORY:** Call **`remove_roadmap_entry(entry_contains="<unique substring>")`** with a substring that uniquely identifies the completed roadmap bullet (e.g. the step title or plan name). The tool removes that single bullet and writes the file safely.
    - **FORBIDDEN:** Do NOT read roadmap, build updated content, and call `manage_file(roadmap.md, write, content=...)` with full content. That pattern causes corruption.
@@ -342,8 +349,8 @@ Before defining new data structures (classes, types, models, interfaces):
 **Use the `plan-archiver` agent (Synapse agents directory) for this step.**
 
 - **Dependency**: Must run AFTER Step 5 (memory bank updates) and Step 6 (verify completion)
-- **MANDATORY**: If the roadmap step references a plan file and the plan is now COMPLETE, archive it immediately
-- **CRITICAL**: Do not leave completed plans in `.cortex/plans/` - archive them as soon as status becomes COMPLETE
+- **If you used `complete_plan(..., plan_file_name=...)` in Step 5:** The plan file was already moved to the archive by that tool; no duplicate should remain in `.cortex/plans/`. Still run the plan-archiver agent to catch any other completed plans (e.g. from previous sessions) and to validate.
+- **If you used the three separate tools (remove_roadmap_entry, append_progress_entry, append_active_context_entry):** The plan file was NOT archived; you MUST run the plan-archiver agent to move the plan file to the correct archive directory.
 - **Workflow**:
   1. **READ** the plan-archiver agent file (Synapse agents directory: `.cortex/synapse/agents/plan-archiver.md`)
   2. **EXECUTE** all execution steps from the agent file:
@@ -355,9 +362,10 @@ Before defining new data structures (classes, types, models, interfaces):
      - Update links in memory bank files to point to archive locations
      - Validate links using `validate_links()` MCP tool
      - Validate archive locations (verify zero completed plans remain in `.cortex/plans/`)
+     - **Remove duplicate if present**: After each move, if the same plan file still exists in `.cortex/plans/` (root), delete it so only the archived copy remains. Never leave a copy in the plans root.
   3. **Report results**: Count of plans found, archived, links updated, validation status
   4. **If no completed plans found**: Report "0 plans archived" but DO NOT skip this step
-- **BLOCKING**: If completed plans are found but not archived, or if link validation fails, this is a violation
+- **BLOCKING**: If completed plans are found but not archived, or if link validation fails, or if a duplicate remains in the plans root, this is a violation
 
 ### Step 7: Execute end-of-session Analyze (MANDATORY)
 

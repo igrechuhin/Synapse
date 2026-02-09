@@ -48,6 +48,8 @@ manage_file(
 ### Roadmap – safe tools (MANDATORY for single-entry changes)
 
 - **Adding a single new plan entry** (e.g. when invoked from create-plan): **MUST** use **`register_plan_in_roadmap(...)`** or **`add_roadmap_entry(...)`**. Do **not** build full roadmap content or call `manage_file(roadmap.md, write, content=...)` for single-entry adds—that causes corruption.
+- **Roadmap update (plan creation)**: Never pass truncated or summarized roadmap content to `manage_file(write)`. The content must be the full, unabridged roadmap text. If in doubt, content length must be >= length of the roadmap as last read.
+- **Recovery**: If a previous write accidentally used truncated content, restore by reading the roadmap from version control (e.g. `git show HEAD:.cortex/memory-bank/roadmap.md`) or from backup, append the intended new/updated entry, then write the full result.
 - **Removing a completed roadmap entry** (e.g. when invoked from implement Step 5): **MUST** use **`remove_roadmap_entry(entry_contains="<unique substring of the bullet>")`**. Do **not** read roadmap, build updated content, and call `manage_file(roadmap.md, write, content=...)`—that causes corruption.
 - For **other** roadmap edits (e.g. updating multiple entries at once): only then use read then write with full content. **Never truncate or summarize existing entries.**
 
