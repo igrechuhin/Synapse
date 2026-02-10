@@ -9,6 +9,27 @@ import os
 from pathlib import Path
 
 
+def _get_cortex_dir_names() -> tuple[str, str]:
+    """Return Cortex and Synapse directory names with graceful fallback.
+
+    Uses shared path constants when the cortex package is importable,
+    otherwise falls back to default literals for standalone environments.
+    """
+    try:
+        # Prefer shared Cortex path constants when available
+        from cortex.core.path_resolver import CortexResourceType
+
+        return CortexResourceType.CORTEX_DIR.value, CortexResourceType.SYNAPSE.value
+    except Exception:  # pragma: no cover - fallback when core package unavailable
+        # Fallback literals for environments where cortex package isn't importable
+        return ".cortex", "synapse"
+
+
+_CORTEX_DIR_NAME, _SYNAPSE_DIR_NAME = _get_cortex_dir_names()
+
+_SCRIPTS_DIR_NAME = "scripts"
+
+
 def get_project_root(script_path: Path | None = None) -> Path:
     """Get the project root directory.
 
@@ -39,7 +60,7 @@ def get_project_root(script_path: Path | None = None) -> Path:
         # Find .cortex in the path
         cortex_idx = None
         for i, part in enumerate(parts):
-            if part == ".cortex":
+            if part == _CORTEX_DIR_NAME:
                 cortex_idx = i
                 break
 
@@ -61,7 +82,7 @@ def get_project_root(script_path: Path | None = None) -> Path:
         ]
 
         # Skip if we're still inside .cortex/synapse
-        if ".cortex" in str(path) and "synapse" in str(path):
+        if _CORTEX_DIR_NAME in str(path) and _SYNAPSE_DIR_NAME in str(path):
             continue
 
         # Check if this looks like a project root
@@ -175,7 +196,7 @@ def get_synapse_scripts_dir(project_root: Path) -> Path:
     scripts_dir = get_config_path("SCRIPTS_DIR")
     if scripts_dir is None:
         # Default to .cortex/synapse/scripts
-        return project_root / ".cortex" / "synapse" / "scripts"
+        return project_root / _CORTEX_DIR_NAME / _SYNAPSE_DIR_NAME / _SCRIPTS_DIR_NAME
 
     # Make path relative to project root if not absolute
     if not scripts_dir.is_absolute():
