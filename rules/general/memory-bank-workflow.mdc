@@ -23,6 +23,10 @@ alwaysApply: true
 
 **VIOLATION**: Hardcoding paths like `.cortex/plans/`, `.cursor/memory-bank/`, or similar is a violation; use Cortex tools and semantic names instead.
 
+## Code identifiers in progress and plans (MANDATORY)
+
+When writing progress.md or plan files that reference code (function names, helpers, module names), verify identifiers against the codebase (e.g. grep or read the relevant module) so names like `_get_manager_helper`, `_init_core_managers` are spelled correctly. Prefer backticks for all code identifiers to avoid MD037 and corruption (e.g. `` `_get_manager_helper` ``, `` `_init_core_managers` ``). See [markdown-formatting.mdc](../markdown/markdown-formatting.mdc) Code identifiers (MD037).
+
 ## Link Validation Requirements (ENFORCED)
 
 **CRITICAL**: Links in Memory Bank files MUST be validated after ANY file operation that could affect link integrity.

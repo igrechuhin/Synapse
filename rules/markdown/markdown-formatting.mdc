@@ -12,7 +12,7 @@ alwaysApply: false
 
 1. ✅ **Read this rule file completely** - Understand all formatting requirements
 2. ✅ **Check file type** - Verify the file matches `*.md` or `*.mdc` patterns
-3. ✅ **Apply rules during writing** - Follow MD009, MD012, MD022, MD031, MD032, MD036, MD029, MD024, MD040 while writing
+3. ✅ **Apply rules during writing** - Follow MD009, MD012, MD022, MD031, MD032, MD036, MD037, MD029, MD024, MD040, MD059 while writing
 4. ✅ **Validate after writing** - Run `read_lints` on the file to check for violations
 5. ✅ **Fix violations immediately** - Do not consider the file complete until all violations are resolved
 
@@ -129,6 +129,23 @@ alwaysApply: false
   - `**None identified**` → Convert to regular text: `No issues identified.`
   - `**Key Findings**:` → Convert to `### Key Findings`
   - `**Recommendations**:` → Convert to `### Recommendations` (or make unique: `### Review Recommendations`)
+
+### Plan Status (MD036 in plan files) (ENFORCED)
+
+- **Status section format**: In plan files, the Status section MUST use plain text or a heading for the status value—never emphasis alone.
+- **Good**: `Status: PENDING`, `Status: COMPLETE`, or `### PENDING` (heading).
+- **Bad**: `**PENDING**` or `**COMPLETE**` on a line by itself—emphasis used instead of a heading triggers MD036.
+- **Fix**: Use `Status: VALUE` or a heading (e.g. `### PENDING`); do not use `**VALUE**` as the status line.
+
+### Code identifiers (MD037) (ENFORCED)
+
+- **No space inside emphasis** - MD037: When markdown interprets `_` or `*` as emphasis, unintended formatting or broken identifiers occur.
+- **Code identifiers MUST use inline code (backticks)** - Any function, variable, or symbol name containing `_` or `*` MUST be written in inline code in progress, plans, and memory-bank markdown.
+- **Examples (REQUIRED)**:
+  - `` `add_*` `` and `` `_create_*` `` (wildcards / private names)
+  - `` `_init_core_managers` ``, `` `_get_manager_helper` ``
+- **Violation**: Writing `_get_manager_helper` or `add_*` without backticks triggers MD037 (spaces inside emphasis) and can corrupt identifiers (e.g. `helpert_manager_helper`, `_ntcore_managers`).
+- **Fix**: Wrap all code identifiers in backticks so they are not parsed as emphasis.
 
 ## Ordered List Numbering (MD029) (ENFORCED)
 
@@ -373,7 +390,7 @@ No vulnerabilities identified.
 **MANDATORY VALIDATION STEPS:**
 
 1. **Before writing**: Read this rule file completely
-2. **During writing**: Apply all formatting rules (MD009, MD012, MD022, MD031, MD032, MD036, MD029, MD024, MD040, MD059)
+2. **During writing**: Apply all formatting rules (MD009, MD012, MD022, MD031, MD032, MD036, MD037, MD029, MD024, MD040, MD059)
 3. **After writing**: Run `read_lints` on the file to verify compliance
 4. **Before completion**: Fix all violations - file is NOT complete until lint passes
 5. **Strip BOMs**: Ensure no UTF-8 BOM is present when creating or saving markdown files to avoid hidden lint issues
@@ -387,6 +404,7 @@ No vulnerabilities identified.
 - **MD012 violations**: Multiple blank lines - Remove extra blank lines, keeping exactly one blank line where needed
 - **MD022 violations**: Headings without blank lines - Add one blank line before and after each heading
 - **MD036 violations**: Emphasis used as headings - Replace bold text with proper heading syntax where appropriate
+- **MD037 violations**: No space inside emphasis / code identifiers - Wrap function/symbol names containing `_` or `*` in backticks (e.g. `` `_get_manager_helper` ``)
 - **MD029 violations**: Inconsistent ordered list numbering - Renumber lists to start at 1 within each section
 - **MD024 violations**: Duplicate headings - Rename headings to be unique and descriptive
 - **MD059 violations**: Non-descriptive link text - Use clear, descriptive link labels (e.g., "GitLab issue form") instead of generic "link"/"here"

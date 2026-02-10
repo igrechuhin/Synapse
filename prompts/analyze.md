@@ -21,7 +21,7 @@ At end of session, run a single "check all" analysis: (1) evaluate `load_context
    - `systemPatterns.md` – architectural patterns
    - `techContext.md` – technical context
 
-2. **Read relevant rules** (Cortex MCP tool `rules(operation="get_relevant", task_description="Coding standards, session analysis")` or rules directory path from `get_structure_info()` → `structure_info.paths.rules`).
+2. **Read relevant rules** (Cortex MCP tool `rules(operation="get_relevant", task_description="Coding standards, session analysis")` or rules directory path from `get_structure_info()` → `structure_info.paths.rules`). If rules indexing is disabled (`rules(operation="get_relevant", ...)` returns `status: "disabled"`), read key rules from the Synapse rules directory (path from `get_structure_info()` → `structure_info.paths.rules`) or from AGENTS.md/CLAUDE.md for coding standards and memory bank access.
 
 3. **Context-effectiveness recall** (for manual fallback if needed):
    - Recall `load_context` / `load_progressive_context` calls this session: task descriptions, files selected, relevance scores, token budget and utilization.

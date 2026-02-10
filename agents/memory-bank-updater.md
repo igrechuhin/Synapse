@@ -23,6 +23,7 @@ Key practices:
 - Use YY-MM-DD timestamp format only (no time components)
 - Keep entries reverse-chronological
 - Update after significant changes (MANDATORY)
+- **Code symbols in progress/plans**: When documenting refactors or implementation steps, use correct code symbols. Verify function/module names (e.g. `_get_manager_helper`, `_init_core_managers`) against the codebase (grep or read the relevant module) so names are spelled correctly. Wrap all code identifiers in backticks to avoid MD037 and corruption (e.g. `` `_get_manager_helper` ``, `` `_init_core_managers` ``).
 
 ## Correct `manage_file` Usage
 

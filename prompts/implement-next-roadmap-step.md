@@ -39,8 +39,8 @@ When executing steps, delegate to the appropriate agent for specialized work, th
      - Dependencies or prerequisites
      - Estimated scope/complexity
 
-2. ✅ **Load relevant context** - Understand current project context:
-   - **Use Cortex MCP tool `load_context(task_description="[roadmap step description]", token_budget=50000)`** to get optimal context for the roadmap step
+2. ✅ **Load relevant context** - Understand current project context (at step start):
+   - **At step start** (right after reading the roadmap and picking the next step), call **Cortex MCP tool `load_context(task_description="[roadmap step description]", token_budget=[task-appropriate budget])`** so the current session is recorded for end-of-session analyze. Use the task-type token budget mapping in Step 1 below.
    - **Alternative**: Use `load_progressive_context(task_description="[roadmap step description]")` to load context progressively
    - **Optional**: Use `get_relevance_scores(task_description="[roadmap step description]")` to see which memory bank files are most relevant
    - The context loading tools will automatically select relevant files (activeContext.md, progress.md, projectBrief.md, systemPatterns.md, techContext.md, etc.) based on the task
@@ -48,6 +48,7 @@ When executing steps, delegate to the appropriate agent for specialized work, th
 
 3. ✅ **Read relevant rules** - Understand implementation requirements:
    - Use Cortex MCP tool `rules(operation="get_relevant", task_description="Implementation, code quality, memory bank, testing")` to load rules, or read from the rules directory (path from `get_structure_info()` → `structure_info.paths.rules`)
+   - **When `rules()` returns `status: "disabled"`**: Still load key coding standards by reading from the rules directory (path from `get_structure_info()` → `structure_info.paths.rules`) using the Read tool, so implementation quality is maintained.
    - Ensure coding standards, language-specific standards, memory-bank workflow, and testing standards are in context
 
 4. ✅ **Verify implementation against rules and run quality gate** - After implementation, verify conformance:
@@ -79,6 +80,15 @@ The **roadmap defines the implementation sequence** (see the "Implementation seq
    - If the entry references a plan file (e.g. `Plan: .cortex/plans/phase-XX-....md`): resolve the plan path via `get_structure_info()` → `structure_info.paths.plans`; read the plan file with standard file tools; implement the plan **in sequential step order** (see "Plan step sequence" below).
    - Otherwise implement the step from the roadmap entry (description, requirements).
 
+**Call load_context at step start**: Right after picking the next step, call `load_context(task_description="[description of roadmap step]", token_budget=[task-appropriate budget])` so the session is recorded for end-of-session analyze.
+
+**Task-type token budget** (aligns with context-effectiveness insights; reduces over-provisioning):
+
+- **update/modify, implement/add**: 10,000
+- **fix/debug, other**: 15,000
+- **small feature**: 20,000–30,000
+- **architecture/large design**: 40,000–50,000
+
 **Plan step sequence (MANDATORY when implementing a plan)**:
 
 - **Architecture/large design**: Use `token_budget=40000-50000` (broad scope)
@@ -96,8 +106,8 @@ The **roadmap defines the implementation sequence** (see the "Implementation seq
 - **Moderate relevance**: Include when task description matches file content
 - **Lower relevance**: Consider excluding for narrow fix/debug workflows
 
-1. **Use Cortex MCP tool `load_context(task_description="[description of roadmap step]", token_budget=[task-appropriate budget])`** to get optimal context for the implementation task
-   - Select token budget based on task type (fix/debug: 15000, small feature: 20000-30000, architecture: 40000-50000)
+1. **Use Cortex MCP tool `load_context(task_description="[description of roadmap step]", token_budget=[task-appropriate budget])`** to get optimal context for the implementation task (and to record the session for end-of-session analyze).
+   - Select token budget from the task-type mapping above: update/modify or implement/add → 10,000; fix/debug or other → 15,000; small feature → 20,000–30,000; architecture/large design → 40,000–50,000.
    - This tool will automatically select and return relevant memory bank files based on the task description
    - The returned context will include: current project state, related work, technical constraints, patterns, and any relevant context
    - Review `file_effectiveness` recommendations in the response to understand which files are high/moderate/lower relevance
@@ -170,6 +180,7 @@ Before defining new data structures (classes, types, models, interfaces):
    - Create/modify/delete files as needed
    - Write or update code according to coding standards
    - Ensure type annotations are complete per language-specific standards
+   - When adding new functions, keep each under the project limit (≤30 logical lines); if a function grows beyond that, extract helpers before running the full quality gate.
    - Follow language-specific best practices and modern features
    - Keep functions/methods and files within project's length/size limits (check language-specific standards)
    - Use dependency injection (no global state or singletons)
@@ -291,6 +302,10 @@ Before defining new data structures (classes, types, models, interfaces):
 **Use the `memory-bank-updater` agent (Synapse agents directory) for this step.**
 
 **CRITICAL – Safe memory bank updates (MANDATORY):** Do NOT use full-content `manage_file(..., operation="write", content=<entire file>)` for roadmap, progress, or activeContext. Use the dedicated MCP tools below to avoid corruption.
+
+- **Requirement**: All updates to roadmap.md, progress.md, activeContext.md, and any other memory bank file MUST be performed with `manage_file(file_name='...', operation='write', ...)`. Read current content with `manage_file(operation='read')` before writing when building updated content.
+- **Prohibition**: Do NOT use Write, StrReplace, or ApplyPatch on files under the memory bank directory (path from `get_structure_info()` → `structure_info.paths.memory_bank`). Using standard file tools for memory bank writes is a **VIOLATION**.
+- **Full-content fallback**: If you need to change only one line (e.g. one roadmap entry), read the file via `manage_file(operation='read')`, compute the full updated content (e.g. replace the line in the returned string), then call `manage_file(operation='write', content=updated_content, ...)`. Do not use Write, StrReplace, or ApplyPatch on memory bank paths.
 
 **When the completed step references a plan file (e.g. Plan: .cortex/plans/session-optimization-....md):**
 

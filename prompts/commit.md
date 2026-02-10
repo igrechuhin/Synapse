@@ -287,6 +287,11 @@ The following error patterns MUST be detected and fixed before commit. These are
 - **Action**: Use script tooling: call `capture_session_script` and/or `analyze_session_scripts` or `suggest_tool_improvements` as appropriate. Not using script tooling is a process violation.
 - **Block Commit**: Yes - script runs without analysis violate Phase 27 script-generation-prevention and implement-next-roadmap-step guidance; do not proceed until script tooling has been used.
 
+### Plan Status and side-effect imports (Step 12)
+
+- **New or modified plan files**: Ensure the Status section uses `Status: VALUE` or a heading (e.g. `### PENDING`), not `**VALUE**` alone—avoids MD036.
+- **New or modified tests with side-effect imports**: Ensure the import is referenced (e.g. `_ = module`) so the type checker does not report it as unused (satisfies reportUnusedImport).
+
 ### Type Checker Warnings
 
 - **Pattern**: Type checker reports warnings (not errors)

@@ -258,6 +258,20 @@ def test_calculate_total_includes_tax():
 - **CI Validation**: CI MUST fail if test files import private functions
 - **Code Review**: All private function imports in tests MUST be rejected
 
+## Side-Effect Imports (ENFORCED)
+
+- **Imports used only for side effects** (e.g. test setup or registration): Reference the module so the type checker does not report it as unused.
+- **Prefer**: `_ = module` or a single use (e.g. `getattr(module, '__name__')`).
+- **Do not rely only on** `# noqa: F401` when using Pyright—it does not suppress `reportUnusedImport`.
+- **Example (required)**:
+
+```python
+# Side-effect import for MCP tool registration
+import cortex.main
+
+_ = cortex.main  # Satisfies Pyright reportUnusedImport
+```
+
 ## Violations (BLOCKED)
 
 - ❌ Tests without clear AAA structure
@@ -275,6 +289,7 @@ def test_calculate_total_includes_tax():
 - ❌ Importing private functions (prefixed with `_`) in test files
 - ❌ Using `# type: ignore[reportPrivateUsage]` to test private functions
 - ❌ Direct testing of private implementation details
+- ❌ Side-effect-only imports without referencing the module (e.g. missing `_ = module`); triggers reportUnusedImport with Pyright
 
 ## Enforcement
 
