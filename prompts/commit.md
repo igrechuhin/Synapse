@@ -37,7 +37,7 @@
     - Load rules relevant to commit/test work:
       - `rules(operation="get_relevant", task_description="Commit pipeline and test coverage enforcement")`
 
-**Pre-Commit Checks**: Use the `execute_pre_commit_checks()` MCP tool for all pre-commit operations (fix errors, format, type check, quality, tests). **CRITICAL**: The tool resolves project root internally (via MCP context when available) and language on its own. **NEVER pass `project_root` as a parameter** - all Cortex MCP tools resolve project root internally. It provides:
+**Pre-Commit Checks (Phase A helper)**: Prefer the `run_preflight_checks()` MCP tool as the primary entrypoint for Phase A preflight (Steps 0–4). Under the hood it uses `execute_pre_commit_checks()` for the default preflight checks (fix_errors, format, type_check, quality, tests) and `fix_markdown_lint()` once, and returns a structured result with a top-level `preflight_passed` flag and per-check summaries. **CRITICAL**: All of these tools resolve project root internally (via MCP context when available) and language on their own. **NEVER pass `project_root` as a parameter** - Cortex MCP tools resolve project root internally. When you need to re-run a single check (e.g., during Step 12) or debug a specific failure, call `execute_pre_commit_checks()` directly as documented below. Both tools provide:
 
 - Language auto-detection (resolved internally)
 - Structured parameters and return values
@@ -153,6 +153,27 @@ Steps without agents are handled directly by the orchestration workflow.
 4. **BLOCK**: If rules have not been loaded/read for this run, do not proceed to Step 0.
 
 **Checklist item**: Rules loaded via MCP (rules tool) or rule files read: Yes / No. If No, do not proceed. When the rules tool returns `disabled`, satisfy via file read and record "Rules loaded: Yes (via file read)".
+
+## Phase Helper MCP Tools (Phase A and B)
+
+To reduce prompt size and make the commit pipeline easier to orchestrate, use the dedicated phase helpers instead of micromanaging every individual check where possible:
+
+- **Phase A – `run_preflight_checks`**:
+  - Call `run_preflight_checks(test_timeout=300, coverage_threshold=0.90, strict_mode=False)` once at the start of the pipeline (after rules are loaded).
+  - Inspect the structured JSON response:
+    - If `status="error"`, treat this as a tool failure and stop the commit pipeline; report the error and do not attempt to commit.
+    - If `status="success"` but `preflight_passed` is `False`, stop the commit pipeline, summarize failing checks from the `checks` array (e.g. `tests`, `quality`, `markdown_lint`), and point the user to targeted follow-up commands (such as dedicated test/quality fix flows) instead of trying to debug everything inside `/cortex/commit`.
+    - Only when `status="success"` and `preflight_passed` is `True` may you proceed to Phase B and later phases.
+  - Use direct `execute_pre_commit_checks()` calls later only when you need to re-run a specific check (e.g. within Step 12) or for focused debugging of a single failure.
+
+- **Phase B – `run_docs_and_memory_bank_sync`**:
+  - After completing the state-changing docs/memory steps (5–8), call `run_docs_and_memory_bank_sync()` once to validate timestamps and roadmap/memory-bank sync.
+  - Inspect the structured JSON response:
+    - If `status="error"`, treat this as a tool failure and stop the commit pipeline; report the error and do not attempt to commit.
+    - If `status="success"` but `docs_phase_passed` is `False`, stop the commit pipeline, summarize issues from the `checks` array (e.g. `timestamps`, `roadmap_sync`), and fix them before proceeding.
+    - Only when `status="success"` and `docs_phase_passed` is `True` may you proceed to Phase C (submodule + final gate + git operations).
+
+These helpers encapsulate the detailed validation logic for Phases A and B so `/cortex/commit` can focus on high-level orchestration and clear failure semantics.
 
 ## ⚠️ CRITICAL: Synapse Architecture (MANDATORY)
 
@@ -1418,7 +1439,7 @@ Use this ordering when numbering results:
 - **Action**: (1) **Retry the tool once.** (2) If it fails again with the same class of error (or with "tool not found" / similar after a connection closed error), perform the documented fallback for that step and record "MCP connection closed; fallback used" so the pipeline can proceed. Do not block the pipeline on "tool not found" after a disconnect—use the documented fallback.
 - **Fallbacks** (documented): Stop and report.
 - **Rationale**: Long-running tools may complete on the server after the client has closed the connection; "Connection closed" can mean client timeout/disconnect, not necessarily tool failure. Retry once then fallback (or explicit commit block for `fix_quality_issues`) allows the pipeline to behave predictably instead of silently failing.
-- **Note (fix_markdown_lint)**: The server sends per-file progress and a 15 s heartbeat for `fix_markdown_lint`; MCP error -32000 ("Connection closed") can still occur due to client-side timeout (e.g. ~60 s). Retry once, then use the documented shell fallback (Step 12.5) and record "MCP connection closed; fallback used".
+- **Note (fix_markdown_lint)**: The server sends per-file progress and a 5 s heartbeat for `fix_markdown_lint`, and runs markdownlint in batches to reduce duration; MCP error -32000 ("Connection closed") can still occur due to client-side timeout. Retry once, then use the documented shell fallback (Step 12.5) and record "MCP connection closed; fallback used".
 
 ### MCP Tool Failure (CRITICAL)
 
