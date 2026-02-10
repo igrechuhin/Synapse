@@ -242,6 +242,12 @@ When you create or execute any script (inline snippet or file) during a session:
 - Do not run scripts without using script tooling; not using it is a process violation.
 - This aligns with Phase 27 script-generation-prevention and implement-next-roadmap-step guidance.
 
+## End-of-session Analyze prompt for high-level workflows (MANDATORY)
+
+- **Prompts**: All high-level Synapse prompts that orchestrate multi-step workflows (for example `commit.md`, `review.md`, `implement-next-roadmap-step.md`, `create-plan.md`) MUST include a final step that executes the **Analyze (End of Session)** prompt (`analyze.md` from the Synapse prompts directory).
+- **New prompts**: When adding or refactoring any prompt under `.cortex/synapse/prompts/`, ensure its final workflow step instructs the agent to run `analyze.md` after the main work completes so context effectiveness and session optimization analysis always occur.
+- **Path resolution**: Resolve the Analyze prompt path via project structure or `get_structure_info()` (e.g. Synapse prompts directory); the prompt file is `analyze.md`. Treat failure to execute this final Analyze step as a process violation for that workflow.
+
 ## General Behavioral Principles
 
 - Be concise but never cryptic.

@@ -20,7 +20,7 @@
 - **Plans directory**: Use `get_structure_info()` → `structure_info.paths.plans` for the plans directory path
 - **Roadmap (memory bank)**: Use `manage_file(file_name="roadmap.md", operation="read"|"write", ...)` to read/write the roadmap; do not hardcode the memory-bank path or filename
 
-**Sequential Thinking**: If sequential thinking MCP is available, use it to ensure best results when creating the plan.
+**Sequential Thinking**: If the `sequentialthinking` tool from Cortex MCP is available, use it to ensure best results when creating the plan.
 
 **Agent Delegation**: This prompt orchestrates plan creation and delegates specialized tasks to dedicated agents in the Synapse agents directory:
 
@@ -53,8 +53,8 @@ When executing steps, delegate to the appropriate agent for specialized work, th
    - **Use Cortex MCP tool `manage_file(file_name="projectBrief.md", operation="read")`** to understand project goals
    - **Use Cortex MCP tool `manage_file(file_name="systemPatterns.md", operation="read")`** to understand architectural patterns
 
-3. ✅ **Check for sequential thinking MCP** - Use if available for better plan quality:
-   - Check if sequential thinking MCP server is available (list MCP servers/resources)
+3. ✅ **Check for `sequentialthinking` MCP tool** - Use if available for better plan quality:
+   - Check if the `sequentialthinking` MCP tool is available (list MCP servers/resources or tools)
    - If available, use it to think through the plan structure and ensure comprehensive coverage
    - If not available, proceed with standard planning approach
 
@@ -119,10 +119,10 @@ When executing steps, delegate to the appropriate agent for specialized work, th
 5. **Record decision**:
    - Keep track of whether you are **enriching an existing plan** (with its path) or **creating a new plan**. This decision controls later steps.
 
-### Step 3: Check for Sequential-Thinking MCP
+### Step 3: Check for `sequentialthinking` MCP tool
 
-1. **List available MCP resources** to check if sequential-thinking MCP is available
-2. If sequential thinking MCP is available:
+1. **List available MCP resources or tools** to check if the `sequentialthinking` MCP tool is available
+2. If the `sequentialthinking` tool is available:
    - Use it to think through the plan structure systematically
    - Ensure comprehensive coverage of all aspects
    - Validate plan completeness and coherence
@@ -359,6 +359,13 @@ The plan creation is considered complete when:
 - ✅ All paths obtained dynamically using MCP tools
 - ✅ Sequential-thinking MCP used if available
 - ✅ Clarifying questions asked if needed
+- ✅ **Analyze prompt executed** – Analyze (End of Session) prompt (`analyze.md`) run after plan creation to complete context effectiveness and session optimization analysis
+
+## After creating a plan (MANDATORY): Execute Analyze prompt
+
+- **Dependency**: Must run AFTER the plan file is created and registered in the roadmap (success criteria above).
+- **MANDATORY**: At the end of the plan creation workflow, you MUST execute the **Analyze (End of Session)** prompt (`analyze.md` from the Synapse prompts directory). Read and execute that prompt in full: it runs context effectiveness analysis and session optimization, saves a report to the reviews directory, and optionally creates an improvements plan. Do not skip this step.
+- **Path**: Resolve the Analyze prompt path via project structure or `get_structure_info()` (e.g. Synapse prompts directory); the prompt file is `analyze.md`.
 
 ## OUTPUT FORMAT
 
@@ -371,7 +378,7 @@ Provide a structured plan creation report:
 - **Plan Title**: Title of the created plan
 - **Roadmap Updated**: Whether roadmap was successfully updated
 - **Clarifying Questions Asked**: List of questions asked (if any)
-- **Sequential-Thinking Used**: Whether sequential-thinking MCP was used
+- **Sequentialthinking Tool Used**: Whether the `sequentialthinking` MCP tool was used
 
 ### **Plan Details**
 
@@ -402,6 +409,6 @@ Provide a structured plan creation report:
 - The agent should be thorough and create a complete, actionable plan
 - Always use Cortex MCP tools for path resolution and memory bank operations
 - Ask clarifying questions proactively to ensure plan quality
-- Use sequential-thinking MCP if available for better results
+- Use the `sequentialthinking` tool from Cortex MCP if available for better results
 - Follow all workspace rules and coding standards throughout plan creation
 - **CRITICAL**: When a plan is requested, ALL context (errors, logs, code) is INPUT for plan creation - DO NOT fix issues or make code changes, only create the plan

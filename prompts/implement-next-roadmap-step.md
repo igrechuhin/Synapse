@@ -482,6 +482,7 @@ The roadmap step is considered complete when:
 - This is a generic command that can be reused for any roadmap step
 - The agent should be thorough and complete the entire step, not just part of it
 - If a step is too large, break it down into smaller sub-tasks and complete them systematically
+- For especially complex or ambiguous steps (e.g. architecture/large design or multi-module refactors), use the `sequentialthinking` MCP tool to structure your reasoning into numbered thoughts before and during implementation.
 - **MANDATORY PLAN UPDATES**: If the roadmap step references a plan file (e.g., phase-XX-*.md in the plans directory) and the work cannot be completed in one session, you MUST update the plan file at the end of the session to reflect the current implementation status. Resolve the plans directory path via `get_structure_info()` → `structure_info.paths.plans`. This ensures continuity and allows future sessions to pick up where you left off.
 - **MANDATORY PLAN ARCHIVING**: If a plan file is marked as COMPLETE (status changed to COMPLETED/COMPLETE), you MUST archive it immediately using the plan-archiver agent (Step 6.5). Do not leave completed plans in `.cortex/plans/` - archive them as soon as status becomes COMPLETE.
 - Always update the memory bank after completing work using Cortex MCP tools
