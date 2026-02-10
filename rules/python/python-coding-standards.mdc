@@ -354,6 +354,35 @@ def validate_data(data: dict) -> None:
 - **Fix by making symbol public**: Rename everywhere (definition, internal calls, external usages)
 - **CI MUST fail** if private symbols accessed across modules
 
+## Public API and Type Names (ENFORCED)
+
+- **Public signatures must not use private type names**: Public functions, methods, and their parameter/return type hints must not reference types or type aliases whose names start with an underscore. Any type that appears in a public signature must have a public name.
+- **Export public types**: Export such types via `__all__` if they are part of the module's API.
+- **Rationale**: In Python, a leading underscore denotes "internal"; using such names in public signatures breaks the convention that the public API surface uses only public names.
+
+**FORBIDDEN:**
+
+- ❌ Public function or method signature with `_MCPContext`, `_LogLevel`, or any `_`-prefixed type in parameters or return type
+
+**REQUIRED:**
+
+- ✅ Use public type names (e.g. `MCPContext`, `LogLevel`) in all public function/method signatures
+- ✅ Add types to `__all__` when they are part of the module's API
+
+## Third-Party and SDK Generic Types (ENFORCED)
+
+- **Use library type parameters**: When using generic types from third-party or SDK code (e.g. MCP `Context`), use the same type parameters as in the library's public API or documented examples (e.g. `Context[ServerSession, object]`).
+- **Do not substitute blindly**: Do not substitute `object` or other types without verifying they satisfy the generic's type bounds.
+
+**REQUIRED:**
+
+- ✅ Match SDK/public API: `Context[ServerSession, object]` when that is what the SDK's `get_context()` returns
+- ✅ Verify type bounds when using different parameters
+
+**FORBIDDEN:**
+
+- ❌ Using `Context[object, object]` or other ad-hoc parameters when the SDK documents or uses a different shape (e.g. `Context[ServerSession, object]`)
+
 ## Python 3.13+ Features (MANDATORY)
 
 - **Type Hints**: `T | None`, `typing.Self`, `Required`/`NotRequired`

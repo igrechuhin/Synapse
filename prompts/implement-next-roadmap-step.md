@@ -303,6 +303,7 @@ Before defining new data structures (classes, types, models, interfaces):
 
 **CRITICAL – Safe memory bank updates (MANDATORY):** Do NOT use full-content `manage_file(..., operation="write", content=<entire file>)` for roadmap, progress, or activeContext. Use the dedicated MCP tools below to avoid corruption.
 
+- **User-requested fixes**: After applying any user-requested fix that changes public API, type names, or documented behavior, update progress.md (and activeContext.md if the change affects current focus) so memory bank remains consistent with the codebase.
 - **Requirement**: All updates to roadmap.md, progress.md, activeContext.md, and any other memory bank file MUST be performed with `manage_file(file_name='...', operation='write', ...)`. Read current content with `manage_file(operation='read')` before writing when building updated content.
 - **Prohibition**: Do NOT use Write, StrReplace, or ApplyPatch on files under the memory bank directory (path from `get_structure_info()` → `structure_info.paths.memory_bank`). Using standard file tools for memory bank writes is a **VIOLATION**.
 - **Full-content fallback**: If you need to change only one line (e.g. one roadmap entry), read the file via `manage_file(operation='read')`, compute the full updated content (e.g. replace the line in the returned string), then call `manage_file(operation='write', content=updated_content, ...)`. Do not use Write, StrReplace, or ApplyPatch on memory bank paths.

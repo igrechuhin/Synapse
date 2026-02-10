@@ -182,6 +182,7 @@ async def bad_main():  # Causes "coroutine was never awaited"
 
 ## Typed MCP Boundaries (STRICT MANDATORY)
 
+- **Public API type names**: Public functions and MCP handlers must not use types whose names start with an underscore in their signatures; use public type names (see python-coding-standards: "Public API and Type Names").
 - **All public MCP handlers MUST have fully explicit parameter and return types** - STRICT MANDATORY
 - **Pydantic 2 Models First**: MCP tool return types MUST use Pydantic `BaseModel` - STRICT MANDATORY, NO EXCEPTIONS
 - **Use Pydantic 2 API**: `model_validate()`, `model_dump()`, `ConfigDict` - MANDATORY

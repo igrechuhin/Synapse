@@ -18,6 +18,7 @@ When invoked:
 
 Key practices:
 
+- **After user-requested fixes**: When a user-requested fix changes public API, type names, or documented behavior, update progress.md (and activeContext.md if it affects current focus) so memory bank stays consistent with the codebase.
 - Use Cortex MCP tool `manage_file()` for all memory bank operations
 - Never access memory bank files directly via hardcoded paths
 - Use YY-MM-DD timestamp format only (no time components)
