@@ -12,6 +12,10 @@ alwaysApply: true
 - **No overlap**: The same item must not appear as "to do" in roadmap and "done" in activeContext at the same time in a way that duplicates the same scope. When work is completed: add a summary to activeContext.md and mark complete or remove from roadmap.md so that completed work lives in activeContext only.
 - **Flow**: Work is planned and tracked in roadmap → when completed, move it to activeContext (add to activeContext, update/remove from roadmap).
 
+## Privacy convention (sensitive content)
+
+Content that must not be persisted or repeated (secrets, PII) may be wrapped in `<private>...</private>` or marked with `<!-- private -->`. Agents must not store or echo such blocks in memory bank files, usage logs, or session summaries. Tools that persist user content may strip or redact content between these markers.
+
 ## Path Resolution and Cortex Tools (MANDATORY)
 
 **Use semantic names and Cortex MCP tools** for all structure and memory bank paths. Do not hardcode paths.

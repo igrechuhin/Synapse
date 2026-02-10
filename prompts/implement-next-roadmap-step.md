@@ -80,7 +80,7 @@ The **roadmap defines the implementation sequence** (see the "Implementation seq
    - If the entry references a plan file (e.g. `Plan: .cortex/plans/phase-XX-....md`): resolve the plan path via `get_structure_info()` → `structure_info.paths.plans`; read the plan file with standard file tools; implement the plan **in sequential step order** (see "Plan step sequence" below).
    - Otherwise implement the step from the roadmap entry (description, requirements).
 
-**Call load_context at step start**: Right after picking the next step, call `load_context(task_description="[description of roadmap step]", token_budget=[task-appropriate budget])` so the session is recorded for end-of-session analyze.
+**Call load_context at step start**: Right after picking the next step, call `load_context(task_description="[description of roadmap step]", token_budget=[task-appropriate budget])` so the session is recorded for end-of-session analyze. Prefer token-efficient workflow: use task-appropriate token budget; when usage search or fetch-by-ID tools exist, use search → select IDs → fetch instead of loading all.
 
 **Task-type token budget** (aligns with context-effectiveness insights; reduces over-provisioning):
 
