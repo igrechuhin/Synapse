@@ -11,6 +11,24 @@
           "keywords": ["commit", "git", "pre-commit", "testing", "formatting"]
         },
         {
+          "file": "fix-tests.md",
+          "name": "Fix Tests",
+          "description": "Diagnose and fix failing tests using Cortex MCP tools, outside of the full commit pipeline",
+          "keywords": ["tests", "debugging", "coverage", "fix"]
+        },
+        {
+          "file": "fix-quality.md",
+          "name": "Fix Quality",
+          "description": "Resolve type, lint, formatting, and other quality issues using Cortex MCP tools",
+          "keywords": ["quality", "types", "lint", "format", "fix"]
+        },
+        {
+          "file": "docs-sync.md",
+          "name": "Docs Sync",
+          "description": "Synchronize documentation and memory bank state using Cortex MCP tools, without running the full commit pipeline",
+          "keywords": ["docs", "memory-bank", "roadmap", "timestamps", "sync"]
+        },
+        {
           "file": "review.md",
           "name": "Review",
           "description": "Comprehensive code review to find bugs, inconsistencies, and incomplete implementations",

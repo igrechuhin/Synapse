@@ -4,13 +4,15 @@
 
 **CRITICAL**: This is the single entry point for end-of-session analysis. Run all steps in order. If findings contain improvement recommendations, execute the Plan prompt with the analysis findings as input to create an improvements plan.
 
-**Tooling**: Use Cortex MCP tools for memory bank, rules, and paths. Resolve paths via `get_structure_info()`. Use `manage_file()` for memory bank reads/writes.
+**Tooling**: Use Cortex MCP tools for memory bank, rules, and paths. Resolve paths via `get_structure_info()` (reviews directory, plans directory, memory bank). Use `manage_file()` for memory bank reads/writes. See memory-bank-workflow.mdc and AGENTS.md; do not hardcode `.cortex/` paths.
+
+**Phases**: (1) **Context & rules load** — read memory bank and rules via `manage_file()` and `rules()`/structure path. (2) **Analysis & insights** — `analyze_context_effectiveness()`, session data, `get_context_usage_statistics()`, `get_memory_bank_stats()`, `suggest_refactoring()` as needed. (3) **Outputs & plans** — write report to reviews directory (path from `get_structure_info()` → `structure_info.paths.reviews`); if recommendations exist, run Create Plan prompt. Aligns with Phase D (Session Analysis) in `docs/design/commit-pipeline-phases.md` (runs after successful commit when invoked from commit pipeline).
 
 ## Purpose
 
 At end of session, run a single "check all" analysis: (1) evaluate `load_context` effectiveness and update statistics; (2) identify mistake patterns, root causes, and Synapse optimization recommendations, then save a report. This replaces the former separate "Analyze Context Effectiveness" and "Analyze Session Optimization" prompts.
 
-## Pre-Analysis Checklist
+## Pre-Analysis Checklist (Phase 1: Context & Rules Load)
 
 **BEFORE running any analysis step:**
 
@@ -33,7 +35,7 @@ At end of session, run a single "check all" analysis: (1) evaluate `load_context
 
 ## Execution Order
 
-### Step 1: Context Effectiveness
+### Step 1: Context Effectiveness (Phase 2: Analysis & Insights)
 
 1. Call `analyze_context_effectiveness()` (default: current session only).
 2. If the tool returns `"status": "no_data"` (e.g. no `load_context` calls this session), that is expected for workflow-only sessions; proceed to manual fallback if useful:
@@ -43,24 +45,24 @@ At end of session, run a single "check all" analysis: (1) evaluate `load_context
 4. Optionally use `analyze_context_effectiveness(analyze_all_sessions=True)` for full history.
 5. Summarize in **Context Effectiveness Analysis** (see Output Format below). If no data and no manual analysis, state "No session logs found" and suggest using `load_context()` at task start and re-running later.
 
-### Step 2: Session Optimization
+### Step 2: Session Optimization (Phase 2 & 3: Analysis, then Outputs)
 
 1. Use session data (tool outputs, memory-bank diffs, commit/pre-commit results, code changes) to identify:
    - **Mistake patterns**: type/system violations, code organization, rule compliance, process violations, tool usage, documentation.
    - **Root causes**: missing/unclear guidance, incomplete validation, process gaps, tool limitations.
 2. Generate **prioritized recommendations** for Synapse prompts/rules (prompt improvements, rule improvements, process improvements) with target file/section and expected impact.
-3. **Save the report**:
+3. **Save the report** (Phase 3: Outputs):
    - Call `get_structure_info()` and use `structure_info.paths.reviews` (project root is resolved internally; do NOT pass it as a parameter).
    - **Filename**: `session-optimization-YYYY-MM-DDTHH-MM.md` (e.g. `session-optimization-2026-02-02T17-58.md`).
    - **Timestamp**: Use real time only (e.g. shell `date +%Y-%m-%dT%H-%M` or file mtime). Do not invent values.
-   - Write the full report to `{reviews_path}/session-optimization-YYYY-MM-DDTHH-MM.md` (e.g. via Write tool with the resolved path).
+   - Write the **full** report to `{reviews_path}/session-optimization-YYYY-MM-DDTHH-MM.md` (no truncation; same no-truncation rule as memory-bank writes per memory-bank-workflow.mdc).
 4. **MD024 (Duplicate Heading)**: If appending a second pass (e.g. context-effectiveness addendum) to an existing review file, suffix headings (e.g. "(Addendum)", "(Context Effectiveness Pass)") to avoid duplicate headings.
 
 ### Step 3 (Optional): Health / Session Scripts
 
 If project scope includes health check or session-scripts analysis, add a step that calls the relevant tools and include a short subsection in the unified report. Otherwise omit.
 
-### Step 4: Improvements Plan (when recommendations exist)
+### Step 4: Improvements Plan (Phase 3: Outputs & plans; when recommendations exist)
 
 **If** the analysis findings contain **improvement recommendations** (e.g. non-empty **Optimization Recommendations**, context-effectiveness recommendations, or Synapse/prompt/rule improvement items):
 

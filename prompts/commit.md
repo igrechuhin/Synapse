@@ -113,17 +113,7 @@ Steps without agents are handled directly by the orchestration workflow.
    - Call `rules(operation="get_relevant", task_description="Commit pipeline, test coverage, type fixes, and visibility rules")`. If the rules tool is unavailable (e.g. disabled), read rules from the rules directory (path from `get_structure_info()` → `structure_info.paths.rules`) or the Synapse rules directory so that coding standards and visibility/API rules are in context.
    - **Rules loaded via MCP (rules tool) or rule files read for this run: Yes / No. If No, do not proceed to Step 0. When `rules()` returns `disabled`, read rule files via Read tool and record "Rules loaded: Yes (via file read)".**
 
-1. ✅ **Verify code conformance to rules** - Before running checks, verify code follows rules:
-   - Review changed files to ensure they conform to coding standards read above
-   - Verify type annotations are complete per language-specific standards
-   - Verify structured data types follow project's data modeling standards (check language-specific rules)
-     - **MANDATORY CHECK**: Scan code for data structure types - verify they comply with project's required data modeling patterns
-     - **MANDATORY CHECK**: Check language-specific coding standards for required data modeling types (e.g., check python-coding-standards.mdc for Python)
-     - **BLOCKING**: If data structures don't comply with project's required modeling standards, this MUST be fixed before proceeding
-   - Verify functions/methods are within project's length limits
-   - Verify files are within project's size limits
-   - Verify dependency injection patterns are followed (no global state or singletons)
-   - **If violations found**: Fix them BEFORE proceeding with pre-commit checks
+1. ✅ **Verify code conformance to rules** - Before running checks, verify code conforms to the rules loaded above (coding standards, type annotations, data modeling, file/function limits, dependency injection). See language-specific rules and memory-bank-workflow.mdc. **BLOCKING**: Data structures must comply with project's required modeling standards; fix any violations before pre-commit checks.
 
 1. ✅ **Understand operations** - Use MCP tools for all operations:
    - **Pre-commit checks**: Use `execute_pre_commit_checks()` MCP tool for fix_errors, format, type_check, quality, and tests
@@ -145,24 +135,17 @@ Steps without agents are handled directly by the orchestration workflow.
 
 ## Pre-Step: Load Rules (MANDATORY — BEFORE Step 0)
 
-**Before running Step 0 (Fix Errors) or any code-modifying step:**
-
-1. **Load rules**: Call `rules(operation="get_relevant", task_description="Commit pipeline, test coverage, type fixes, and visibility rules")`. If the rules tool is unavailable (e.g. disabled), read rules from the rules directory (path from `get_structure_info()` → `structure_info.paths.rules`) or Synapse rules directory so that coding standards and visibility/API rules are in context.
-2. **When `rules()` returns status `disabled`**: Resolve the rules or Synapse rules path via `get_structure_info()` (e.g. `structure_info.paths.rules` or Synapse rules directory), then use the Read tool to load at least the rule files relevant to the commit task (e.g. python-coding-standards.mdc, python-mcp-development.mdc, no-test-skipping.mdc from Synapse rules, or equivalent). Record **Rules loaded: Yes (via file read)** so the checklist is satisfied.
-3. Do **not** run Step 0 (fix_errors) or any code-modifying step until rules have been loaded or read.
-4. **BLOCK**: If rules have not been loaded/read for this run, do not proceed to Step 0.
-
-**Checklist item**: Rules loaded via MCP (rules tool) or rule files read: Yes / No. If No, do not proceed. When the rules tool returns `disabled`, satisfy via file read and record "Rules loaded: Yes (via file read)".
+Satisfy **Pre-Action Checklist item 2** (Read relevant rules) before Step 0. Call `rules(operation="get_relevant", task_description="Commit pipeline, test coverage, type fixes, and visibility rules")`; if the tool returns `disabled`, read rules from the rules directory (path from `get_structure_info()` → `structure_info.paths.rules`) or Synapse rules directory and record "Rules loaded: Yes (via file read)". Do not run Step 0 until rules are loaded. See also commit-pipeline.mdc and memory-bank-workflow.mdc via `rules(operation="get_relevant")` for shared behavior.
 
 ## Phase Helper MCP Tools (Phase A and B)
 
-To reduce prompt size and make the commit pipeline easier to orchestrate, use the dedicated phase helpers instead of micromanaging every individual check where possible:
+Overview: AGENTS.md "Commit pipeline (phase-based)". To reduce prompt size and make the commit pipeline easier to orchestrate, use the dedicated phase helpers instead of micromanaging every individual check where possible:
 
 - **Phase A – `run_preflight_checks`**:
   - Call `run_preflight_checks(test_timeout=300, coverage_threshold=0.90, strict_mode=False)` once at the start of the pipeline (after rules are loaded).
   - Inspect the structured JSON response:
     - If `status="error"`, treat this as a tool failure and stop the commit pipeline; report the error and do not attempt to commit.
-    - If `status="success"` but `preflight_passed` is `False`, stop the commit pipeline, summarize failing checks from the `checks` array (e.g. `tests`, `quality`, `markdown_lint`), and point the user to targeted follow-up commands (such as dedicated test/quality fix flows) instead of trying to debug everything inside `/cortex/commit`.
+    - If `status="success"` but `preflight_passed` is `False`, stop the commit pipeline, summarize failing checks from the `checks` array (e.g. `tests`, `quality`, `markdown_lint`), and point the user to targeted follow-up commands such as `/cortex/fix-tests` and `/cortex/fix-quality` instead of trying to debug everything inside `/cortex/commit`.
     - Only when `status="success"` and `preflight_passed` is `True` may you proceed to Phase B and later phases.
   - Use direct `execute_pre_commit_checks()` calls later only when you need to re-run a specific check (e.g. within Step 12) or for focused debugging of a single failure.
 
@@ -170,7 +153,7 @@ To reduce prompt size and make the commit pipeline easier to orchestrate, use th
   - After completing the state-changing docs/memory steps (5–8), call `run_docs_and_memory_bank_sync()` once to validate timestamps and roadmap/memory-bank sync.
   - Inspect the structured JSON response:
     - If `status="error"`, treat this as a tool failure and stop the commit pipeline; report the error and do not attempt to commit.
-    - If `status="success"` but `docs_phase_passed` is `False`, stop the commit pipeline, summarize issues from the `checks` array (e.g. `timestamps`, `roadmap_sync`), and fix them before proceeding.
+    - If `status="success"` but `docs_phase_passed` is `False`, stop the commit pipeline, summarize issues from the `checks` array (e.g. `timestamps`, `roadmap_sync`), and fix them using a focused docs/memory helper command such as `/cortex/docs-sync` before proceeding.
     - Only when `status="success"` and `docs_phase_passed` is `True` may you proceed to Phase C (submodule + final gate + git operations).
 
 These helpers encapsulate the detailed validation logic for Phases A and B so `/cortex/commit` can focus on high-level orchestration and clear failure semantics.

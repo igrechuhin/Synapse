@@ -1,0 +1,22 @@
+---
+alwaysApply: false
+---
+# Commit Pipeline (Phase-Based)
+
+**Reference**: AGENTS.md "Commit pipeline (phase-based)" and `docs/design/commit-pipeline-phases.md` for full flow and helper commands.
+
+## Zero-errors policy (MANDATORY)
+
+- Any check with errors blocks commit; no exceptions.
+- Pre-existing errors are not acceptable; fix before commit.
+- Apply fixes or use helper commands (`/cortex/fix-tests`, `/cortex/fix-quality`, `/cortex/docs-sync`) before proceeding.
+
+## Phase helpers (use instead of micromanaging checks)
+
+- **Phase A**: Use `run_preflight_checks()` for fix_errors, format, markdown lint, type_check, quality, tests. On failure, stop and use `/cortex/fix-tests` or `/cortex/fix-quality`; do not debug inline.
+- **Phase B**: Use `run_docs_and_memory_bank_sync()` after memory-bank/roadmap steps. On failure, use `/cortex/docs-sync` then retry.
+- Do not pass `project_root` to Cortex MCP tools; they resolve project root internally.
+
+## Memory bank and roadmap
+
+- Follow memory-bank-workflow.mdc for updates. Use `manage_file()` for memory bank files; use dedicated MCP tools (`remove_roadmap_entry`, `append_progress_entry`, `append_active_context_entry`, `complete_plan`) for safe single-entry updates to roadmap, progress, and activeContext.

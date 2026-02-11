@@ -82,7 +82,7 @@ When executing steps, delegate to the appropriate agent for specialized analysis
 1. **Static analysis** - **Delegate to `static-analyzer` agent**:
    - Use the `static-analyzer` agent (Synapse agents directory) for this step
    - The agent will run linter (type checking is handled separately by type-checker agent):
-   - Use Cortex MCP tool `execute_pre_commit_checks(checks=["type_check"])` and `execute_pre_commit_checks(checks=["quality"])` (or the language-specific type/lint scripts from the Synapse scripts directory) to identify type errors and code quality issues. Do **NOT** run raw language-specific commands (e.g., `pyright`, `ruff`) in a Shell.
+   - Use Cortex MCP tool `execute_pre_commit_checks(checks=["type_check"])` and `execute_pre_commit_checks(checks=["quality"])` (or the language-specific type/lint scripts from the Synapse scripts directory) to identify type errors and code quality issues. Same contract as commit pipeline Phase A; see AGENTS.md "Commit pipeline (phase-based)". Do **NOT** run raw language-specific commands (e.g., `pyright`, `ruff`) in a Shell.
    - Check for compiler warnings and errors
    - Identify deprecated API usage
    - Check for unused imports and variables
