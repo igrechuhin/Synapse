@@ -718,7 +718,9 @@ execute_pre_commit_checks(checks=["type_check"])
 
 ### 12.3 Re-run Linter, Spelling, and Type Check (MANDATORY)
 
-Use the Cortex MCP tool (quality gate runs quality + spelling + type_check; same scope as CI):
+**Step 12.3.1 - Re-run Quality Check** (MANDATORY):
+
+Use the Cortex MCP tool (quality gate runs quality + type_check; same scope as CI):
 
 ```text
 execute_pre_commit_checks(checks=["quality"])
@@ -728,16 +730,30 @@ execute_pre_commit_checks(checks=["quality"])
 
 - **MUST verify**: Tool returns `status` = "success"
 - **MUST verify**: Parse `results.quality` - errors list must be empty (error count = 0); quality check indicates passed (no lint errors)
-- **MUST verify**: Parse `results.spelling` (if present) - success = true and errors list empty (quality gate includes spelling to match CI)
 - **MUST verify**: Parse `results.type_check` - success = true and errors list empty (quality gate includes type_check; catches reportRedeclaration etc.)
-- **⚠️ ABSOLUTE BLOCK**: If ANY linter, spelling, or type violations are reported (even 1 error), stop immediately - DO NOT proceed to commit
-- **⚠️ NO EXCEPTIONS**: Pre-existing linting or type errors are NOT acceptable - they MUST be fixed before commit
-- **⚠️ ZERO ERRORS TOLERANCE**: The project has ZERO errors tolerance - ANY errors (new or pre-existing) MUST block commit
+- **⚠️ ABSOLUTE BLOCK**: If ANY linter or type violations are reported (even 1 error), stop immediately - DO NOT proceed to commit
 - **BLOCK COMMIT** if ANY linter or type violations are reported OR if tool returns status "error" for quality or type_check
-- **If you fixed lint in this step**: Re-run Step 12.1 (format → format check → format_ci_parity via tools) and verify all pass, then MUST re-run Step 12.3 (quality) again and verify `results.quality.success` is true with zero errors before proceeding to Step 12.4 (see "CRITICAL RULE (Step 12)" above).
-- **BLOCK COMMIT** if quality or type_check reports any errors
+
+**Step 12.3.2 - Re-run Spelling Check** (MANDATORY):
+
+Use the Cortex MCP tool (runs spelling check via synapse script; same scope as CI):
+
+```text
+execute_pre_commit_checks(checks=["spelling"])
+```
+
+**⚠️ CRITICAL**: Do NOT truncate output - read FULL tool response to verify check passed
+
+- **MUST verify**: Tool returns `status` = "success"
+- **MUST verify**: Parse `results.spelling` - success = true and errors list empty (spelling check matches CI)
+- **⚠️ ABSOLUTE BLOCK**: If ANY spelling violations are reported (even 1 error), stop immediately - DO NOT proceed to commit
+- **⚠️ NO EXCEPTIONS**: Pre-existing spelling errors are NOT acceptable - they MUST be fixed before commit
+- **⚠️ ZERO ERRORS TOLERANCE**: The project has ZERO errors tolerance - ANY spelling errors (new or pre-existing) MUST block commit
+- **BLOCK COMMIT** if ANY spelling violations are reported OR if tool returns status "error" for spelling
 - **DO NOT rely on memory of earlier checks** - you MUST re-run and verify result NOW
 - **DO NOT dismiss errors as "pre-existing"** - ALL errors must be fixed before commit
+
+**If you fixed lint or spelling in this step**: Re-run Step 12.1 (format → format check → format_ci_parity via tools) and verify all pass, then MUST re-run Step 12.3 (quality and spelling) again and verify both checks pass with zero errors before proceeding to Step 12.4 (see "CRITICAL RULE (Step 12)" above).
 
 ### 12.4 Re-run Test Naming Check (MANDATORY)
 
@@ -867,10 +883,16 @@ execute_pre_commit_checks(checks=["tests"], test_timeout=600, coverage_threshold
 - [ ] Type check re-run: **0 errors, 0 warnings** confirmed in FULL output (if applicable)
 - [ ] Type check re-run: **NO output truncation** - full output read and verified
 - [ ] Type check re-run: **Step 12.2 result is AUTHORITATIVE** - if tool found errors (even if Step 2 passed earlier), commit MUST be blocked
-- [ ] **Step 12.3 executed**: Linter/quality check tool executed, full result shown
-- [ ] Linter re-run: **0 violations** confirmed in FULL output (error count explicitly parsed and verified = 0)
-- [ ] Linter re-run: **NO output truncation** - full output read and verified
-- [ ] Linter re-run: **ZERO ERRORS TOLERANCE** - verified that error count = 0 (NO exceptions, even for pre-existing errors)
+- [ ] **Step 12.3.1 executed**: Quality check tool executed, full result shown
+- [ ] Quality re-run: **0 violations** confirmed in FULL output (error count explicitly parsed and verified = 0)
+- [ ] Quality re-run: **NO output truncation** - full output read and verified
+- [ ] Quality re-run: **ZERO ERRORS TOLERANCE** - verified that error count = 0 (NO exceptions, even for pre-existing errors)
+- [ ] **Step 12.3.2 executed**: Spelling check tool executed, full result shown
+- [ ] Spelling re-run: **Tool executed**: `execute_pre_commit_checks(checks=["spelling"])` was run (MANDATORY)
+- [ ] Spelling re-run: **Output shown**: Full command output displayed in response (not just "passed")
+- [ ] Spelling re-run: **0 errors** confirmed in FULL output (results.spelling.success = true, errors list empty)
+- [ ] Spelling re-run: **NO output truncation** - full output read and verified
+- [ ] Spelling re-run: **ZERO ERRORS TOLERANCE** - verified that error count = 0 (NO exceptions, even for pre-existing errors)
 - [ ] **Step 12.4 executed**: Test naming check tool executed, full result shown
 - [ ] **Step 12.5 executed**: Markdown lint tool executed, full result shown
 - [ ] Markdown lint re-run: **0 errors in ALL markdown files** confirmed (matching CI behavior)
@@ -1208,7 +1230,8 @@ Use this ordering when numbering results:
   - **⚠️ CRITICAL**: Tool checks BOTH `src/` AND `tests/` - if tool finds errors (even if Step 2 passed earlier), commit MUST be blocked.
   - **⚠️ NO EXCEPTIONS**: Step 12.2 result is AUTHORITATIVE.
   - **⚠️ EXECUTION MANDATORY**: This tool MUST be executed - do not skip or assume it passed. Show the tool result.
-- **Linter Re-run**: Result of `execute_pre_commit_checks(checks=["quality"])` (MUST show 0 lint errors - ZERO ERRORS TOLERANCE, NO EXCEPTIONS).
+- **Quality Re-run**: Result of `execute_pre_commit_checks(checks=["quality"])` (MUST show 0 lint errors - ZERO ERRORS TOLERANCE, NO EXCEPTIONS).
+- **Spelling Re-run**: Result of `execute_pre_commit_checks(checks=["spelling"])` (MUST show check passed with 0 errors - ZERO ERRORS TOLERANCE, NO EXCEPTIONS, matches CI behavior).
 - **Markdown Lint Re-run**: Result of `fix_markdown_lint(check_all_files=True)` MCP tool (MUST show check passed with 0 errors in ALL files - ZERO ERRORS TOLERANCE, NO EXCEPTIONS, matches CI behavior).
 - **Test Naming Re-run**: Result of `execute_pre_commit_checks(checks=["test_naming"])` (MUST show check passed).
 - **File Sizes Re-run**: Result of `execute_pre_commit_checks(checks=["quality"])` (MUST show results.quality.file_size_violations empty).
