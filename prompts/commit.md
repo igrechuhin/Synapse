@@ -589,7 +589,7 @@ The commit procedure executes steps in this specific order to ensure dependencie
 14. **Push** - Pushes committed changes to remote repository
 15. **Analyze** - **MANDATORY**: Execute the Analyze (End of Session) prompt (`analyze.md`) to run context effectiveness and session optimization analysis.
 
-**MCP Tools**: Steps 0 (Fix Errors), 1 (Formatting), 2 (Type Checking), 3 (Code Quality), and 4 (Testing) use the `execute_pre_commit_checks()` MCP tool. Step 12 (Final Validation Gate) also uses only Cortex MCP tools (format, format_ci_parity, type_check, quality, test_naming, tests, and fix_markdown_lint). This provides structured parameters, type safety, and consistent error handling. Do NOT run scripts directly; use tools only.
+**MCP Tools**: Steps 0 (Fix Errors), 1 (Formatting), 2 (Type Checking), 3 (Code Quality), and 4 (Testing) use the `execute_pre_commit_checks()` MCP tool. Step 12 (Final Validation Gate) also uses only Cortex MCP tools (format, format_ci_parity, type_check, quality, test_naming, check_async_tests, tests, and fix_markdown_lint). This provides structured parameters, type safety, and consistent error handling. Do NOT run scripts directly; use tools only.
 
 ## ⚠️ STEP 12: FINAL VALIDATION GATE (CRITICAL - MANDATORY)
 
@@ -786,6 +786,8 @@ Use the MCP tool to check ALL markdown files (matching CI behavior). Project roo
 ```python
 fix_markdown_lint(check_all_files=True, include_untracked_markdown=True)
 ```
+
+**Scope**: With `check_all_files=True`, the tool lints all `.md` and `.mdc` files under the project, including `.cortex/history/` and `.cortex/reviews/`. Files written by MCP tools (e.g. history snapshots, session reviews) are included and must pass lint. Do not assume history or reviews are out of scope.
 
 **⚠️ CRITICAL**: Do NOT truncate output - read FULL output to verify check passed
 
