@@ -220,6 +220,10 @@ Before defining new data structures (classes, types, models, interfaces):
    - **Pydantic v2 for JSON testing**: When testing MCP tool responses (e.g., `manage_file`, `rules`, `execute_pre_commit_checks`), use Pydantic v2 `BaseModel` types and `model_validate_json()` / `model_validate()` instead of asserting on raw `dict` shapes. See `tests/tools/test_file_operations.py` for examples (e.g., `ManageFileErrorResponse` pattern).
    - **Verify coverage**: Run coverage tool and ensure project's coverage threshold is met before considering implementation complete
 5. Fix any errors or issues:
+   - **⚠️ MANDATORY: Load Context Before Fixing**: Before applying fixes, you MUST load context and rules so fixes follow all project rules and guidelines:
+     - Call `load_context(task_description="Fixing errors and issues during implementation", token_budget=15000)` (15k for fix/debug path)
+     - If rules are enabled, call `rules(operation="get_relevant", task_description="Fixing errors, type issues, and quality violations")`; if disabled, read key coding standards from rules directory (path from `get_structure_info()` → `structure_info.paths.rules`)
+     - Only after context and rules are loaded, proceed with fixes following project rules
    - Run linters and fix all issues
    - Fix type errors
    - Fix formatting issues using project's code formatter
@@ -236,6 +240,10 @@ Before defining new data structures (classes, types, models, interfaces):
    - Check that ALL new functionality meets the required coverage threshold
    - Identify any uncovered lines or branches in new code
 3. **Add missing tests if coverage is below threshold**:
+   - **⚠️ MANDATORY: Load Context Before Fixing**: Before adding tests, you MUST load context and rules:
+     - Call `load_context(task_description="Fixing test coverage", token_budget=15000)` (15k for fix/debug path)
+     - If rules are enabled, call `rules(operation="get_relevant", task_description="Test coverage and testing standards")`; if disabled, read key testing standards from rules directory
+     - Only after context and rules are loaded, proceed with test additions following project testing standards
    - Write additional unit tests for uncovered code paths
    - Add edge case tests for uncovered branches
    - Add integration tests if component interactions are untested
@@ -278,6 +286,10 @@ Before defining new data structures (classes, types, models, interfaces):
    - Public identifiers follow language conventions
    - Constants follow language conventions
 5. **Fix any violations found**:
+   - **⚠️ MANDATORY: Load Context Before Fixing**: Before applying fixes, you MUST load context and rules:
+     - Call `load_context(task_description="Fixing code conformance violations", token_budget=15000)` (15k for fix/debug path)
+     - If rules are enabled, call `rules(operation="get_relevant", task_description="Fixing code conformance violations")`; if disabled, read key coding standards from rules directory
+     - Only after context and rules are loaded, proceed with fixes following project rules
    - If type violations: Add proper type annotations, use concrete types per language standards
    - If data modeling violations: Convert to project-mandated data types per language-specific rules
    - If structural violations: Extract helper functions, split large files
@@ -440,6 +452,10 @@ If you encounter any issues during implementation:
 1. **Roadmap parsing errors**: If the roadmap format is unclear, read it carefully and identify the structure. If still unclear, proceed with the first uncompleted item you can identify.
 2. **Implementation blockers**: If you cannot complete the step due to missing information or dependencies, document what is needed and update the roadmap accordingly.
 3. **Test failures**: Fix all test failures before considering the step complete. Do not skip tests without justification.
+   - **⚠️ MANDATORY: Load Context Before Fixing**: Before fixing test failures, you MUST load context and rules:
+     - Call `load_context(task_description="Fixing test failures", token_budget=15000)` (15k for fix/debug path)
+     - If rules are enabled, call `rules(operation="get_relevant", task_description="Fixing test failures and ensuring test standards")`; if disabled, read key testing standards from rules directory
+     - Only after context and rules are loaded, proceed with fixes following project rules and test standards
 4. **Memory bank errors (CRITICAL)**: If Cortex MCP tools crash, disconnect, or exhibit unexpected behavior **on core Memory Bank operations** (e.g. `manage_file`, `load_context`, `validate`):
    - **STOP IMMEDIATELY**: Current process MUST stop - do not continue with implementation
    - **Create investigation plan**: Use the create-plan prompt (Synapse prompts directory) to create an investigation plan

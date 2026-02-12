@@ -1332,6 +1332,18 @@ Use this ordering when numbering results:
 
 **CRITICAL RULE**: When ANY error or violation is detected, you MUST fix ALL of them automatically. No explicit user request is required to apply fixes—fixing is part of the pipeline.
 
+## ⚠️ MANDATORY: Load Context Before Fixing
+
+**CRITICAL**: Before attempting to fix ANY errors, violations, or failures, you MUST load project context and rules so fixes follow all project rules and guidelines. This prevents fix-path work from proceeding without project context and reduces mistake patterns (e.g. wrong mocks, usage-context assumptions).
+
+**Required actions before fixing**:
+
+1. **Load context**: Call `load_context(task_description="Fixing errors and quality issues for commit", token_budget=15000)` (or use task-type budget per context-effectiveness recommendations—15k for fix/debug path).
+2. **Load rules**: If rules are enabled, call `rules(operation="get_relevant", task_description="Fixing errors, quality issues, and test failures")`. If rules return `disabled`, load key coding standards from the rules directory (path from `get_structure_info()` → `structure_info.paths.rules`) using the Read tool.
+3. **Then proceed**: Only after context and rules are loaded, apply fixes following project rules and guidelines.
+
+**When this applies**: This requirement applies whenever you switch to "fix mode"—when Step 0 fails, when any validation step fails, when test failures occur, when quality violations are detected, or when any error requires fixing. The step-start `load_context` (if present) is for the planned step; this fix-path `load_context` is additional when you actually fix issues.
+
 - **No explicit request needed**: The user does not need to say "fix it" or "yes, fix that". Apply fixes as soon as a failure is detected.
 - **NEVER ask for permission** to fix issues - just fix them all
 - **NEVER ask "should I continue?"** - continue fixing until ALL issues are resolved
@@ -1381,44 +1393,54 @@ Use this ordering when numbering results:
 ### Code Quality Check Failure
 
 - **Action**: **PRIMARY FOCUS** - Fix ALL violations immediately, then assess context to continue or summarize
+- **⚠️ MANDATORY: Load Context Before Fixing**: Before applying fixes, you MUST load context and rules:
+  - Call `load_context(task_description="Fixing code quality violations", token_budget=15000)` (15k for fix/debug path)
+  - If rules are enabled, call `rules(operation="get_relevant", task_description="Fixing code quality violations")`; if disabled, read key coding standards from rules directory
+  - Only after context and rules are loaded, proceed with fixes following project rules
 - **Process**:
-  1. **IMMEDIATE FIX**: Report the specific code quality violation (file size or function length)
-  2. Provide detailed error information including file path, function name, and violation details
-  3. Parse MCP tool response or check output to extract exact violation counts and details
-  4. **FIX ALL**: Fix ALL file size violations by splitting large files or extracting modules
-  5. **FIX ALL**: Fix ALL function length violations by extracting helper functions or refactoring logic
-  6. **CRITICAL**: Continue fixing until ALL violations are resolved - do not stop after fixing some
-  7. **NEVER ask for permission** - just fix them all automatically
-  8. Re-run checks to verify ALL fixes
-  9. **VALIDATION**: Re-parse MCP tool response or check output to confirm zero violations remain
-  10. **CONTEXT ASSESSMENT**: After fixing ALL violations, assess if sufficient free context remains:
+  1. **LOAD CONTEXT FIRST**: Load context and rules as specified above
+  2. **IMMEDIATE FIX**: Report the specific code quality violation (file size or function length)
+  3. Provide detailed error information including file path, function name, and violation details
+  4. Parse MCP tool response or check output to extract exact violation counts and details
+  5. **FIX ALL**: Fix ALL file size violations by splitting large files or extracting modules
+  6. **FIX ALL**: Fix ALL function length violations by extracting helper functions or refactoring logic
+  7. **CRITICAL**: Continue fixing until ALL violations are resolved - do not stop after fixing some
+  8. **NEVER ask for permission** - just fix them all automatically
+  9. Re-run checks to verify ALL fixes
+  10. **VALIDATION**: Re-parse MCP tool response or check output to confirm zero violations remain
+  11. **CONTEXT ASSESSMENT**: After fixing ALL violations, assess if sufficient free context remains:
       - If YES: Continue with commit pipeline (re-run check, verify, proceed to next step)
       - If NO: Provide comprehensive changes summary and advise re-running commit pipeline
-  11. **CRITICAL**: These checks match CI quality gate requirements - failures will cause CI to fail
+  12. **CRITICAL**: These checks match CI quality gate requirements - failures will cause CI to fail
 - **No Partial Commits**: Do not proceed with commit until all code quality checks pass and validation confirms zero violations
 - **No Partial Fixes**: Fix ALL violations before proceeding or stopping - never stop with violations remaining
 
 ### Test Suite Failure
 
 - **Action**: **PRIMARY FOCUS** - Fix ALL test failures immediately, then assess context to continue or summarize
+- **⚠️ MANDATORY: Load Context Before Fixing**: Before applying fixes, you MUST load context and rules:
+  - Call `load_context(task_description="Fixing test failures", token_budget=15000)` (15k for fix/debug path)
+  - If rules are enabled, call `rules(operation="get_relevant", task_description="Fixing test failures and ensuring test standards")`; if disabled, read key testing standards from rules directory
+  - Only after context and rules are loaded, proceed with fixes following project rules and test standards
 - **Process**:
-  1. **IMMEDIATE FIX**: Review test failure output from `run-tests` command
-  2. Parse test output to extract exact failure counts, test names, and error messages
-  3. Analyze test failure messages and stack traces
-  4. Identify root cause (code issue vs test issue)
-  5. **FIX ALL**: Fix ALL underlying issues
-  6. **CRITICAL**: Continue fixing until ALL test failures are resolved - do not stop after fixing some
-  7. **NEVER ask for permission** - just fix them all automatically
-  8. Re-run `run-tests` command to verify ALL fixes
-  9. **VALIDATION**: Re-parse test output to verify:
-     - Zero test failures (failed count = 0)
-     - 100% pass rate for executable tests
-     - Coverage meets 90%+ threshold (MANDATORY - extract exact percentage and verify ≥ 90.0%)
-     - All integration tests pass
-  10. **CONTEXT ASSESSMENT**: After fixing ALL test failures, assess if sufficient free context remains:
+  1. **LOAD CONTEXT FIRST**: Load context and rules as specified above
+  2. **IMMEDIATE FIX**: Review test failure output from `run-tests` command
+  3. Parse test output to extract exact failure counts, test names, and error messages
+  4. Analyze test failure messages and stack traces
+  5. Identify root cause (code issue vs test issue)
+  6. **FIX ALL**: Fix ALL underlying issues
+  7. **CRITICAL**: Continue fixing until ALL test failures are resolved - do not stop after fixing some
+  8. **NEVER ask for permission** - just fix them all automatically
+  9. Re-run `run-tests` command to verify ALL fixes
+  10. **VALIDATION**: Re-parse test output to verify:
+  - Zero test failures (failed count = 0)
+  - 100% pass rate for executable tests
+  - Coverage meets 90%+ threshold (MANDATORY - extract exact percentage and verify ≥ 90.0%)
+  - All integration tests pass
+  1. **CONTEXT ASSESSMENT**: After fixing ALL test failures, assess if sufficient free context remains:
       - If YES: Continue with commit pipeline (re-run tests, verify, proceed to next step)
       - If NO: Provide comprehensive changes summary and advise re-running commit pipeline
-  11. Continue until all tests pass with 100% pass rate and all validations pass, including coverage ≥ 90.0%
+  2. Continue until all tests pass with 100% pass rate and all validations pass, including coverage ≥ 90.0%
 - **No Partial Commits**: Do not proceed with commit until all tests pass and all validations confirm success
 - **No Partial Fixes**: Fix ALL test failures before proceeding or stopping - never stop with failures remaining
 - **Coverage Enforcement**: Coverage threshold of 90% is absolute - if coverage < 90.0%, commit MUST be blocked
@@ -1510,17 +1532,22 @@ Use this ordering when numbering results:
 ### Other Step Failures
 
 - **Action**: **PRIMARY FOCUS** - Fix ALL failures immediately, then assess context to continue or summarize
+- **⚠️ MANDATORY: Load Context Before Fixing**: Before applying fixes, you MUST load context and rules:
+  - Call `load_context(task_description="Fixing step failures", token_budget=15000)` (15k for fix/debug path)
+  - If rules are enabled, call `rules(operation="get_relevant", task_description="Fixing step failures")`; if disabled, read key coding standards from rules directory
+  - Only after context and rules are loaded, proceed with fixes following project rules
 - **Process**:
-  1. **IMMEDIATE FIX**: Report the specific failure
-  2. Provide detailed error information
-  3. **FIX ALL**: Fix ALL underlying issues
-  4. **CRITICAL**: Continue fixing until ALL issues are resolved - do not stop after fixing some
-  5. **NEVER ask for permission** - just fix them all automatically
-  6. **CONTEXT ASSESSMENT**: After fixing ALL issues, assess if sufficient free context remains:
+  1. **LOAD CONTEXT FIRST**: Load context and rules as specified above
+  2. **IMMEDIATE FIX**: Report the specific failure
+  3. Provide detailed error information
+  4. **FIX ALL**: Fix ALL underlying issues
+  5. **CRITICAL**: Continue fixing until ALL issues are resolved - do not stop after fixing some
+  6. **NEVER ask for permission** - just fix them all automatically
+  7. **CONTEXT ASSESSMENT**: After fixing ALL issues, assess if sufficient free context remains:
      - If YES: Continue with commit pipeline (re-run step, verify, proceed to next step)
      - If NO: Provide comprehensive changes summary and advise re-running commit pipeline
-  7. Do not proceed with commit until all issues are fixed and validated
-  8. **No Partial Fixes**: Fix ALL issues before proceeding or stopping - never stop with issues remaining
+  8. Do not proceed with commit until all issues are fixed and validated
+  9. **No Partial Fixes**: Fix ALL issues before proceeding or stopping - never stop with issues remaining
 
 ### General Rules
 

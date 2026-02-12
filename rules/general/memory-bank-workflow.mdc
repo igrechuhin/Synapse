@@ -12,6 +12,29 @@ alwaysApply: true
 - **No overlap**: The same item must not appear as "to do" in roadmap and "done" in activeContext at the same time in a way that duplicates the same scope. When work is completed: add a summary to activeContext.md and mark complete or remove from roadmap.md so that completed work lives in activeContext only.
 - **Flow**: Work is planned and tracked in roadmap → when completed, move it to activeContext (add to activeContext, update/remove from roadmap).
 
+## Memory Bank Structure (Canonical Spec)
+
+The Cortex Memory Bank has **seven core files** plus a meta instructions file. Each core file has exactly **one dedicated goal**:
+
+- `projectBrief.md` – Single source of truth for project overview, goals, core requirements, and success criteria.
+- `productContext.md` – Product framing: why the project exists, who it serves, key features, and user stories.
+- `systemPatterns.md` – System architecture and design patterns: components, critical paths, and technical decisions.
+- `techContext.md` – Technology stack, dependencies, development setup, and technical constraints for this project.
+- `roadmap.md` – Execution queue and future backlog: blockers, active work, future enhancements, and pending plans only (no completed-work history).
+- `activeContext.md` – Durable summary of **completed work only**, organized by theme and/or date; captures what is now true about the project as a result of finished work.
+- `progress.md` – Date-ordered log of **what works** and **what's left**, with status/coverage notes; ties specific days of progress to the higher-level summaries in `activeContext.md`.
+
+`memorybankinstructions.md` is a **meta document** that explains how to maintain the Memory Bank; it is not itself a core project context file.
+
+### Boundaries and flow
+
+- **Future & in-progress work** live only in `roadmap.md` (Blockers, Active Work, Future Enhancements, Pending plans).
+- **Completed work summaries** live only in `activeContext.md`. When work is finished, add a summary here and update/remove the corresponding entry in `roadmap.md` so the same scope is not described as both "to do" and "done".
+- **Daily progress and status** live in `progress.md` as a date-based log of what works and what remains; it may mention completed work, but its dedicated goal is the **timeline**, not the canonical summary.
+- The other core files (`projectBrief.md`, `productContext.md`, `systemPatterns.md`, `techContext.md`) provide stable background and architecture information; they MUST NOT duplicate the execution state tracked in `roadmap.md`, `activeContext.md`, or `progress.md`.
+
+Constants and schemas in `path_resolver.py`, `schema_validator.py`, `memory_bank_instructions.py`, and `techContext.md` MUST remain aligned with this canonical structure. Tests SHOULD assert that every core file listed in `_MEMORY_BANK_CORE_FILES` has a corresponding entry in `DEFAULT_SCHEMAS`.
+
 ## Privacy convention (sensitive content)
 
 Content that must not be persisted or repeated (secrets, PII) may be wrapped in `<private>...</private>` or marked with `<!-- private -->`. Agents must not store or echo such blocks in memory bank files, usage logs, or session summaries. Tools that persist user content may strip or redact content between these markers.
