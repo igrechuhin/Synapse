@@ -155,7 +155,7 @@ Overview: AGENTS.md "Commit pipeline (phase-based)". To reduce prompt size and m
   - Call `run_preflight_checks(test_timeout=300, coverage_threshold=0.90, strict_mode=False)` once at the start of the pipeline (after rules are loaded).
   - Inspect the structured JSON response:
     - If `status="error"`, treat this as a tool failure and stop the commit pipeline; report the error and do not attempt to commit.
-    - If `status="success"` but `preflight_passed` is `False`, stop the commit pipeline, summarize failing checks from the `checks` array (e.g. `tests`, `quality`, `markdown_lint`), and point the user to targeted follow-up commands such as `/cortex/fix-tests` and `/cortex/fix-quality` instead of trying to debug everything inside `/cortex/commit`.
+    - If `status="success"` but `preflight_passed` is `False`, stop the commit pipeline, summarize failing checks from the `checks` array (e.g. `tests`, `quality`, `markdown_lint`), and point the user to targeted follow-up commands such as `/cortex/fix_tests` and `/cortex/fix_quality` instead of trying to debug everything inside `/cortex/commit`.
     - Only when `status="success"` and `preflight_passed` is `True` may you proceed to Phase B and later phases.
   - Use direct `execute_pre_commit_checks()` calls later only when you need to re-run a specific check (e.g. within Step 12) or for focused debugging of a single failure.
 
