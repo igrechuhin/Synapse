@@ -348,6 +348,7 @@ Step 13 and Step 14 below contain mandatory precondition checks; do not skip the
 - **⚠️ ZERO ERRORS TOLERANCE**: The project has ZERO errors tolerance - ANY markdown lint error (in ANY file) MUST block commit
 - **⚠️ NO EXCEPTIONS**: Pre-existing markdown lint errors are NOT acceptable - they MUST be fixed before commit
 - **Workflow**: After agent completes, verify zero errors remain in ALL markdown files before proceeding to Step 2
+- **Pre-commit hook**: When pre-commit is installed (`pre-commit install`), the git pre-commit hook runs markdown lint on staged `.md`/`.mdc` files (auto-fix then block commit if unfixable errors remain). Cortex setup (Initialize prompt) can create the hook in any project; see docs/getting-started.md and docs/prompts/initialize.md. The MCP tool is still used in this pipeline for full-project check.
 
 ### Step 2: Type checking (delegate to `type-checker`)
 
