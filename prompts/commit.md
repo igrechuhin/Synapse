@@ -131,6 +131,18 @@ Steps without agents are handled directly by the orchestration workflow.
 
 **VIOLATION**: Executing this command without following this checklist is a CRITICAL violation that blocks proper commit procedure.
 
+## Compound (Plan → Work → Review → Compound)
+
+This commit run is the **Work** step; when it finishes, memory bank updates (Steps 5–6) and Step 15 (Analyze) are the **Compound** step: they keep activeContext/progress/roadmap accurate and run session optimization so the next session is easier.
+
+**Compound checklist** (apply these so each session compounds; see CLAUDE.md and troubleshooting for details):
+
+1. **Memory bank writes**: Use `manage_file()` only; never StrReplace/Write/ApplyPatch on roadmap, activeContext, or progress.
+2. **Roadmap single-line edits**: Read full content with `manage_file(read)`, compute updated content, then `manage_file(write, content=...)`; use `remove_roadmap_entry` / `append_progress_entry` / `append_active_context_entry` where applicable.
+3. **Markdown lint**: Runs on all markdown (including under history/reviews); run early when editing markdown; use `fix_markdown_lint` or preflight.
+4. **Token budgets**: Use task-type-based budgets in `load_context` when implementing (e.g. 10k update, 15k fix/debug, 20–30k feature).
+5. **Connection closed**: If a tool returns MCP error -32000 or "Connection closed", retry once; then rely on `execute_pre_commit_checks` for gates; see troubleshooting.
+
 ## Pre-Step: Load Rules (MANDATORY — BEFORE Step 0)
 
 Satisfy **Pre-Action Checklist item 2** (Read relevant rules) before Step 0. Call `rules(operation="get_relevant", task_description="Commit pipeline, test coverage, type fixes, and visibility rules")`; if the tool returns `disabled`, read rules from the rules directory (path from `get_structure_info()` → `structure_info.paths.rules`) or Synapse rules directory and record "Rules loaded: Yes (via file read)". Do not run Step 0 until rules are loaded. See also commit-pipeline.mdc and memory-bank-workflow.mdc via `rules(operation="get_relevant")` for shared behavior.
@@ -349,6 +361,7 @@ Step 13 and Step 14 below contain mandatory precondition checks; do not skip the
 - **⚠️ NO EXCEPTIONS**: Pre-existing markdown lint errors are NOT acceptable - they MUST be fixed before commit
 - **Workflow**: After agent completes, verify zero errors remain in ALL markdown files before proceeding to Step 2
 - **Pre-commit hook**: When pre-commit is installed (`pre-commit install`), the git pre-commit hook runs markdown lint on staged `.md`/`.mdc` files (auto-fix then block commit if unfixable errors remain). Cortex setup (Initialize prompt) can create the hook in any project; see docs/getting-started.md and docs/prompts/initialize.md. The MCP tool is still used in this pipeline for full-project check.
+- **Formatting guidelines**: To prevent MD036 (emphasis used as heading) and other violations, follow [docs/guides/markdown-formatting.md](docs/guides/markdown-formatting.md) (headings vs emphasis, examples). Use headings (`#`, `##`, `###`) for section titles, not bold alone.
 
 ### Step 2: Type checking (delegate to `type-checker`)
 
@@ -537,7 +550,9 @@ git -C <Synapse-directory-path> status --porcelain
   2. **Commit was created**: Step 13 completed successfully and commit exists
 - **⚠️ BLOCK PUSH**: If user did not explicitly request push OR if commit was not created, DO NOT proceed to Step 14
 - **Workflow**: Determine current branch, push to remote, verify success. Push the current branch (including `main`) without asking for extra confirmation.
-- **Error handling**: Handle push errors (remote tracking, authentication issues)
+- **Error handling**: Handle push errors (remote tracking, authentication issues). **Push failures are non-blocking**: the commit was already created in Step 13; pipeline success is not invalidated by push failure.
+  - **SSL/certificate errors**: If push fails with an SSL or certificate verification error (e.g. "unable to get local issuer certificate", "SSL certificate problem"), retry up to 2 times with a short delay (e.g. 2–5 seconds) between attempts. After 2 failed retries (or if the error is clearly not transient), provide the user with the branch name, suggest manual push (`git push origin <branch>`), and link to [Git operations (push and SSL)](../../../docs/guides/git-operations.md#push-failures-and-ssl) and [Troubleshooting: Git and SSL certificate issues](../../../docs/guides/troubleshooting.md#git-and-ssl-certificate-issues).
+  - **Other push failures**: If push fails for other reasons (auth, network, permissions), provide the same manual-push instructions and troubleshooting links; no retry required unless the error message suggests a transient issue.
 
 ### Step 15: Execute end-of-session Analyze (MANDATORY)
 
@@ -552,6 +567,7 @@ The commit procedure executes steps in this specific order to ensure dependencie
 0. **Fix Errors** (Fix Errors) - Fixes all compiler errors, type errors, formatting issues, and warnings BEFORE testing
    - **CRITICAL**: Must complete successfully before any other step
    - **VALIDATION**: Verify zero errors remain after fix-errors completes (type checker, linter checks)
+   - **Async test maintenance**: If changes involve async code, ensure all test calls to async methods/functions use `await`. The Final Validation Gate (Step 12) runs `check_async_tests`; see [Test maintenance guide](../../../docs/guides/test-maintenance.md).
    - **BLOCK COMMIT** if any errors remain
 1. **Formatting** - Ensures code style consistency with project formatter
    - **CRITICAL**: Must verify with formatter check after formatting to ensure CI will pass

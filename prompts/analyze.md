@@ -2,6 +2,8 @@
 
 **AI EXECUTION COMMAND**: Run end-of-session analysis. Check all: (1) context effectiveness, (2) session optimization. Execute automatically; do not ask for permission.
 
+This analysis is the **Compound** step of the Plan → Work → Review → Compound loop; use it to make the next session easier.
+
 **CRITICAL**: This is the single entry point for end-of-session analysis. Run all steps in order. If findings contain improvement recommendations, execute the Plan prompt with the analysis findings as input to create an improvements plan.
 
 **END-TO-END EXECUTION**: Run this analysis from start to finish without stopping to announce the plan or ask for permission. Begin with the Pre-Analysis Checklist (memory bank, rules, structure path), then run analysis steps and write the report. Only stop if a tool fails or user input is explicitly required.
@@ -12,7 +14,7 @@
 
 ## Purpose
 
-At end of session, run a single "check all" analysis: (1) evaluate `load_context` effectiveness and update statistics; (2) identify mistake patterns, root causes, and Synapse optimization recommendations, then save a report. This replaces the former separate "Analyze Context Effectiveness" and "Analyze Session Optimization" prompts.
+At end of session, run a single "check all" analysis: (1) evaluate `load_context` effectiveness and update statistics; (2) identify mistake patterns, root causes, and Synapse optimization recommendations, then save a report. This replaces the former separate "Analyze Context Effectiveness" and "Analyze Session Optimization" prompts. Running this analysis is the **Compound** step of the loop: it captures mistake patterns, root causes, and recommendations so the next session can avoid repeating them; the session optimization report and memory bank updates are the primary compound artifacts.
 
 ## Pre-Analysis Checklist (Phase 1: Context & Rules Load)
 

@@ -4,6 +4,8 @@
 
 **CRITICAL**: These steps are for the AI to execute AUTOMATICALLY. DO NOT ask the user for permission or confirmation. Execute immediately.
 
+This step is part of the **compound-engineering loop** (Plan → Work → Review → Compound). When done, update memory bank and run session optimization (analyze prompt) if end-of-session.
+
 **CURSOR COMMAND**: This is a Cursor command from the Synapse prompts directory, NOT a terminal command.
 
 **Tooling Note**: Use standard Cursor tools (`Read`, `ApplyPatch`, `Write`, `LS`, `Glob`, `Grep`) by default; MCP filesystem tools are optional fallbacks only when standard tools are unavailable or explicitly requested. **MANDATORY: Use Cortex MCP tools for all memory bank operations** - do NOT access memory bank files directly via file paths.
@@ -188,8 +190,9 @@ Before defining new data structures (classes, types, models, interfaces):
      - **CRITICAL**: Never hardcode paths. Resolve paths via Cortex MCP tools or project path resolver utilities.
      - **REQUIRED**: Use `get_structure_info()` for structure paths (plans, memory bank, rules); use `manage_file()` for memory bank files; use path resolver utilities in code (e.g., `get_cortex_path()`, `CortexResourceType`)
      - **REQUIRED**: Check existing code for path resolution patterns
-     - **FORBIDDEN**: Hardcoding the session directory, memory bank path, or plans path
-     - **FORBIDDEN**: String concatenation for paths without using resolver utilities or Cortex tools
+   - **FORBIDDEN**: Hardcoding the session directory, memory bank path, or plans path
+   - **FORBIDDEN**: String concatenation for paths without using resolver utilities or Cortex tools
+   - **Markdown files**: When creating or editing `.md`/`.mdc` files, follow the markdown formatting rule to prevent MD036 and other lint violations. Use `get_synapse_rules(task_description="markdown formatting")` for the rule and see [docs/guides/markdown-formatting.md](docs/guides/markdown-formatting.md) for headings vs emphasis and examples.
 2. **MANDATORY: Format code immediately after creation** (before type checking):
    - Use Cortex MCP tool `execute_pre_commit_checks(checks=["format"])` (or the language-specific fix script from the Synapse scripts directory) to format all new/modified files
    - **BLOCKING**: All files MUST be formatted before proceeding to type checking
@@ -204,6 +207,7 @@ Before defining new data structures (classes, types, models, interfaces):
      - Missing type annotations: Add explicit types to all functions/methods
    - **If type errors exist**: Fix them immediately, do not continue to test writing
    - **Verification**: Re-run type check via MCP tool or script until 0 errors, 0 warnings
+   - **Step 4.3.1 — Async method and test updates (when refactoring to async)**: When you make any method or function async, update all call sites in tests to await the coroutine. Verify all async method calls in tests are awaited. The pre-commit pipeline runs `check_async_tests` to detect unawaited coroutines in test files; run it via `execute_pre_commit_checks(checks=["check_async_tests"])` if you changed async behavior. See [Test maintenance guide](../../../docs/guides/test-maintenance.md).
 4. Write or update tests (MANDATORY - comprehensive test coverage required):
    - Follow AAA pattern (MANDATORY)
    - No blanket skips (MANDATORY)
@@ -327,6 +331,7 @@ Before defining new data structures (classes, types, models, interfaces):
 3. **Add completed work to activeContext**
    - **MANDATORY:** Call **`append_active_context_entry(date_str="YYYY-MM-DD", title="<step title>", summary="<short summary>")`** to append one completed entry under ## Completed Work (date). The tool creates the section if needed and appends safely.
    - **FORBIDDEN:** Do NOT read activeContext, build full content, and call `manage_file(activeContext.md, write, content=...)` with full content for this update.
+   - **Write quality (before calling append_*):** Verify any coverage percentage in entry text is 0–100 (e.g. 90.01% not 900.01%). Verify phase/label names have no concatenation typos (e.g. "Phase 18 Markdown" not "Phase 18Markdown"). Use date format YYYY-MM-DD only. See memory-bank-updater agent write-quality guidance.
 
 4. **Optional: Current focus / next steps**
    - If you must update "Current Focus" or "Next Steps" in activeContext (e.g. the completed step was the active focus), prefer a minimal edit (e.g. small search-replace or targeted edit). Only if unavoidable, use read then write with minimal changed content; never build and write the entire file for a single completed-step update.

@@ -25,6 +25,10 @@ Key practices:
 - Keep entries reverse-chronological
 - Update after significant changes (MANDATORY)
 - **Code symbols in progress/plans**: When documenting refactors or implementation steps, use correct code symbols. Verify function/module names (e.g. `_get_manager_helper`, `_init_core_managers`) against the codebase (grep or read the relevant module) so names are spelled correctly. Wrap all code identifiers in backticks to avoid MD037 and corruption (e.g. `` `_get_manager_helper` ``, `` `_init_core_managers` ``).
+- **Write quality – numbers and labels**: Before writing progress or activeContext entries:
+  - **Coverage and percentages**: Use values between 0 and 100 only (e.g. `90.01%`, not `900.01%`). If the source value is > 100, treat it as a decimal (e.g. 900.01 → 90.01%).
+  - **Phase and feature names**: Avoid concatenation typos. Ensure a space between number and word (e.g. `Phase 18 Markdown`, not `Phase 18Markdown`). Re-read the roadmap or plan title to copy the exact phase label.
+  - **Dates**: Use `YYYY-MM-DD` only (no time component). Validate that the date string matches this format before writing.
 
 ## Correct `manage_file` Usage
 

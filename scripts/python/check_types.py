@@ -252,6 +252,13 @@ def main():
                             # (e.g., no matching overloads)
                             "reportRedeclaration",  # Duplicate declaration (e.g. same field twice)
                             "reportPrivateUsage",  # Private/protected member used outside class
+                            # Unused code (must match pyrightconfig.json; catches IDE-only diagnostics)
+                            "reportUnusedCallResult",  # Unused call return (e.g. mock.assert_*)
+                            "reportUnusedImport",
+                            "reportUnusedVariable",
+                            "reportUnusedFunction",
+                            "reportUnusedClass",
+                            "reportUnusedCoroutine",
                         ]
                         if rule in error_rules:
                             has_errors = True
