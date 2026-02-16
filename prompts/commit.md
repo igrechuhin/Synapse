@@ -535,9 +535,10 @@ git -C <Synapse-directory-path> status --porcelain
   3. **Step 12.2 type check passed**: The type check tool (`execute_pre_commit_checks(checks=["type_check"])`) was executed and returned success with 0 errors
   4. **No errors in any Step 12 check**: All Step 12 checks passed with zero errors
   5. **If you fixed type errors (12.2) or lint errors (12.3) during this run**: Step 12.3 was executed again after the fix and `results.quality.success` is true with zero errors; do not proceed if 12.3 was not re-run after a code change in 12.2 or 12.3
-  6. **Explicit verification provided**: You have documented the execution of Step 12 with actual command outputs
-  7. **All validation gates passed**: Steps 0-12 have completed successfully
-- **⚠️ BLOCK COMMIT**: If user did not explicitly request commit OR if Step 12 execution cannot be verified OR if any Step 12 check failed, DO NOT proceed to Step 13
+  6. **Step 12.6 executed and passed**: Step 12.6 (file sizes AND function lengths) MUST be executed and verified passing. If MCP connection closed, fallback scripts must be used. **Phase A results are NOT sufficient** - Step 12.6 must be executed in Step 12. Verify `results.quality.file_size_violations` empty AND `results.quality.function_length_violations` empty (or fallback script exit code 0).
+  7. **Explicit verification provided**: You have documented the execution of Step 12 with actual command outputs
+  8. **All validation gates passed**: Steps 0-12 have completed successfully, including Step 12.6
+- **⚠️ BLOCK COMMIT**: If user did not explicitly request commit OR if Step 12 execution cannot be verified OR if any Step 12 check failed (including Step 12.6) OR if Step 12.6 was skipped due to connection closure, DO NOT proceed to Step 13
 - **Workflow**: Stage all changes, generate comprehensive commit message, create commit
 - **Includes**: All changes from Steps 0-11, including submodule reference if Step 11 was executed
 - **Note**: Use user-provided commit message if provided, otherwise generate from changes
@@ -829,6 +830,8 @@ fix_markdown_lint(check_all_files=True, include_untracked_markdown=True)
 
 **CRITICAL**: Quality violations (file sizes, function lengths) can be introduced during Steps 4-11 and MUST be validated before commit.
 
+**⚠️ ABSOLUTE REQUIREMENT**: Step 12.6 MUST be executed before commit. If MCP connection closes during Step 12, you MUST retry Step 12.6 specifically (not just format). If retry fails, use shell script fallbacks below. **DO NOT proceed to commit without verifying Step 12.6 passes** - Phase A results are NOT sufficient; Step 12.6 must be executed in Step 12.
+
 **Step 12.6.1 - Check file sizes** (MANDATORY):
 
 Use the Cortex MCP tool (quality gate runs quality + type_check; quality includes file sizes):
@@ -841,6 +844,7 @@ execute_pre_commit_checks(checks=["quality"])
 - **MUST verify**: No file size violations (all files within 400 lines); no type errors
 - **BLOCK COMMIT** if ANY file size or type violations are reported
 - **NO EXCEPTIONS**: Pre-existing violations are NOT acceptable
+- **Connection closed handling**: If MCP tool returns connection error, retry once. If retry fails, use shell script fallback: `uv run python .cortex/synapse/scripts/python/check_file_sizes.py` (must exit with code 0 and show "✅ All files within size limits"). Record "MCP connection closed; fallback used" and verify exit code 0 before proceeding.
 
 **Step 12.6.2 - Check function lengths** (MANDATORY):
 
@@ -854,6 +858,7 @@ execute_pre_commit_checks(checks=["quality"])
 - **MUST verify**: No function length violations (all functions within 30 lines)
 - **BLOCK COMMIT** if ANY function length violations are reported
 - **NO EXCEPTIONS**: Pre-existing violations are NOT acceptable
+- **Connection closed handling**: If MCP tool returns connection error, retry once. If retry fails, use shell script fallback: `uv run python .cortex/synapse/scripts/python/check_function_lengths.py` (must exit with code 0 and show "✅ All functions within length limits"). Record "MCP connection closed; fallback used" and verify exit code 0 before proceeding.
 
 ### 12.7 Re-run Tests with Coverage Validation (MANDATORY)
 
@@ -918,11 +923,12 @@ execute_pre_commit_checks(checks=["tests"], test_timeout=600, coverage_threshold
 - [ ] **Step 12.5 executed**: Markdown lint tool executed, full result shown
 - [ ] Markdown lint re-run: **0 errors in ALL markdown files** confirmed (matching CI behavior)
 - [ ] Markdown lint re-run: **check_all_files=True** used to match CI comprehensive check
-- [ ] **Step 12.6 executed**: File sizes AND function lengths via quality tool executed, full results shown
-- [ ] File sizes re-run: **0 violations** confirmed in FULL output
+- [ ] **Step 12.6 executed**: File sizes AND function lengths via quality tool executed, full results shown (MANDATORY - cannot be skipped even if connection closed; use fallback scripts if MCP unavailable)
+- [ ] File sizes re-run: **0 violations** confirmed in FULL output (or fallback script exit code 0)
 - [ ] File sizes re-run: **NO output truncation** - full output read and verified
-- [ ] Function lengths re-run: **0 violations** confirmed in FULL output
+- [ ] Function lengths re-run: **0 violations** confirmed in FULL output (or fallback script exit code 0)
 - [ ] Function lengths re-run: **NO output truncation** - full output read and verified
+- [ ] **Step 12.6 NOT skipped**: Verified that Step 12.6 was executed in Step 12 (not relying on Phase A results)
 - [ ] **Step 12.7 executed (Tests)**: `results.tests.success` = true AND `results.tests.coverage` ≥ 0.90 confirmed (MANDATORY)
 - [ ] **Coverage validation**: `results.tests.coverage` ≥ 0.90 (parsed as float, MANDATORY)
 - [ ] All output was **fully read and parsed**, not assumed
@@ -1275,9 +1281,10 @@ Use this ordering when numbering results:
   - Step 12.4 executed: Yes/No (MUST be Yes - test naming check command executed)
   - Step 12.5 executed: Yes/No (MUST be Yes - markdown lint check command executed)
   - Markdown lint passed: Yes/No (MUST be Yes - zero errors in ALL markdown files, matches CI behavior, ZERO ERRORS TOLERANCE, NO EXCEPTIONS)
-  - Step 12.6 executed: Yes/No (MUST be Yes - file sizes AND function lengths checks executed)
-  - File sizes check passed: Yes/No (MUST be Yes)
-  - Function lengths check passed: Yes/No (MUST be Yes)
+  - Step 12.6 executed: Yes/No (MUST be Yes - file sizes AND function lengths checks executed, even if connection closed - use fallback scripts if MCP unavailable)
+  - File sizes check passed: Yes/No (MUST be Yes - verified via MCP tool OR fallback script exit code 0)
+  - Function lengths check passed: Yes/No (MUST be Yes - verified via MCP tool OR fallback script exit code 0)
+  - Step 12.6 fallback used: Yes/No (only Yes if MCP connection closed and shell scripts were used)
   - Step 12.7 executed: Yes/No (MUST be Yes - tests with coverage validation executed)
   - Output fully read: Yes/No (MUST be Yes for all Step 12 checks)
   - Step 12 tool results take precedence: Yes/No (MUST be Yes - if any Step 12 check finds errors, commit blocked)
@@ -1489,6 +1496,7 @@ Use this ordering when numbering results:
 - **Fallbacks** (documented): Stop and report.
 - **Rationale**: Long-running tools may complete on the server after the client has closed the connection; "Connection closed" can mean client timeout/disconnect, not necessarily tool failure. Retry once then fallback (or explicit commit block for `fix_quality_issues`) allows the pipeline to behave predictably instead of silently failing.
 - **Note (fix_markdown_lint)**: The server sends per-file progress and a 5 s heartbeat for `fix_markdown_lint`, and runs markdownlint in batches to reduce duration; MCP error -32000 ("Connection closed") can still occur due to client-side timeout. Retry once, then use the documented shell fallback (Step 12.5) and record "MCP connection closed; fallback used".
+- **⚠️ CRITICAL (Step 12.6)**: If connection closes during Step 12, you MUST retry Step 12.6 specifically (file sizes and function lengths checks). **DO NOT skip Step 12.6** - it is MANDATORY even if Phase A passed earlier. If retry fails, use shell script fallbacks: `uv run python .cortex/synapse/scripts/python/check_file_sizes.py` and `uv run python .cortex/synapse/scripts/python/check_function_lengths.py`. Both must exit with code 0 before proceeding to commit. **Phase A results are NOT sufficient** - Step 12.6 must be executed in Step 12.
 
 ### MCP Tool Failure (CRITICAL)
 
