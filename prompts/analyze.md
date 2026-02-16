@@ -8,6 +8,13 @@ This analysis is the **Compound** step of the Plan → Work → Review → Compo
 
 **END-TO-END EXECUTION**: Run this analysis from start to finish without stopping to announce the plan or ask for permission. Begin with the Pre-Analysis Checklist (memory bank, rules, structure path), then run analysis steps and write the report. Only stop if a tool fails or user input is explicitly required.
 
+**CONNECTION ERROR HANDLING**: If any MCP tool call fails with "Connection closed" (MCP error -32000) or similar connection errors:
+
+- The `mcp_tool_wrapper` decorator automatically retries connection errors once.
+- If a tool fails after retry, skip that analysis step and continue with remaining steps.
+- For `analyze_context_effectiveness`: If it fails after retry, note "Context effectiveness analysis unavailable due to connection error" in the report and proceed with session optimization analysis.
+- Complete as much of the analysis as possible; partial analysis is better than no analysis.
+
 **Tooling**: Use Cortex MCP tools for memory bank, rules, and paths. Resolve paths via `get_structure_info()` (reviews directory, plans directory, memory bank). Use `manage_file()` for memory bank reads/writes. See memory-bank-workflow.mdc and AGENTS.md; do not hardcode `.cortex/` paths.
 
 **Phases**: (1) **Context & rules load** — read memory bank and rules via `manage_file()` and `rules()`/structure path. (2) **Analysis & insights** — `analyze_context_effectiveness()`, session data, `get_context_usage_statistics()`, `get_memory_bank_stats()`, `suggest_refactoring()` as needed. (3) **Outputs & plans** — write report to reviews directory (path from `get_structure_info()` → `structure_info.paths.reviews`); if recommendations exist, run Create Plan prompt. Aligns with Phase D (Session Analysis) in `docs/design/commit-pipeline-phases.md` (runs after successful commit when invoked from commit pipeline).

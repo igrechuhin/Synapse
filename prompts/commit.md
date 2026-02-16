@@ -554,11 +554,15 @@ git -C <Synapse-directory-path> status --porcelain
   - **SSL/certificate errors**: If push fails with an SSL or certificate verification error (e.g. "unable to get local issuer certificate", "SSL certificate problem"), retry up to 2 times with a short delay (e.g. 2–5 seconds) between attempts. After 2 failed retries (or if the error is clearly not transient), provide the user with the branch name, suggest manual push (`git push origin <branch>`), and link to [Git operations (push and SSL)](../../../docs/guides/git-operations.md#push-failures-and-ssl) and [Troubleshooting: Git and SSL certificate issues](../../../docs/guides/troubleshooting.md#git-and-ssl-certificate-issues).
   - **Other push failures**: If push fails for other reasons (auth, network, permissions), provide the same manual-push instructions and troubleshooting links; no retry required unless the error message suggests a transient issue.
 
-### Step 15: Execute end-of-session Analyze (MANDATORY)
+### Step 15: Execute end-of-session Analyze (MANDATORY, but non-blocking on connection errors)
 
 - **Dependency**: Must run AFTER Step 14 (push completed).
 - **MANDATORY**: At the end of the commit workflow, you MUST execute the **Analyze (End of Session)** prompt (`analyze.md` from the Synapse prompts directory). Read and execute that prompt in full: it runs context effectiveness analysis and session optimization, saves a report to the reviews directory, and optionally creates an improvements plan. Do not skip this step.
 - **Path**: Resolve the Analyze prompt path via project structure or `get_structure_info()` (e.g. Synapse prompts directory); the prompt file is `analyze.md`.
+- **Connection error handling**: If Step 15 fails with MCP error -32000 ("Connection closed") or similar connection errors:
+  1. **Retry once**: The `mcp_tool_wrapper` decorator automatically retries connection errors once.
+  2. **If retry fails**: Report the error but **do not block the commit pipeline**. Step 15 is analysis-only (Compound step) and commit success is not invalidated by analysis failures. Record "Step 15 (Analyze) failed due to connection error; commit succeeded" and proceed.
+  3. **Rationale**: Analysis tools may take time and can be affected by client-side timeouts; the commit itself (Steps 0-14) has already succeeded, so analysis failures are non-blocking.
 
 ## Command Execution Order
 
@@ -1489,7 +1493,9 @@ Use this ordering when numbering results:
 ### MCP Tool Failure (CRITICAL)
 
 - **Action**: **STOP IMMEDIATELY** - Do not continue with commit pipeline
-- **Exception**: For errors indicating "Connection closed" or "ClosedResourceError" only, see "Connection Closed During Long Tool (Retry Then Fallback)" above (retry once, then use documented fallback and record "MCP connection closed; fallback used").
+- **Exceptions**:
+  1. **Connection closed errors**: For errors indicating "Connection closed" or "ClosedResourceError", see "Connection Closed During Long Tool (Retry Then Fallback)" above (retry once, then use documented fallback and record "MCP connection closed; fallback used").
+  2. **Step 15 (Analyze) failures**: Step 15 is analysis-only (Compound step) and failures are **non-blocking**. If Step 15 fails after retry, report the error but do not stop the pipeline; commit success (Steps 0-14) is not invalidated by analysis failures.
 - **Protocol Enforcement**: **AUTOMATIC AND MANDATORY** - The MCP tool failure protocol is automatically enforced by the `mcp_tool_wrapper` decorator. Agents cannot bypass this protocol.
 - **Process**:
   1. **STOP**: Current commit process MUST stop immediately when Cortex MCP tool crashes, disconnects, or exhibits unexpected behavior

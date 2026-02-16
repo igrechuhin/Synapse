@@ -42,9 +42,13 @@ When executing steps, delegate to the appropriate agent for specialized work, th
      - Estimated scope/complexity
 
 2. ✅ **Load relevant context** - Understand current project context (at step start):
-   - **At step start** (right after reading the roadmap and picking the next step), call **Cortex MCP tool `load_context(task_description="[roadmap step description]", token_budget=[task-appropriate budget])`** so the current session is recorded for end-of-session analyze. Use the task-type token budget mapping in Step 1 below.
+   - **At step start** (right after reading the roadmap and picking the next step), use the **two-step pattern** for efficient context loading:
+     1. **First**: Call `load_context(task_description="[roadmap step description]", depth="metadata_only", token_budget=[task-appropriate budget])` to get a lightweight context map (~500 tokens) with file names, sections, token counts, and relevance scores. This also records the session for end-of-session analyze.
+     2. **Then**: Use `manage_file(file_name="[file]", operation="read", sections=["## Section Name"])` to drill into specific relevant sections on demand.
+   - **Alternative for full context**: Use `load_context(task_description="[roadmap step description]", token_budget=[task-appropriate budget])` with `depth="full"` or `depth="summary"` for complete context (use when you need all content upfront).
    - **Alternative**: Use `load_progressive_context(task_description="[roadmap step description]")` to load context progressively
    - **Optional**: Use `get_relevance_scores(task_description="[roadmap step description]")` to see which memory bank files are most relevant
+   - **Hybrid retrieval**: When `depth="metadata_only"`, essential sections (e.g., "## Current Focus" and "## Next Steps" from activeContext.md) are automatically loaded in full via the hybrid retrieval strategy, while other files return metadata only.
    - The context loading tools will automatically select relevant files (activeContext.md, progress.md, projectBrief.md, systemPatterns.md, techContext.md, etc.) based on the task
    - **DO NOT** read memory bank files directly via file paths - always use Cortex MCP tools
 
@@ -82,7 +86,7 @@ The **roadmap defines the implementation sequence** (see the "Implementation seq
    - If the entry references a plan file (e.g. `Plan: .cortex/plans/phase-XX-....md`): resolve the plan path via `get_structure_info()` → `structure_info.paths.plans`; read the plan file with standard file tools; implement the plan **in sequential step order** (see "Plan step sequence" below).
    - Otherwise implement the step from the roadmap entry (description, requirements).
 
-**Call load_context at step start**: Right after picking the next step, call `load_context(task_description="[description of roadmap step]", token_budget=[task-appropriate budget])` so the session is recorded for end-of-session analyze. Prefer token-efficient workflow: use task-appropriate token budget; when usage search or fetch-by-ID tools exist, use search → select IDs → fetch instead of loading all.
+**Call load_context at step start**: Right after picking the next step, use the two-step pattern: first call `load_context(task_description="[description of roadmap step]", depth="metadata_only", token_budget=[task-appropriate budget])` to get a lightweight context map, then use `manage_file(sections=[...])` to drill into specific sections as needed. This records the session for end-of-session analyze and provides 90%+ token savings. Prefer token-efficient workflow: use task-appropriate token budget; when usage search or fetch-by-ID tools exist, use search → select IDs → fetch instead of loading all.
 
 **Task-type token budget** (aligns with context-effectiveness insights; reduces over-provisioning):
 
@@ -108,10 +112,14 @@ The **roadmap defines the implementation sequence** (see the "Implementation seq
 - **Moderate relevance**: Include when task description matches file content
 - **Lower relevance**: Consider excluding for narrow fix/debug workflows
 
-1. **Use Cortex MCP tool `load_context(task_description="[description of roadmap step]", token_budget=[task-appropriate budget])`** to get optimal context for the implementation task (and to record the session for end-of-session analyze).
+1. **Use Cortex MCP tool `load_context()` with two-step pattern** to get optimal context for the implementation task (and to record the session for end-of-session analyze):
+   - **Step 1**: Call `load_context(task_description="[description of roadmap step]", depth="metadata_only", token_budget=[task-appropriate budget])` to get a lightweight context map (~500 tokens) with file names, sections, token counts, and relevance scores.
+   - **Step 2**: Use `manage_file(file_name="[file]", operation="read", sections=["## Section Name"])` to drill into specific relevant sections on demand.
+   - **Alternative**: For full context upfront, use `load_context(task_description="...", depth="full", token_budget=...)` or `depth="summary"` (use when you need all content immediately).
    - Select token budget from the task-type mapping above: update/modify or implement/add → 10,000; fix/debug or other → 15,000; small feature → 20,000–30,000; architecture/large design → 40,000–50,000.
    - This tool will automatically select and return relevant memory bank files based on the task description
    - The returned context will include: current project state, related work, technical constraints, patterns, and any relevant context
+   - When using `depth="metadata_only"`, essential sections (e.g., "## Current Focus" and "## Next Steps" from activeContext.md) are automatically loaded in full via hybrid retrieval strategy
    - Review `file_effectiveness` recommendations in the response to understand which files are high/moderate/lower relevance
 2. **If `load_context()` returns validation error (NON-CRITICAL error per Phase 54)**:
    - **DO NOT stop**: This is a non-critical error with alternative available
