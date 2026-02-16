@@ -32,6 +32,18 @@ When executing steps, delegate to the appropriate agent for specialized work, th
 
 **BEFORE executing this command, you MUST:**
 
+0. ✅ **Get session orientation** - Start with session brief for efficient orientation:
+   - **Use Cortex MCP tool `session_start(task_description=None)`** to get a session brief (< 1000 tokens) containing:
+     - Current focus from activeContext.md
+     - Recent completed work
+     - Next work item from roadmap (first PENDING item)
+     - Health check (file count, token budget, missing files)
+     - Git status (uncommitted changes)
+     - Actionable suggestions
+   - **This replaces 3-5 manual orientation calls** (load_context, manage_file for activeContext/roadmap, health checks)
+   - **After session_start**: Use the brief's `next_work_item` and `next_work_plan_path` to proceed with implementation
+   - **Example pattern**: `session_start()` → review brief → `load_context(task_description=brief.next_work_item, ...)` → implement
+
 1. ✅ **Read the roadmap** - Get next step from implementation sequence:
    - **Use Cortex MCP tool `manage_file(file_name="roadmap.md", operation="read")`** to get the roadmap
    - **Next step** = first PENDING item when reading the roadmap in implementation order (see roadmap intro: Blockers → Active Work → Future Enhancements → Implementation queue / Pending plans). Extract description, plan path if present, and requirements from that entry.
@@ -72,9 +84,30 @@ When executing steps, delegate to the appropriate agent for specialized work, th
 
 ## EXECUTION STEPS
 
+### Step 0: Get Session Orientation (OPTIONAL BUT RECOMMENDED)
+
+**Use `session_start()` for efficient orientation** (replaces 3-5 manual calls):
+
+1. **Call `session_start(task_description=None)`** to get a session brief with:
+   - Current focus and recent completed work
+   - Next work item (first PENDING from roadmap)
+   - Health check summary
+   - Git status
+   - Actionable suggestions
+
+2. **Use the brief** to understand current state and identify next work item
+
+3. **Then proceed** to Step 1 to read the roadmap (or use `brief.next_work_item` if available)
+
+**Note**: If you skip `session_start()`, you must still read the roadmap manually in Step 1.
+
 ### Step 1: Read Roadmap and Pick Next Step - **Delegate to `roadmap-implementer` agent**
 
 The **roadmap defines the implementation sequence** (see the "Implementation sequence" note at the top of roadmap.md). You pick the **next** step only—no priority logic in this prompt.
+
+**If you called `session_start()`**: The brief already contains `next_work_item` and `next_work_plan_path`. You can use those directly, but still verify by reading the roadmap entry to get full details.
+
+**If you skipped `session_start()`**: Follow the steps below:
 
 1. **Use Cortex MCP tool `manage_file(file_name="roadmap.md", operation="read")`** to get the roadmap content.
 2. **Next step** = first PENDING item when reading the roadmap in this order (top to bottom within each section):
@@ -86,7 +119,7 @@ The **roadmap defines the implementation sequence** (see the "Implementation seq
    - If the entry references a plan file (e.g. `Plan: .cortex/plans/phase-XX-....md`): resolve the plan path via `get_structure_info()` → `structure_info.paths.plans`; read the plan file with standard file tools; implement the plan **in sequential step order** (see "Plan step sequence" below).
    - Otherwise implement the step from the roadmap entry (description, requirements).
 
-**Call load_context at step start**: Right after picking the next step, use the two-step pattern: first call `load_context(task_description="[description of roadmap step]", depth="metadata_only", token_budget=[task-appropriate budget])` to get a lightweight context map, then use `manage_file(sections=[...])` to drill into specific sections as needed. This records the session for end-of-session analyze and provides 90%+ token savings. Prefer token-efficient workflow: use task-appropriate token budget; when usage search or fetch-by-ID tools exist, use search → select IDs → fetch instead of loading all.
+**Call load_context at step start**: Right after picking the next step (from `session_start()` brief or roadmap), use the two-step pattern: first call `load_context(task_description="[description of roadmap step]", depth="metadata_only", token_budget=[task-appropriate budget])` to get a lightweight context map, then use `manage_file(sections=[...])` to drill into specific sections as needed. This records the session for end-of-session analyze and provides 90%+ token savings. Prefer token-efficient workflow: use task-appropriate token budget; when usage search or fetch-by-ID tools exist, use search → select IDs → fetch instead of loading all.
 
 **Task-type token budget** (aligns with context-effectiveness insights; reduces over-provisioning):
 
