@@ -312,6 +312,7 @@ Before defining new data structures (classes, types, models, interfaces):
    - Re-run `execute_pre_commit_checks(checks=["quality"])` until all checks pass
    - Do NOT proceed to Step 5 until the quality gate passes
 4. **BLOCKING**: Do NOT proceed to memory bank updates (Step 5) until the quality gate passes. Leaving function-length, file-size, lint, or type violations for the commit pipeline to fix is a violation of this prompt.
+5. **Quality gate skipped - environment (doc-only only)**: When the change set is **documentation-only** (no changes under `src/` or `tests/` that affect code behavior) and `execute_pre_commit_checks(checks=["quality"])` fails due to **environment** issues—e.g. "ruff/black not found", "type_check download/certificate" (or similar tool-unavailable or network/certificate failure)—the step may be considered satisfied. Record in your summary: "Quality gate skipped - environment (doc-only session); run full pre-commit before commit." The commit pipeline still requires full checks when run in a healthy environment; this is a session-time relaxation only.
 
 ### Step 5: Update Memory Bank - **Delegate to `memory-bank-updater` agent**
 
@@ -476,6 +477,7 @@ If you encounter any issues during implementation:
         - Treat the workspace as potentially stale but **continue the roadmap implementation**, relying on `execute_pre_commit_checks` for strict quality/type/test gates.
         - Note in your summary that "`fix_quality_issues` could not complete due to client connection closure; quality gates were enforced via `execute_pre_commit_checks` only."
    - **Rationale**: `fix_quality_issues` is a convenience helper, not a hard gate. Connection-closed errors here usually indicate client timeout/disconnect rather than a server bug; retry-once then proceed with strict quality gates prevents the implementation flow from being blocked while still enforcing correctness.
+6. **Quality gate unavailable (doc-only sessions)**: When the change set is documentation-only (no code under `src/` or `tests/` affecting behavior) and `execute_pre_commit_checks` fails due to environment issues—e.g. ruff/black not found at expected paths, or type_check failing with download/certificate errors—you may treat Step 4.7 as satisfied for this session. Add to your summary: "Quality gate skipped - environment (doc-only session); run full pre-commit before commit." Do **not** skip when code was changed or when the failure is due to actual lint/type errors; only when the failure is clearly tool-unavailable or network/certificate. See also [Troubleshooting: Quality gate unavailable in environment](../../../docs/guides/troubleshooting.md#quality-gate-unavailable-in-environment).
 
 ## SUCCESS CRITERIA
 
