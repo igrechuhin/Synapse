@@ -171,7 +171,7 @@ The **roadmap defines the implementation sequence** (see the "Implementation seq
 
 **Before planning, use the `think` tool to analyze the roadmap step:**
 
-```
+```text
 <think_example>
 Reading plan step: "Add response_format parameter to manage_file"
 - Dependencies: manage_file handler exists in file_operations.py

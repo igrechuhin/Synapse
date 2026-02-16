@@ -158,7 +158,7 @@ Before taking action after receiving tool results or analyzing changes, use the 
 
 **Example thinking before Step 0:**
 
-```
+```text
 <think_example>
 Changes include: 3 Python files, 1 markdown file
 - Need: fix_errors, format, type_check, quality, tests
@@ -170,7 +170,7 @@ Changes include: 3 Python files, 1 markdown file
 
 **Example thinking before memory bank updates:**
 
-```
+```text
 <think_example>
 Pre-commit checks passed: format, type_check, quality, tests
 - Memory bank updates needed: progress.md (add entry), activeContext.md (completed work)

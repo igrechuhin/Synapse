@@ -131,7 +131,7 @@ When executing steps, delegate to the appropriate agent for specialized work, th
 
 **Before analyzing, use the `think` tool to scope the plan:**
 
-```
+```text
 <think_example>
 User request: "Add validation for memory bank file structure"
 - Scope: Need to validate schema, sections, frontmatter
