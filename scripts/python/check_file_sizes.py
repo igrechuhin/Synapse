@@ -33,16 +33,21 @@ except ImportError:
 
 # Reuse cortex.core.constants when run from Cortex repo; else config or 400
 _default_max_file_lines = 400
+_default_excluded: tuple[str, ...] = ("models.py",)
 try:
     _script_path = Path(__file__).resolve()
     _proj_root = get_project_root(_script_path)
     _src = _proj_root / "src"
     if _src.exists() and str(_src) not in sys.path:
         sys.path.insert(0, str(_src))
-    from cortex.core.constants import MAX_FILE_LINES as _default_max_file_lines
+    from cortex.core.constants import (
+        FILE_SIZE_EXCLUDED_FILENAMES as _default_excluded,
+        MAX_FILE_LINES as _default_max_file_lines,
+    )
 except (ImportError, RuntimeError):
     pass
 MAX_LINES = get_config_int("MAX_FILE_LINES", _default_max_file_lines)
+EXCLUDED_FILENAMES = _default_excluded
 
 
 def count_lines(path: Path) -> int:
@@ -108,17 +113,13 @@ def main():
 
     violations: list[tuple[Path, int]] = []
 
-    # Files that are excluded from size checks (data definition files)
-    excluded_patterns = [
-        "models.py",  # Pydantic model definitions are inherently large
-    ]
-
+    # Must match cortex.core.constants.FILE_SIZE_EXCLUDED_FILENAMES and pre_commit_helpers
     for py_file in src_dir.glob("**/*.py"):
         # Skip __pycache__ and test files
         if "__pycache__" in str(py_file) or py_file.name.startswith("test_"):
             continue
-        # Skip excluded patterns (data definition files)
-        if any(py_file.name == pattern for pattern in excluded_patterns):
+        # Skip excluded filenames (e.g. Pydantic model definitions)
+        if py_file.name in EXCLUDED_FILENAMES:
             continue
 
         lines = count_lines(py_file)
