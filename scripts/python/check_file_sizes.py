@@ -42,10 +42,13 @@ try:
         sys.path.insert(0, str(_src))
     from cortex.core.constants import (
         FILE_SIZE_EXCLUDED_FILENAMES as _default_excluded,
+    )
+    from cortex.core.constants import (
         MAX_FILE_LINES as _default_max_file_lines,
     )
 except (ImportError, RuntimeError):
     pass
+
 MAX_LINES = get_config_int("MAX_FILE_LINES", _default_max_file_lines)
 EXCLUDED_FILENAMES = _default_excluded
 

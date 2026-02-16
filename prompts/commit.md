@@ -35,7 +35,7 @@
     - Load rules relevant to commit/test work:
       - `rules(operation="get_relevant", task_description="Commit pipeline and test coverage enforcement")`
 
-**Pre-Commit Checks (Phase A helper)**: Prefer the `run_preflight_checks()` MCP tool as the primary entrypoint for Phase A preflight (Steps 0–4). Under the hood it uses `execute_pre_commit_checks()` for the default preflight checks (fix_errors, format, type_check, quality, tests) and `fix_markdown_lint()` once, and returns a structured result with a top-level `preflight_passed` flag and per-check summaries. **CRITICAL**: All of these tools resolve project root internally (via MCP context when available) and language on their own. **NEVER pass `project_root` as a parameter** - Cortex MCP tools resolve project root internally. When you need to re-run a single check (e.g., during Step 12) or debug a specific failure, call `execute_pre_commit_checks()` directly as documented below. Both tools provide:
+**Pre-Commit Checks (Phase A helper)**: Prefer the `run_preflight_checks()` MCP tool as the primary entrypoint for Phase A preflight (Steps 0–4). Under the hood it uses `execute_pre_commit_checks()` for the default preflight checks (fix_errors, format, synapse_format, synapse_lint, type_check, quality, tests) and `fix_markdown_lint()` once, and returns a structured result with a top-level `preflight_passed` flag and per-check summaries. **CI parity**: synapse_format and synapse_lint run the same Synapse script checks as CI (Black and Ruff for `.cortex/synapse/scripts/`), so Phase A failures for these checks must be fixed before commit to avoid quality gate failures on push. **CRITICAL**: All of these tools resolve project root internally (via MCP context when available) and language on their own. **NEVER pass `project_root` as a parameter** - Cortex MCP tools resolve project root internally. When you need to re-run a single check (e.g., during Step 12) or debug a specific failure, call `execute_pre_commit_checks()` directly as documented below. Both tools provide:
 
 - Language auto-detection (resolved internally)
 - Structured parameters and return values
@@ -114,7 +114,7 @@ Steps without agents are handled directly by the orchestration workflow.
 1. ✅ **Verify code conformance to rules** - Before running checks, verify code conforms to the rules loaded above (coding standards, type annotations, data modeling, file/function limits, dependency injection). See language-specific rules and memory-bank-workflow.mdc. **BLOCKING**: Data structures must comply with project's required modeling standards; fix any violations before pre-commit checks.
 
 1. ✅ **Understand operations** - Use MCP tools for all operations:
-   - **Pre-commit checks**: Use `execute_pre_commit_checks()` MCP tool for fix_errors, format, type_check, quality, and tests
+   - **Pre-commit checks**: Use `execute_pre_commit_checks()` MCP tool for fix_errors, format, synapse_format, synapse_lint, type_check, quality, and tests
    - **Memory bank operations**: Use existing MCP tools (`manage_file()`, `get_memory_bank_stats()`) instead of prompt files
    - **Validation operations**: Use existing MCP tools (`validate()`, `check_structure_health()`) instead of prompt files
 
@@ -161,7 +161,7 @@ Before taking action after receiving tool results or analyzing changes, use the 
 ```text
 <think_example>
 Changes include: 3 Python files, 1 markdown file
-- Need: fix_errors, format, type_check, quality, tests
+- Need: fix_errors, format, synapse_format, synapse_lint, type_check, quality, tests
 - Markdown changed: need markdown lint
 - Memory bank: activeContext needs update for completed work
 - Check: no .env files staged, no hardcoded secrets
@@ -1582,7 +1582,7 @@ Use this ordering when numbering results:
      - **Next Steps**: User should review the plan and prioritize fixing the tool issue
   6. **DO NOT** proceed with commit until the MCP tool issue is resolved
 - **Affected Tools**: This applies to all Cortex MCP tools used in commit procedure:
-  - `execute_pre_commit_checks()` (fix_errors, format, type_check, quality, tests)
+  - `execute_pre_commit_checks()` (fix_errors, format, synapse_format, synapse_lint, type_check, quality, tests)
   - `fix_markdown_lint()` (markdown linting)
   - `manage_file()` (memory bank operations)
   - `validate()` (timestamp validation); Step 10 uses `manage_file()` for roadmap/activeContext state only
