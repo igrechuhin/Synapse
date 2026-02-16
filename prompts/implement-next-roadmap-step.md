@@ -169,6 +169,18 @@ The **roadmap defines the implementation sequence** (see the "Implementation seq
 
 ### Step 3: Plan Implementation
 
+**Before planning, use the `think` tool to analyze the roadmap step:**
+
+```
+<think_example>
+Reading plan step: "Add response_format parameter to manage_file"
+- Dependencies: manage_file handler exists in file_operations.py
+- Need to: add parameter to schema, handler logic, tests
+- Risks: backward compatibility — default must be "detailed" for existing callers
+- Testing: unit test for both formats, integration test with real file
+</think_example>
+```
+
 1. Break down the roadmap step into concrete implementation tasks
 2. Identify which files need to be created, modified, or deleted
 3. Determine what tests need to be written or updated

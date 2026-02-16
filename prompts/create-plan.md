@@ -129,6 +129,19 @@ When executing steps, delegate to the appropriate agent for specialized work, th
 
 ### Step 4: Analyze All Provided Context
 
+**Before analyzing, use the `think` tool to scope the plan:**
+
+```
+<think_example>
+User request: "Add validation for memory bank file structure"
+- Scope: Need to validate schema, sections, frontmatter
+- Dependencies: Existing validation tools, memory bank schema definition
+- Risks: Breaking existing valid files, performance on large files
+- Success criteria: All memory bank files pass validation, clear error messages
+- Timeline: Medium complexity, estimate 1 sprint
+</think_example>
+```
+
 1. **Analyze the user's plan description AND all additional context**:
    - Parse the explicit plan description/request
    - **Analyze ALL attached files, code selections, error logs, etc. as INPUT for the plan**

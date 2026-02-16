@@ -147,6 +147,38 @@ This commit run is the **Work** step; when it finishes, memory bank updates (Ste
 
 Satisfy **Pre-Action Checklist item 2** (Read relevant rules) before Step 0. Call `rules(operation="get_relevant", task_description="Commit pipeline, test coverage, type fixes, and visibility rules")`; if the tool returns `disabled`, read rules from the rules directory (path from `get_structure_info()` → `structure_info.paths.rules`) or Synapse rules directory and record "Rules loaded: Yes (via file read)". Do not run Step 0 until rules are loaded. See also commit-pipeline.mdc and memory-bank-workflow.mdc via `rules(operation="get_relevant")` for shared behavior.
 
+## Using the think tool
+
+Before taking action after receiving tool results or analyzing changes, use the `think` tool to:
+
+- List which pre-commit checks apply to the current changes
+- Verify all files are staged and no secrets included
+- Check if memory bank updates are needed
+- Analyze dependencies between validation steps
+
+**Example thinking before Step 0:**
+
+```
+<think_example>
+Changes include: 3 Python files, 1 markdown file
+- Need: fix_errors, format, type_check, quality, tests
+- Markdown changed: need markdown lint
+- Memory bank: activeContext needs update for completed work
+- Check: no .env files staged, no hardcoded secrets
+</think_example>
+```
+
+**Example thinking before memory bank updates:**
+
+```
+<think_example>
+Pre-commit checks passed: format, type_check, quality, tests
+- Memory bank updates needed: progress.md (add entry), activeContext.md (completed work)
+- Roadmap: no changes needed (work was from roadmap, already tracked)
+- Timestamps: verify YYYY-MM-DDTHH:MM format in progress entries
+</think_example>
+```
+
 ## Phase Helper MCP Tools (Phase A and B)
 
 Overview: AGENTS.md "Commit pipeline (phase-based)". To reduce prompt size and make the commit pipeline easier to orchestrate, use the dedicated phase helpers instead of micromanaging every individual check where possible:
@@ -327,6 +359,16 @@ The following error patterns MUST be detected and fixed before commit. These are
 - **Block Commit**: Yes - Step 12 is MANDATORY and cannot be skipped
 - **Prevention**: ANY code change OR new file creation after Step 1 REQUIRES re-running formatting fix AND verification before commit
 - **Note**: This is the most common cause of CI failures that "should have been caught"
+
+### ⚠️ Step 12.7 Skipped Due to Connection Error (CRITICAL ANTI-PATTERN)
+
+- **Pattern**: Agent encounters MCP connection error during Step 12.7 (test re-run), retries once, retry fails, but proceeds to commit using Phase A results
+- **Detection**: Agent acknowledges Step 12.7 failed with connection error but commits anyway with reasoning like "Phase A results valid" or "connection closed; Phase A results sufficient"
+- **Why This Is WRONG**: Code changes during Steps 5-11 may affect test results. Step 12.7 validates that tests still pass and coverage is maintained after all changes. Skipping Step 12.7 risks committing code that breaks tests or reduces coverage below the 90% threshold.
+- **Action**: NEVER proceed to commit when Step 12.7 fails after retry. BLOCK COMMIT immediately and report the connection failure.
+- **Block Commit**: Yes - Step 12.7 MUST execute successfully in Step 12. Phase A results are NOT sufficient.
+- **NO EXCEPTIONS**: There is no fallback for Step 12.7. If it cannot complete after retry, the commit MUST be blocked.
+- **Note**: This anti-pattern causes CI failures where tests pass in Phase A but fail in CI due to code changes made after Phase A.
 
 **CRITICAL**: All error patterns above MUST be validated by parsing command output, not just checking exit codes. Exit codes can be misleading - always parse actual output to verify results.
 
@@ -536,9 +578,10 @@ git -C <Synapse-directory-path> status --porcelain
   4. **No errors in any Step 12 check**: All Step 12 checks passed with zero errors
   5. **If you fixed type errors (12.2) or lint errors (12.3) during this run**: Step 12.3 was executed again after the fix and `results.quality.success` is true with zero errors; do not proceed if 12.3 was not re-run after a code change in 12.2 or 12.3
   6. **Step 12.6 executed and passed**: Step 12.6 (file sizes AND function lengths) MUST be executed and verified passing. If MCP connection closed, fallback scripts must be used. **Phase A results are NOT sufficient** - Step 12.6 must be executed in Step 12. Verify `results.quality.file_size_violations` empty AND `results.quality.function_length_violations` empty (or fallback script exit code 0).
-  7. **Explicit verification provided**: You have documented the execution of Step 12 with actual command outputs
-  8. **All validation gates passed**: Steps 0-12 have completed successfully, including Step 12.6
-- **⚠️ BLOCK COMMIT**: If user did not explicitly request commit OR if Step 12 execution cannot be verified OR if any Step 12 check failed (including Step 12.6) OR if Step 12.6 was skipped due to connection closure, DO NOT proceed to Step 13
+  7. **Step 12.7 executed and passed**: Step 12.7 (tests with coverage) MUST be executed successfully and verified passing. **CRITICAL**: If MCP connection closed during Step 12.7, retry once. If retry fails, **BLOCK COMMIT** - do NOT proceed with Phase A results. **Phase A results are NOT sufficient** - Step 12.7 must execute successfully in Step 12. Verify `results.tests.success` = true AND `results.tests.coverage` ≥ 0.90. **NO FALLBACK** - Unlike Step 12.6, there is no shell script fallback for tests.
+  8. **Explicit verification provided**: You have documented the execution of Step 12 with actual command outputs
+  9. **All validation gates passed**: Steps 0-12 have completed successfully, including Step 12.6 and Step 12.7
+- **⚠️ BLOCK COMMIT**: If user did not explicitly request commit OR if Step 12 execution cannot be verified OR if any Step 12 check failed (including Step 12.6 or Step 12.7) OR if Step 12.6 was skipped due to connection closure OR if Step 12.7 failed after retry, DO NOT proceed to Step 13
 - **Workflow**: Stage all changes, generate comprehensive commit message, create commit
 - **Includes**: All changes from Steps 0-11, including submodule reference if Step 11 was executed
 - **Note**: Use user-provided commit message if provided, otherwise generate from changes
@@ -880,6 +923,12 @@ execute_pre_commit_checks(checks=["tests"], test_timeout=600, coverage_threshold
 - **MUST verify**: `results.tests.coverage` ≥ 0.90 (coverage ≥ 90%, parsed as float)
 - **BLOCK COMMIT** if `results.tests.success` = false OR `results.tests.coverage` < 0.90 OR any test fails
 - **CRITICAL**: Coverage validation is MANDATORY - NO EXCEPTIONS
+- **⚠️ CRITICAL - Connection Error Handling**: If MCP tool returns connection error (e.g., "Connection closed", "ClosedResourceError", MCP error -32000), retry once. If retry also fails:
+  - **BLOCK COMMIT IMMEDIATELY** - Do NOT proceed to Step 13
+  - **Phase A results are NOT sufficient** - Step 12.7 MUST execute successfully in Step 12
+  - **NO FALLBACK** - Unlike Step 12.6, there is no shell script fallback for tests. If Step 12.7 cannot complete after retry, the commit MUST be blocked
+  - **Report error**: Document the connection failure and advise user to retry the commit pipeline
+  - **Rationale**: Code changes during Steps 5-11 may affect test results. Step 12.7 validates that tests still pass and coverage is maintained after all changes. Skipping Step 12.7 risks committing code that breaks tests or reduces coverage below the 90% threshold.
 
 ### 12.9 Verification Requirements (CRITICAL)
 
@@ -930,6 +979,8 @@ execute_pre_commit_checks(checks=["tests"], test_timeout=600, coverage_threshold
 - [ ] Function lengths re-run: **NO output truncation** - full output read and verified
 - [ ] **Step 12.6 NOT skipped**: Verified that Step 12.6 was executed in Step 12 (not relying on Phase A results)
 - [ ] **Step 12.7 executed (Tests)**: `results.tests.success` = true AND `results.tests.coverage` ≥ 0.90 confirmed (MANDATORY)
+- [ ] **Step 12.7 NOT skipped**: Verified that Step 12.7 was executed successfully in Step 12 (not relying on Phase A results)
+- [ ] **Step 12.7 connection errors**: If connection error occurred, retry was attempted; if retry failed, commit was BLOCKED (not proceeded with Phase A results)
 - [ ] **Coverage validation**: `results.tests.coverage` ≥ 0.90 (parsed as float, MANDATORY)
 - [ ] All output was **fully read and parsed**, not assumed
 - [ ] All commands in Step 12 executed **WITHOUT** `| tail`, `| head`, or any output truncation
@@ -1285,11 +1336,14 @@ Use this ordering when numbering results:
   - File sizes check passed: Yes/No (MUST be Yes - verified via MCP tool OR fallback script exit code 0)
   - Function lengths check passed: Yes/No (MUST be Yes - verified via MCP tool OR fallback script exit code 0)
   - Step 12.6 fallback used: Yes/No (only Yes if MCP connection closed and shell scripts were used)
-  - Step 12.7 executed: Yes/No (MUST be Yes - tests with coverage validation executed)
+  - Step 12.7 executed: Yes/No (MUST be Yes - tests with coverage validation executed successfully)
+  - Step 12.7 NOT skipped: Yes/No (MUST be Yes - Step 12.7 executed in Step 12, not relying on Phase A results)
+  - Step 12.7 connection errors handled: Yes/No (MUST be Yes - if connection error occurred, retry attempted; if retry failed, commit BLOCKED)
+  - Step 12.7 tests passed: Yes/No (MUST be Yes - results.tests.success = true AND results.tests.coverage ≥ 0.90)
   - Output fully read: Yes/No (MUST be Yes for all Step 12 checks)
   - Step 12 tool results take precedence: Yes/No (MUST be Yes - if any Step 12 check finds errors, commit blocked)
   - Step 12 execution verified: Yes/No (MUST be Yes - explicit evidence provided that all Step 12 sub-steps were executed)
-- **BLOCK COMMIT** if any check in Step 12 fails OR if Step 12 execution cannot be verified
+- **BLOCK COMMIT** if any check in Step 12 fails OR if Step 12 execution cannot be verified OR if Step 12.7 failed after retry
 
 #### **13. Commit Creation**
 
