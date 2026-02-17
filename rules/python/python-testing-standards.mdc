@@ -72,6 +72,35 @@ def test_payment_processing():
     assert result["status"] == "success"
 ```
 
+### File Watcher Lifecycle Testing (ENFORCED)
+
+- **Mock Observer Instances**: File watcher lifecycle tests MUST use patched `Observer` instances instead of real OS observers - MANDATORY
+- **Verify Interactions**: Test watcher interactions with mocked observers (start, stop, schedule calls) - MANDATORY
+- **Avoid Real Threads**: Do NOT use real `Observer` threads in tests; they are unstable under `pytest-timeout` and slow down test execution - MANDATORY
+
+```python
+from unittest.mock import patch
+from watchdog.observers import Observer
+
+@pytest.mark.asyncio
+async def test_watcher_lifecycle():
+    """Test watcher start/stop lifecycle with mocked observer."""
+    watcher = MemoryBankWatcher(tmp_path, callback)
+    loop = asyncio.get_event_loop()
+    
+    with patch("cortex.core.file_watcher.Observer") as MockObserver:
+        observer_instance = MockObserver.return_value
+        observer_instance.is_alive.return_value = True
+        
+        watcher.start(loop)
+        
+        try:
+            assert watcher.observer is not None
+            observer_instance.start.assert_called_once()
+        finally:
+            watcher.stop()
+```
+
 ## Exception Testing (ENFORCED)
 
 - **Specific Exception Types**: Test for specific exception types, not generic `Exception` - MANDATORY

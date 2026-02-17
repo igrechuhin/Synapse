@@ -147,6 +147,8 @@ This commit run is the **Work** step; when it finishes, memory bank updates (Ste
 
 Satisfy **Pre-Action Checklist item 2** (Read relevant rules) before Step 0. Call `rules(operation="get_relevant", task_description="Commit pipeline, test coverage, type fixes, and visibility rules")`; if the tool returns `disabled`, read rules from the rules directory (path from `get_structure_info()` → `structure_info.paths.rules`) or Synapse rules directory and record "Rules loaded: Yes (via file read)". Do not run Step 0 until rules are loaded. See also commit-pipeline.mdc and memory-bank-workflow.mdc via `rules(operation="get_relevant")` for shared behavior.
 
+**⚠️ Zero-budget/zero-files reminder**: Zero-budget (`token_budget=0`) or zero-files (`files_selected=0`) `load_context` calls are only acceptable for trivial/no-op tasks. For non-trivial tasks (refactor/fix/debug/implement), these indicate a configuration error and MUST use a non-zero budget (typically 10k-15k for fix/debug, 20k-30k for implement/add).
+
 ## Using the think tool
 
 Before taking action after receiving tool results or analyzing changes, use the `think` tool to:

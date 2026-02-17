@@ -67,7 +67,8 @@ When executing steps, delegate to the appropriate agent for specialized work, th
 3. ✅ **Read relevant rules** - Understand implementation requirements:
    - Use Cortex MCP tool `rules(operation="get_relevant", task_description="Implementation, code quality, memory bank, testing")` to load rules, or read from the rules directory (path from `get_structure_info()` → `structure_info.paths.rules`)
    - **When `rules()` returns `status: "disabled"`**: Still load key coding standards by reading from the rules directory (path from `get_structure_info()` → `structure_info.paths.rules`) using the Read tool, so implementation quality is maintained.
-   - **Pydantic 2 standards**: Pydantic 2 standards are owned by Synapse and defined in `python-pydantic-standards.mdc` (Synapse rules directory). Use `rules(operation="get_relevant", task_description="Pydantic 2 standards")` or `get_synapse_rules(task_description="Pydantic 2")` to load the canonical Synapse rule. Do not duplicate Pydantic guidance in project-local documentation.
+   - **Language-specific standards**: Load language-specific coding standards via `get_synapse_rules(task_description="[language] standards")`.
+   - **Rule discovery fallback**: When `rules()` returns empty results or the task involves tool implementation/refactoring (e.g., implementing MCP tools, refactoring tool parameters), also check `get_synapse_rules(task_description="[language] models, structured data")`.md for language-specific structured-data standards.
    - Ensure coding standards, language-specific standards, memory-bank workflow, and testing standards are in context
 
 4. ✅ **Verify implementation against rules and run quality gate** - After implementation, verify conformance:
@@ -242,6 +243,7 @@ Before defining new data structures (classes, types, models, interfaces):
    - Create/modify/delete files as needed
    - Write or update code according to coding standards
    - Ensure type annotations are complete per language-specific standards
+   - **For tool parameters and internal dispatch data**: Use structured data models per language standards (e.g., Pydantic BaseModel for Python, TypeScript interfaces for TypeScript), not generic untyped containers (e.g., `dict[str, Any]`, `any`). Apply when introducing or refactoring tool param objects or internal structured data structures. Check AGENTS.md/CLAUDE.md or language-specific rules for project standards.
    - When adding new functions, keep each under the project limit (≤30 logical lines); if a function grows beyond that, extract helpers before running the full quality gate.
    - Follow language-specific best practices and modern features
    - Keep functions/methods and files within project's length/size limits (check language-specific standards)

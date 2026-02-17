@@ -34,7 +34,7 @@ At end of session, run a single "check all" analysis: (1) evaluate `load_context
    - `systemPatterns.md` – architectural patterns
    - `techContext.md` – technical context
 
-2. **Read relevant rules** (Cortex MCP tool `rules(operation="get_relevant", task_description="Coding standards, session analysis")` or rules directory path from `get_structure_info()` → `structure_info.paths.rules`). If rules indexing is disabled (`rules(operation="get_relevant", ...)` returns `status: "disabled"`), read key rules from the Synapse rules directory (path from `get_structure_info()` → `structure_info.paths.rules`) or from AGENTS.md/CLAUDE.md for coding standards and memory bank access.
+2. **Read relevant rules** (Cortex MCP tool `rules(operation="get_relevant", task_description="Coding standards, session analysis")` or rules directory path from `get_structure_info()` → `structure_info.paths.rules`). If rules indexing is disabled (`rules(operation="get_relevant", ...)` returns `status: "disabled"`), read key rules from the Synapse rules directory (path from `get_structure_info()` → `structure_info.paths.rules`) or from AGENTS.md/CLAUDE.md for coding standards and memory bank access. **Rule discovery fallback**: When `rules()` returns empty results or the task involves tool implementation/refactoring, also check `get_synapse_rules(task_description="[language] models, structured data")` or read AGENTS.md/CLAUDE.md for language-specific structured-data standards (e.g., tool parameters should use structured data models per language standards, not generic untyped containers).
 
 3. **Context-effectiveness recall** (for manual fallback if needed):
    - Recall `load_context` / `load_progressive_context` calls this session: task descriptions, files selected, relevance scores, token budget and utilization.
@@ -47,6 +47,8 @@ At end of session, run a single "check all" analysis: (1) evaluate `load_context
 ## Execution Order
 
 ### Step 1: Context Effectiveness (Phase 2: Analysis & Insights)
+
+**⚠️ Zero-budget/zero-files reminder**: Zero-budget (`token_budget=0`) or zero-files (`files_selected=0`) `load_context` calls are only acceptable for trivial/no-op tasks. For non-trivial tasks (refactor/fix/debug/implement), these indicate a configuration error and MUST use a non-zero budget (typically 10k-15k for fix/debug, 20k-30k for implement/add).
 
 1. Call `analyze_context_effectiveness()` (default: current session only).
 2. If the tool returns `"status": "no_data"` (e.g. no `load_context` calls this session), that is expected for **analysis-only sessions** (e.g. when the only action in the session is running this Analyze prompt). Proceed to manual fallback if useful. **Optional**: To record one call for context-effectiveness metrics, the agent may call `session_start()` or `load_context(task_description="end-of-session analysis", token_budget=5000)` before running the analysis steps.
