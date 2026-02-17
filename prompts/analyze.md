@@ -90,14 +90,15 @@ At end of session, run a single "check all" analysis: (1) evaluate `load_context
 
 ### Step 3.5: Markdown Lint Enforcement (Markdownlint CLI parity)
 
-After writing the report and completing compaction, run markdown lint to ensure **all** markdown files (including the new review) conform to the same rules as the CI quality gate:
+After writing the report and completing compaction, run markdown lint to ensure modified/new markdown files (including the new review) conform to the same rules as the CI quality gate:
 
-1. Call `fix_markdown_lint(include_untracked_markdown=True, dry_run=False, check_all_files=True)`.
+1. Call `fix_markdown_lint(include_untracked_markdown=True, dry_run=False)`.
 2. If the tool reports any remaining errors or a non-success status:
    - Treat this as a **mistake pattern** in the Session Optimization Analysis
    - Describe the affected files and rules in the report
    - Re-run `fix_markdown_lint` after applying fixes until the summary shows `Summary: 0 error(s)`.
 3. **Do not skip this step**: markdownlint errors must be fixed before the session is considered complete so the CI quality gate will pass on push.
+4. **Full-repo check** (optional): For comprehensive CI parity, run `node_modules/.bin/markdownlint-cli2 --fix` from the shell.
 
 ### Step 4 (Optional): Health / Session Scripts
 

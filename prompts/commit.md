@@ -397,13 +397,12 @@ Step 13 and Step 14 below contain mandatory precondition checks; do not skip the
 
 - **Agent**: Use the markdown-linter agent (Synapse agents directory) for implementation details
 - **Dependency**: Must run AFTER Step 1 (code formatting)
-- **CRITICAL**: Must check ALL markdown files (like CI does) - use `check_all_files=True` to match CI behavior
-- **CRITICAL**: CI checks ALL markdown files and fails on ANY error - commit pipeline MUST match this behavior
+- **Scope**: The MCP tool `fix_markdown_lint(include_untracked_markdown=True)` lints git-modified and untracked markdown files. For full-repo lint (matching CI), run `node_modules/.bin/markdownlint-cli2 --fix` from the shell.
 - **BLOCK COMMIT**: If ANY markdown lint errors remain (not just critical errors in memory bank/plans)
-- **⚠️ ZERO ERRORS TOLERANCE**: The project has ZERO errors tolerance - ANY markdown lint error (in ANY file) MUST block commit
-- **⚠️ NO EXCEPTIONS**: Pre-existing markdown lint errors are NOT acceptable - they MUST be fixed before commit
+- **ZERO ERRORS TOLERANCE**: The project has ZERO errors tolerance - ANY markdown lint error (in ANY file) MUST block commit
+- **NO EXCEPTIONS**: Pre-existing markdown lint errors are NOT acceptable - they MUST be fixed before commit
 - **Workflow**: After agent completes, verify zero errors remain in ALL markdown files before proceeding to Step 2
-- **Pre-commit hook**: When pre-commit is installed (`pre-commit install`), the git pre-commit hook runs markdown lint on staged `.md`/`.mdc` files (auto-fix then block commit if unfixable errors remain). Cortex setup (Initialize prompt) can create the hook in any project; see docs/getting-started.md and docs/prompts/initialize.md. The MCP tool is still used in this pipeline for full-project check.
+- **Pre-commit hook**: When pre-commit is installed (`pre-commit install`), the git pre-commit hook runs markdown lint on staged `.md`/`.mdc` files (auto-fix then block commit if unfixable errors remain). Cortex setup (Initialize prompt) can create the hook in any project; see docs/getting-started.md and docs/prompts/initialize.md.
 - **Formatting guidelines**: To prevent MD036 (emphasis used as heading) and other violations, follow [docs/guides/markdown-formatting.md](docs/guides/markdown-formatting.md) (headings vs emphasis, examples). Use headings (`#`, `##`, `###`) for section titles, not bold alone.
 
 ### Step 2: Type checking (delegate to `type-checker`)
@@ -698,8 +697,8 @@ The original checks in Steps 0-4 are INVALIDATED by any subsequent code changes 
 
 - **When**: Run immediately at the start of Step 12, before Step 12.1
 - **What**: Identify markdown files modified during Steps 0-11 and run markdown lint check on those files
-- **How**: Use `fix_markdown_lint(check_all_files=True, include_untracked_markdown=True)` so that all current markdown files (including any session review files in the reviews directory created or updated during this session) are linted. The tool resolves project root via MCP roots when the client supports them. Resolve reviews path via `get_structure_info()` → `structure_info.paths.reviews` if needed.
-- **If you wrote session review files**: If you created or updated any markdown files during Steps 0–11 (e.g. session-optimization-*.md in the reviews directory), run `fix_markdown_lint(check_all_files=True, include_untracked_markdown=True)` so those files are included before proceeding to Step 12.1
+- **How**: Use `fix_markdown_lint(include_untracked_markdown=True)` to lint git-modified and untracked markdown files (including any session review files created during this session). The tool resolves project root via MCP roots when the client supports them. Resolve reviews path via `get_structure_info()` → `structure_info.paths.reviews` if needed.
+- **If you wrote session review files**: If you created or updated any markdown files during Steps 0–11 (e.g. session-optimization-*.md in the reviews directory), `fix_markdown_lint(include_untracked_markdown=True)` will include them since they are untracked or modified.
 - **Fix**: Resolve any markdown lint errors before proceeding to Step 12.1
 - **BLOCK COMMIT**: If markdown lint errors are found on modified files, fix them before continuing to Step 12.1
 - **Rationale**: Reduces extra iterations by catching markdown lint errors immediately after modification, before Step 12.5 full check
@@ -846,15 +845,15 @@ execute_pre_commit_checks(checks=["test_naming"])
 
 **⚠️ ORDERING RATIONALE**: Markdown lint runs BEFORE tests to avoid MCP connection staleness. The test suite can take several minutes, and running markdown lint after tests has historically caused "Connection closed" errors due to the MCP connection timing out during the long test run.
 
-**Step 12.5.1 - Re-run markdown lint check on ALL files** (MANDATORY):
+**Step 12.5.1 - Re-run markdown lint check** (MANDATORY):
 
-Use the MCP tool to check ALL markdown files (matching CI behavior). Project root is resolved by the server (MCP roots when available):
+Use the MCP tool to lint git-modified and untracked markdown files. Project root is resolved by the server (MCP roots when available):
 
 ```python
-fix_markdown_lint(check_all_files=True, include_untracked_markdown=True)
+fix_markdown_lint(include_untracked_markdown=True)
 ```
 
-**Scope**: With `check_all_files=True`, the tool lints all `.md` and `.mdc` files under the project, including `.cortex/history/` and `.cortex/reviews/`. Files written by MCP tools (e.g. history snapshots, session reviews) are included and must pass lint. Do not assume history or reviews are out of scope.
+**Scope**: The tool lints git-modified and untracked `.md`/`.mdc` files, including new files in `.cortex/history/` and `.cortex/reviews/`. For full-repo lint (matching CI), run `node_modules/.bin/markdownlint-cli2 --fix` from the shell.
 
 **⚠️ CRITICAL**: Do NOT truncate output - read FULL output to verify check passed
 
@@ -972,8 +971,7 @@ execute_pre_commit_checks(checks=["tests"], test_timeout=600, coverage_threshold
 - [ ] Spelling re-run: **ZERO ERRORS TOLERANCE** - verified that error count = 0 (NO exceptions, even for pre-existing errors)
 - [ ] **Step 12.4 executed**: Test naming check tool executed, full result shown
 - [ ] **Step 12.5 executed**: Markdown lint tool executed, full result shown
-- [ ] Markdown lint re-run: **0 errors in ALL markdown files** confirmed (matching CI behavior)
-- [ ] Markdown lint re-run: **check_all_files=True** used to match CI comprehensive check
+- [ ] Markdown lint re-run: **0 errors** confirmed in git-modified/untracked markdown files
 - [ ] **Step 12.6 executed**: File sizes AND function lengths via quality tool executed, full results shown (MANDATORY - cannot be skipped even if connection closed; use fallback scripts if MCP unavailable)
 - [ ] File sizes re-run: **0 violations** confirmed in FULL output (or fallback script exit code 0)
 - [ ] File sizes re-run: **NO output truncation** - full output read and verified
@@ -1117,7 +1115,7 @@ Use this ordering when numbering results:
 #### **1.5. Markdown Linting**
 
 - **Status**: Success/Failure/Skipped
-- **MCP Tool Used**: `fix_markdown_lint(check_all_files=True, include_untracked_markdown=True)` (MUST check ALL files to match CI)
+- **MCP Tool Used**: `fix_markdown_lint(include_untracked_markdown=True)` (lints git-modified + untracked files)
 - **Tool Available**: Whether markdownlint-cli2 is installed
 - **Files Processed**: Count of markdown files processed (should match CI - all .md and .mdc files)
 - **Files Fixed**: Count of markdown files with errors fixed
@@ -1129,7 +1127,6 @@ Use this ordering when numbering results:
 - **Errors Remaining**: List of non-auto-fixable errors with file paths and error codes (MUST be empty)
 - **Validation Results**:
   - Tool executed: Yes/No (MUST be Yes if tool available)
-  - check_all_files=True used: Yes/No (MUST be Yes to match CI behavior)
   - Check-only validation run: Yes/No (MUST be Yes if files_with_errors > 0)
   - All auto-fixable errors fixed: Yes/No (MUST be Yes if tool available)
   - Zero errors in ALL files: Yes/No (MUST be Yes - parsed from check-only output, matches CI)
@@ -1312,7 +1309,7 @@ Use this ordering when numbering results:
   - **⚠️ EXECUTION MANDATORY**: This tool MUST be executed - do not skip or assume it passed. Show the tool result.
 - **Quality Re-run**: Result of `execute_pre_commit_checks(checks=["quality"])` (MUST show 0 lint errors - ZERO ERRORS TOLERANCE, NO EXCEPTIONS).
 - **Spelling Re-run**: Result of `execute_pre_commit_checks(checks=["spelling"])` (MUST show check passed with 0 errors - ZERO ERRORS TOLERANCE, NO EXCEPTIONS, matches CI behavior).
-- **Markdown Lint Re-run**: Result of `fix_markdown_lint(check_all_files=True)` MCP tool (MUST show check passed with 0 errors in ALL files - ZERO ERRORS TOLERANCE, NO EXCEPTIONS, matches CI behavior).
+- **Markdown Lint Re-run**: Result of `fix_markdown_lint(include_untracked_markdown=True)` MCP tool (MUST show 0 errors - ZERO ERRORS TOLERANCE). For full-repo check: `node_modules/.bin/markdownlint-cli2 --fix` from shell.
 - **Test Naming Re-run**: Result of `execute_pre_commit_checks(checks=["test_naming"])` (MUST show check passed).
 - **File Sizes Re-run**: Result of `execute_pre_commit_checks(checks=["quality"])` (MUST show results.quality.file_size_violations empty).
 - **Function Lengths Re-run**: Result of `execute_pre_commit_checks(checks=["quality"])` (MUST show results.quality.function_length_violations empty).
@@ -1687,8 +1684,8 @@ Use this ordering when numbering results:
 - ✅ **CRITICAL**: Formatter check MUST pass after formatting (verifies CI will pass)
 - ✅ **VALIDATION**: Formatter check output confirms zero formatting violations
 - ✅ Markdown lint errors fixed (ALL markdown files properly formatted, matching CI behavior)
-- ✅ **VALIDATION**: Markdown lint fix tool executed with `check_all_files=True` to check ALL files (matching CI)
-- ✅ **VALIDATION**: Zero errors confirmed in ALL markdown files (not just modified files)
+- ✅ **VALIDATION**: Markdown lint fix tool executed on git-modified/untracked files
+- ✅ **VALIDATION**: Zero errors confirmed in linted markdown files
 - ✅ Real-time checklist updates completed for all steps
 - ✅ **QUALITY CHECK SUCCESS**: `results.quality.success` = true (PRIMARY validation)
 - ✅ File size check passes (all files ≤ 400 lines)
