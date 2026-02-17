@@ -361,6 +361,15 @@ The following error patterns MUST be detected and fixed before commit. These are
 - **Prevention**: ANY code change OR new file creation after Step 1 REQUIRES re-running formatting fix AND verification before commit
 - **Note**: This is the most common cause of CI failures that "should have been caught"
 
+### ⚠️ Step 12.1 Skipped Due to Connection Error (CRITICAL ANTI-PATTERN)
+
+- **Pattern**: Agent encounters MCP connection error during Step 12.1 (formatting fix/check), retries once, retry fails, but proceeds to commit using Phase A (Step 1) results
+- **Detection**: Agent acknowledges Step 12.1 failed with connection error but commits anyway with reasoning like "Step 1 passed earlier" or "connection closed; Step 1 results sufficient"
+- **Why This Is WRONG**: New files created during Steps 4-11 (especially test files added to fix coverage) are NEVER formatted by Step 1. Step 12.1 validates that all files (including new ones) are properly formatted before commit. Skipping Step 12.1 risks committing unformatted code that will fail CI formatting checks.
+- **Action**: NEVER proceed to commit when Step 12.1 fails after retry. Use shell script fallbacks (`fix_formatting.py` then `check_formatting.py`). If fallbacks also fail, BLOCK COMMIT immediately and report the failure.
+- **Block Commit**: Yes - Step 12.1 MUST execute successfully in Step 12. Phase A (Step 1) results are NOT sufficient.
+- **NO EXCEPTIONS**: Step 12.1 cannot be skipped. If MCP fails after retry, fallback scripts must be used. If fallbacks fail, commit MUST be blocked.
+
 ### ⚠️ Step 12.7 Skipped Due to Connection Error (CRITICAL ANTI-PATTERN)
 
 - **Pattern**: Agent encounters MCP connection error during Step 12.7 (test re-run), retries once, retry fails, but proceeds to commit using Phase A results
@@ -555,13 +564,13 @@ git -C <Synapse-directory-path> status --porcelain
 - **⚠️ ABSOLUTE MANDATORY**: Step 12 CANNOT be skipped, bypassed, or assumed to have passed. It MUST be executed in full before Step 13.
 - **⚠️ EXECUTION VERIFICATION REQUIRED**: Before proceeding to Step 13, you MUST provide explicit evidence that ALL Step 12 sub-steps were executed:
   - Step 12.0: Markdown re-validation on modified files executed (output shown)
-  - Step 12.1: Formatting fix AND check executed (output shown); Step 12.1.2 result parsed and verified before Step 12.2; CI parity (12.1.3) recommended
+  - Step 12.1: Formatting fix AND check executed (output shown); Step 12.1.2 result parsed and verified before Step 12.2; CI parity (12.1.3) recommended. **CRITICAL**: If MCP connection closed, fallback scripts must be used and verified (both exit code 0). Step 12.1 cannot be skipped based on Step 1 results.
   - Step 12.2: Type check tool executed (`execute_pre_commit_checks(checks=["type_check"])` result shown with success and 0 errors)
   - Step 12.3: Linter check executed (output shown with error count = 0)
   - Step 12.4: Test naming check executed (output shown)
   - Step 12.5: Markdown lint check executed (output shown)
-  - Step 12.6: File sizes AND function lengths checks executed (output shown)
-  - Step 12.7: Tests with coverage validation executed (output shown)
+  - Step 12.6: File sizes AND function lengths checks executed (output shown). If MCP connection closed, fallback scripts must be used and verified (both exit code 0).
+  - Step 12.7: Tests with coverage validation executed (output shown). If MCP connection closed, retry must be attempted. If retry fails, commit MUST be blocked (no fallback).
 - **Workflow**: Re-run formatting, type checking, linting, and quality checks to catch any new issues
 - **⚠️ ZERO ERRORS TOLERANCE**: The project has ZERO errors tolerance - ANY errors (new or pre-existing) MUST block commit
 - **⚠️ NO EXCEPTIONS**: Pre-existing errors are NOT acceptable - they MUST be fixed before commit
@@ -575,14 +584,15 @@ git -C <Synapse-directory-path> status --porcelain
 - **⚠️ PRECONDITION CHECK (MANDATORY)**: Before executing Step 13, you MUST verify:
   1. **User explicitly requested commit**: Verify user invoked `/cortex/commit` or explicitly requested commit. If not, STOP and ask for confirmation.
   2. **Step 12 was fully executed**: All Step 12 sub-steps (12.1-12.7) were executed and their outputs were verified
-  3. **Step 12.2 type check passed**: The type check tool (`execute_pre_commit_checks(checks=["type_check"])`) was executed and returned success with 0 errors
-  4. **No errors in any Step 12 check**: All Step 12 checks passed with zero errors
-  5. **If you fixed type errors (12.2) or lint errors (12.3) during this run**: Step 12.3 was executed again after the fix and `results.quality.success` is true with zero errors; do not proceed if 12.3 was not re-run after a code change in 12.2 or 12.3
-  6. **Step 12.6 executed and passed**: Step 12.6 (file sizes AND function lengths) MUST be executed and verified passing. If MCP connection closed, fallback scripts must be used. **Phase A results are NOT sufficient** - Step 12.6 must be executed in Step 12. Verify `results.quality.file_size_violations` empty AND `results.quality.function_length_violations` empty (or fallback script exit code 0).
-  7. **Step 12.7 executed and passed**: Step 12.7 (tests with coverage) MUST be executed successfully and verified passing. **CRITICAL**: If MCP connection closed during Step 12.7, retry once. If retry fails, **BLOCK COMMIT** - do NOT proceed with Phase A results. **Phase A results are NOT sufficient** - Step 12.7 must execute successfully in Step 12. Verify `results.tests.success` = true AND `results.tests.coverage` ≥ 0.90. **NO FALLBACK** - Unlike Step 12.6, there is no shell script fallback for tests.
-  8. **Explicit verification provided**: You have documented the execution of Step 12 with actual command outputs
-  9. **All validation gates passed**: Steps 0-12 have completed successfully, including Step 12.6 and Step 12.7
-- **⚠️ BLOCK COMMIT**: If user did not explicitly request commit OR if Step 12 execution cannot be verified OR if any Step 12 check failed (including Step 12.6 or Step 12.7) OR if Step 12.6 was skipped due to connection closure OR if Step 12.7 failed after retry, DO NOT proceed to Step 13
+  3. **Step 12.1 executed and passed**: Step 12.1 (formatting fix AND check) MUST be executed successfully and verified passing. **CRITICAL**: If MCP connection closed during Step 12.1, retry once. If retry fails, use shell script fallbacks (`fix_formatting.py` then `check_formatting.py`). Both must exit with code 0 before proceeding. **Phase A results are NOT sufficient** - Step 12.1 must execute successfully in Step 12, even if Step 1 passed earlier. New files created during Steps 4-11 may not have been formatted. Verify `results.format.success` = true AND `results.format.errors` empty (or fallback script exit code 0).
+  4. **Step 12.2 type check passed**: The type check tool (`execute_pre_commit_checks(checks=["type_check"])`) was executed and returned success with 0 errors
+  5. **No errors in any Step 12 check**: All Step 12 checks passed with zero errors
+  6. **If you fixed type errors (12.2) or lint errors (12.3) during this run**: Step 12.3 was executed again after the fix and `results.quality.success` is true with zero errors; do not proceed if 12.3 was not re-run after a code change in 12.2 or 12.3
+  7. **Step 12.6 executed and passed**: Step 12.6 (file sizes AND function lengths) MUST be executed and verified passing. If MCP connection closed, fallback scripts must be used. **Phase A results are NOT sufficient** - Step 12.6 must be executed in Step 12. Verify `results.quality.file_size_violations` empty AND `results.quality.function_length_violations` empty (or fallback script exit code 0).
+  8. **Step 12.7 executed and passed**: Step 12.7 (tests with coverage) MUST be executed successfully and verified passing. **CRITICAL**: If MCP connection closed during Step 12.7, retry once. If retry fails, **BLOCK COMMIT** - do NOT proceed with Phase A results. **Phase A results are NOT sufficient** - Step 12.7 must execute successfully in Step 12. Verify `results.tests.success` = true AND `results.tests.coverage` ≥ 0.90. **NO FALLBACK** - Unlike Step 12.6, there is no shell script fallback for tests.
+  9. **Explicit verification provided**: You have documented the execution of Step 12 with actual command outputs
+  10. **All validation gates passed**: Steps 0-12 have completed successfully, including Step 12.1, Step 12.6, and Step 12.7
+- **⚠️ BLOCK COMMIT**: If user did not explicitly request commit OR if Step 12 execution cannot be verified OR if any Step 12 check failed (including Step 12.1, Step 12.6, or Step 12.7) OR if Step 12.1 was skipped due to connection closure OR if Step 12.6 was skipped due to connection closure OR if Step 12.7 failed after retry, DO NOT proceed to Step 13
 - **Workflow**: Stage all changes, generate comprehensive commit message, create commit
 - **Includes**: All changes from Steps 0-11, including submodule reference if Step 11 was executed
 - **Note**: Use user-provided commit message if provided, otherwise generate from changes
@@ -742,6 +752,18 @@ execute_pre_commit_checks(checks=["format"])
 - **BLOCK COMMIT** if you did not wait for and parse Step 12.1.2 result before proceeding to Step 12.2
 - **Scope**: The tool runs the same scope as CI (`src/`, `tests/` where applicable).
 
+**⚠️ CRITICAL (Step 12.1 - Connection Error Handling)**: If MCP connection closes during Step 12.1.1 or 12.1.2:
+
+  1. **Retry once**: The `mcp_tool_wrapper` decorator automatically retries connection errors once.
+  2. **If retry fails**: Use shell script fallbacks (language-specific):
+     - **Format fix**: Run the language-specific formatting fix script from `.cortex/synapse/scripts/{language}/fix_formatting.{ext}`
+     - **Format check**: Run the language-specific formatting check script from `.cortex/synapse/scripts/{language}/check_formatting.{ext}`
+     - **Both must exit with code 0** before proceeding to Step 12.2
+     - **Note**: Scripts handle tool detection and project structure automatically (see scripts/{language}/* pattern)
+  3. **BLOCK COMMIT** if formatting check fails after retry and fallback - do NOT proceed with Phase A results
+  4. **Phase A results are NOT sufficient** - Step 12.1 MUST execute successfully in Step 12, even if Step 1 passed earlier. New files created during Steps 4-11 may not have been formatted.
+  5. **Record**: Document "MCP connection closed; fallback scripts used" if fallbacks were executed
+
 **Step 12.1.3 - CI parity (RECOMMENDED)** - Match CI formatting step exactly:
 
 After Step 12.1.2 passes, run the format_ci_parity check via the Cortex MCP tool so the same formatter and paths as CI are used:
@@ -888,7 +910,7 @@ execute_pre_commit_checks(checks=["quality"])
 - **MUST verify**: No file size violations (all files within 400 lines); no type errors
 - **BLOCK COMMIT** if ANY file size or type violations are reported
 - **NO EXCEPTIONS**: Pre-existing violations are NOT acceptable
-- **Connection closed handling**: If MCP tool returns connection error, retry once. If retry fails, use shell script fallback: `uv run python .cortex/synapse/scripts/python/check_file_sizes.py` (must exit with code 0 and show "✅ All files within size limits"). Record "MCP connection closed; fallback used" and verify exit code 0 before proceeding.
+- **Connection closed handling**: If MCP tool returns connection error, retry once. If retry fails, use shell script fallback: Run the language-specific file size check script from `.cortex/synapse/scripts/{language}/check_file_sizes.{ext}` (must exit with code 0 and show "✅ All files within size limits"). Record "MCP connection closed; fallback used" and verify exit code 0 before proceeding.
 
 **Step 12.6.2 - Check function lengths** (MANDATORY):
 
@@ -902,7 +924,7 @@ execute_pre_commit_checks(checks=["quality"])
 - **MUST verify**: No function length violations (all functions within 30 lines)
 - **BLOCK COMMIT** if ANY function length violations are reported
 - **NO EXCEPTIONS**: Pre-existing violations are NOT acceptable
-- **Connection closed handling**: If MCP tool returns connection error, retry once. If retry fails, use shell script fallback: `uv run python .cortex/synapse/scripts/python/check_function_lengths.py` (must exit with code 0 and show "✅ All functions within length limits"). Record "MCP connection closed; fallback used" and verify exit code 0 before proceeding.
+- **Connection closed handling**: If MCP tool returns connection error, retry once. If retry fails, use shell script fallback: Run the language-specific function length check script from `.cortex/synapse/scripts/{language}/check_function_lengths.{ext}` (must exit with code 0 and show "✅ All functions within length limits"). Record "MCP connection closed; fallback used" and verify exit code 0 before proceeding.
 
 ### 12.7 Re-run Tests with Coverage Validation (MANDATORY)
 
@@ -952,6 +974,8 @@ execute_pre_commit_checks(checks=["tests"], test_timeout=600, coverage_threshold
 - [ ] **Step 12.1 executed**: Formatting fix AND check via `execute_pre_commit_checks(checks=["format"])` executed, full result shown; Step 12.1.2 run and result verified BEFORE starting Step 12.2 (not in parallel)
 - [ ] Formatting re-run: **check passed** confirmed in tool result (status success, results.format indicates passed)
 - [ ] Formatting re-run: **NO output truncation** - full output read and verified
+- [ ] Formatting re-run: **Connection error handling** - If MCP connection closed, retry was attempted; if retry failed, fallback scripts (`fix_formatting.py` then `check_formatting.py`) were used and both exited with code 0
+- [ ] Formatting re-run: **Phase A results NOT used** - Step 12.1 was executed in Step 12, not skipped based on Step 1 results
 - [ ] **Step 12.1.3 (recommended)**: CI parity check via `execute_pre_commit_checks(checks=["format_ci_parity"])` executed and status success
 - [ ] **Step 12.2 executed**: Type check via `execute_pre_commit_checks(checks=["type_check"])` executed, full result shown
 - [ ] Type check re-run: **Tool executed**: `execute_pre_commit_checks(checks=["type_check"])` was run (MANDATORY for Python/typed projects)
@@ -1549,7 +1573,8 @@ Use this ordering when numbering results:
 - **Fallbacks** (documented): Stop and report.
 - **Rationale**: Long-running tools may complete on the server after the client has closed the connection; "Connection closed" can mean client timeout/disconnect, not necessarily tool failure. Retry once then fallback (or explicit commit block for `fix_quality_issues`) allows the pipeline to behave predictably instead of silently failing.
 - **Note (fix_markdown_lint)**: The server sends per-file progress and a 5 s heartbeat for `fix_markdown_lint`, and runs markdownlint in batches to reduce duration; MCP error -32000 ("Connection closed") can still occur due to client-side timeout. Retry once, then use the documented shell fallback (Step 12.5) and record "MCP connection closed; fallback used".
-- **⚠️ CRITICAL (Step 12.6)**: If connection closes during Step 12, you MUST retry Step 12.6 specifically (file sizes and function lengths checks). **DO NOT skip Step 12.6** - it is MANDATORY even if Phase A passed earlier. If retry fails, use shell script fallbacks: `uv run python .cortex/synapse/scripts/python/check_file_sizes.py` and `uv run python .cortex/synapse/scripts/python/check_function_lengths.py`. Both must exit with code 0 before proceeding to commit. **Phase A results are NOT sufficient** - Step 12.6 must be executed in Step 12.
+- **⚠️ CRITICAL (Step 12.1)**: If connection closes during Step 12.1 (formatting), you MUST retry Step 12.1 specifically (format fix then check). **DO NOT skip Step 12.1** - it is MANDATORY even if Step 1 passed earlier. New files created during Steps 4-11 may not have been formatted. If retry fails, use shell script fallbacks: Run the language-specific formatting scripts from `.cortex/synapse/scripts/{language}/fix_formatting.{ext}` then `.cortex/synapse/scripts/{language}/check_formatting.{ext}`. Both must exit with code 0 before proceeding to Step 12.2. **Phase A results are NOT sufficient** - Step 12.1 must be executed in Step 12.
+- **⚠️ CRITICAL (Step 12.6)**: If connection closes during Step 12, you MUST retry Step 12.6 specifically (file sizes and function lengths checks). **DO NOT skip Step 12.6** - it is MANDATORY even if Phase A passed earlier. If retry fails, use shell script fallbacks: Run the language-specific quality check scripts from `.cortex/synapse/scripts/{language}/check_file_sizes.{ext}` and `.cortex/synapse/scripts/{language}/check_function_lengths.{ext}`. Both must exit with code 0 before proceeding to commit. **Phase A results are NOT sufficient** - Step 12.6 must be executed in Step 12.
 
 ### MCP Tool Failure (CRITICAL)
 
