@@ -52,6 +52,7 @@ At end of session, run a single "check all" analysis: (1) evaluate `load_context
 2. If the tool returns `"status": "no_data"` (e.g. no `load_context` calls this session), that is expected for **analysis-only sessions** (e.g. when the only action in the session is running this Analyze prompt). Proceed to manual fallback if useful. **Optional**: To record one call for context-effectiveness metrics, the agent may call `session_start()` or `load_context(task_description="end-of-session analysis", token_budget=5000)` before running the analysis steps.
    - **Usage analysis**: Files used vs provided vs missing vs unused (from checklist).
    - **Scoring** (if applicable): precision, recall, F1, token efficiency; feedback categories (helpful, over_provisioned, under_provisioned, irrelevant, missed_dependencies).
+   - **Zero-budget/zero-files detection**: If `learned_patterns` includes warnings about `token_budget=0` or `files_selected=0` for non-trivial tasks (refactor/fix/debug/implement), this is a **configuration error**. Document in the report and recommend re-running `load_context` with appropriate budget (10k-15k for fix/debug, 20k-30k for implement/add).
 3. Optionally call `get_context_usage_statistics()` for aggregated stats.
 4. Optionally use `analyze_context_effectiveness(analyze_all_sessions=True)` for full history.
 5. Summarize in **Context Effectiveness Analysis** (see Output Format below). If no data and no manual analysis, state "No session logs found" and suggest using `load_context()` at task start and re-running later.

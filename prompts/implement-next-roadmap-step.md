@@ -67,6 +67,7 @@ When executing steps, delegate to the appropriate agent for specialized work, th
 3. ✅ **Read relevant rules** - Understand implementation requirements:
    - Use Cortex MCP tool `rules(operation="get_relevant", task_description="Implementation, code quality, memory bank, testing")` to load rules, or read from the rules directory (path from `get_structure_info()` → `structure_info.paths.rules`)
    - **When `rules()` returns `status: "disabled"`**: Still load key coding standards by reading from the rules directory (path from `get_structure_info()` → `structure_info.paths.rules`) using the Read tool, so implementation quality is maintained.
+   - **Pydantic 2 standards**: Pydantic 2 standards are owned by Synapse and defined in `python-pydantic-standards.mdc` (Synapse rules directory). Use `rules(operation="get_relevant", task_description="Pydantic 2 standards")` or `get_synapse_rules(task_description="Pydantic 2")` to load the canonical Synapse rule. Do not duplicate Pydantic guidance in project-local documentation.
    - Ensure coding standards, language-specific standards, memory-bank workflow, and testing standards are in context
 
 4. ✅ **Verify implementation against rules and run quality gate** - After implementation, verify conformance:
@@ -121,6 +122,8 @@ The **roadmap defines the implementation sequence** (see the "Implementation seq
 
 **Call load_context at step start**: Right after picking the next step (from `session_start()` brief or roadmap), use the two-step pattern: first call `load_context(task_description="[description of roadmap step]", depth="metadata_only", token_budget=[task-appropriate budget])` to get a lightweight context map, then use `manage_file(sections=[...])` to drill into specific sections as needed. This records the session for end-of-session analyze and provides 90%+ token savings. Prefer token-efficient workflow: use task-appropriate token budget; when usage search or fetch-by-ID tools exist, use search → select IDs → fetch instead of loading all.
 
+**⚠️ Zero-budget/zero-files detection**: If `load_context` returns `token_budget=0` or `files_selected=0` for a non-trivial task (refactor/fix/debug/implement), this is a **configuration error**. Re-run `load_context` with an appropriate non-zero budget (10k-15k for fix/debug, 20k-30k for implement/add) to ensure proper context loading. The end-of-session analysis will flag these cases in `learned_patterns` warnings.
+
 **Task-type token budget** (aligns with context-effectiveness insights; reduces over-provisioning):
 
 - **update/modify, implement/add**: 10,000
@@ -138,6 +141,10 @@ The **roadmap defines the implementation sequence** (see the "Implementation seq
 - **High-value files** (always include for fix/debug): `activeContext.md`, `roadmap.md`, `progress.md`, phase-specific plans
 - **Moderate-value files** (include when relevant): `systemPatterns.md`, `techContext.md`
 - **Lower-relevance files** (optional for fix/debug, include only for exploratory/architectural tasks): `file.md`, `tmp-mcp-test.md`, `projectBrief.md`, `productContext.md`
+
+**Context Loading for Session/Commit-Pipeline Tasks**:
+
+- **For task descriptions containing "Session Optimization", "Commit Pipeline", or "roadmap step"**: When token budget allows (e.g. 10k), consider explicitly including `roadmap.md` and `activeContext.md` in the context to ensure next steps and completed work are both available. The `load_context` tool will automatically select relevant files, but for these task types, these files are particularly valuable for understanding current state and upcoming work.
 
 **Interpreting `file_effectiveness` recommendations**:
 

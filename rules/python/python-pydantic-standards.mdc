@@ -5,6 +5,8 @@ alwaysApply: false
 
 # Pydantic 2 Standards (STRICT MANDATORY - ZERO TOLERANCE)
 
+**OWNERSHIP**: This rule is owned by Synapse and shared across all projects using the Synapse repository. For this project, Pydantic 2 standards are defined here in Synapse (`python-pydantic-standards.mdc`), not duplicated in project-local documentation.
+
 **ENFORCEMENT**: All rules are MANDATORY. CI MUST fail on violations. NO exceptions.
 
 ## Core Principles

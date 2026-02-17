@@ -35,6 +35,95 @@ The Cortex Memory Bank has **seven core files** plus a meta instructions file. E
 
 Constants and schemas in `path_resolver.py`, `schema_validator.py`, `memory_bank_instructions.py`, and `techContext.md` MUST remain aligned with this canonical structure. Tests SHOULD assert that every core file listed in `_MEMORY_BANK_CORE_FILES` has a corresponding entry in `DEFAULT_SCHEMAS`.
 
+## How to Extend Schema-Constrained Files (MANDATORY)
+
+Some Memory Bank files (`techContext.md`, `systemPatterns.md`) have strict schema validation that enforces required sections and heading hierarchy. When extending these files, follow these guidelines to avoid schema violations.
+
+### Required Sections Per File
+
+**techContext.md** requires these sections (level 2 headings, `##`):
+
+- `## Technologies Used` (REQUIRED)
+- `## Dependencies` (REQUIRED)
+- `## Development Setup` (REQUIRED)
+
+**systemPatterns.md** requires these sections (level 2 headings, `##`):
+
+- `## System Architecture` (REQUIRED) - or `## Architecture`
+- `## Design Patterns` (REQUIRED) - or `## Design Patterns in Use`
+- `## Component Relationships` (REQUIRED)
+
+### Heading Level Rules (MANDATORY)
+
+- **Level 2 headings (`##`)** are used for top-level sections
+- **Level 3 headings (`###`)** are used for subsections within level 2 sections
+- **Level 4 headings (`####`)** are used for sub-subsections within level 3 sections
+- **Maximum nesting**: 3 levels (H2 → H3 → H4)
+- **Common pitfall**: Do NOT skip heading levels (e.g., going from `##` directly to `####` without `###`)
+
+### Recommended Pattern for Adding New Subsections
+
+When adding new content to `techContext.md` or `systemPatterns.md`:
+
+1. **Identify the appropriate existing section** (e.g., add a new technology under `## Technologies Used`, or a new pattern under `## Design Patterns`)
+
+2. **If adding a new top-level section**:
+   - Use level 2 heading (`## Section Name`)
+   - Ensure it fits the file's purpose (techContext = tech stack/constraints, systemPatterns = architecture/patterns)
+   - Consider if it should be a subsection instead
+
+3. **If adding a subsection**:
+   - Use level 3 heading (`### Subsection Name`) under the appropriate level 2 section
+   - Maintain proper nesting (H2 → H3 → H4)
+
+4. **Example - Adding to techContext.md**:
+
+   ```markdown
+   ## Technologies Used
+   
+   - **Python 3.13** - Modern Python
+   - **FastMCP** - MCP server framework
+   
+   ### New Technology Category
+   
+   - **New Tool** - Description
+   ```
+
+5. **Example - Adding to systemPatterns.md**:
+
+   ```markdown
+   ## Design Patterns in Use
+   
+   - **Dependency Injection** - All dependencies injected
+   - **Manager Pattern** - Centralized service management
+   
+   ### New Pattern Category
+   
+   - **New Pattern** - Description
+   ```
+
+### Avoiding Schema Violations
+
+**Common errors to avoid**:
+
+- ❌ Skipping heading levels (e.g., `##` → `####` without `###`)
+- ❌ Missing required sections (check `schema_validator.py` for required sections)
+- ❌ Using wrong heading level for required sections (must be level 2, `##`)
+- ❌ Exceeding maximum nesting depth (3 levels: H2 → H3 → H4)
+
+**Before extending**:
+
+1. Read the current file structure to understand existing sections
+2. Check `schema_validator.py` (or run `validate(check_type="schema", file_name="techContext.md")`) to see required sections
+3. Plan where your new content fits (existing section vs. new section)
+4. Use proper heading levels and maintain hierarchy
+
+**After extending**:
+
+1. Run schema validation: `validate(check_type="schema", file_name="techContext.md")` (or `systemPatterns.md`)
+2. Fix any violations before committing
+3. Ensure all required sections are still present
+
 ## Privacy convention (sensitive content)
 
 Content that must not be persisted or repeated (secrets, PII) may be wrapped in `<private>...</private>` or marked with `<!-- private -->`. Agents must not store or echo such blocks in memory bank files, usage logs, or session summaries. Tools that persist user content may strip or redact content between these markers.

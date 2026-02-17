@@ -272,6 +272,40 @@ import cortex.main
 _ = cortex.main  # Satisfies Pyright reportUnusedImport
 ```
 
+## Path Resolution (ENFORCED - MANDATORY)
+
+**CRITICAL**: Tests and procedures MUST use path resolver utilities for `.cortex` or Synapse paths. Hardcoding `.cortex/` or `.cursor/` paths is STRICTLY FORBIDDEN.
+
+**REQUIRED**:
+
+- ✅ Use `get_cortex_path(project_root, CortexResourceType)` from `cortex.core.path_resolver` for all `.cortex` directory paths
+- ✅ Use `get_structure_info()` for structure paths (plans, memory bank, rules)
+- ✅ Reference the pattern in `test_check_async_tests_script.py` and AGENTS.md/CLAUDE.md
+
+**FORBIDDEN**:
+
+- ❌ Hardcoding `.cortex/` or `.cursor/` paths as string literals
+- ❌ String concatenation for paths without using resolver utilities
+- ❌ Direct path construction like `Path(".cortex/memory-bank")` or `Path(".cursor/rules")`
+
+**Example (required)**:
+
+```python
+from pathlib import Path
+from cortex.core.path_resolver import CortexResourceType, get_cortex_path
+
+# ✅ REQUIRED - Use path resolver
+_PROJECT_ROOT = Path(__file__).resolve().parents[2]
+_SCRIPT_DIR = (
+    get_cortex_path(_PROJECT_ROOT, CortexResourceType.SYNAPSE) / "scripts" / "python"
+)
+
+# ❌ FORBIDDEN - Hardcoded path
+_SCRIPT_DIR = Path(".cortex/synapse/scripts/python")  # BLOCKED
+```
+
+**Reference**: See `tests/unit/test_check_async_tests_script.py` for the correct pattern. Also see AGENTS.md and CLAUDE.md for path resolution guidance.
+
 ## Violations (BLOCKED)
 
 - ❌ Tests without clear AAA structure
@@ -290,6 +324,7 @@ _ = cortex.main  # Satisfies Pyright reportUnusedImport
 - ❌ Using `# type: ignore[reportPrivateUsage]` to test private functions
 - ❌ Direct testing of private implementation details
 - ❌ Side-effect-only imports without referencing the module (e.g. missing `_ = module`); triggers reportUnusedImport with Pyright
+- ❌ Hardcoding `.cortex/` or `.cursor/` paths in tests (must use `get_cortex_path()` or `get_structure_info()`)
 
 ## Enforcement
 
