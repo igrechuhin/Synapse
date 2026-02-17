@@ -226,11 +226,12 @@ The following error patterns MUST be detected and fixed before commit. These are
 ### Type Errors
 
 - **Pattern**: Type checker reports type errors (not warnings)
-- **Detection**: Parse type checker output for error count (e.g., Pyright for Python, TypeScript compiler for TypeScript)
+- **Detection**: Parse type checker output for error count using the project’s configured type system.
 - **Action**: Fix all type errors, re-run type checker, verify zero errors
 - **Block Commit**: Yes - type errors will cause CI to fail
-- **⚠️ CRITICAL**: Step 12.2 uses `execute_pre_commit_checks(checks=["type_check"])` which checks BOTH `src/` AND `tests/` to match CI. Step 12.2 result is AUTHORITATIVE - if the tool finds errors, commit MUST be blocked.
-- **Note**: Only applicable if project uses a type system (Python with type hints, TypeScript, etc.)
+- **⚠️ CRITICAL**: Step 12.2 uses `execute_pre_commit_checks(checks=["type_check"])` which checks BOTH source and tests to match CI. Step 12.2 result is AUTHORITATIVE - if the tool finds errors, commit MUST be blocked.
+- **Note**: Only applicable if the project uses a type system (for example, static analysis for Python, TypeScript, or other typed languages).
+- **Example (unused call-result diagnostics in tests)**: When the type checker reports that a call result is unused (for example on assertion helpers or verification methods in tests), treat this as a **type error**, not ignorable “rot”. Fix by intentionally using the result (for example, assigning it to a dedicated “unused” variable or otherwise consuming it according to the project’s language rules), then re-run type checking and quality checks to verify zero remaining errors.
 
 ### Test Failures
 
