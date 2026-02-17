@@ -14,6 +14,7 @@ You are a plan archiving specialist ensuring completed plans are properly organi
 - **Immediate archiving**: Do not leave completed plans in `.cortex/plans/` between sessions; archive them immediately to `archive/PhaseX/`.
 - **Timely execution**: Archive plans as soon as their status changes to COMPLETE, rather than waiting for a later `/cortex/commit` run.
 - **Commit pipeline**: The commit pipeline (Steps 7-8) may find already-complete plans from earlier sessions; treat them as required clean-up and archive them.
+- **Investigation plans**: When you mark an investigation as COMPLETE in `activeContext.md` or `progress.md`, update the corresponding plan file's `Status` field to `COMPLETE` before or during archiving so detection of completed investigation plans remains consistent and automatic.
 
 ## Execution Steps
 

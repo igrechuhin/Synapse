@@ -69,11 +69,41 @@ At end of session, run a single "check all" analysis: (1) evaluate `load_context
    - Write the **full** report to `{reviews_path}/session-optimization-YYYY-MM-DDTHH-MM.md` (no truncation; same no-truncation rule as memory-bank writes per memory-bank-workflow.mdc).
 4. **MD024 (Duplicate Heading)**: If appending a second pass (e.g. context-effectiveness addendum) to an existing review file, suffix headings (e.g. "(Addendum)", "(Context Effectiveness Pass)") to avoid duplicate headings.
 
-### Step 3 (Optional): Health / Session Scripts
+### Step 3: Session Compaction (Phase 56)
+
+**MANDATORY**: At end of session, compact memory bank files to reduce token usage and create session handoff:
+
+1. Call `compact_session(summary="<brief session summary>")` tool:
+   - Compacts `activeContext.md` (keeps current date's Completed Work, summarizes older dates)
+   - Compacts `progress.md` (applies progressive summarization tiers)
+   - Writes session handoff JSON to `.cortex/.cache/session/last_handoff.json`
+   - Creates pre-compaction snapshots for rollback safety
+   - Reports token savings
+2. **Include handoff summary** in the report:
+   - Session ID
+   - Completed tasks (if extracted from activeContext)
+   - Next actions (from summary parameter)
+   - Token savings achieved
+3. **Error handling**: If compaction fails, note in report but continue with remaining steps. Compaction is non-blocking for analysis completion.
+
+**Note**: The session handoff JSON is automatically read by `session_start` at the beginning of the next session, providing continuity.
+
+### Step 3.5: Markdown Lint Enforcement (Markdownlint CLI parity)
+
+After writing the report and completing compaction, run markdown lint to ensure **all** markdown files (including the new review) conform to the same rules as the CI quality gate:
+
+1. Call `fix_markdown_lint(include_untracked_markdown=True, dry_run=False, check_all_files=True)`.
+2. If the tool reports any remaining errors or a non-success status:
+   - Treat this as a **mistake pattern** in the Session Optimization Analysis
+   - Describe the affected files and rules in the report
+   - Re-run `fix_markdown_lint` after applying fixes until the summary shows `Summary: 0 error(s)`.
+3. **Do not skip this step**: markdownlint errors must be fixed before the session is considered complete so the CI quality gate will pass on push.
+
+### Step 4 (Optional): Health / Session Scripts
 
 If project scope includes health check or session-scripts analysis, add a step that calls the relevant tools and include a short subsection in the unified report. Otherwise omit.
 
-### Step 4: Improvements Plan (Phase 3: Outputs & plans; when recommendations exist)
+### Step 5: Improvements Plan (Phase 3: Outputs & plans; when recommendations exist)
 
 **If** the analysis findings contain **improvement recommendations** (e.g. non-empty **Optimization Recommendations**, context-effectiveness recommendations, or Synapse/prompt/rule improvement items):
 
@@ -118,6 +148,11 @@ Produce a **single combined report** with clear sections:
 ### Report Location
 Saved to: {reviews_path}/session-optimization-YYYY-MM-DDTHH-MM.md
 
+### Session Compaction
+- Compaction executed: token savings, handoff written
+- Session ID: {session_id}
+- Rollback snapshots: {snapshot_paths}
+
 ### Improvements Plan (if recommendations existed)
 - Plan prompt executed with analysis findings as input
 - Plan file: {plans_path}/{plan-filename}.md
@@ -129,6 +164,7 @@ Saved to: {reviews_path}/session-optimization-YYYY-MM-DDTHH-MM.md
 - Pre-analysis checklist completed.
 - Step 1 (context effectiveness) executed; tool called and/or manual fallback applied when no_data.
 - Step 2 (session optimization) executed; report saved to reviews directory using path from `get_structure_info()`.
-- Step 4: If findings contain improvement recommendations, Plan prompt executed with analysis findings as input; improvements plan created and registered in roadmap. If no recommendations, step skipped.
+- Step 3 (session compaction) executed; `compact_session` called, handoff written, token savings reported.
+- Step 5: If findings contain improvement recommendations, Plan prompt executed with analysis findings as input; improvements plan created and registered in roadmap. If no recommendations, step skipped.
 - No hardcoded `.cortex/` paths; all paths from MCP or `get_structure_info()`.
 - Single report produced with both Context Effectiveness and Session Optimization sections.

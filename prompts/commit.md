@@ -520,8 +520,9 @@ git -C <Synapse-directory-path> commit -m "Update Synapse prompts/rules"
 git -C <Synapse-directory-path> push
 ```
 
-- **Verify**: Each command succeeds before proceeding to next
-- **If any command fails**: Report error and block main commit
+- **Verify**: Each command succeeds before proceeding to next.
+- **If the commit command fails**: Report the error and block the main commit; submodule changes MUST be committed successfully before updating the parent submodule pointer.
+- **If the push command fails (e.g. auth/network/SSL)**: The submodule commit is still local; you may proceed with the parent commit and instruct the user to push the Synapse submodule manually later. Provide the submodule path and branch name, and link to [Git operations (push and SSL)](../../../docs/guides/git-operations.md#push-failures-and-ssl) and [Troubleshooting: Git and SSL certificate issues](../../../docs/guides/troubleshooting.md#git-and-ssl-certificate-issues) for manual push guidance. Submodule push failure is **non-blocking** for the parent commit.
 
 **Step 11.4 - Update parent repo submodule pointer**:
 
