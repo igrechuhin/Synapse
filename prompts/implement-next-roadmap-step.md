@@ -32,17 +32,11 @@ When executing steps, delegate to the appropriate agent for specialized work, th
 
 **BEFORE executing this command, you MUST:**
 
-0. ✅ **Get session orientation** - Start with session brief for efficient orientation:
-   - **Use Cortex MCP tool `session_start(task_description=None)`** to get a session brief (< 1000 tokens) containing:
-     - Current focus from activeContext.md
-     - Recent completed work
-     - Next work item from roadmap (first PENDING item)
-     - Health check (file count, token budget, missing files)
-     - Git status (uncommitted changes)
-     - Actionable suggestions
-   - **This replaces 3-5 manual orientation calls** (load_context, manage_file for activeContext/roadmap, health checks)
-   - **After session_start**: Use the brief's `next_work_item` and `next_work_plan_path` to proceed with implementation
-   - **Example pattern**: `session_start()` → review brief → `load_context(task_description=brief.next_work_item, ...)` → implement
+0. ✅ **Verify MCP and get session orientation** - Do not proceed without Cortex MCP:
+   - **Use Cortex MCP tool `session_start(task_description=None)`** to get a session brief (< 1000 tokens). If this call **fails** (e.g. connection error, tool not found), **STOP**. Report to the user: "Cortex MCP is disconnected or unhealthy. Please reconnect the Cortex MCP server and re-run this command." Do not call any other tools.
+   - **After session_start**: Check the brief's **`mcp_healthy`** field. If **`mcp_healthy` is false**, **STOP**. Report to the user: "Cortex MCP is disconnected or unhealthy. Please reconnect the Cortex MCP server and re-run this command." Do not proceed with implementation.
+   - The brief also contains: current focus, recent completed work, next work item, health check, git status, actionable suggestions.
+   - **Example pattern**: `session_start()` → if brief.mcp_healthy is true → `load_context(task_description=brief.next_work_item, ...)` → implement
 
 1. ✅ **Read the roadmap** - Get next step from implementation sequence:
    - **Use Cortex MCP tool `manage_file(file_name="roadmap.md", operation="read")`** to get the roadmap
@@ -86,22 +80,17 @@ When executing steps, delegate to the appropriate agent for specialized work, th
 
 ## EXECUTION STEPS
 
-### Step 0: Get Session Orientation (OPTIONAL BUT RECOMMENDED)
+### Step 0: Verify MCP and Get Session Orientation (MANDATORY)
 
-**Use `session_start()` for efficient orientation** (replaces 3-5 manual calls):
+**Call `session_start()` first. Do not proceed if MCP is unhealthy.**
 
-1. **Call `session_start(task_description=None)`** to get a session brief with:
-   - Current focus and recent completed work
-   - Next work item (first PENDING from roadmap)
-   - Health check summary
-   - Git status
-   - Actionable suggestions
+1. **Call `session_start(task_description=None)`**. If the call **fails** (connection error, tool not found, etc.), **STOP**. Tell the user: "Cortex MCP is disconnected or unhealthy. Please reconnect the Cortex MCP server and re-run this command." Do not use other Cortex tools or continue.
 
-2. **Use the brief** to understand current state and identify next work item
+2. **Check the brief's `mcp_healthy` field**. If **`mcp_healthy` is false**, **STOP**. Tell the user: "Cortex MCP is disconnected or unhealthy. Please reconnect the Cortex MCP server and re-run this command." Do not proceed.
 
-3. **Then proceed** to Step 1 to read the roadmap (or use `brief.next_work_item` if available)
+3. **Use the brief** (current focus, next work item, health check, git status, suggestions) to understand current state.
 
-**Note**: If you skip `session_start()`, you must still read the roadmap manually in Step 1.
+4. **Then proceed** to Step 1 to read the roadmap (or use `brief.next_work_item` if available).
 
 ### Step 1: Read Roadmap and Pick Next Step - **Delegate to `roadmap-implementer` agent**
 
@@ -275,6 +264,13 @@ Before defining new data structures (classes, types, models, interfaces):
    - No blanket skips (MANDATORY)
    - Target 100% pass rate on project's test suite
    - **Minimum code coverage per project's testing standards (check testing-standards.mdc)**
+   - **Test Coverage Planning Checklist** (MANDATORY - plan before writing tests):
+     - **Success cases**: Plan tests for all success paths and query types/operations
+     - **Error cases**: Plan tests for all error conditions and edge cases
+     - **Parameter variations**: Plan tests for all parameter combinations (e.g., `response_format`, `query_type`, optional parameters)
+     - **AAA pattern**: Ensure all tests follow Arrange-Act-Assert structure
+     - **Code path coverage**: Verify all code paths are covered (success, error, edge cases)
+     - **For consolidated tools**: Plan both unit tests (with mocks, 80-90% coverage acceptable) and integration tests (95%+ coverage ideal)
    - **Unit tests**: Test all new public functions, methods, and classes individually
    - **Integration tests**: Test component interactions and data flow between modules
    - **Edge cases (MANDATORY)**: Always ensure to cover all edge cases—boundary conditions, error handling, invalid inputs, empty states, min/max values, null/empty collections, and both success and failure paths. Applies to any project/language/code.

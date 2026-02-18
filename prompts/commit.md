@@ -100,30 +100,34 @@ Steps without agents are handled directly by the orchestration workflow.
 
 **BEFORE executing this command, you MUST:**
 
+0. ✅ **Verify Cortex MCP is connected** - Do not run the commit pipeline without MCP:
+   - Call **`check_mcp_connection_health()`**. If the call **fails** (e.g. connection error, tool not found), **STOP**. Report to the user: "Cortex MCP is disconnected or unhealthy. Please reconnect the Cortex MCP server and re-run this command." Do not proceed.
+   - If the result has **`health.healthy` false**, **STOP**. Report the same message. Do not run Steps 0–15 without a healthy MCP connection.
+
 1. ✅ **Read relevant memory bank files** - Understand current project context:
    - **Use Cortex MCP tool `manage_file(file_name="activeContext.md", operation="read")`** to understand current work focus
    - **Use Cortex MCP tool `manage_file(file_name="progress.md", operation="read")`** to see recent achievements
    - **Use Cortex MCP tool `manage_file(file_name="roadmap.md", operation="read")`** to understand project priorities
    - **Note**: Access memory bank files via Cortex MCP tool `manage_file(file_name="...", operation="read"|"write")`; do not hardcode paths. Resolve memory bank path via `get_structure_info()` → `structure_info.paths.memory_bank` if needed.
 
-1. ✅ **Read relevant rules** - Understand commit requirements:
+2. ✅ **Read relevant rules** - Understand commit requirements:
    - **Skipping the rules load step is a CRITICAL violation.** Any fix (especially type, lint, or visibility) must be validated against **loaded** rules before applying.
    - Call `rules(operation="get_relevant", task_description="Commit pipeline, test coverage, type fixes, and visibility rules")`. If the rules tool is unavailable (e.g. disabled), read rules from the rules directory (path from `get_structure_info()` → `structure_info.paths.rules`) or the Synapse rules directory so that coding standards and visibility/API rules are in context.
    - **Rules loaded via MCP (rules tool) or rule files read for this run: Yes / No. If No, do not proceed to Step 0. When `rules()` returns `disabled`, read rule files via Read tool and record "Rules loaded: Yes (via file read)".**
 
-1. ✅ **Verify code conformance to rules** - Before running checks, verify code conforms to the rules loaded above (coding standards, type annotations, data modeling, file/function limits, dependency injection). See language-specific rules and memory-bank-workflow.mdc. **BLOCKING**: Data structures must comply with project's required modeling standards; fix any violations before pre-commit checks.
+3. ✅ **Verify code conformance to rules** - Before running checks, verify code conforms to the rules loaded above (coding standards, type annotations, data modeling, file/function limits, dependency injection). See language-specific rules and memory-bank-workflow.mdc. **BLOCKING**: Data structures must comply with project's required modeling standards; fix any violations before pre-commit checks.
 
-1. ✅ **Understand operations** - Use MCP tools for all operations:
+4. ✅ **Understand operations** - Use MCP tools for all operations:
    - **Pre-commit checks**: Use `execute_pre_commit_checks()` MCP tool for fix_errors, format, synapse_format, synapse_lint, type_check, quality, and tests
    - **Memory bank operations**: Use existing MCP tools (`manage_file()`, `get_memory_bank_stats()`) instead of prompt files
    - **Validation operations**: Use existing MCP tools (`validate()`, `check_structure_health()`) instead of prompt files
 
-1. ✅ **Verify prerequisites** - Ensure all prerequisites are met:
+5. ✅ **Verify prerequisites** - Ensure all prerequisites are met:
    - Confirm there are changes to commit
    - Verify build system is accessible
    - Check that test suite can be executed
 
-1. ✅ **Scan for MCP validation errors** - Before proceeding, check recent MCP tool invocations:
+6. ✅ **Scan for MCP validation errors** - Before proceeding, check recent MCP tool invocations:
    - Look for validation errors in tool responses (e.g., `status="error"` with `details.missing` or `details.invalid` fields)
    - Common errors: Missing `file_name`/`operation` in `manage_file()`, missing `operation` in `rules()`, invalid parameter types
    - **If validation errors are present**: Update prompts/rules to eliminate them before proceeding
