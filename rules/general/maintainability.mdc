@@ -21,6 +21,42 @@ alwaysApply: true
 3. **One public/open/internal type per file** - Private/fileprivate helpers may share the file with their parent type.
 4. **CI MUST fail** if these limits are exceeded.
 
+## Helper Module Extraction Pattern (ENFORCED)
+
+When file size or function length exceeds project limits, use the **helper module extraction pattern** to resolve quality violations. This is the standard approach for refactoring; prefer it over ad-hoc splitting.
+
+### File Size Violations (exceeds 400 lines)
+
+1. **Identify cohesive function groups** - Analyze the file to identify logically related functions that can be extracted together.
+2. **Extract to dedicated helper module** - Create a new module using the naming convention `*_helpers.py` (e.g., `phase4_metadata_helpers.py`, `session_helpers.py`).
+3. **Update imports** - Update imports in:
+   - The original module (import from the new helper module)
+   - All test files that import from the original module
+   - Any other modules that reference the extracted functions
+4. **Maintain test coverage** - Ensure both modules have comprehensive test coverage:
+   - Move or duplicate relevant tests for extracted functions to test the new helper module
+   - Update existing tests to reflect new import paths
+   - Verify test coverage for both the original module and the new helper module
+
+### Function Length Violations (exceeds 30 logical lines)
+
+1. **Extract logic to helper functions**:
+   - **If file is small** (< 350 lines): Extract helper functions in the same file
+   - **If file is already large** (≥ 350 lines): Extract to a `*_helpers.py` module
+2. **Keep main function as orchestrator** - The original function should become a clear orchestrator that calls helper functions, maintaining readability and single responsibility.
+3. **Move detailed logic to helpers** - Complex logic, nested conditionals, and detailed implementations should be moved to helper functions.
+4. **Re-run quality gate** - After extraction, run the full quality gate (`execute_pre_commit_checks(checks=["quality"])`) to verify violations are resolved.
+
+### General Guidelines
+
+- **Naming convention**: Always use `*_helpers.py` suffix for helper modules (e.g., `phase4_metadata_helpers.py`, `session_helpers.py`, `validation_helpers.py`).
+- **Cohesive extraction**: Extract related functions together; avoid creating many small helper modules with single functions.
+- **Test coverage**: Maintain or improve test coverage when extracting; do not reduce coverage.
+- **Import organization**: Keep imports clean and organized; update `__all__` exports if used.
+- **Documentation**: Update docstrings and comments to reflect the new structure.
+
+**MANDATORY**: This pattern MUST be applied whenever file size or function length violations are detected. Do not proceed with implementation or commit until violations are resolved using this pattern.
+
 ## Private Constants Organization (ENFORCED)
 
 1. **Private constants MUST be defined at file level**, at the bottom of the file.

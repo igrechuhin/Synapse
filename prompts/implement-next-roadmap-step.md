@@ -59,11 +59,12 @@ When executing steps, delegate to the appropriate agent for specialized work, th
    - **DO NOT** read memory bank files directly via file paths - always use Cortex MCP tools
 
 3. ✅ **Read relevant rules** - Understand implementation requirements:
-   - Use Cortex MCP tool `rules(operation="get_relevant", task_description="Implementation, code quality, memory bank, testing")` to load rules, or read from the rules directory (path from `get_structure_info()` → `structure_info.paths.rules`)
-   - **When `rules()` returns `status: "disabled"`**: Still load key coding standards by reading from the rules directory (path from `get_structure_info()` → `structure_info.paths.rules`) using the Read tool, so implementation quality is maintained.
+   - Use Cortex MCP tool `rules(operation="get_relevant", task_description="Implementation, code quality, memory bank, testing, maintainability, helper module extraction")` to load rules, or read from the rules directory (path from `get_structure_info()` → `structure_info.paths.rules`)
+   - **When `rules()` returns `status: "disabled"`**: Still load key coding standards by reading from the rules directory (path from `get_structure_info()` → `structure_info.paths.rules`) using the Read tool, so implementation quality is maintained. **MANDATORY**: Read maintainability.mdc for file size limits, function length limits, and helper module extraction pattern.
    - **Language-specific standards**: Load language-specific coding standards via `get_synapse_rules(task_description="[language] standards")`.
    - **Rule discovery fallback**: When `rules()` returns empty results or the task involves tool implementation/refactoring (e.g., implementing MCP tools, refactoring tool parameters), also check `get_synapse_rules(task_description="[language] models, structured data")`.md for language-specific structured-data standards.
-   - Ensure coding standards, language-specific standards, memory-bank workflow, and testing standards are in context
+   - **Maintainability rules**: Ensure maintainability.mdc rules are loaded (file size limits, function length limits, helper module extraction pattern). If rules() doesn't return maintainability rules, explicitly load them via `rules(operation="get_relevant", task_description="helper module extraction, file size limits, function length limits")` or read maintainability.mdc directly.
+   - Ensure coding standards, language-specific standards, memory-bank workflow, maintainability rules, and testing standards are in context
 
 4. ✅ **Verify implementation against rules and run quality gate** - After implementation, verify conformance:
    - Review all new/modified code to ensure it conforms to coding standards
@@ -234,6 +235,7 @@ Before defining new data structures (classes, types, models, interfaces):
    - Ensure type annotations are complete per language-specific standards
    - **For tool parameters and internal dispatch data**: Use structured data models per language standards. Apply when introducing or refactoring tool param objects or internal structured data structures. Check AGENTS.md/CLAUDE.md or language-specific rules for project standards.
    - When adding new functions, keep each under the project limit (≤30 logical lines); if a function grows beyond that, extract helpers before running the full quality gate.
+   - **Helper module extraction (quality violations)**: When file size or function length exceeds project limits, apply the **helper module extraction pattern** per maintainability rules. See `rules(operation="get_relevant", task_description="helper module extraction, file size limits, function length limits")` or maintainability.mdc for comprehensive guidance on extracting cohesive function groups to `*_helpers.py` modules, updating imports and tests, and maintaining coverage.
    - Follow language-specific best practices and modern features
    - Keep functions/methods and files within project's length/size limits (check language-specific standards)
    - Use dependency injection (no global state or singletons)
@@ -351,7 +353,7 @@ Before defining new data structures (classes, types, models, interfaces):
      - Only after context and rules are loaded, proceed with fixes following project rules
    - If type violations: Add proper type annotations, use concrete types per language standards
    - If data modeling violations: Convert to project-mandated data types per language-specific rules
-   - If structural violations: Extract helper functions, split large files
+   - If structural violations: Apply the **helper module extraction pattern** per maintainability rules. Load rules via `rules(operation="get_relevant", task_description="helper module extraction, file size limits, function length limits")` or see maintainability.mdc for comprehensive guidance on extracting cohesive function groups to `*_helpers.py` modules, updating imports and tests, and maintaining coverage.
    - If naming violations: Rename following conventions
 6. **BLOCKING**: Do NOT proceed to memory bank updates until all code conforms to rules
 
@@ -475,6 +477,7 @@ Before defining new data structures (classes, types, models, interfaces):
 - **Concrete types**: Use concrete types instead of generic types wherever possible per language standards
 - **Function/method length**: Keep within project's length limits (check language-specific coding standards)
 - **File length**: Keep within project's size limits (check language-specific coding standards)
+- **Helper module extraction (standard refactoring)**: When file size or function length exceeds project limits, use the **helper module extraction pattern** per maintainability rules. Load rules via `rules(operation="get_relevant", task_description="helper module extraction, file size limits, function length limits")` or see maintainability.mdc for comprehensive guidance. This is the standard approach for resolving quality violations; prefer it over ad-hoc splitting.
 - **Dependency injection**: All external dependencies MUST be injected via initializers
 - **No global state**: NO global state or singletons in production code
 

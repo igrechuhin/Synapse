@@ -105,6 +105,11 @@ Steps without agents are handled directly by the orchestration workflow.
    - If the result has **`health.healthy` false**, **STOP**. Report the same message. Do not run Steps 0–15 without a healthy MCP connection.
 
 1. ✅ **Read relevant memory bank files** - Understand current project context:
+   - **For commit pipeline tasks**: Use targeted file selection to optimize token usage (40-60% reduction):
+     - **Essential files** (always load): `activeContext.md`, `roadmap.md`, `progress.md`
+     - **Optional files** (load only if task-specific relevance): `techContext.md`, `systemPatterns.md`, `productContext.md`, `projectBrief.md`
+     - **Token budget**: Use 3000-4000 tokens for commit pipeline workflow tasks (reduced from 5000)
+     - **When using `load_context()`**: Specify commit pipeline task type and use the reduced token budget; the tool will automatically select essential files
    - **Use Cortex MCP tool `manage_file(file_name="activeContext.md", operation="read")`** to understand current work focus
    - **Use Cortex MCP tool `manage_file(file_name="progress.md", operation="read")`** to see recent achievements
    - **Use Cortex MCP tool `manage_file(file_name="roadmap.md", operation="read")`** to understand project priorities
@@ -898,6 +903,14 @@ fix_markdown_lint(include_untracked_markdown=True)
 - **DO NOT dismiss errors as "pre-existing"** - ALL errors must be fixed before commit
 - **Match CI behavior**: CI checks ALL markdown files and fails on ANY error - Step 12.5 MUST match this exactly
 - **Example fallback command** (when MCP tool unavailable): Run markdown lint via shell with the same scope. Example (match CI scope): `npx markdownlint-cli2 '**/*.md' '**/*.mdc' !**/node_modules/** !**/.venv/** !**/venv/** !**/__pycache__/** !**/.git/**` with `--fix` to fix, or without `--fix` for check-only. Record "MCP connection closed; fallback used" in the commit output.
+- **⚠️ FALLBACK WHEN NO RULE CODES**: If `fix_markdown_lint` returns `files_with_errors` > 0 but `errors` is empty for those files (no rule codes like MD036), the tool may have failed to parse markdownlint output. In this case:
+  1. **First**: Retry `fix_markdown_lint` once (may be a transient parsing issue)
+  2. **If retry still returns no rule codes**: Run markdown lint locally to obtain rule codes:
+     - From project root: `npx --yes markdownlint-cli2 --fix '**/*.md' '**/*.mdc'` (with project ignore patterns if configured)
+     - Or: `node_modules/.bin/markdownlint-cli2 --fix '**/*.md' '**/*.mdc'` if local install exists
+  3. **Review output**: The local run will show rule codes (e.g. MD036, MD022) and file locations
+  4. **Fix violations**: Apply fixes based on rule codes, then re-run commit pipeline
+  5. **Record**: Note "fix_markdown_lint returned no rule codes; used local markdownlint fallback" in commit output
 
 ### 12.6 Re-run Quality Checks (MANDATORY)
 
@@ -1168,6 +1181,14 @@ Use this ordering when numbering results:
 - **⚠️ ZERO ERRORS TOLERANCE**: ANY markdown lint error (in ANY file) MUST block commit - NO EXCEPTIONS
 - **⚠️ NO EXCEPTIONS**: Pre-existing markdown lint errors are NOT acceptable - they MUST be fixed before commit
 - **REQUIRED**: markdownlint-cli2 must be installed (required dependency for Cortex MCP)
+- **⚠️ FALLBACK WHEN NO RULE CODES**: If `fix_markdown_lint` returns `files_with_errors` > 0 but `errors` is empty for those files (no rule codes like MD036), the tool may have failed to parse markdownlint output. In this case:
+  1. **First**: Retry `fix_markdown_lint` once (may be a transient parsing issue)
+  2. **If retry still returns no rule codes**: Run markdown lint locally to obtain rule codes:
+     - From project root: `npx --yes markdownlint-cli2 --fix '**/*.md' '**/*.mdc'` (with project ignore patterns if configured)
+     - Or: `node_modules/.bin/markdownlint-cli2 --fix '**/*.md' '**/*.mdc'` if local install exists
+  3. **Review output**: The local run will show rule codes (e.g. MD036, MD022) and file locations
+  4. **Fix violations**: Apply fixes based on rule codes, then re-run commit pipeline
+  5. **Record**: Note "fix_markdown_lint returned no rule codes; used local markdownlint fallback" in commit output
 
 #### **2. Type Checking**
 
