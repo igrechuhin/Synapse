@@ -3,10 +3,12 @@
 
 This script checks that all Python files in the source directory are under
 the configured line limit (default: 400 lines, excluding blank lines,
-comments, and docstrings).
+comments, and docstrings). Files between the warn threshold (default: 350)
+and the max are reported as warnings; files over the max cause exit 1.
 
 Configuration:
     MAX_FILE_LINES: Maximum lines per file (default: 400)
+    FILE_SIZE_WARN_LINES: Warn when file exceeds this (default: 350)
     SRC_DIR: Source directory path (default: auto-detected)
 """
 
@@ -50,6 +52,7 @@ except (ImportError, RuntimeError):
     pass
 
 MAX_LINES = get_config_int("MAX_FILE_LINES", _default_max_file_lines)
+WARN_LINES = get_config_int("FILE_SIZE_WARN_LINES", 350)
 EXCLUDED_FILENAMES = _default_excluded
 
 
@@ -115,6 +118,7 @@ def main():
         sys.exit(1)
 
     violations: list[tuple[Path, int]] = []
+    warnings_list: list[tuple[Path, int]] = []
 
     # Must match cortex.core.constants.FILE_SIZE_EXCLUDED_FILENAMES and pre_commit_helpers
     for py_file in src_dir.glob("**/*.py"):
@@ -128,6 +132,23 @@ def main():
         lines = count_lines(py_file)
         if lines > MAX_LINES:
             violations.append((py_file, lines))
+        elif lines > WARN_LINES:
+            warnings_list.append((py_file, lines))
+
+    def _rel(path: Path, root: Path) -> Path:
+        try:
+            return path.relative_to(root)
+        except ValueError:
+            return path
+
+    if warnings_list:
+        print("⚠️  File size warnings (approach limit):", file=sys.stderr)
+        for path, lines in sorted(warnings_list, key=lambda x: -x[1]):
+            print(
+                f"  {_rel(path, project_root)}: {lines} lines (warn above {WARN_LINES}, max {MAX_LINES})",
+                file=sys.stderr,
+            )
+        print(file=sys.stderr)
 
     if violations:
         print("❌ File size violations detected:", file=sys.stderr)
@@ -137,10 +158,7 @@ def main():
             return x[1]
 
         for path, lines in sorted(violations, key=sort_key, reverse=True):
-            try:
-                relative_path: Path = path.relative_to(project_root)
-            except ValueError:
-                relative_path = path
+            relative_path = _rel(path, project_root)
             excess: int = lines - MAX_LINES
             print(
                 (

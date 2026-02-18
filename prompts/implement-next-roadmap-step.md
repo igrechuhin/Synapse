@@ -232,7 +232,7 @@ Before defining new data structures (classes, types, models, interfaces):
    - Create/modify/delete files as needed
    - Write or update code according to coding standards
    - Ensure type annotations are complete per language-specific standards
-   - **For tool parameters and internal dispatch data**: Use structured data models per language standards (e.g., Pydantic BaseModel for Python, TypeScript interfaces for TypeScript), not generic untyped containers (e.g., `dict[str, Any]`, `any`). Apply when introducing or refactoring tool param objects or internal structured data structures. Check AGENTS.md/CLAUDE.md or language-specific rules for project standards.
+   - **For tool parameters and internal dispatch data**: Use structured data models per language standards. Apply when introducing or refactoring tool param objects or internal structured data structures. Check AGENTS.md/CLAUDE.md or language-specific rules for project standards.
    - When adding new functions, keep each under the project limit (≤30 logical lines); if a function grows beyond that, extract helpers before running the full quality gate.
    - Follow language-specific best practices and modern features
    - Keep functions/methods and files within project's length/size limits (check language-specific standards)
@@ -271,6 +271,7 @@ Before defining new data structures (classes, types, models, interfaces):
      - **AAA pattern**: Ensure all tests follow Arrange-Act-Assert structure
      - **Code path coverage**: Verify all code paths are covered (success, error, edge cases)
      - **For consolidated tools**: Plan both unit tests (with mocks, 80-90% coverage acceptable) and integration tests (95%+ coverage ideal)
+     - **Coverage guidance**: Prioritize files with most uncovered lines (use coverage gap analysis tools if available); focus on error paths, edge cases, and public entry points for quick coverage gains.
    - **Unit tests**: Test all new public functions, methods, and classes individually
    - **Integration tests**: Test component interactions and data flow between modules
    - **Edge cases (MANDATORY)**: Always ensure to cover all edge cases—boundary conditions, error handling, invalid inputs, empty states, min/max values, null/empty collections, and both success and failure paths. Applies to any project/language/code.

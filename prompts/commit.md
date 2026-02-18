@@ -259,6 +259,7 @@ The following error patterns MUST be detected and fixed before commit. These are
 - **Enforcement**: If coverage < 90.0%, do not advance to Step 5; fix coverage in this same run (add tests, re-run tests) until coverage ≥ 90.0%. Only stop and provide summary if context is insufficient AFTER attempting fixes, per "Context Assessment" in Failure Handling.
 - **Re-run tests / coverage report (MANDATORY)**: When re-running tests or when you need a coverage report to fix coverage, use **only** the Cortex MCP tool:
   - `execute_pre_commit_checks(checks=["tests"], test_timeout=600, coverage_threshold=0.90, strict_mode=False)`
+- **Coverage guidance**: When adding tests to fix coverage, prioritize files with most uncovered lines (use coverage gap analysis tools if available); focus on error paths, edge cases, and public entry points for quick coverage gains.
   Do **NOT** run raw test commands in a Shell - use the MCP tool only. Running the test runner directly can produce huge output and long runs and bypass project timeout/configuration.
 
 **Coverage at commit (full test run)**:
