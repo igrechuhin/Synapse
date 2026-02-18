@@ -233,7 +233,7 @@ Before defining new data structures (classes, types, models, interfaces):
    - Create/modify/delete files as needed
    - Write or update code according to coding standards
    - Ensure type annotations are complete per language-specific standards
-   - **For tool parameters and internal dispatch data**: Use structured data models per language standards. Apply when introducing or refactoring tool param objects or internal structured data structures. Check AGENTS.md/CLAUDE.md or language-specific rules for project standards.
+   - **For tool parameters and internal dispatch data**: Use Pydantic `BaseModel` (e.g. `QueryXParams`), not `dict[str, Any]`. Apply when introducing or refactoring tool param objects or internal structured data structures. Check AGENTS.md/CLAUDE.md or language-specific rules for project standards.
    - When adding new functions, keep each under the project limit (≤30 logical lines); if a function grows beyond that, extract helpers before running the full quality gate.
    - **Helper module extraction (quality violations)**: When file size or function length exceeds project limits, apply the **helper module extraction pattern** per maintainability rules. See `rules(operation="get_relevant", task_description="helper module extraction, file size limits, function length limits")` or maintainability.mdc for comprehensive guidance on extracting cohesive function groups to `*_helpers.py` modules, updating imports and tests, and maintaining coverage.
    - Follow language-specific best practices and modern features
@@ -509,6 +509,8 @@ Before defining new data structures (classes, types, models, interfaces):
 - **Completeness**: Update after significant changes (MANDATORY)
 
 ## ERROR HANDLING
+
+**Fix-path rule (MANDATORY)**: Whenever the agent encounters a problem and switches to fixing (errors, test failures, quality, type issues, coverage, or conformance), it **must** load context and rules **before** making code or test changes. Call `load_context(task_description="...", token_budget=15000)` (15k for fix/debug) and, when applicable, `rules(operation="get_relevant", task_description="...")` (or read from rules path if disabled). Only after context and rules are loaded, proceed with fixes. This is consistent with load-context-at-step-start; the fix-path load is additional when the agent actually enters fix mode.
 
 If you encounter any issues during implementation:
 

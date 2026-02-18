@@ -158,6 +158,8 @@ Satisfy **Pre-Action Checklist item 2** (Read relevant rules) before Step 0. Cal
 
 **⚠️ Zero-budget/zero-files reminder**: Zero-budget (`token_budget=0`) or zero-files (`files_selected=0`) `load_context` calls are only acceptable for trivial/no-op tasks. For non-trivial tasks (refactor/fix/debug/implement), these indicate a configuration error and MUST use a non-zero budget (typically 10k-15k for fix/debug, 20k-30k for implement/add).
 
+**Load context when fixing (MANDATORY — after a step failure)**: When any step fails (formatting, type check, quality, tests, roadmap sync, timestamps, etc.) and you are about to apply fixes, you **must** load context and rules **before** making code or test changes so fixes follow project rules and guidelines. Call `load_context(task_description="Fixing errors and quality issues for commit", token_budget=15000)` (15k for fix/debug path). If rules are enabled, call `rules(operation="get_relevant", task_description="Commit pipeline, test coverage, type fixes, and visibility rules")`; if the tool returns `disabled`, read key coding standards from the rules directory (path from `get_structure_info()` → `structure_info.paths.rules`) or Synapse rules directory. Only after context and rules are loaded, proceed with fixes. This applies whether you are re-running a single check (e.g. within Step 12) or debugging a specific failure.
+
 ## Using the think tool
 
 Before taking action after receiving tool results or analyzing changes, use the `think` tool to:

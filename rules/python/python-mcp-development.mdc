@@ -189,6 +189,7 @@ async def bad_main():  # Causes "coroutine was never awaited"
 - **NEVER Use `Any`**: `Any` type is STRICTLY FORBIDDEN in MCP handlers - STRICT MANDATORY
 - **NEVER Use Untyped Collections**: Untyped `dict`, `list`, `tuple`, `set` are STRICTLY FORBIDDEN - STRICT MANDATORY
 - **JSON-like inputs**: MUST use Pydantic `BaseModel` (preferred) or `TypedDict` - STRICT MANDATORY
+- **Tool parameters and internal dispatch data**: Use Pydantic `BaseModel`; avoid `dict[str, Any]` for new or refactored code.
 - See `python-pydantic-standards.mdc` for comprehensive Pydantic 2 guidelines
 
 ```python
