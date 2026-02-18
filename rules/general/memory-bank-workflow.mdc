@@ -12,6 +12,8 @@ alwaysApply: true
 - **No overlap**: The same item must not appear as "to do" in roadmap and "done" in activeContext at the same time in a way that duplicates the same scope. When work is completed: add a summary to activeContext.md and mark complete or remove from roadmap.md so that completed work lives in activeContext only.
 - **Flow**: Work is planned and tracked in roadmap → when completed, move it to activeContext (add to activeContext, update/remove from roadmap).
 
+**Compound Engineering**: Updating activeContext (completed work), progress, and roadmap (future work) after significant changes is the **compound** step of the Plan → Work → Review → Compound loop: it makes the next session easier by keeping context accurate and avoiding duplicate or conflicting entries. See CLAUDE.md and AGENTS.md for the full compound-engineering workflow.
+
 ## Memory Bank Structure (Canonical Spec)
 
 The Cortex Memory Bank has **seven core files** plus a meta instructions file. Each core file has exactly **one dedicated goal**:
