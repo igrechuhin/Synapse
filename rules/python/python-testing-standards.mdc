@@ -335,6 +335,40 @@ _SCRIPT_DIR = Path(".cortex/synapse/scripts/python")  # BLOCKED
 
 **Reference**: See `tests/unit/test_check_async_tests_script.py` for the correct pattern. Also see AGENTS.md and CLAUDE.md for path resolution guidance.
 
+## JsonValue Narrowing in Tests (ENFORCED)
+
+**CRITICAL**: Test code that asserts on dict values from adapter or API responses (e.g. `_parse_test_output`, MCP tool results, or any API returning `dict[str, JsonValue]`) MUST narrow the type before numeric comparison or other typed operations. The type checker does not support operators like `<` or `>=` between `JsonValue` and `float`/`int`.
+
+**REQUIRED:**
+
+- ✅ Narrow before numeric comparison: use `cast(float, result["key"])` after a not-None check, or `isinstance(v, (int, float))` then use `v`
+- ✅ When asserting on coverage, pass rate, or other numeric fields from parsed output, extract and narrow the value first
+- ✅ Prefer `isinstance(v, (int, float))` for runtime safety; use `cast()` only when the schema guarantees the type
+
+**FORBIDDEN:**
+
+- ❌ Using `result["coverage"] < 0.90` (or similar) when `result` is `dict[str, JsonValue]` — operator not supported for JsonValue and float
+- ❌ Assuming dict access returns a narrow type without an explicit check or cast
+
+**Example (required):**
+
+```python
+# result from _parse_test_output or similar: dict[str, JsonValue]
+coverage_val = result.get("coverage")
+assert coverage_val is not None and isinstance(coverage_val, (int, float))
+assert float(coverage_val) >= 0.90
+```
+
+```python
+# Alternative with cast after not-None check (when schema guarantees numeric type)
+from typing import cast
+cov = result.get("coverage")
+assert cov is not None
+assert cast(float, cov) >= 0.90
+```
+
+**Reference**: Python coding standards "JsonValue at MCP Boundaries" for production code; this section applies to test code that consumes JsonValue-typed dicts from adapters or APIs.
+
 ## Violations (BLOCKED)
 
 - ❌ Tests without clear AAA structure
@@ -354,6 +388,7 @@ _SCRIPT_DIR = Path(".cortex/synapse/scripts/python")  # BLOCKED
 - ❌ Direct testing of private implementation details
 - ❌ Side-effect-only imports without referencing the module (e.g. missing `_ = module`); triggers reportUnusedImport with Pyright
 - ❌ Hardcoding `.cortex/` or `.cursor/` paths in tests (must use `get_cortex_path()` or `get_structure_info()`)
+- ❌ Asserting on dict values from JsonValue-returning APIs (e.g. `result["key"] < 0.90`) without narrowing type first (see JsonValue Narrowing in Tests)
 
 ## Enforcement
 

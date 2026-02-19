@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Pre-commit hook to check code formatting.
 
+Requires Python 3.9+ (or 3.7+ with from __future__ import annotations).
 This script runs the formatter (black) in check-only mode to verify that all
 code is properly formatted. This catches formatting issues before commit.
 
@@ -9,6 +10,8 @@ Configuration:
     SRC_DIR: Source directory path (default: auto-detected)
     TESTS_DIR: Tests directory path (default: auto-detected)
 """
+
+from __future__ import annotations
 
 import subprocess
 import sys

@@ -106,6 +106,7 @@ Steps without agents are handled directly by the orchestration workflow.
    - If the result has **`health.healthy` false**, **STOP**. Report the same message. Do not run Steps 0–15 without a healthy MCP connection.
 
 1. ✅ **Read relevant memory bank files** - Understand current project context:
+   - **Non-zero token budget (MANDATORY when using load_context)**: For commit or fix-path work, if you call `load_context`, use an explicit non-zero `token_budget` (e.g. 10,000–15,000 for fix/debug). Zero-budget or zero-files for non-trivial tasks is a configuration error.
    - **For commit pipeline tasks**: Use targeted file selection to optimize token usage (40-60% reduction):
      - **Essential files** (always load): `activeContext.md`, `roadmap.md`, `progress.md`
      - **Optional files** (load only if task-specific relevance): `techContext.md`, `systemPatterns.md`, `productContext.md`, `projectBrief.md`
@@ -579,6 +580,8 @@ git -C <Synapse-directory-path> status --porcelain
 ### Step 12: Final validation gate (MANDATORY re-verification)
 
 - **Dependency**: Must run AFTER Steps 4-11 (any code changes may have been made)
+- **Before Step 12 — Connection health (recommended)**: Call **`check_mcp_connection_health()`** before starting Step 12. If **`health.healthy`** is false, report to the user and do not start Step 12 until MCP is healthy. This reduces connection closure failures during the validation gate. Connection health is already checked at pipeline start (Pre-Action Checklist item 0); re-checking before Step 12 provides early warning after the gap between Steps 4–11.
+- **Connection retry during Step 12**: On MCP connection errors (e.g. -32000 "Connection closed") during any Step 12 sub-step, retry the failing tool call **once** after a short delay (2–5 seconds). If the retry fails, follow the step-specific handling (fallback scripts for 12.1/12.6, block commit for 12.7). Do not batch or reorder Step 12 sub-steps to reduce connection overhead; run them sequentially as defined.
 - **CRITICAL**: This step exists because Steps 4-11 may create new files or make code changes that weren't validated
 - **⚠️ ABSOLUTE MANDATORY**: Step 12 CANNOT be skipped, bypassed, or assumed to have passed. It MUST be executed in full before Step 13.
 - **⚠️ EXECUTION VERIFICATION REQUIRED**: Before proceeding to Step 13, you MUST provide explicit evidence that ALL Step 12 sub-steps were executed:
@@ -660,6 +663,7 @@ The commit procedure executes steps in this specific order to ensure dependencie
    - **CRITICAL**: Must pass before testing to ensure code meets quality standards
    - **VALIDATION**: Both checks MUST show zero violations - **BLOCK COMMIT** if violations exist
 4. **Testing** (Run Tests) - Executes test suite to ensure functionality correctness
+   - **Optional before Step 4**: If the pipeline has been running a long time, call `check_mcp_connection_health()` before starting Step 4; if unhealthy, report and do not run tests until MCP is reconnected.
    - **CRITICAL**: Uses `execute_pre_commit_checks()` MCP tool for structured test execution
    - **CRITICAL**: Runs AFTER errors, formatting, and code quality are fixed
    - **CRITICAL**: Tests must pass with 100% pass rate AND coverage ≥ 90.0% before proceeding
@@ -956,6 +960,8 @@ execute_pre_commit_checks(checks=["quality"])
 ### 12.7 Re-run Tests with Coverage Validation (MANDATORY)
 
 **CRITICAL**: Code changes during Steps 5-11 may affect test coverage. Tests MUST be re-run and coverage MUST be validated.
+
+**Sandbox limitations**: In sandboxed environments (e.g. restricted CI or agent runners), test execution in Step 12.7 may fail or be unavailable. When Step 12.7 cannot complete after retry, commit MUST be blocked. Run the test suite outside the sandbox (e.g. locally or in a non-sandboxed CI job), ensure tests pass and coverage ≥ 90%, then re-run the commit pipeline. Phase A test results are NOT acceptable when Step 12.7 cannot execute—see [Troubleshooting: Step 12.7 and sandboxed environments](../../../docs/guides/troubleshooting.md#step-127-and-sandboxed-environments).
 
 **⚠️ ORDERING RATIONALE**: Tests run AFTER markdown lint (12.5) and quality checks (12.6) because the test suite takes several minutes and can cause MCP connection staleness for subsequent tool calls. Running tests last in the validation sequence ensures all other checks complete reliably.
 
