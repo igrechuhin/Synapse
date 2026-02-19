@@ -68,7 +68,7 @@ When executing steps, delegate to the appropriate agent for specialized work, th
 
 ## EXECUTION STEPS
 
-**Phases**: (1) Structure & context load — get paths, read memory bank. (2) Existing-plan check — reuse vs new. (3) Create/enrich plan — plan-creator agent. (4) Register in roadmap — memory-bank-updater agent, prefer `register_plan_in_roadmap`/`add_roadmap_entry`. (5) Verify & Analyze — confirm no truncation, then run Analyze (End of Session) prompt. All paths via `get_structure_info()` and `manage_file()`; see memory-bank-workflow.mdc.
+**Phases**: (1) Structure & context load — get paths, read memory bank. (2) Existing-plan check — reuse vs new. (3) Create/enrich plan — plan-creator agent; **prefer `create_plan`** for new plan files when available. (4) Register in roadmap — memory-bank-updater agent; **prefer `register_plan_in_roadmap`** or `add_roadmap_entry`. (5) Verify & Analyze — confirm no truncation, then run Analyze (End of Session) prompt. All paths via `get_structure_info()` and `manage_file()`; see memory-bank-workflow.mdc.
 
 ### Step 1: Get Project Structure and Paths (Phase 1)
 
@@ -206,9 +206,8 @@ User request: "Add validation for memory bank file structure"
 
 4. **Create or update plan file**:
    - **If creating a new plan**:
-     - Generate a filename based on plan title (sanitize for filesystem)
-     - Use standard tools (`Write`) to create the plan file in the plans directory
-     - File should be saved as `{plans_dir}/{plan-filename}.md`
+     - **Prefer**: Use the Cortex MCP tool **`create_plan(title=..., content=..., slug=...)`** when available. It resolves the plans directory, sanitizes the filename, and writes the file; no path hardcoding.
+     - **Fallback**: If `create_plan` is unavailable or fails, generate a filename from the plan title (sanitize for filesystem), resolve plans path via `get_structure_info()` → `structure_info.paths.plans`, and use standard tools (`Write`) to create the plan file at `{plans_dir}/{plan-filename}.md`.
    - **If enriching an existing plan**:
      - Use `Read` to load the existing plan file identified in Step 2.5.
      - Merge the new description and context into the existing plan:
