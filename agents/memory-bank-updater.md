@@ -29,6 +29,8 @@ Key practices:
   - **Coverage and percentages**: Use values between 0 and 100 only (e.g. `90.01%`, not `900.01%`). If the source value is > 100, treat it as a decimal (e.g. 900.01 → 90.01%).
   - **Phase and feature names**: Avoid concatenation typos. Ensure a space between number and word (e.g. `Phase 18 Markdown`, not `Phase 18Markdown`). Re-read the roadmap or plan title to copy the exact phase label.
   - **Dates**: Use `YYYY-MM-DD` only (no time component). Validate that the date string matches this format before writing.
+- **Progress entry format validation**: When generating text for `progress_entry` (for `complete_plan`) or `entry_text` (for `append_progress_entry`), ensure the phase/title segment is **properly closed** before "COMPLETE". The entry must contain the pattern `)** - COMPLETE` (closing parenthesis, bold-close, space, hyphen, space, COMPLETE). **Malformed examples** (do not use): `20260209COMPLETE`, or `Title - COMPLETE` with an unclosed `(**` in the title. **Correct example**: `**Title** - COMPLETE. Summary...`.
+- **Memory bank write discipline**: Any edit to memory-bank files—including one-line fixes—**MUST** use `manage_file(operation='read')` then `manage_file(operation='write', content=...)`. Do **not** use Write, StrReplace, or ApplyPatch on memory-bank paths; using standard file tools for memory-bank writes is a **VIOLATION**.
 
 ## Correct `manage_file` Usage
 
