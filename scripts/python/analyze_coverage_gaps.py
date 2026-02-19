@@ -9,6 +9,7 @@ Configuration:
     COVERAGE_JSON: Path to coverage JSON file (default: coverage.json in project root)
     TOP_N: Number of top files to show (default: 10)
 """
+
 from __future__ import annotations
 
 import argparse

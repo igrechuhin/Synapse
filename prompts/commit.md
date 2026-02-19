@@ -450,6 +450,10 @@ Step 13 and Step 14 below contain mandatory precondition checks; do not skip the
 - **Workflow**: After agent completes, verify zero violations before proceeding to Step 4
 - **Context Assessment**: If insufficient context remains after fixing violations, provide comprehensive summary and advise re-running commit pipeline
 
+- **3.5: Intermediate Validation During Refactoring**: When fixing function length violations by extracting helper functions, run type check and quality check after EACH refactor to catch new violations early. Do not batch all refactoring then validate at end; validate incrementally to reduce fix iterations. If a refactor introduces new type errors or quality violations, fix them immediately before proceeding to next refactor.
+
+- **3.6: Duplicate Detection Before Creating Helpers**: Before creating new helper functions during refactoring, search for existing functions with similar names or purposes (use the Grep tool or your language’s search/grep for function declarations). If a similar function exists, reuse it or rename the new one to avoid duplicates. Duplicate or redeclared symbols cause type-check and lint errors that require additional fix iterations.
+
 ### Step 4: Test execution (delegate to `test-executor`)
 
 - **Agent**: Use the test-executor agent (Synapse agents directory) for implementation details

@@ -53,6 +53,7 @@ alwaysApply: false
 - **100% Type Coverage**: All functions, methods, classes MUST have complete type hints
 - **Built-in Generics**: Use `list[str]`, `dict[str, int]` (Python 3.13+) - NOT `typing.List`, `typing.Dict`
 - **Optional Types**: Use `T | None` (NOT `Optional[T]` or `Union[T, None]`)
+- See "Type Narrowing with assert" section for handling Optional types with control flow guarantees.
 
 - **Self Type**: Use `typing.Self` for methods returning class instances
 - **TypedDict**: Use `typing.Required`/`typing.NotRequired` for optional fields
@@ -69,6 +70,22 @@ alwaysApply: false
 - ✅ `dict[str, str]` - Explicit types
 - ✅ `list[UserModel]` - Pydantic model types
 - ✅ `object` with `isinstance()` narrowing for truly unknown types
+
+### Type Narrowing with assert
+
+- **Pattern**: When control flow guarantees a value is not None (e.g. early return on None case), use `assert value is not None` to narrow type for type checker.
+- **Example**:
+
+  ```python
+  def process_value(value: int | None) -> int:
+      if value is None:
+          return 0
+      assert value is not None  # Type narrowing for type checker
+      return value * 2
+  ```
+
+- **Rationale**: Pyright type checker does not always infer type narrowing from control flow. Explicit assertion provides clear type narrowing signal.
+- **When to use**: Use when control flow guarantees non-None but type checker still reports error; do not use for runtime validation (use proper error handling instead).
 
 ### Concrete Types (MANDATORY)
 

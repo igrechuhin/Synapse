@@ -49,6 +49,7 @@ When executing steps, delegate to the appropriate agent for specialized work, th
 
 2. ✅ **Load relevant context** - Understand current project context (at step start):
    - **Task-type token budget** (use these defaults; see CLAUDE.md and AGENTS.md): implement/add or update/modify → 10,000; fix/debug or other → 15,000; small feature → 20,000–30,000; optimization → 15,000; narrow review/docs → 7,000–8,000; architecture/large design → 40,000–50,000. Do not use zero budget for non-trivial tasks.
+   - **AgentRole awareness**: The `load_context` tool automatically detects the agent role (feature/quality/testing/docs/planning/debugging/review) from the task description and uses role-aware context selection. Role-aware statistics are tracked in context-effectiveness analysis and can inform budget recommendations per role. See AGENTS.md for role descriptions and when each role is appropriate.
    - **At step start** (right after reading the roadmap and picking the next step), use the **two-step pattern** for efficient context loading:
      1. **First**: Call `load_context(task_description="[roadmap step description]", depth="metadata_only", token_budget=[task-appropriate budget])` to get a lightweight context map (~500 tokens) with file names, sections, token counts, and relevance scores. This also records the session for end-of-session analyze.
      2. **Then**: Use `manage_file(file_name="[file]", operation="read", sections=["## Section Name"])` to drill into specific relevant sections on demand.
@@ -60,10 +61,12 @@ When executing steps, delegate to the appropriate agent for specialized work, th
    - **DO NOT** read memory bank files directly via file paths - always use Cortex MCP tools
 
 3. ✅ **Read relevant rules** - Understand implementation requirements:
-   - Use Cortex MCP tool `rules(operation="get_relevant", task_description="Implementation, code quality, memory bank, testing, maintainability, helper module extraction")` to load rules, or read from the rules directory (path from `get_structure_info()` → `structure_info.paths.rules`)
-   - **When `rules()` returns `status: "disabled"`**: Still load key coding standards by reading from the rules directory (path from `get_structure_info()` → `structure_info.paths.rules`) using the Read tool, so implementation quality is maintained. **MANDATORY**: Read maintainability.mdc for file size limits, function length limits, and helper module extraction pattern.
-   - **Language-specific standards**: Load language-specific coding standards via `get_synapse_rules(task_description="[language] standards")`.
-   - **Rule discovery fallback**: When `rules()` returns empty results or the task involves tool implementation/refactoring (e.g., implementing MCP tools, refactoring tool parameters), also check `get_synapse_rules(task_description="[language] models, structured data")`.md for language-specific structured-data standards.
+   - **FIRST**: Check rules indexing status by calling `rules(operation="get_relevant", task_description="Implementation, code quality, memory bank, testing, maintainability, helper module extraction")` and inspecting the `rules_manager_status.indexed_files` field in the response.
+   - **When rules indexing is enabled and `indexed_files > 0`**: Treat rules as a **first-class source** of coding standards. Use `rules(operation="get_relevant", ...)` as the primary method for loading rules. The indexed rules will be automatically selected based on relevance to the task description.
+   - **When `rules()` returns `status: "disabled"` or `indexed_files=0`**: Fall back to reading from the rules directory (path from `get_structure_info()` → `structure_info.paths.rules`) using the Read tool, or use `get_synapse_rules()` for Synapse rules. **MANDATORY**: Read maintainability.mdc for file size limits, function length limits, and helper module extraction pattern.
+   - **Troubleshooting**: If rules are enabled (`rules_enabled: true` in optimization.json) but `indexed_files=0`, run `rules(operation="index", force=True)` to index rules, then retry `get_relevant`. If indexing still returns 0 files, check that the `rules_folder` path in optimization.json points to a directory containing `.mdc` rule files.
+   - **Language-specific standards**: Load language-specific coding standards via `get_synapse_rules(task_description="[language] standards")` or via `rules(operation="get_relevant", ...)` if indexing is enabled.
+   - **Rule discovery fallback**: When `rules()` returns empty results or the task involves tool implementation/refactoring (e.g., implementing MCP tools, refactoring tool parameters), also check `get_synapse_rules(task_description="[language] models, structured data")` for language-specific structured-data standards.
    - **Maintainability rules**: Ensure maintainability.mdc rules are loaded (file size limits, function length limits, helper module extraction pattern). If rules() doesn't return maintainability rules, explicitly load them via `rules(operation="get_relevant", task_description="helper module extraction, file size limits, function length limits")` or read maintainability.mdc directly.
    - Ensure coding standards, language-specific standards, memory-bank workflow, maintainability rules, and testing standards are in context
 
@@ -124,6 +127,8 @@ The **roadmap defines the implementation sequence** (see the "Implementation seq
 - **optimization**: 15,000
 - **narrow review/documentation**: 7,000–8,000
 - **architecture/large design**: 40,000–50,000
+
+**AgentRole-aware budgets**: Context-effectiveness analysis tracks statistics by agent role (feature/quality/testing/docs/planning/debugging/review) and provides role-specific budget recommendations. The `load_context` tool automatically detects roles from task descriptions and uses role-aware file selection. See `analyze_context_effectiveness()` results for role-aware budget recommendations. **Role detection**: Roles are automatically inferred from task descriptions using keyword heuristics (e.g., "test" → testing, "fix" → debugging, "format" → quality, "docs" → docs, "plan" → planning). The detected role is logged in session logs and used for role-aware context selection and statistics. See AGENTS.md for role descriptions and when each role is appropriate.
 
 **Plan step sequence (MANDATORY when implementing a plan)**:
 
@@ -483,6 +488,8 @@ Before defining new data structures (classes, types, models, interfaces):
 - **Function/method length**: Keep within project's length limits (check language-specific coding standards)
 - **File length**: Keep within project's size limits (check language-specific coding standards)
 - **Helper module extraction (standard refactoring)**: When file size or function length exceeds project limits, use the **helper module extraction pattern** per maintainability rules. Load rules via `rules(operation="get_relevant", task_description="helper module extraction, file size limits, function length limits")` or see maintainability.mdc for comprehensive guidance. This is the standard approach for resolving quality violations; prefer it over ad-hoc splitting.
+- **Incremental validation during refactoring**: When refactoring to fix quality violations, validate each fix incrementally (type check + quality check) before proceeding to next fix. Incremental validation catches new violations immediately and reduces fix iterations.
+- **Duplicate detection before extracting helpers**: Before extracting helper functions, search for existing functions with similar names (use Grep tool or grep command). Reuse existing helpers when possible; rename new helpers to avoid duplicates.
 - **Dependency injection**: All external dependencies MUST be injected via initializers
 - **No global state**: NO global state or singletons in production code
 

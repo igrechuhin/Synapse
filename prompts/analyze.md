@@ -34,11 +34,17 @@ At end of session, run a single "check all" analysis: (1) evaluate `load_context
    - `systemPatterns.md` – architectural patterns
    - `techContext.md` – technical context
 
-2. **Read relevant rules** (Cortex MCP tool `rules(operation="get_relevant", task_description="Coding standards, session analysis")` or rules directory path from `get_structure_info()` → `structure_info.paths.rules`). If rules indexing is disabled (`rules(operation="get_relevant", ...)` returns `status: "disabled"`), read key rules from the Synapse rules directory (path from `get_structure_info()` → `structure_info.paths.rules`) or from AGENTS.md/CLAUDE.md for coding standards and memory bank access. **Rule discovery fallback**: When `rules()` returns empty results or the task involves tool implementation/refactoring, also check `get_synapse_rules(task_description="[language] models, structured data")` or read AGENTS.md/CLAUDE.md for language-specific structured-data standards (e.g., Pydantic BaseModel for Python tool parameters and dispatch data; avoid `dict[str, Any]`).
+2. **Read relevant rules** (Cortex MCP tool `rules(operation="get_relevant", task_description="Coding standards, session analysis")` or rules directory path from `get_structure_info()` → `structure_info.paths.rules`).
+   - **FIRST**: Check rules indexing status by inspecting the `rules_manager_status.indexed_files` field in the `rules()` response.
+   - **When rules indexing is enabled and `indexed_files > 0`**: Treat rules as a **first-class source** of coding standards. Use `rules(operation="get_relevant", ...)` as the primary method for loading rules. The indexed rules will be automatically selected based on relevance to the task description.
+   - **When `rules()` returns `status: "disabled"` or `indexed_files=0`**: Fall back to reading key rules from the Synapse rules directory (path from `get_structure_info()` → `structure_info.paths.rules`) or from AGENTS.md/CLAUDE.md for coding standards and memory bank access.
+   - **Troubleshooting**: If rules are enabled (`rules_enabled: true` in optimization.json) but `indexed_files=0`, run `rules(operation="index", force=True)` to index rules, then retry `get_relevant`. If indexing still returns 0 files, check that the `rules_folder` path in optimization.json points to a directory containing `.mdc` rule files.
+   - **Rule discovery fallback**: When `rules()` returns empty results or the task involves tool implementation/refactoring, also check `get_synapse_rules(task_description="[language] models, structured data")` or read AGENTS.md/CLAUDE.md for language-specific structured-data standards.
 
 3. **Context-effectiveness recall** (for manual fallback if needed):
-   - Recall `load_context` / `load_progressive_context` calls this session: task descriptions, files selected, relevance scores, token budget and utilization.
+   - Recall `load_context` / `load_progressive_context` calls this session: task descriptions, files selected, relevance scores, token budget and utilization, agent roles.
    - Identify what context was actually used: files read, modified, mentioned; files needed but missing; files provided but unused.
+   - **AgentRole awareness**: Context-effectiveness analysis tracks statistics by agent role (feature/quality/testing/docs/planning/debugging/review). The `analyze_context_effectiveness()` tool provides role-aware insights and budget recommendations. Roles are automatically detected from task descriptions and logged for analysis.
 
 4. **Session scope**: Confirm current session context and that reviews path is available via `get_structure_info()` → `structure_info.paths.reviews`.
 
@@ -54,6 +60,7 @@ At end of session, run a single "check all" analysis: (1) evaluate `load_context
 2. If the tool returns `"status": "no_data"` (e.g. no `load_context` calls this session), that is expected for **analysis-only sessions** (e.g. when the only action in the session is running this Analyze prompt). Proceed to manual fallback if useful. **Optional**: To record one call for context-effectiveness metrics, the agent may call `session_start()` or `load_context(task_description="end-of-session analysis", token_budget=5000)` before running the analysis steps.
    - **Usage analysis**: Files used vs provided vs missing vs unused (from checklist).
    - **Scoring** (if applicable): precision, recall, F1, token efficiency; feedback categories (helpful, over_provisioned, under_provisioned, irrelevant, missed_dependencies).
+   - **Role-aware statistics**: Context-effectiveness analysis breaks down statistics by agent role (feature/quality/testing/docs/planning/debugging/review). Review `role_recommendations` and `role_budget_recommendations` in the insights to understand role-specific patterns and tune budgets per role.
    - **Zero-budget/zero-files detection**: If `learned_patterns` includes warnings about `token_budget=0` or `files_selected=0` for non-trivial tasks (refactor/fix/debug/implement), this is a **configuration error**. Document in the report and recommend re-running `load_context` with appropriate budget (10k-15k for fix/debug, 20k-30k for implement/add).
 3. Optionally call `get_context_usage_statistics()` for aggregated stats.
 4. Optionally use `analyze_context_effectiveness(analyze_all_sessions=True)` for full history.

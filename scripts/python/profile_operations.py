@@ -45,7 +45,7 @@ async def profile_token_counting() -> float:
     elapsed = time.perf_counter() - start
 
     print(f"100 token counting operations: {elapsed:.3f}s")
-    print(f"Average per operation: {elapsed/100*1000:.2f}ms")
+    print(f"Average per operation: {elapsed / 100 * 1000:.2f}ms")
     return elapsed
 
 
@@ -66,7 +66,7 @@ async def profile_file_operations() -> float:
         elapsed = time.perf_counter() - start
 
         print(f"50 write+read operations: {elapsed:.3f}s")
-        print(f"Average per operation: {elapsed/50*1000:.2f}ms")
+        print(f"Average per operation: {elapsed / 50 * 1000:.2f}ms")
         return elapsed
 
 
@@ -90,7 +90,7 @@ async def profile_dependency_graph() -> float:
     elapsed = time.perf_counter() - start
 
     print(f"Built 100 nodes + 200 queries: {elapsed:.3f}s")
-    print(f"Average per operation: {elapsed/300*1000:.2f}ms")
+    print(f"Average per operation: {elapsed / 300 * 1000:.2f}ms")
     return elapsed
 
 
@@ -110,7 +110,7 @@ async def profile_structure_analysis() -> float:
         dep_graph = DependencyGraph()
         for i in range(20):
             if i > 0:
-                dep_graph.add_dynamic_dependency(f"file_{i}.md", f"file_{i-1}.md")
+                dep_graph.add_dynamic_dependency(f"file_{i}.md", f"file_{i - 1}.md")
 
         from cortex.core.metadata_index import MetadataIndex
 
@@ -153,7 +153,7 @@ async def profile_transclusion() -> float:
         elapsed = time.perf_counter() - start
 
         print(f"50 transclusion resolutions: {elapsed:.3f}s")
-        print(f"Average per operation: {elapsed/50*1000:.2f}ms")
+        print(f"Average per operation: {elapsed / 50 * 1000:.2f}ms")
         return elapsed
 
 
@@ -194,7 +194,7 @@ async def main():
 
     results: dict[str, float] = {}
     for name, test_func in tests:
-        print(f"\n{'='*60}")
+        print(f"\n{'=' * 60}")
         elapsed = await test_func()
         results[name] = elapsed
 
