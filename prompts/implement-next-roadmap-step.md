@@ -395,6 +395,7 @@ Before defining new data structures (classes, types, models, interfaces):
 
 1. **Remove the completed step from roadmap**
    - **MANDATORY:** Call **`remove_roadmap_entry(entry_contains="<unique substring>")`** with a substring that uniquely identifies the completed roadmap bullet (e.g. the step title or plan name). The tool removes that single bullet and writes the file safely.
+   - **Optional – orphan section:** If the last bullet in a subsection was removed and the subsection heading should be removed too, call **`remove_roadmap_section(section_heading_contains="<heading substring>")`** instead of full-content roadmap write.
    - **FORBIDDEN:** Do NOT read roadmap, build updated content, and call `manage_file(roadmap.md, write, content=...)` with full content. That pattern causes corruption.
    - Roadmap records future/upcoming work only; completed work belongs in activeContext only.
 
