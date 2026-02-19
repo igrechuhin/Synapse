@@ -115,11 +115,13 @@ The **roadmap defines the implementation sequence** (see the "Implementation seq
 
 **⚠️ Zero-budget/zero-files detection**: If `load_context` returns `token_budget=0` or `files_selected=0` for a non-trivial task (refactor/fix/debug/implement), this is a **configuration error**. Re-run `load_context` with an appropriate non-zero budget (10k-15k for fix/debug, 20k-30k for implement/add) to ensure proper context loading. The end-of-session analysis will flag these cases in `learned_patterns` warnings.
 
-**Task-type token budget** (aligns with context-effectiveness insights; reduces over-provisioning):
+**Task-type token budget** (aligns with context-effectiveness insights; see Context budget defaults in CLAUDE.md and AGENTS.md):
 
 - **update/modify, implement/add**: 10,000
 - **fix/debug, other**: 15,000
 - **small feature**: 20,000–30,000
+- **optimization**: 15,000
+- **narrow review/documentation**: 7,000–8,000
 - **architecture/large design**: 40,000–50,000
 
 **Plan step sequence (MANDATORY when implementing a plan)**:

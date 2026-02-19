@@ -28,6 +28,7 @@
 - **rules**
   - **Use when** you need project rules context (coding standards, testing rules, etc.) as part of pre-commit validation or report generation.
   - **Required parameter**: `operation` (`"index"` or `"get_relevant"`). `task_description` is REQUIRED for `"get_relevant"`.
+  - **Zero-budget reminder**: Zero-budget or zero-files `load_context` calls are only acceptable for trivial/no-op tasks; for commit-related work use a non-zero budget (e.g. 10k–15k).
   - **Friendly error behavior**: If you omit `operation`, `rules` returns a structured error with `details.missing=["operation"]` and a `hint` that lists valid values. If you pass an invalid operation, it returns `valid_operations` plus a `hint`.
   - **Examples**:
     - Index rules before a large refactor:
