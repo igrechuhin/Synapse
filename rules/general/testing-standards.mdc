@@ -1,11 +1,11 @@
 ---
-globs: tests/**/*.py
+globs: tests/**
 alwaysApply: false
 ---
 
 # Testing Standards (MANDATORY)
 
-**ENFORCEMENT**: CI MUST fail on violations. Applies to all test files and to any project/language/code.
+**ENFORCEMENT**: CI MUST fail on violations. Applies to all test files and to any project/language/code. For language-specific details (e.g. pytest, fixtures, async), see the language-specific testing rules (e.g. Python: `python-testing-standards.mdc`).
 
 ## Core Principles
 
@@ -61,13 +61,18 @@ Do not limit tests to the happy path; edge-case coverage is mandatory for new an
 
 ## Fixtures and Data
 
-- Reuse shared fixtures in `conftest.py`; avoid duplicated setup.
+- Reuse shared fixtures (e.g. shared setup module per framework); avoid duplicated setup.
 - Isolate state between tests; clean up external resources.
-- Prefer factories/builders over ad-hoc dicts for complex payloads.
+- Prefer factories/builders over ad-hoc data for complex payloads.
+
+## File Watcher and OS Observer Tests
+
+- **Mock observer instances**: Tests for file watchers or other OS-level observers MUST patch the observer implementation and verify interactions (start, stop, schedule); do not rely on real observer threads.
+- **Rationale**: Real observer threads are unstable under test timeouts and slow; mocking keeps tests deterministic and fast. (Python: see `python-testing-standards.mdc` for watchdog/Observer pattern.)
 
 ## Async Tests
 
-- Use `pytest.mark.asyncio` (or configured async plugin) on async tests.
+- Use the framework's async test marker or plugin for async tests.
 - Avoid blocking calls inside async tests; offload with executors when needed.
 
 ## Assertions

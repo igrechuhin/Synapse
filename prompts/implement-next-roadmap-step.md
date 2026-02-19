@@ -48,6 +48,7 @@ When executing steps, delegate to the appropriate agent for specialized work, th
      - Estimated scope/complexity
 
 2. ✅ **Load relevant context** - Understand current project context (at step start):
+   - **Task-type token budget** (use these defaults; see CLAUDE.md and AGENTS.md): implement/add or update/modify → 10,000; fix/debug or other → 15,000; small feature → 20,000–30,000; optimization → 15,000; narrow review/docs → 7,000–8,000; architecture/large design → 40,000–50,000. Do not use zero budget for non-trivial tasks.
    - **At step start** (right after reading the roadmap and picking the next step), use the **two-step pattern** for efficient context loading:
      1. **First**: Call `load_context(task_description="[roadmap step description]", depth="metadata_only", token_budget=[task-appropriate budget])` to get a lightweight context map (~500 tokens) with file names, sections, token counts, and relevance scores. This also records the session for end-of-session analyze.
      2. **Then**: Use `manage_file(file_name="[file]", operation="read", sections=["## Section Name"])` to drill into specific relevant sections on demand.
@@ -126,6 +127,7 @@ The **roadmap defines the implementation sequence** (see the "Implementation seq
 
 **Plan step sequence (MANDATORY when implementing a plan)**:
 
+- Execute plan steps **in order** (Step 1, then Step 2, …). The **next step** is the **first uncompleted step**; do not skip or reorder steps. If the session cannot finish all steps, complete as many as possible in order and update the plan file with current status.
 - **Architecture/large design**: Use `token_budget=40000-50000` (broad scope)
 - **Increase budget only when utilization regularly exceeds ~70%** from previous runs
 
