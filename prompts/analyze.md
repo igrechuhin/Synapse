@@ -15,7 +15,7 @@ This analysis is the **Compound** step of the Plan → Work → Review → Compo
 - For `analyze_context_effectiveness`: If it fails after retry, note "Context effectiveness analysis unavailable due to connection error" in the report and proceed with session optimization analysis.
 - Complete as much of the analysis as possible; partial analysis is better than no analysis.
 
-**Tooling**: Use Cortex MCP tools for memory bank, rules, and paths. Resolve paths via `get_structure_info()` (reviews directory, plans directory, memory bank). Use `manage_file()` for memory bank reads/writes. See memory-bank-workflow.mdc and AGENTS.md; do not hardcode `.cortex/` paths. **Memory bank write discipline:** Any edit to memory-bank files (including one-line fixes) must use `manage_file(operation='read')` then `manage_file(operation='write', content=...)`; do not use Write, StrReplace, or ApplyPatch on memory-bank paths.
+**Tooling**: Use Cortex MCP tools for memory bank, rules, and paths. Resolve paths via `get_structure_info()` (reviews directory, plans directory, memory bank). Use `manage_file()` for memory bank reads/writes. **manage_file contract**: Every `manage_file` call MUST include `file_name` and `operation`; never call `manage_file({})` or omit required parameters—this causes validation errors. See memory-bank-workflow.mdc and AGENTS.md; do not hardcode `.cortex/` paths. **Memory bank write discipline:** Any edit to memory-bank files (including one-line fixes) must use `manage_file(operation='read')` then `manage_file(operation='write', content=...)`; do not use Write, StrReplace, or ApplyPatch on memory-bank paths.
 
 **Phases**: (1) **Context & rules load** — read memory bank and rules via `manage_file()` and `rules()`/structure path. (2) **Analysis & insights** — `analyze_context_effectiveness()`, session data, `get_context_usage_statistics()`, `get_memory_bank_stats()`, `suggest_refactoring()` as needed. (3) **Outputs & plans** — write report to reviews directory (path from `get_structure_info()` → `structure_info.paths.reviews`); if recommendations exist, run Create Plan prompt. Aligns with Phase D (Session Analysis) in `docs/design/commit-pipeline-phases.md` (runs after successful commit when invoked from commit pipeline).
 
@@ -27,7 +27,7 @@ At end of session, run a single "check all" analysis: (1) evaluate `load_context
 
 **BEFORE running any analysis step:**
 
-1. **Read relevant memory bank files** (Cortex MCP tool `manage_file`). Read both activeContext and roadmap so end-of-session analysis reflects completed work (activeContext) and current/upcoming work (roadmap):
+1. **Read relevant memory bank files** (Cortex MCP tool `manage_file`). **Before each manage_file call**: Verify `file_name` and `operation` are set; never call `manage_file({})` or omit required parameters. Read both activeContext and roadmap so end-of-session analysis reflects completed work (activeContext) and current/upcoming work (roadmap):
    - `activeContext.md` – completed work only (for current status and upcoming work see roadmap.md)
    - `roadmap.md` – current status and upcoming work
    - `progress.md` – recent achievements

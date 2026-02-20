@@ -581,7 +581,7 @@ git -C <Synapse-directory-path> status --porcelain
 
 - **Dependency**: Must run AFTER Steps 4-11 (any code changes may have been made)
 - **Before Step 12 — Connection health (recommended)**: Call **`check_mcp_connection_health()`** before starting Step 12. If **`health.healthy`** is false, report to the user and do not start Step 12 until MCP is healthy. This reduces connection closure failures during the validation gate. Connection health is already checked at pipeline start (Pre-Action Checklist item 0); re-checking before Step 12 provides early warning after the gap between Steps 4–11.
-- **Connection retry during Step 12**: On MCP connection errors (e.g. -32000 "Connection closed") during any Step 12 sub-step, retry the failing tool call **once** after a short delay (2–5 seconds). If the retry fails, follow the step-specific handling (fallback scripts for 12.1/12.6, block commit for 12.7). Do not batch or reorder Step 12 sub-steps to reduce connection overhead; run them sequentially as defined.
+- **Connection retry during Step 12**: On MCP connection errors (e.g. -32000 "Connection closed") during any Step 12 sub-step, retry the failing tool call **once** after a short delay (2–5 seconds). If the retry fails, follow the step-specific handling (fallback scripts for 12.1/12.6, block commit for 12.7). **If retry fails for any sub-step**: Report to the user to **reconnect Cortex MCP and re-run the commit command**; do not proceed to Step 13 until tools are available again. Do not batch or reorder Step 12 sub-steps to reduce connection overhead; run them sequentially as defined. See [Troubleshooting: MCP disconnect runbook (commit pipeline)](../../../docs/guides/troubleshooting.md#mcp-disconnect-runbook-commit) for typical disconnect points and recovery.
 - **CRITICAL**: This step exists because Steps 4-11 may create new files or make code changes that weren't validated
 - **⚠️ ABSOLUTE MANDATORY**: Step 12 CANNOT be skipped, bypassed, or assumed to have passed. It MUST be executed in full before Step 13.
 - **⚠️ EXECUTION VERIFICATION REQUIRED**: Before proceeding to Step 13, you MUST provide explicit evidence that ALL Step 12 sub-steps were executed:
@@ -590,7 +590,7 @@ git -C <Synapse-directory-path> status --porcelain
   - Step 12.2: Type check tool executed (`execute_pre_commit_checks(checks=["type_check"])` result shown with success and 0 errors)
   - Step 12.3: Linter check executed (output shown with error count = 0)
   - Step 12.4: Test naming check executed (output shown)
-  - Step 12.5: Markdown lint check executed (output shown)
+  - Step 12.5: Markdown lint check executed (output shown). If MCP connection closed, retry once. If retry fails, report to the user to reconnect Cortex MCP and re-run the commit command; do not proceed to Step 12.6 until 12.5 passes or MCP is reconnected.
   - Step 12.6: File sizes AND function lengths checks executed (output shown). If MCP connection closed, fallback scripts must be used and verified (both exit code 0).
   - Step 12.7: Tests with coverage validation executed (output shown). If MCP connection closed, retry must be attempted. If retry fails, commit MUST be blocked (no fallback).
 - **Workflow**: Re-run formatting, type checking, linting, and quality checks to catch any new issues
@@ -965,6 +965,8 @@ execute_pre_commit_checks(checks=["quality"])
 
 **⚠️ ORDERING RATIONALE**: Tests run AFTER markdown lint (12.5) and quality checks (12.6) because the test suite takes several minutes and can cause MCP connection staleness for subsequent tool calls. Running tests last in the validation sequence ensures all other checks complete reliably.
 
+**Optional before Step 12.7**: Call `check_mcp_connection_health()` immediately before running the test tool. If **health.healthy** is false, report to the user ("Cortex MCP is disconnected or unhealthy. Please reconnect the Cortex MCP server and re-run the commit command.") and do not start Step 12.7 until MCP is healthy. This fails fast with a clear message instead of timing out during the long test run.
+
 **Step 12.7.1 - Re-run tests with coverage** (MANDATORY):
 
 Use the MCP tool:
@@ -983,7 +985,7 @@ execute_pre_commit_checks(checks=["tests"], test_timeout=600, coverage_threshold
   - **BLOCK COMMIT IMMEDIATELY** - Do NOT proceed to Step 13
   - **Phase A results are NOT sufficient** - Step 12.7 MUST execute successfully in Step 12
   - **NO FALLBACK** - Unlike Step 12.6, there is no shell script fallback for tests. If Step 12.7 cannot complete after retry, the commit MUST be blocked
-  - **Report error**: Document the connection failure and advise user to retry the commit pipeline
+  - **Report error**: Document the connection failure and tell the user to **reconnect Cortex MCP and re-run the commit command**. See [MCP disconnect runbook (commit pipeline)](../../../docs/guides/troubleshooting.md#mcp-disconnect-runbook-commit).
   - **Rationale**: Code changes during Steps 5-11 may affect test results. Step 12.7 validates that tests still pass and coverage is maintained after all changes. Skipping Step 12.7 risks committing code that breaks tests or reduces coverage below the 90% threshold.
 
 ### 12.9 Verification Requirements (CRITICAL)
