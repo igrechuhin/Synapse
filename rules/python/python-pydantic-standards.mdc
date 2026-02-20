@@ -336,16 +336,19 @@ def get_user(user_id: int) -> UserSchema | None:
 user_schema = UserSchema.model_validate(orm_user, from_attributes=True)
 ```
 
-## Literal Types for Status Fields (STRICT MANDATORY)
+## Status Fields: Use Existing Enums or Literal (STRICT MANDATORY)
+
+**Prefer existing project enums** (e.g., `OperationStatus` from `cortex.core.models`) over `Literal` when a project-wide enum exists. Use `Literal` only for one-off or single-field constraints.
 
 ```python
 from typing import Literal
+from cortex.core.models import OperationStatus
 
 class OperationResult(BaseModel):
-    # ✅ REQUIRED - Literal for status fields
-    status: Literal["success", "error", "pending"]
+    # ✅ REQUIRED - Use existing project enum when available
+    status: OperationStatus  # Prefer over Literal["success", "error"]
     
-    # ✅ REQUIRED - Literal for enum-like fields
+    # ✅ REQUIRED - Literal for one-off enum-like fields (no project enum exists)
     priority: Literal["low", "medium", "high", "critical"]
     
     # ✅ REQUIRED - Literal for boolean-like states
@@ -353,9 +356,11 @@ class OperationResult(BaseModel):
 
 # ❌ PROHIBITED
 class BadResult(BaseModel):
-    status: str  # BLOCKED - Use Literal for known values
+    status: str  # BLOCKED - Use OperationStatus enum or Literal for known values
     priority: str  # BLOCKED - Use Literal for known values
 ```
+
+**Rule**: If a project enum exists (e.g., `OperationStatus`, `PreCommitCheck`), use it in result models. Only use `Literal` when no project enum exists for that fixed set.
 
 ## Nested Models (MANDATORY)
 

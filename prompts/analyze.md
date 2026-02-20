@@ -71,6 +71,7 @@ At end of session, run a single "check all" analysis: (1) evaluate `load_context
 1. Use session data (tool outputs, memory-bank diffs, commit/pre-commit results, code changes) to identify:
    - **Mistake patterns**: type/system violations, code organization, rule compliance, process violations, tool usage, documentation.
    - **Root causes**: missing/unclear guidance, incomplete validation, process gaps, tool limitations.
+   - **Memory bank write discipline**: When reporting mistake patterns related to memory bank edits (e.g., roadmap.md edited via Write/StrReplace instead of `manage_file()`, memory-bank files accessed via hardcoded paths), reference memory-bank-workflow.mdc and the dedicated MCP tools (`manage_file`, `remove_roadmap_entry`, `append_progress_entry`, etc.) to reinforce the correct pattern. All memory-bank file edits—including one-line fixes—must use `manage_file(operation='read')` then `manage_file(operation='write', content=...)`; do not use Write, StrReplace, or ApplyPatch on memory-bank paths.
 2. Generate **prioritized recommendations** for Synapse prompts/rules (prompt improvements, rule improvements, process improvements) with target file/section and expected impact.
 3. **Save the report** (Phase 3: Outputs):
    - Call `get_structure_info()` and use `structure_info.paths.reviews` (project root is resolved internally; do NOT pass it as a parameter).

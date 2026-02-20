@@ -452,6 +452,7 @@ Before defining new data structures (classes, types, models, interfaces):
 3. **Run roadmap sync validation (MANDATORY)**:
    - Use Cortex MCP validation for roadmap synchronization (either via `validate(check_type="roadmap_sync")` or the dedicated roadmap-sync MCP tool).
    - Treat any `valid: false` result, invalid references, or non-empty `unlinked_plans` as **BLOCKING**: fix roadmap/plan/archive/memory-bank inconsistencies (e.g., completed plans still in `.cortex/plans/`, plans removed from roadmap but not archived, stale plan links) before proceeding to Step 6.5 and Step 7.
+   - **⚠️ CRITICAL - Roadmap edit discipline**: When fixing roadmap sync issues (e.g., adding plan links, updating references, removing stale entries), **ALL edits to roadmap.md MUST be performed via `manage_file(operation='write', ...)` after reading current content with `manage_file(operation='read')`**. Do **NOT** use Write, StrReplace, or ApplyPatch on memory-bank paths. For single-entry changes (add/remove), prefer the dedicated roadmap tools (`add_roadmap_entry`, `remove_roadmap_entry`, `register_plan_in_roadmap`) over full-content writes. See memory-bank-updater agent and Step 5 for safe roadmap update patterns.
 
 ### Step 6.5: Archive Completed Plans - **Delegate to `plan-archiver` agent**
 

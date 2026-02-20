@@ -226,7 +226,7 @@ class TestUserServiceCreation:
 
 - **Private Function Convention**: Functions/methods prefixed with `_` are private implementation details - MANDATORY
 - **Pyright Enforcement**: `reportPrivateUsage` errors indicate private function access - MANDATORY to fix
-- **Type Checker Suppressions FORBIDDEN**: Using `# type: ignore[reportPrivateUsage]` to test private functions is STRICTLY FORBIDDEN
+- **Type Checker Suppressions FORBIDDEN**: Using `# type: ignore[reportPrivateUsage]` or `# type: ignore[private-usage]` to test private functions is STRICTLY FORBIDDEN
 - **Test Through Public API**: All private function behavior MUST be tested through public interface - MANDATORY
 
 **FORBIDDEN (Python-Specific):**
@@ -242,7 +242,7 @@ def test_calculate_tax():
 
 ```python
 # ❌ FORBIDDEN - Type ignore to suppress private usage
-from mymodule import _validate_input  # type: ignore[reportPrivateUsage]
+from mymodule import _validate_input  # type: ignore[reportPrivateUsage] or type: ignore[private-usage]
 
 def test_validate_input():
     assert _validate_input("test")  # BLOCKED
@@ -272,7 +272,7 @@ def test_calculate_total_includes_tax():
 **Pyright Configuration:**
 
 - **reportPrivateUsage**: Enabled by default - MANDATORY
-- **No Suppressions**: Do NOT add `# type: ignore[reportPrivateUsage]` to test files - FORBIDDEN
+- **No Suppressions**: Do NOT add `# type: ignore[reportPrivateUsage]` or `# type: ignore[private-usage]` to test files - FORBIDDEN
 - **Fix Violations**: All `reportPrivateUsage` errors in test files MUST be fixed - MANDATORY
 
 **Refactoring Strategy:**
@@ -384,7 +384,7 @@ assert cast(float, cov) >= 0.90
 - ❌ Missing fixtures for common test setup
 - ❌ Tests that modify shared state without cleanup
 - ❌ Importing private functions (prefixed with `_`) in test files
-- ❌ Using `# type: ignore[reportPrivateUsage]` to test private functions
+- ❌ Using `# type: ignore[reportPrivateUsage]` or `# type: ignore[private-usage]` to test private functions
 - ❌ Direct testing of private implementation details
 - ❌ Side-effect-only imports without referencing the module (e.g. missing `_ = module`); triggers reportUnusedImport with Pyright
 - ❌ Hardcoding `.cortex/` or `.cursor/` paths in tests (must use `get_cortex_path()` or `get_structure_info()`)
