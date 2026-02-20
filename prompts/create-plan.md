@@ -226,6 +226,8 @@ User request: "Add validation for memory bank file structure"
 
 Every new or enriched plan MUST be registered in the roadmap. Do not skip this step.
 
+**Roadmap sync**: When adding a new plan, ensure the roadmap entry includes the plan filename (e.g. `Plan: .cortex/plans/session-optimization-foo.md`) so `validate(check_type="roadmap_sync")` remains valid. Tools like `register_plan_in_roadmap` typically add this link; when using `add_roadmap_entry`, include the plan path in the entry text.
+
 1. **Read current roadmap**:
    - **Use Cortex MCP tool `manage_file(file_name="roadmap.md", operation="read")`** to get current roadmap content
 

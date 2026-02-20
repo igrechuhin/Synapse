@@ -18,7 +18,7 @@ This step is part of the **compound-engineering loop** (Plan → Work → Review
 - `get_relevance_scores()` - Get relevance scores for memory bank files
 - `get_memory_bank_stats()` - Get memory bank statistics
 
-**Memory Bank Update Note**: After implementing the roadmap step, you MUST update memory bank files using `manage_file(operation="write", ...)` to reflect the completed work.
+**Memory Bank Update Note**: After implementing the roadmap step, you MUST update memory bank files using `manage_file(operation="write", ...)` to reflect the completed work. **roadmap.md and all other memory bank files** may be updated **only** via Cortex MCP tools (`manage_file`, `remove_roadmap_entry`, `add_roadmap_entry`, `append_progress_entry`, `append_active_context_entry`, etc.); do **not** use Write, StrReplace, or ApplyPatch on memory bank paths.
 
 **Agent Delegation**: This prompt orchestrates roadmap implementation and delegates specialized tasks to dedicated agents in the Synapse agents directory.
 
@@ -49,7 +49,7 @@ When executing steps, delegate to the appropriate agent for specialized work, th
 
 2. ✅ **Load relevant context** - Understand current project context (at step start):
    - **Non-zero token budget (MANDATORY for non-trivial tasks)**: For implement, fix, debug, or refactor tasks, `load_context` MUST be called with an explicit non-zero `token_budget` (e.g. 10,000–15,000 for fix/debug, 20,000–30,000 for implement). Zero-budget or zero-files for these tasks is a configuration error; for non-trivial tasks the tool returns a validation error when `token_budget=0` is passed.
-   - **Budget examples**: INCORRECT: `load_context(task_description="Implement feature X", token_budget=0)` (returns error for non-trivial tasks). CORRECT: `load_context(task_description="Implement feature X", token_budget=10000)` or `load_context(task_description="Implement feature X")` (uses default).
+   - **Budget examples**: INCORRECT: `load_context(task_description="Implement feature X", token_budget=0)` (returns error for non-trivial tasks). CORRECT for implement: `load_context(task_description="Implement feature X", token_budget=10000)`. CORRECT for fix/debug: `load_context(task_description="Fixing errors", token_budget=15000)`. Omitting `token_budget` uses default; do not pass zero for non-trivial tasks.
    - **Task-type token budget** (use these defaults; see CLAUDE.md and AGENTS.md): implement/add or update/modify → 10,000; fix/debug or other → 15,000; small feature → 20,000–30,000; optimization → 15,000; narrow review/docs → 7,000–8,000; architecture/large design → 40,000–50,000. Do not use zero budget for non-trivial tasks.
    - **AgentRole awareness**: The `load_context` tool automatically detects the agent role (feature/quality/testing/docs/planning/debugging/review) from the task description and uses role-aware context selection. Role-aware statistics are tracked in context-effectiveness analysis and can inform budget recommendations per role. See AGENTS.md for role descriptions and when each role is appropriate.
    - **At step start** (right after reading the roadmap and picking the next step), use the **two-step pattern** for efficient context loading:
