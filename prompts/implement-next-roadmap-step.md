@@ -400,6 +400,7 @@ Before defining new data structures (classes, types, models, interfaces):
 **When the completed step references a plan file (e.g. Plan: .cortex/plans/session-optimization-....md):**
 
 - **PREFERRED:** Call **`complete_plan(plan_title="<step title>", summary="<short summary>", completion_date="YYYY-MM-DD", progress_entry="**Title** - COMPLETE. Summary...", plan_file_name="<plan basename>")`** with the plan file basename (e.g. `session-optimization-roadmap-full-content-enforcement.md`). This single tool: removes the roadmap bullet, appends to activeContext, appends to progress, and **moves (archives) the plan file** to the correct archive directory. No separate archive step is needed for that plan.
+- **Progress entry template:** Use this format for `progress_entry` and `entry_text`: `**<Title> (<date>)** - COMPLETE. <summary>.` Example: `**Phase 54 Session Start (2026-02-20)** - COMPLETE. Implemented session_start and doc updates.` The tools validate date (YYYY-MM-DD) and that the title segment is closed before COMPLETE (e.g. ")** - COMPLETE").
 - **Alternative:** If you cannot use complete_plan, use the three tools below and then run the plan-archiver agent (Step 6.5) to archive the plan file manually.
 
 **When the step does not reference a plan file, or you use the alternative:**
@@ -418,6 +419,7 @@ Before defining new data structures (classes, types, models, interfaces):
    - **MANDATORY:** Call **`append_active_context_entry(date_str="YYYY-MM-DD", title="<step title>", summary="<short summary>")`** to append one completed entry under ## Completed Work (date). The tool creates the section if needed and appends safely.
    - **FORBIDDEN:** Do NOT read activeContext, build full content, and call `manage_file(activeContext.md, write, content=...)` with full content for this update.
    - **Write quality (before calling append_*):** Verify any coverage percentage in entry text is 0–100 (e.g. 90.01% not 900.01%). Verify phase/label names have no concatenation typos (e.g. "Phase 18 Markdown" not "Phase 18Markdown"). Use date format YYYY-MM-DD only. **Progress entry format:** When generating `progress_entry` or `entry_text`, ensure the phase/title segment is properly closed—e.g. the entry must contain ")** - COMPLETE" (not "COMPLETE" immediately after a date or unclosed parenthesis); malformed example: "20260209COMPLETE". See memory-bank-updater agent write-quality guidance.
+   - **Progress entry template:** `**<Title> (<date>)** - COMPLETE. <summary>.` Use YYYY-MM-DD for dates; the tools reject invalid dates and malformed entries.
 
 4. **Optional: Current focus / next steps**
    - If you must update "Current Focus" or "Next Steps" in activeContext (e.g. the completed step was the active focus), prefer a minimal edit (e.g. small search-replace or targeted edit). Only if unavoidable, use read then write with minimal changed content; never build and write the entire file for a single completed-step update.
