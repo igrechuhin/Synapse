@@ -246,6 +246,7 @@ Before defining new data structures (classes, types, models, interfaces):
    - Ensure type annotations are complete per language-specific standards
    - **For tool parameters and internal dispatch data**: Use Pydantic `BaseModel` (e.g. `QueryXParams`), not `dict[str, Any]`. Apply when introducing or refactoring tool param objects or internal structured data structures. Check AGENTS.md/CLAUDE.md or language-specific rules for project standards.
    - When adding new functions, keep each under the project limit (≤30 logical lines); if a function grows beyond that, extract helpers before running the full quality gate.
+   - **Proactive helper extraction**: When implementing functions, if a function exceeds 25 lines, consider extracting helpers immediately rather than waiting for quality gate violations.
    - **Helper module extraction (quality violations)**: When file size or function length exceeds project limits, apply the **helper module extraction pattern** per maintainability rules. See `rules(operation="get_relevant", task_description="helper module extraction, file size limits, function length limits")` or maintainability.mdc for comprehensive guidance on extracting cohesive function groups to `*_helpers.py` modules, updating imports and tests, and maintaining coverage.
    - Follow language-specific best practices and modern features
    - Keep functions/methods and files within project's length/size limits (check language-specific standards)
@@ -267,12 +268,14 @@ Before defining new data structures (classes, types, models, interfaces):
    - **Common type errors to fix**:
      - Unused imports: Remove or use them
      - Type mismatches: Fix parameter types (e.g., `dict_keys` → `set`, `object` → concrete type)
-     - Unused call results: Assign to `_` if intentionally unused
+     - Unused call results: Assign to `_` if intentionally unused (e.g. `_ = path.mkdir(parents=True)` for `reportUnusedCallResult`). Do not suppress the diagnostic; fix by using the return value or assigning to `_`.
      - Missing type annotations: Add explicit types to all functions/methods
    - **If type errors exist**: Fix them immediately, do not continue to test writing
    - **Verification**: Re-run type check via MCP tool or script until 0 errors, 0 warnings
    - **Step 4.3.1 — Async method and test updates (when refactoring to async)**: When you make any method or function async, update all call sites in tests to await the coroutine. Verify all async method calls in tests are awaited. The pre-commit pipeline runs `check_async_tests` to detect unawaited coroutines in test files; run it via `execute_pre_commit_checks(checks=["check_async_tests"])` if you changed async behavior. See [Test maintenance guide](../../../docs/guides/test-maintenance.md).
+3.5. **Before writing tests**: Review testing standards to ensure compliance—e.g. call `rules(operation="get_relevant", task_description="testing standards")` or read testing-standards.mdc. In particular: do not test private functions (functions starting with `_`); test through public APIs only.
 4. Write or update tests (MANDATORY - comprehensive test coverage required):
+   - **Testing standards (MANDATORY)**: Do not test private functions (functions starting with `_`). Test through public APIs only. If private function behavior needs verification, test it indirectly through public API calls.
    - Follow AAA pattern (MANDATORY)
    - No blanket skips (MANDATORY)
    - Target 100% pass rate on project's test suite

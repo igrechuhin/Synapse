@@ -82,7 +82,7 @@ Do not limit tests to the happy path; edge-case coverage is mandatory for new an
 
 ## Testing Private/Internal Functions (FORBIDDEN)
 
-**CRITICAL**: Private/internal functions (implementation details) MUST NOT be tested directly.
+**CRITICAL**: Test through public APIs only. Private/internal functions (implementation details) MUST NOT be tested directly.
 
 **FORBIDDEN:**
 
