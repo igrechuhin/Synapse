@@ -965,7 +965,16 @@ execute_pre_commit_checks(checks=["quality"])
 
 **⚠️ ORDERING RATIONALE**: Tests run AFTER markdown lint (12.5) and quality checks (12.6) because the test suite takes several minutes and can cause MCP connection staleness for subsequent tool calls. Running tests last in the validation sequence ensures all other checks complete reliably.
 
-**Optional before Step 12.7**: Call `check_mcp_connection_health()` immediately before running the test tool. If **health.healthy** is false, report to the user ("Cortex MCP is disconnected or unhealthy. Please reconnect the Cortex MCP server and re-run the commit command.") and do not start Step 12.7 until MCP is healthy. This fails fast with a clear message instead of timing out during the long test run.
+**Step 12.7.0 - Connection health check before Step 12.7** (MANDATORY):
+
+**CRITICAL**: Connection health check is MANDATORY before Step 12.7 execution. This fails fast with a clear message instead of timing out during the long test run.
+
+1. Call `check_mcp_connection_health()` immediately before Step 12.7.1
+2. If **health.healthy** is false:
+   - Wait 2-5 seconds
+   - Retry health check once
+   - If still unhealthy, **BLOCK COMMIT** with message: "MCP connection unhealthy before Step 12.7. Please reconnect Cortex MCP server and re-run commit pipeline."
+   - Do not start Step 12.7.1 until MCP is healthy
 
 **Step 12.7.1 - Re-run tests with coverage** (MANDATORY):
 
@@ -981,12 +990,15 @@ execute_pre_commit_checks(checks=["tests"], test_timeout=600, coverage_threshold
 - **MUST verify**: `results.tests.coverage` ≥ 0.90 (coverage ≥ 90%, parsed as float)
 - **BLOCK COMMIT** if `results.tests.success` = false OR `results.tests.coverage` < 0.90 OR any test fails
 - **CRITICAL**: Coverage validation is MANDATORY - NO EXCEPTIONS
-- **⚠️ CRITICAL - Connection Error Handling**: If MCP tool returns connection error (e.g., "Connection closed", "ClosedResourceError", MCP error -32000), retry once. If retry also fails:
-  - **BLOCK COMMIT IMMEDIATELY** - Do NOT proceed to Step 13
-  - **Phase A results are NOT sufficient** - Step 12.7 MUST execute successfully in Step 12
-  - **NO FALLBACK** - Unlike Step 12.6, there is no shell script fallback for tests. If Step 12.7 cannot complete after retry, the commit MUST be blocked
-  - **Report error**: Document the connection failure and tell the user to **reconnect Cortex MCP and re-run the commit command**. See [MCP disconnect runbook (commit pipeline)](../../../docs/guides/troubleshooting.md#mcp-disconnect-runbook-commit).
-  - **Rationale**: Code changes during Steps 5-11 may affect test results. Step 12.7 validates that tests still pass and coverage is maintained after all changes. Skipping Step 12.7 risks committing code that breaks tests or reduces coverage below the 90% threshold.
+- **⚠️ CRITICAL - Connection Error Handling with Exponential Backoff**: If MCP tool returns connection error (e.g., "Connection closed", "ClosedResourceError", MCP error -32000):
+  - **First retry**: Wait 2 seconds, then retry `execute_pre_commit_checks(checks=["tests"])`
+  - **Second retry** (if first retry fails): Wait 5 seconds, then retry again
+  - **If both retries fail**:
+    - **BLOCK COMMIT IMMEDIATELY** - Do NOT proceed to Step 13
+    - **Phase A results are NOT sufficient** - Step 12.7 MUST execute successfully in Step 12
+    - **NO FALLBACK** - Unlike Step 12.6, there is no shell script fallback for tests. If Step 12.7 cannot complete after retries, the commit MUST be blocked
+    - **Report error**: Document the connection failure and tell the user to **reconnect Cortex MCP and re-run the commit command**. See [MCP disconnect runbook (commit pipeline)](../../../docs/guides/troubleshooting.md#mcp-disconnect-runbook-commit).
+  - **Rationale**: Code changes during Steps 5-11 may affect test results. Step 12.7 validates that tests still pass and coverage is maintained after all changes. Skipping Step 12.7 risks committing code that breaks tests or reduces coverage below the 90% threshold. Exponential backoff retry (2s, then 5s) provides better recovery from transient connection issues.
 
 ### 12.9 Verification Requirements (CRITICAL)
 
