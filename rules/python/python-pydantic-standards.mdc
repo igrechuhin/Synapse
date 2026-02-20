@@ -22,8 +22,15 @@ alwaysApply: false
 
 ```python
 from pydantic import BaseModel, Field, ConfigDict
-from typing import Literal
+from enum import Enum
 from datetime import date
+
+# ✅ REQUIRED - Define enum for fixed sets
+class UserStatus(str, Enum):
+    """User status values."""
+    ACTIVE = "active"
+    INACTIVE = "inactive"
+    PENDING = "pending"
 
 # ✅ REQUIRED - Modern Pydantic 2 model
 class User(BaseModel):
@@ -38,7 +45,7 @@ class User(BaseModel):
     id: int
     name: str = Field(min_length=1, max_length=100, description="User's full name")
     email: str = Field(pattern=r"[^@]+@[^@]+\.[^@]+", description="Valid email address")
-    status: Literal["active", "inactive", "pending"] = "pending"
+    status: UserStatus = UserStatus.PENDING  # Always use enum, never Literal
     created_at: date | None = None
 
 # ❌ PROHIBITED - Old Config class style
@@ -336,31 +343,80 @@ def get_user(user_id: int) -> UserSchema | None:
 user_schema = UserSchema.model_validate(orm_user, from_attributes=True)
 ```
 
-## Status Fields: Use Existing Enums or Literal (STRICT MANDATORY)
+## Fixed-Set Fields: Use Enums (STRICT MANDATORY)
 
-**Prefer existing project enums** (e.g., `OperationStatus` from `cortex.core.models`) over `Literal` when a project-wide enum exists. Use `Literal` only for one-off or single-field constraints.
+**ALL internal Pydantic models MUST use `class X(str, Enum)` for fixed sets of string values** - NO EXCEPTIONS. `Literal` is only acceptable at external API boundaries (MCP tool parameters) for communication with less-typed external APIs, and even then, prefer `str` with enum conversion internally.
+
+**Rule**:
+
+- **Internal Pydantic models**: Always use enums for fixed sets (status, priority, state, response_format, etc.). Never use `Literal` in internal models.
+- **External API boundaries (MCP tool parameters)**: Accept `str` parameters and convert to enum internally (e.g., `ResponseFormat(response_format)`). `Literal` may be used in tool parameter schemas only if needed for strict external API validation.
 
 ```python
-from typing import Literal
-from cortex.core.models import OperationStatus
+from enum import Enum
+from cortex.core.models import OperationStatus, Priority, TaskState, ResponseFormat
 
+# ✅ REQUIRED - Internal Pydantic models MUST use enums for all fixed sets
 class OperationResult(BaseModel):
     # ✅ REQUIRED - Use existing project enum when available
-    status: OperationStatus  # Prefer over Literal["success", "error"]
+    status: OperationStatus  # Always use enum, never Literal
     
-    # ✅ REQUIRED - Literal for one-off enum-like fields (no project enum exists)
-    priority: Literal["low", "medium", "high", "critical"]
+    # ✅ REQUIRED - Use project enum for fixed sets that are reused or branched on
+    priority: Priority  # Always use enum, never Literal
     
-    # ✅ REQUIRED - Literal for boolean-like states
-    state: Literal["active", "inactive"]
+    # ✅ REQUIRED - Use project enum for state fields that are branched on
+    state: TaskState  # Always use enum, never Literal
+    
+    # ✅ REQUIRED - Use project enum for response format (used across multiple tools)
+    response_format: ResponseFormat  # Always use enum, never Literal
 
-# ❌ PROHIBITED
+# ✅ REQUIRED - External API boundary (MCP tool handler): accept str, convert to enum
+async def query_memory_bank(
+    query_type: str,
+    response_format: str = "concise",  # Accept str from external API
+    ctx: MCPContext | None = None,
+) -> str:
+    """MCP tool handler - accepts str parameters from external API."""
+    # Convert to enum internally for type safety
+    format_enum = ResponseFormat(response_format)
+    # Use enum in business logic
+    if format_enum == ResponseFormat.CONCISE:
+        return format_concise_response(...)
+    return format_detailed_response(...)
+
+# ✅ REQUIRED - Define project enums for fixed sets that are reused
+class Priority(str, Enum):
+    """Fixed set of priority levels used across multiple models."""
+    LOW = "low"
+    MEDIUM = "medium"
+    HIGH = "high"
+    CRITICAL = "critical"
+
+class TaskState(str, Enum):
+    """Fixed set of task states used across multiple models."""
+    ACTIVE = "active"
+    INACTIVE = "inactive"
+    PENDING = "pending"
+    COMPLETED = "completed"
+
+# ❌ PROHIBITED - Internal models
 class BadResult(BaseModel):
-    status: str  # BLOCKED - Use OperationStatus enum or Literal for known values
-    priority: str  # BLOCKED - Use Literal for known values
-```
+    status: str  # BLOCKED - Use OperationStatus enum (never Literal in internal models)
+    priority: str  # BLOCKED - Use Priority enum (never Literal in internal models)
+    state: str  # BLOCKED - Use TaskState enum (never Literal in internal models)
+    response_format: Literal["concise", "detailed"]  # BLOCKED - Use ResponseFormat enum instead
 
-**Rule**: If a project enum exists (e.g., `OperationStatus`, `PreCommitCheck`), use it in result models. Only use `Literal` when no project enum exists for that fixed set.
+**Guidelines**:
+
+1. **Internal Pydantic models**: Always use enums for fixed sets. Never use `Literal` in internal models.
+2. **Check for existing enums first**: Before creating a new enum, check if a project enum already exists (e.g., `OperationStatus`, `PreCommitCheck`, `Priority`, `ResponseFormat`).
+3. **Create enums for fixed sets**: If a fixed set appears anywhere (even once), define a `class X(str, Enum)` and use it. This ensures consistency and makes it easy to extend later.
+4. **External API boundaries (MCP tool handlers)**: Accept `str` parameters from external clients; convert to enum internally (e.g., `ResponseFormat(response_format)`) for type safety and branching logic.
+5. **Wire format stays string**: At MCP/JSON boundaries, continue to accept and return strings; use `.value` when writing to JSON or response dicts so the API shape is unchanged.
+6. **Validate at boundary**: In MCP handlers, accept `str` from the client; parse to enum (e.g., `try: ResponseFormat(name)` / `except ValueError`) and use enum members internally; invalid names skip or return a clear error.
+7. **Literal only for external tool parameter schemas**: `Literal` may be used in MCP tool parameter type hints (external API boundaries) if needed for strict external API validation, but prefer `str` with enum conversion internally. Even for external API response models, prefer enums for consistency.
+
+**Alignment**: This rule aligns with `python-coding-standards.mdc` section "Fixed Sets of Values: Prefer Enums (MANDATORY)" to ensure consistent enum usage across the codebase and avoid repeated raw string literals (DRY principle).
 
 ## Nested Models (MANDATORY)
 
@@ -422,7 +478,8 @@ def create_user(data: dict[str, object]) -> User | None:
 - ❌ Using `from_orm()` instead of `model_validate(obj, from_attributes=True)` (STRICTLY FORBIDDEN)
 - ❌ Using `regex` parameter instead of `pattern` in Field (STRICTLY FORBIDDEN)
 - ❌ Missing `@classmethod` decorator on `@field_validator` (STRICTLY FORBIDDEN)
-- ❌ Using `str` for status/enum fields instead of `Literal` (STRICTLY FORBIDDEN)
+- ❌ Using `str` for fixed-set fields in internal Pydantic models—use enum instead (STRICTLY FORBIDDEN)
+- ❌ Using `Literal` in internal Pydantic models—always use `class X(str, Enum)` instead (STRICTLY FORBIDDEN)
 - ❌ Missing type hints on validator return types (STRICTLY FORBIDDEN)
 - ❌ Using `Any` type in Pydantic models (STRICTLY FORBIDDEN)
 - ❌ Using untyped `dict`, `list` in Pydantic models (STRICTLY FORBIDDEN)
@@ -437,7 +494,8 @@ def create_user(data: dict[str, object]) -> User | None:
 
 ```python
 from pydantic import BaseModel
-from typing import Literal
+from enum import Enum
+from cortex.core.models import OperationStatus  # Use existing enum when available
 
 # ✅ REQUIRED - Define Pydantic model for structured JSON response
 class ManageFileErrorDetails(BaseModel):
@@ -445,10 +503,23 @@ class ManageFileErrorDetails(BaseModel):
     required: list[str]
     operation_values: list[str]
 
+# ✅ REQUIRED - Use enum even for external API response models (preferred)
 class ManageFileErrorResponse(BaseModel):
-    status: Literal["error"]
+    status: OperationStatus = OperationStatus.ERROR  # Use enum, not Literal
     error: str
     details: ManageFileErrorDetails
+
+# ✅ ACCEPTABLE - Literal only for external tool parameter schemas if needed
+# (but prefer str with enum conversion internally)
+async def external_tool_handler(
+    status: Literal["error", "success"]  # External API boundary - Literal acceptable here
+) -> str:
+    # Convert to enum internally for type safety
+    status_enum = OperationStatus(status)
+    # Use enum in business logic
+    if status_enum == OperationStatus.ERROR:
+        return "Error occurred"
+    return "Success"
 
 # ✅ REQUIRED - Use model_validate_json() for JSON strings
 async def test_manage_file_missing_parameters():
@@ -480,6 +551,7 @@ async def test_manage_file_success():
 6. **Always use `default_factory`** for mutable defaults
 7. **Always return `Self`** in `@model_validator(mode='after')`
 8. **Always use Pydantic models** for testing JSON responses from MCP tools
+9. **Prefer enums over `Literal`** for fixed sets that are reused or branched on (DRY principle)
 
 ## Enforcement
 
