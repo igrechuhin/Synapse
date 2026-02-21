@@ -343,13 +343,15 @@ def get_user(user_id: int) -> UserSchema | None:
 user_schema = UserSchema.model_validate(orm_user, from_attributes=True)
 ```
 
-## Fixed-Set Fields: Use Enums (STRICT MANDATORY)
+## Fixed-set fields (status, priority, state, type, kind, etc.): Use enums or Literal (STRICT MANDATORY)
 
-**ALL internal Pydantic models MUST use `class X(str, Enum)` for fixed sets of string values** - NO EXCEPTIONS. `Literal` is only acceptable at external API boundaries (MCP tool parameters) for communication with less-typed external APIs, and even then, prefer `str` with enum conversion internally.
+**ALL internal Pydantic models MUST use `class X(str, Enum)` for fixed sets of string values** - NO EXCEPTIONS. This applies to **all** fixed-set fields, not only status. `Literal` is only acceptable at external API boundaries (MCP tool parameters) for communication with less-typed external APIs, and for one-off or single-field constraints; even then, prefer `str` with enum conversion internally where the set is reused or branched on.
+
+- **For any field that has a closed set of allowed values (status, priority, state, type, kind, etc.)**: Prefer an existing project enum; if none exists, prefer defining `class X(str, Enum)` for that set; use `Literal` only for one-off or single-field constraints. The enum definition pattern (e.g. `class X(str, Enum): MEMBER = "value"`) is defined in `python-coding-standards.mdc` section "Fixed Sets of Values: Prefer Enums (MANDATORY)" — use that as the single source of truth.
 
 **Rule**:
 
-- **Internal Pydantic models**: Always use enums for fixed sets (status, priority, state, response_format, etc.). Never use `Literal` in internal models.
+- **Internal Pydantic models**: Always use enums for fixed sets (status, priority, state, type, kind, response_format, etc.). Never use `Literal` in internal models.
 - **External API boundaries (MCP tool parameters)**: Accept `str` parameters and convert to enum internally (e.g., `ResponseFormat(response_format)`). `Literal` may be used in tool parameter schemas only if needed for strict external API validation.
 
 ```python
@@ -478,7 +480,7 @@ def create_user(data: dict[str, object]) -> User | None:
 - ❌ Using `from_orm()` instead of `model_validate(obj, from_attributes=True)` (STRICTLY FORBIDDEN)
 - ❌ Using `regex` parameter instead of `pattern` in Field (STRICTLY FORBIDDEN)
 - ❌ Missing `@classmethod` decorator on `@field_validator` (STRICTLY FORBIDDEN)
-- ❌ Using `str` for fixed-set fields in internal Pydantic models—use enum instead (STRICTLY FORBIDDEN)
+- ❌ Using `str` for any fixed-set field (status, priority, state, type, kind, etc.) in internal Pydantic models—use enum instead (STRICTLY FORBIDDEN)
 - ❌ Using `Literal` in internal Pydantic models—always use `class X(str, Enum)` instead (STRICTLY FORBIDDEN)
 - ❌ Missing type hints on validator return types (STRICTLY FORBIDDEN)
 - ❌ Using `Any` type in Pydantic models (STRICTLY FORBIDDEN)
