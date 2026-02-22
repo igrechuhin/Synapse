@@ -79,6 +79,7 @@ At end of session, run a single "check all" analysis: (1) evaluate `load_context
    - **Timestamp**: Use real time only (e.g. shell `date +%Y-%m-%dT%H-%M` or file mtime). Do not invent values.
    - Write the **full** report to `{reviews_path}/session-optimization-YYYY-MM-DDTHH-MM.md` (no truncation; same no-truncation rule as memory-bank writes per memory-bank-workflow.mdc).
 4. **MD024 (Duplicate Heading)**: If appending a second pass (e.g. context-effectiveness addendum) to an existing review file, suffix headings (e.g. "(Addendum)", "(Context Effectiveness Pass)") to avoid duplicate headings.
+5. **Tool use anomalies (optional)**: Call `get_session_tool_anomalies(hours=24)`. If the tool returns `"status": "success"`, add a **Tool use anomalies** subsection to the report with: tools used in the window (tool name, calls, retries, errors), high-retry tools, and high-error tools. If status is `"unavailable"` (e.g. usage tracker disabled), omit the subsection or note "Tool use anomalies: usage tracker unavailable."
 
 ### Step 3: Session Compaction (Phase 56)
 
@@ -156,6 +157,9 @@ Produce a **single combined report** with clear sections:
 
 ### Optimization Recommendations
 ...
+
+### Tool use anomalies (optional)
+When `get_session_tool_anomalies` was called and returned success: list tools used in the session window, tools with retries, and tools with errors. Omit if unavailable.
 
 ### Report Location
 Saved to: {reviews_path}/session-optimization-YYYY-MM-DDTHH-MM.md
