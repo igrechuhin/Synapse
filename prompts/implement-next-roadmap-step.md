@@ -113,6 +113,7 @@ The **roadmap defines the implementation sequence** (see the "Implementation seq
    - Active Work
    - Future Enhancements
    - Implementation queue (section "Pending plans (from .cortex/plans)" or "Implementation queue")
+   - **What counts as PENDING**: Any roadmap bullet under "Pending plans" or "Implementation queue" (e.g. under "Features & Enhancements") that contains **"Plan: .cortex/plans/..."** is a pending implementation step. The next step is the **first such bullet** in reading order. The label in the bullet text ("Reference", "Pending", or similar) does **not** exclude the entry—if it has a plan path, it is in the implementation queue and must be picked when it is first in order.
 3. **If you found a PENDING step**:
    - If the entry references a plan file (e.g. `Plan: .cortex/plans/phase-XX-....md`): resolve the plan path via `get_structure_info()` → `structure_info.paths.plans`; read the plan file with standard file tools; implement the plan **in sequential step order** (see "Plan step sequence" below).
    - Otherwise implement the step from the roadmap entry (description, requirements).
