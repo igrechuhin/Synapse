@@ -420,6 +420,12 @@ class BadResult(BaseModel):
 
 **Alignment**: This rule aligns with `python-coding-standards.mdc` section "Fixed Sets of Values: Prefer Enums (MANDATORY)" to ensure consistent enum usage across the codebase and avoid repeated raw string literals (DRY principle).
 
+**Enforcement (Literal forbidden in internal models)**:
+
+- In **all** modules under `src/` (including tool result models in `tools/*_models.py`), **do not use `Literal` for Pydantic model fields**. Use `class X(str, Enum)` only.
+- CI/lint/type-check MUST treat `Literal` in `BaseModel` field annotations (outside of MCP tool parameter schemas) as a violation.
+- Reuse existing enums (e.g. `ToolResultStatus`, `RulesOperation`) when available; define new enums in the same module or a shared module when the set is not yet represented.
+
 ## Nested Models (MANDATORY)
 
 ```python
