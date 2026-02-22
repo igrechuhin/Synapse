@@ -385,6 +385,7 @@ The following error patterns MUST be detected and fixed before commit. These are
 - **Action**: NEVER proceed to commit when Step 12.1 fails after retry. Use shell script fallbacks (`fix_formatting.py` then `check_formatting.py`). If fallbacks also fail, BLOCK COMMIT immediately and report the failure.
 - **Block Commit**: Yes - Step 12.1 MUST execute successfully in Step 12. Phase A (Step 1) results are NOT sufficient.
 - **NO EXCEPTIONS**: Step 12.1 cannot be skipped. If MCP fails after retry, fallback scripts must be used. If fallbacks fail, commit MUST be blocked.
+- **CI parity for Step 12.1 fallback (MANDATORY)**: The CI workflow (Code Quality) uses **Black** for formatting (`uv run black --check src/ tests/`). Step 12.1 fallback MUST use Black—either the Synapse scripts `fix_formatting.py` and `check_formatting.py` (which use Black) or explicitly `uv run black src/ tests/` then `uv run black --check src/ tests/`. Do NOT use `ruff format` as a substitute—it is not CI-equivalent and will cause the quality gate to fail with "Black formatting check failed". If you already ran a non-CI-equivalent format command (e.g. ruff format), BLOCK COMMIT and report; re-run with MCP connected or with the exact Black commands above.
 
 ### ⚠️ Step 12.7 Skipped Due to Connection Error (CRITICAL ANTI-PATTERN)
 
@@ -397,6 +398,10 @@ The following error patterns MUST be detected and fixed before commit. These are
 - **Note**: This anti-pattern causes CI failures where tests pass in Phase A but fail in CI due to code changes made after Phase A.
 
 **CRITICAL**: All error patterns above MUST be validated by parsing command output, not just checking exit codes. Exit codes can be misleading - always parse actual output to verify results.
+
+## ⚠️ Only healthy commits (MANDATORY)
+
+Commits must be **healthy**: they must pass the same checks that CI runs. Only proceed to Step 13 when Step 12 completed in full via MCP (`execute_pre_commit_checks`) or via **CI-equivalent** fallbacks (Black for format—see Step 12.1; no fallback for Step 12.7). If Step 12 was completed using any command that does not match CI (e.g. `ruff format` instead of Black for 12.1), do NOT commit—block and report that the user should reconnect MCP and re-run, or run the exact CI format command locally: `uv run black src/ tests/` then `uv run black --check src/ tests/`. **Unacceptable**: Commit pipeline "passed" but quality gate failed on push; the pipeline must ensure only health commits.
 
 ## ⚠️ GIT WRITE SAFETY (CRITICAL - MANDATORY)
 
@@ -586,7 +591,7 @@ git -C <Synapse-directory-path> status --porcelain
 - **⚠️ ABSOLUTE MANDATORY**: Step 12 CANNOT be skipped, bypassed, or assumed to have passed. It MUST be executed in full before Step 13.
 - **⚠️ EXECUTION VERIFICATION REQUIRED**: Before proceeding to Step 13, you MUST provide explicit evidence that ALL Step 12 sub-steps were executed:
   - Step 12.0: Markdown re-validation on modified files executed (output shown)
-  - Step 12.1: Formatting fix AND check executed (output shown); Step 12.1.2 result parsed and verified before Step 12.2; CI parity (12.1.3) recommended. **CRITICAL**: If MCP connection closed, fallback scripts must be used and verified (both exit code 0). Step 12.1 cannot be skipped based on Step 1 results.
+  - Step 12.1: Formatting fix AND check executed (output shown); Step 12.1.2 result parsed and verified before Step 12.2; CI parity (12.1.3) recommended. **CRITICAL**: If MCP connection closed, fallback MUST use Black (scripts `fix_formatting.py` then `check_formatting.py`, or `uv run black src/ tests/` then `uv run black --check src/ tests/`). Do NOT use `ruff format`—CI uses Black; using ruff format causes quality gate failure. Both fix and check must exit 0. Step 12.1 cannot be skipped based on Step 1 results.
   - Step 12.2: Type check tool executed (`execute_pre_commit_checks(checks=["type_check"])` result shown with success and 0 errors)
   - Step 12.3: Linter check executed (output shown with error count = 0)
   - Step 12.4: Test naming check executed (output shown)
@@ -606,7 +611,7 @@ git -C <Synapse-directory-path> status --porcelain
 - **⚠️ PRECONDITION CHECK (MANDATORY)**: Before executing Step 13, you MUST verify:
   1. **User explicitly requested commit**: Verify user invoked `/cortex/commit` or explicitly requested commit. If not, STOP and ask for confirmation.
   2. **Step 12 was fully executed**: All Step 12 sub-steps (12.1-12.7) were executed and their outputs were verified
-  3. **Step 12.1 executed and passed**: Step 12.1 (formatting fix AND check) MUST be executed successfully and verified passing. **CRITICAL**: If MCP connection closed during Step 12.1, retry once. If retry fails, use shell script fallbacks (`fix_formatting.py` then `check_formatting.py`). Both must exit with code 0 before proceeding. **Phase A results are NOT sufficient** - Step 12.1 must execute successfully in Step 12, even if Step 1 passed earlier. New files created during Steps 4-11 may not have been formatted. Verify `results.format.success` = true AND `results.format.errors` empty (or fallback script exit code 0).
+  3. **Step 12.1 executed and passed**: Step 12.1 (formatting fix AND check) MUST be executed successfully and verified passing. **CRITICAL**: If MCP connection closed during Step 12.1, retry once. If retry fails, use fallbacks that match CI: shell scripts `fix_formatting.py` then `check_formatting.py` (they use Black), or `uv run black src/ tests/` then `uv run black --check src/ tests/`. Do NOT use `ruff format`—CI uses Black; using ruff causes quality gate failure. Both must exit with code 0. **Phase A results are NOT sufficient** - Step 12.1 must execute successfully in Step 12. Verify `results.format.success` = true AND `results.format.errors` empty (or fallback exit code 0).
   4. **Step 12.2 type check passed**: The type check tool (`execute_pre_commit_checks(checks=["type_check"])`) was executed and returned success with 0 errors
   5. **No errors in any Step 12 check**: All Step 12 checks passed with zero errors
   6. **If you fixed type errors (12.2) or lint errors (12.3) during this run**: Step 12.3 was executed again after the fix and `results.quality.success` is true with zero errors; do not proceed if 12.3 was not re-run after a code change in 12.2 or 12.3

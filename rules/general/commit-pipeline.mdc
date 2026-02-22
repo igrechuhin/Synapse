@@ -11,6 +11,10 @@ alwaysApply: false
 - Pre-existing errors are not acceptable; fix before commit.
 - Apply fixes or use helper commands (`/cortex/fix-tests`, `/cortex/fix-quality`, `/cortex/docs-sync`) before proceeding.
 
+## Step 12.1 fallback (CI parity)
+
+- Step 12.1 fallback must use the same formatter as CI: **Black** (e.g. `fix_formatting.py` then `check_formatting.py`, or `uv run black src/ tests/` then `uv run black --check src/ tests/`). Do not use `ruff format`; CI uses Black and non-equivalent fallbacks cause quality gate failure.
+
 ## Phase helpers (use instead of micromanaging checks)
 
 - **Phase A**: Use `run_preflight_checks()` for fix_errors, format, markdown lint, type_check, quality, tests. On failure, stop and use `/cortex/fix-tests` or `/cortex/fix-quality`; do not debug inline.
