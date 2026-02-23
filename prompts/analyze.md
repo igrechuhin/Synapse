@@ -79,7 +79,20 @@ At end of session, run a single "check all" analysis: (1) evaluate `load_context
    - **Timestamp**: Use real time only (e.g. shell `date +%Y-%m-%dT%H-%M` or file mtime). Do not invent values.
    - Write the **full** report to `{reviews_path}/session-optimization-YYYY-MM-DDTHH-MM.md` (no truncation; same no-truncation rule as memory-bank writes per memory-bank-workflow.mdc).
 4. **MD024 (Duplicate Heading)**: If appending a second pass (e.g. context-effectiveness addendum) to an existing review file, suffix headings (e.g. "(Addendum)", "(Context Effectiveness Pass)") to avoid duplicate headings.
-5. **Tool use anomalies (optional)**: Call `get_session_tool_anomalies(hours=24)`. If the tool returns `"status": "success"`, add a **Tool use anomalies** subsection to the report with: tools used in the window (tool name, calls, retries, errors), high-retry tools, and high-error tools. If status is `"unavailable"` (e.g. usage tracker disabled), omit the subsection or note "Tool use anomalies: usage tracker unavailable."
+5. **Tool use anomalies (optional)**: Call `query_usage(query_type="anomalies", hours=24)` (preferred) or `get_session_tool_anomalies(hours=24)` (deprecated; redirects to query_usage). If the tool returns `"status": "success"`, add a **Tool use anomalies** subsection to the report with: tools used in the window (tool name, calls, retries, errors), high-retry tools, and high-error tools. If status is `"unavailable"` (e.g. usage tracker disabled), omit the subsection or note "Tool use anomalies: usage tracker unavailable."
+
+### Step 2.5: Tools optimization (optional; when usage data is available)
+
+**Purpose**: Consider tool-set optimization so the next session or a dedicated plan can deprecate, merge, or remove poor performers. This step is project-agnostic: it uses Cortex MCP tools that work in any project with usage tracking.
+
+1. Call `query_usage(query_type="recommendations", days=90, min_usage_threshold=5)` (or equivalent). If the tool returns `"status": "success"` and a non-empty `low_usage_tools` (or similar) list:
+   - Add a **Tools optimization** subsection to the Session Optimization Analysis in the report.
+   - Include: count of low-usage tools, the list of tool names (or a summary), and that these are candidates for deprecation, consolidation, or removal.
+   - If the project has tool-optimization docs (e.g. `docs/architecture/tool-optimization-baseline.md`, `docs/architecture/tool-optimization-mapping.md`), reference them and recommend creating or updating a **plan to optimize the tools set** (deprecate/merge/remove poor performers).
+   - Add an **optimization recommendation** so that Step 5 (Improvements Plan) runs: recommend "Create or update a plan to optimize the tools set: deprecate, merge, or remove low-usage tools using usage data and existing baseline/mapping docs."
+2. Optionally call `query_usage(query_type="unused", days=90, min_usage_count=5)` to get the same list for the report.
+3. If `query_usage` returns `"status": "unavailable"` or no usage data (e.g. usage tracker disabled), omit the subsection or note "Tools optimization: usage data unavailable."
+4. **When Step 5 runs**: Include the Tools optimization subsection (and any low_usage_tools list) in the analysis findings passed to the Create Plan prompt so the improvements plan can include an item to optimize the tools set (deprecate/merge/remove poor performers).
 
 ### Step 3: Session Compaction (Phase 56)
 
@@ -118,12 +131,12 @@ If project scope includes health check or session-scripts analysis, add a step t
 
 ### Step 5: Improvements Plan (Phase 3: Outputs & plans; when recommendations exist)
 
-**If** the analysis findings contain **improvement recommendations** (e.g. non-empty **Optimization Recommendations**, context-effectiveness recommendations, or Synapse/prompt/rule improvement items):
+**If** the analysis findings contain **improvement recommendations** (e.g. non-empty **Optimization Recommendations**, context-effectiveness recommendations, **Tools optimization** recommendations (low-usage tools / deprecate/merge/remove), or Synapse/prompt/rule improvement items):
 
 1. **Execute the Plan prompt** (Create Plan) to create an improvements plan.
 2. **Use the analysis findings as input** for the Plan prompt:
    - **Plan description**: Request an improvements plan based on the end-of-session analysis (e.g. "Create an improvements plan from the following end-of-session analysis").
-   - **Additional context**: Provide the full analysis report as input—Summary, Context Effectiveness Analysis, Session Optimization Analysis (mistake patterns, root causes, optimization recommendations), and report location. The Plan prompt treats all of this as input for plan creation; do not fix issues or make code changes, only create the plan.
+   - **Additional context**: Provide the full analysis report as input—Summary, Context Effectiveness Analysis, Session Optimization Analysis (mistake patterns, root causes, optimization recommendations, **Tools optimization** subsection when present), and report location. When tools optimization was included, ensure the plan can include an item to **optimize the tools set** (deprecate, merge, or remove poor performers) using usage data and any existing baseline/mapping docs. The Plan prompt treats all of this as input for plan creation; do not fix issues or make code changes, only create the plan.
 3. **Outcome**: The Plan prompt will create a plan file in the plans directory and register it in the roadmap. No separate approval step is required; execute the Plan prompt automatically when recommendations exist.
 
 **If** there are no improvement recommendations in the findings, skip this step.
@@ -158,8 +171,11 @@ Produce a **single combined report** with clear sections:
 ### Optimization Recommendations
 ...
 
+### Tools optimization (optional)
+When `query_usage(query_type="recommendations", ...)` was called and returned low-usage tools: list count and tool names (or summary); recommend creating or updating a plan to deprecate/merge/remove poor performers. Omit if usage data unavailable.
+
 ### Tool use anomalies (optional)
-When `get_session_tool_anomalies` was called and returned success: list tools used in the session window, tools with retries, and tools with errors. Omit if unavailable.
+When `query_usage(query_type="anomalies")` or `get_session_tool_anomalies` was called and returned success: list tools used in the session window, tools with retries, and tools with errors. Omit if unavailable.
 
 ### Report Location
 Saved to: {reviews_path}/session-optimization-YYYY-MM-DDTHH-MM.md
@@ -180,7 +196,8 @@ Saved to: {reviews_path}/session-optimization-YYYY-MM-DDTHH-MM.md
 - Pre-analysis checklist completed.
 - Step 1 (context effectiveness) executed; tool called and/or manual fallback applied when no_data.
 - Step 2 (session optimization) executed; report saved to reviews directory using path from `get_structure_info()`.
+- Step 2.5 (tools optimization): When usage data is available, `query_usage(query_type="recommendations", ...)` called; Tools optimization subsection added to report when low-usage tools exist; recommendation to create/update a plan to optimize the tools set included when applicable.
 - Step 3 (session compaction) executed; `compact_session` called, handoff written, token savings reported.
-- Step 5: If findings contain improvement recommendations, Plan prompt executed with analysis findings as input; improvements plan created and registered in roadmap. If no recommendations, step skipped.
+- Step 5: If findings contain improvement recommendations (including tools optimization), Plan prompt executed with analysis findings as input; improvements plan created and registered in roadmap; tools-optimization findings included so the plan can cover deprecate/merge/remove poor performers. If no recommendations, step skipped.
 - No hardcoded `.cortex/` paths; all paths from MCP or `get_structure_info()`.
 - Single report produced with both Context Effectiveness and Session Optimization sections.
