@@ -105,6 +105,8 @@ The **roadmap defines the implementation sequence** (see the "Implementation seq
 
 **If you called `session_start()`**: The brief already contains `next_work_item` and `next_work_plan_path`. You can use those directly, but still verify by reading the roadmap entry to get full details.
 
+**Short path for plan-only steps**: When the next step references a plan file and the plan has all steps Done with no code changes (e.g. documentation-only or already-completed work), a short path is acceptable: `session_start()` → read the plan file → `complete_plan(...)` (and optional `load_context` with a small budget for rules only). This avoids full context load and implementation steps when the only action is to move the plan to completed and archive it.
+
 **If you skipped `session_start()`**: Follow the steps below:
 
 1. **Use Cortex MCP tool `manage_file(file_name="roadmap.md", operation="read")`** to get the roadmap content.
