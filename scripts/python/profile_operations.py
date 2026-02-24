@@ -13,8 +13,6 @@ import asyncio
 import cProfile
 import io
 import pstats
-
-# Add src to path
 import sys
 import tempfile
 import time
@@ -22,7 +20,9 @@ from collections.abc import Callable, Coroutine
 from pathlib import Path
 from pstats import SortKey
 
-sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
+from _utils import get_project_root
+
+sys.path.insert(0, str(get_project_root(Path(__file__)) / "src"))
 
 from cortex.analysis.structure_analyzer import StructureAnalyzer
 from cortex.core.dependency_graph import DependencyGraph

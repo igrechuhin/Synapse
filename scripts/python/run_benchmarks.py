@@ -9,8 +9,10 @@ import asyncio
 import sys
 from pathlib import Path
 
-# Add src to path
-sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
+from _utils import get_project_root
+
+# Add src to path (project root via shared _utils)
+sys.path.insert(0, str(get_project_root(Path(__file__)) / "src"))
 
 from cortex.benchmarks.framework import BenchmarkRunner
 from cortex.benchmarks.lightweight_benchmarks import (
@@ -25,7 +27,7 @@ async def main():
     print("=" * 80)
 
     # Create benchmark runner
-    output_dir = Path(__file__).parent.parent / "benchmark_results"
+    output_dir = get_project_root(Path(__file__)) / "benchmark_results"
     runner = BenchmarkRunner(output_dir=output_dir)
 
     # Add benchmark suites
