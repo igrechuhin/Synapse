@@ -17,8 +17,8 @@ alwaysApply: false
 
 ## Phase helpers (use instead of micromanaging checks)
 
-- **Phase A**: Use `run_preflight_checks()` for fix_errors, format, markdown lint, type_check, quality, tests. On failure, stop and use `/cortex/fix-tests` or `/cortex/fix-quality`; do not debug inline.
-- **Phase B**: Use `run_docs_and_memory_bank_sync()` after memory-bank/roadmap steps. On failure, use `/cortex/docs-sync` then retry.
+- **Phase A**: Use `execute_pre_commit_checks(phase="A", ...)` for fix_errors, format, markdown lint, type_check, quality, tests. On failure, stop and use `/cortex/fix-tests` or `/cortex/fix-quality`; do not debug inline.
+- **Phase B**: Use `execute_pre_commit_checks(phase="B")` after memory-bank/roadmap steps. On failure, use `/cortex/docs-sync` then retry.
 - Do not pass `project_root` to Cortex MCP tools; they resolve project root internally.
 
 ## Memory bank and roadmap

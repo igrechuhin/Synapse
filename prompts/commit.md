@@ -36,7 +36,7 @@
     - Load rules relevant to commit/test work:
       - `rules(operation="get_relevant", task_description="Commit pipeline and test coverage enforcement")`
 
-**Pre-Commit Checks (Phase A helper)**: Prefer the `run_preflight_checks()` MCP tool as the primary entrypoint for Phase A preflight (Steps 0–4). Under the hood it uses `execute_pre_commit_checks()` for the default preflight checks (fix_errors, format, synapse_format, synapse_lint, type_check, quality, tests) and `fix_markdown_lint()` once, and returns a structured result with a top-level `preflight_passed` flag and per-check summaries. **CI parity**: synapse_format and synapse_lint run the same Synapse script checks as CI (Black and Ruff for `.cortex/synapse/scripts/`), so Phase A failures for these checks must be fixed before commit to avoid quality gate failures on push. **CRITICAL**: All of these tools resolve project root internally (via MCP context when available) and language on their own. **NEVER pass `project_root` as a parameter** - Cortex MCP tools resolve project root internally. When you need to re-run a single check (e.g., during Step 12) or debug a specific failure, call `execute_pre_commit_checks()` directly as documented below. Both tools provide:
+**Pre-Commit Checks (Phase A helper)**: Prefer `execute_pre_commit_checks(phase="A", ...)` as the primary entrypoint for Phase A preflight (Steps 0–4). It runs the default preflight checks (fix_errors, format, synapse_format, synapse_lint, type_check, quality, tests) and `fix_markdown_lint()` once, and returns a structured result with a top-level `preflight_passed` flag and per-check summaries. **CI parity**: synapse_format and synapse_lint run the same Synapse script checks as CI (Black and Ruff for `.cortex/synapse/scripts/`), so Phase A failures for these checks must be fixed before commit to avoid quality gate failures on push. **CRITICAL**: All of these tools resolve project root internally (via MCP context when available) and language on their own. **NEVER pass `project_root` as a parameter** - Cortex MCP tools resolve project root internally. When you need to re-run a single check (e.g., during Step 12) or debug a specific failure, call `execute_pre_commit_checks()` directly as documented below. Both tools provide:
 
 - Language auto-detection (resolved internally)
 - Structured parameters and return values
@@ -198,16 +198,16 @@ Pre-commit checks passed: format, type_check, quality, tests
 
 Overview: AGENTS.md "Commit pipeline (phase-based)". To reduce prompt size and make the commit pipeline easier to orchestrate, use the dedicated phase helpers instead of micromanaging every individual check where possible:
 
-- **Phase A – `run_preflight_checks`**:
-  - Call `run_preflight_checks(test_timeout=300, coverage_threshold=0.90, strict_mode=False)` once at the start of the pipeline (after rules are loaded).
+- **Phase A – `execute_pre_commit_checks(phase="A")`**:
+  - Call `execute_pre_commit_checks(phase="A", test_timeout=300, coverage_threshold=0.90, strict_mode=False)` once at the start of the pipeline (after rules are loaded).
   - Inspect the structured JSON response:
     - If `status="error"`, treat this as a tool failure and stop the commit pipeline; report the error and do not attempt to commit.
     - If `status="success"` but `preflight_passed` is `False`, stop the commit pipeline, summarize failing checks from the `checks` array (e.g. `tests`, `quality`, `markdown_lint`), and point the user to targeted follow-up commands such as `/cortex/fix_tests` and `/cortex/fix_quality` instead of trying to debug everything inside `/cortex/commit`.
     - Only when `status="success"` and `preflight_passed` is `True` may you proceed to Phase B and later phases.
   - Use direct `execute_pre_commit_checks()` calls later only when you need to re-run a specific check (e.g. within Step 12) or for focused debugging of a single failure.
 
-- **Phase B – `run_docs_and_memory_bank_sync`**:
-  - After completing the state-changing docs/memory steps (5–8), call `run_docs_and_memory_bank_sync()` once to validate timestamps and roadmap/memory-bank sync.
+- **Phase B – `execute_pre_commit_checks(phase="B")`**:
+  - After completing the state-changing docs/memory steps (5–8), call `execute_pre_commit_checks(phase="B")` once to validate timestamps and roadmap/memory-bank sync.
   - Inspect the structured JSON response:
     - If `status="error"`, treat this as a tool failure and stop the commit pipeline; report the error and do not attempt to commit.
     - If `status="success"` but `docs_phase_passed` is `False`, stop the commit pipeline, summarize issues from the `checks` array (e.g. `timestamps`, `roadmap_sync`), and fix them using a focused docs/memory helper command such as `/cortex/docs-sync` before proceeding.
@@ -523,6 +523,7 @@ Step 13 and Step 14 below contain mandatory precondition checks; do not skip the
 
 ### Step 11: Submodule handling (Synapse submodule)
 
+- **⚠️ Step 11 cannot be skipped.** You MUST execute Step 11 every run: run Step 11.1 (check parent repo status) first; only sub-steps 11.2–11.5 may be skipped based on 11.1/11.2 outcomes. Do not proceed to Step 12 without having run Step 11.1. If you skip Step 11 entirely, the pipeline is incomplete and submodule changes may be left uncommitted.
 - **Path resolution**: Resolve the Synapse directory path via `get_structure_info()` (e.g. `structure_info.paths.synapse` if available) or use the project-relative path to the Synapse submodule. Use this path for all `git -C <Synapse-directory-path>` and `git add <Synapse-directory-path>` commands.
 - **Dependency**: Must run AFTER Step 10 (roadmap/activeContext state)
 - **Workflow**: Follow explicit command sequence below to handle submodule changes deterministically.
@@ -584,7 +585,7 @@ git -C <Synapse-directory-path> status --porcelain
 
 ### Step 12: Final validation gate (MANDATORY re-verification)
 
-- **Dependency**: Must run AFTER Steps 4-11 (any code changes may have been made)
+- **Dependency**: Must run AFTER Steps 4-11 (any code changes may have been made). Step 11 MUST have been executed (11.1 run; 11.2–11.5 run or skipped per conditions) before starting Step 12.
 - **Before Step 12 — Connection health (recommended)**: Call **`check_mcp_connection_health()`** before starting Step 12. If **`health.healthy`** is false, report to the user and do not start Step 12 until MCP is healthy. This reduces connection closure failures during the validation gate. Connection health is already checked at pipeline start (Pre-Action Checklist item 0); re-checking before Step 12 provides early warning after the gap between Steps 4–11.
 - **Connection retry during Step 12**: On MCP connection errors (e.g. -32000 "Connection closed") during any Step 12 sub-step, retry the failing tool call **once** after a short delay (2–5 seconds). If the retry fails, follow the step-specific handling (fallback scripts for 12.1/12.6, block commit for 12.7). **If retry fails for any sub-step**: Report to the user to **reconnect Cortex MCP and re-run the commit command**; do not proceed to Step 13 until tools are available again. Do not batch or reorder Step 12 sub-steps to reduce connection overhead; run them sequentially as defined. See [Troubleshooting: MCP disconnect runbook (commit pipeline)](../../../docs/guides/troubleshooting.md#mcp-disconnect-runbook-commit) for typical disconnect points and recovery.
 - **CRITICAL**: This step exists because Steps 4-11 may create new files or make code changes that weren't validated
@@ -610,16 +611,17 @@ git -C <Synapse-directory-path> status --porcelain
 - **Dependency**: Must run AFTER Step 12 (final validation gate passes)
 - **⚠️ PRECONDITION CHECK (MANDATORY)**: Before executing Step 13, you MUST verify:
   1. **User explicitly requested commit**: Verify user invoked `/cortex/commit` or explicitly requested commit. If not, STOP and ask for confirmation.
-  2. **Step 12 was fully executed**: All Step 12 sub-steps (12.1-12.7) were executed and their outputs were verified
-  3. **Step 12.1 executed and passed**: Step 12.1 (formatting fix AND check) MUST be executed successfully and verified passing. **CRITICAL**: If MCP connection closed during Step 12.1, retry once. If retry fails, use fallbacks that match CI: shell scripts `fix_formatting.py` then `check_formatting.py` (they use Black), or `uv run black src/ tests/` then `uv run black --check src/ tests/`. Do NOT use `ruff format`—CI uses Black; using ruff causes quality gate failure. Both must exit with code 0. **Phase A results are NOT sufficient** - Step 12.1 must execute successfully in Step 12. Verify `results.format.success` = true AND `results.format.errors` empty (or fallback exit code 0).
-  4. **Step 12.2 type check passed**: The type check tool (`execute_pre_commit_checks(checks=["type_check"])`) was executed and returned success with 0 errors
-  5. **No errors in any Step 12 check**: All Step 12 checks passed with zero errors
-  6. **If you fixed type errors (12.2) or lint errors (12.3) during this run**: Step 12.3 was executed again after the fix and `results.quality.success` is true with zero errors; do not proceed if 12.3 was not re-run after a code change in 12.2 or 12.3
-  7. **Step 12.6 executed and passed**: Step 12.6 (file sizes AND function lengths) MUST be executed and verified passing. If MCP connection closed, fallback scripts must be used. **Phase A results are NOT sufficient** - Step 12.6 must be executed in Step 12. Verify `results.quality.file_size_violations` empty AND `results.quality.function_length_violations` empty (or fallback script exit code 0).
-  8. **Step 12.7 executed and passed**: Step 12.7 (tests with coverage) MUST be executed successfully and verified passing. **CRITICAL**: If MCP connection closed during Step 12.7, retry once. If retry fails, **BLOCK COMMIT** - do NOT proceed with Phase A results. **Phase A results are NOT sufficient** - Step 12.7 must execute successfully in Step 12. Verify `results.tests.success` = true AND `results.tests.coverage` ≥ 0.90. **NO FALLBACK** - Unlike Step 12.6, there is no shell script fallback for tests.
-  9. **Explicit verification provided**: You have documented the execution of Step 12 with actual command outputs
-  10. **All validation gates passed**: Steps 0-12 have completed successfully, including Step 12.1, Step 12.6, and Step 12.7
-- **⚠️ BLOCK COMMIT**: If user did not explicitly request commit OR if Step 12 execution cannot be verified OR if any Step 12 check failed (including Step 12.1, Step 12.6, or Step 12.7) OR if Step 12.1 was skipped due to connection closure OR if Step 12.6 was skipped due to connection closure OR if Step 12.7 failed after retry, DO NOT proceed to Step 13
+  2. **Step 11 was executed**: Step 11.1 was run (parent repo status checked); 11.2–11.5 were run or skipped per conditions. Step 11 cannot be skipped.
+  3. **Step 12 was fully executed**: All Step 12 sub-steps (12.1-12.7) were executed and their outputs were verified
+  4. **Step 12.1 executed and passed**: Step 12.1 (formatting fix AND check) MUST be executed successfully and verified passing. **CRITICAL**: If MCP connection closed during Step 12.1, retry once. If retry fails, use fallbacks that match CI: shell scripts `fix_formatting.py` then `check_formatting.py` (they use Black), or `uv run black src/ tests/` then `uv run black --check src/ tests/`. Do NOT use `ruff format`—CI uses Black; using ruff causes quality gate failure. Both must exit with code 0. **Phase A results are NOT sufficient** - Step 12.1 must execute successfully in Step 12. Verify `results.format.success` = true AND `results.format.errors` empty (or fallback exit code 0).
+  5. **Step 12.2 type check passed**: The type check tool (`execute_pre_commit_checks(checks=["type_check"])`) was executed and returned success with 0 errors
+  6. **No errors in any Step 12 check**: All Step 12 checks passed with zero errors
+  7. **If you fixed type errors (12.2) or lint errors (12.3) during this run**: Step 12.3 was executed again after the fix and `results.quality.success` is true with zero errors; do not proceed if 12.3 was not re-run after a code change in 12.2 or 12.3
+  8. **Step 12.6 executed and passed**: Step 12.6 (file sizes AND function lengths) MUST be executed and verified passing. If MCP connection closed, fallback scripts must be used. **Phase A results are NOT sufficient** - Step 12.6 must be executed in Step 12. Verify `results.quality.file_size_violations` empty AND `results.quality.function_length_violations` empty (or fallback script exit code 0).
+  9. **Step 12.7 executed and passed**: Step 12.7 (tests with coverage) MUST be executed successfully and verified passing. **CRITICAL**: If MCP connection closed during Step 12.7, retry once. If retry fails, **BLOCK COMMIT** - do NOT proceed with Phase A results. **Phase A results are NOT sufficient** - Step 12.7 must execute successfully in Step 12. Verify `results.tests.success` = true AND `results.tests.coverage` ≥ 0.90. **NO FALLBACK** - Unlike Step 12.6, there is no shell script fallback for tests.
+  10. **Explicit verification provided**: You have documented the execution of Step 12 with actual command outputs
+  11. **All validation gates passed**: Steps 0-12 have completed successfully, including Step 12.1, Step 12.6, and Step 12.7
+- **⚠️ BLOCK COMMIT**: If user did not explicitly request commit OR if Step 11 was skipped OR if Step 12 execution cannot be verified OR if any Step 12 check failed (including Step 12.1, Step 12.6, or Step 12.7) OR if Step 12.1 was skipped due to connection closure OR if Step 12.6 was skipped due to connection closure OR if Step 12.7 failed after retry, DO NOT proceed to Step 13
 - **Workflow**: Stage all changes, generate comprehensive commit message, create commit
 - **Includes**: All changes from Steps 0-11, including submodule reference if Step 11 was executed
 - **Note**: Use user-provided commit message if provided, otherwise generate from changes

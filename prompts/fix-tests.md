@@ -1,6 +1,6 @@
 ## Fix Tests (Helper Command)
 
-**AI EXECUTION COMMAND**: Diagnose and fix failing tests using Cortex MCP tools, without running the full commit pipeline. This command is typically called **after** `/cortex/commit` (or `run_preflight_checks`) reports test failures.
+**AI EXECUTION COMMAND**: Diagnose and fix failing tests using Cortex MCP tools, without running the full commit pipeline. This command is typically called **after** `/cortex/commit` (or `execute_pre_commit_checks(phase="A")`) reports test failures.
 
 **CURSOR COMMAND**: This is a Cursor command from the Synapse prompts directory, NOT a terminal command.
 
@@ -26,7 +26,7 @@ Before making changes, you MUST:
    - If `rules()` is disabled, use `get_structure_info()` to discover the rules directory and read the relevant rules files via standard tools.
 
 2. ✅ **Understand recent failures**:
-   - If available, inspect the most recent `run_preflight_checks` or `/cortex/commit` output to see which tests failed.
+   - If available, inspect the most recent Phase A preflight or `/cortex/commit` output to see which tests failed.
    - If that context is not available, run `execute_pre_commit_checks(checks=["tests"], test_timeout=600, coverage_threshold=0.90, strict_mode=False)` once to get a fresh baseline.
 
 3. ✅ **Scope the task**:

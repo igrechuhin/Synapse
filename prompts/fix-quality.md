@@ -1,6 +1,6 @@
 ## Fix Quality (Helper Command)
 
-**AI EXECUTION COMMAND**: Fix type errors, formatting, linting, and related quality issues using Cortex MCP tools, outside of the full commit pipeline. This command is typically called when `/cortex/commit` or `run_preflight_checks` reports non-test quality failures.
+**AI EXECUTION COMMAND**: Fix type errors, formatting, linting, and related quality issues using Cortex MCP tools, outside of the full commit pipeline. This command is typically called when `/cortex/commit` or `execute_pre_commit_checks(phase="A")` reports non-test quality failures.
 
 **CURSOR COMMAND**: This is a Cursor command from the Synapse prompts directory, NOT a terminal command.
 
@@ -26,7 +26,7 @@ Before making changes, you MUST:
    - If `rules()` is disabled, discover the rules directory using `get_structure_info()` and read the relevant rules files via standard tools.
 
 2. ✅ **Understand current quality status**:
-   - If recent `run_preflight_checks` or `/cortex/commit` output is available, review which checks failed (type_check, quality, markdown_lint, format).
+   - If recent Phase A preflight or `/cortex/commit` output is available, review which checks failed (type_check, quality, markdown_lint, format).
    - If no recent context is available, run:
      - `execute_pre_commit_checks(checks=["type_check", "quality", "format"], test_timeout=300, coverage_threshold=0.90, strict_mode=False)`
      - And inspect the structured response for failures.

@@ -1,6 +1,6 @@
 ## Docs & Memory Bank Sync (Helper Command)
 
-**AI EXECUTION COMMAND**: Synchronize documentation and memory bank state using Cortex MCP tools, without running the full commit pipeline. This command is typically called when `/cortex/commit` or `run_docs_and_memory_bank_sync` reports Phase B failures (timestamps or roadmap/memory-bank sync issues).
+**AI EXECUTION COMMAND**: Synchronize documentation and memory bank state using Cortex MCP tools, without running the full commit pipeline. This command is typically called when `/cortex/commit` or `execute_pre_commit_checks(phase="B")` reports Phase B failures (timestamps or roadmap/memory-bank sync issues).
 
 **CURSOR COMMAND**: This is a Cursor command from the Synapse prompts directory, NOT a terminal command.
 
@@ -13,7 +13,7 @@
 ### Tooling Requirements (MANDATORY)
 
 - Prefer these Cortex MCP tools:
-  - `run_docs_and_memory_bank_sync()` for aggregated docs/memory validation.
+  - `execute_pre_commit_checks(phase="B")` for aggregated docs/memory validation.
   - `validate(check_type="timestamps")` and `validate(check_type="roadmap_sync")` when deeper inspection is needed.
   - `manage_file()` for reading/writing memory bank and roadmap files via Cortex MCP.
 - Use `get_structure_info()` for resolving paths; do **not** hardcode `.cortex/` paths.
@@ -37,11 +37,11 @@ Before making changes, you MUST:
 
 3. ✅ **Understand validation failures**
 
-   - If available, inspect the most recent `run_docs_and_memory_bank_sync` result to see:
+   - If available, inspect the most recent Phase B result to see:
      - Which checks failed (`timestamps`, `roadmap_sync`, etc.).
      - Any detailed error information included in the response.
    - If no recent result is available, call:
-     - `run_docs_and_memory_bank_sync()` and inspect its structured response.
+     - `execute_pre_commit_checks(phase="B")` and inspect its structured response.
 
 ### Execution Steps
 
@@ -70,7 +70,7 @@ Before making changes, you MUST:
      - Ensure entries are in the correct sections and order as required by the project rules.
 
 4. **Re-run docs & memory sync helper**
-   - After applying fixes, call `run_docs_and_memory_bank_sync()` again.
+   - After applying fixes, call `execute_pre_commit_checks(phase="B")` again.
    - Confirm that:
      - `status="success"`.
      - `docs_phase_passed` is `True`.

@@ -376,7 +376,7 @@ Before defining new data structures (classes, types, models, interfaces):
 
 ### Step 4.7: Run Quality Gate Before Finish (MANDATORY)
 
-**Purpose**: Ensure no rot code is left for the commit pipeline to fix. The same quality gate as the commit pipeline MUST pass before marking the implementation complete. The quality gate includes **quality** (lint, file size, function length) and **type_check** so type diagnostics (e.g. reportRedeclaration) match IDE/CI. This aligns with the phase-based commit pipeline (Phase A); see AGENTS.md "Commit pipeline (phase-based)" for full flow and helper commands (`run_preflight_checks`, `/cortex/fix_tests`, `/cortex/fix-quality`).
+**Purpose**: Ensure no rot code is left for the commit pipeline to fix. The same quality gate as the commit pipeline MUST pass before marking the implementation complete. The quality gate includes **quality** (lint, file size, function length) and **type_check** so type diagnostics (e.g. reportRedeclaration) match IDE/CI. This aligns with the phase-based commit pipeline (Phase A); see AGENTS.md "Commit pipeline (phase-based)" for full flow and helper commands (`execute_pre_commit_checks(phase="A")`, `/cortex/fix_tests`, `/cortex/fix-quality`).
 
 1. **Run automated quality check**:
    - Use Cortex MCP tool `execute_pre_commit_checks(checks=["quality"])`. This runs both quality and type_check. Prefer the MCP tool. Do not pass `project_root`; tools resolve the project root internally.
