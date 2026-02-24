@@ -8,7 +8,7 @@
 
 **⚠️ END-TO-END EXECUTION (MANDATORY)**: Run this pipeline from start to finish when no user input is required. Do NOT stop to announce your plan, summarize next steps, or ask for confirmation. Begin immediately with the Pre-Action Checklist and tool calls (e.g. `load_context`, `manage_file`, `rules`, `get_structure_info`, then Step 0); use the todo checklist for progress. When a step fails (formatting, type check, quality, tests, roadmap sync, timestamps, etc.), apply fixes automatically and re-run validation—do NOT stop merely to report the failure or wait for the user to request fixes; only stop after genuine fix attempts if validation still fails or context is insufficient. "Block commit" means do not advance to the next step until the failure is resolved; it does NOT mean stop the pipeline and report to the user. Only stop the pipeline when: (1) a step fails and cannot be resolved after genuine fix attempts, (2) a Cortex MCP tool returns a hard failure, or (3) user input is explicitly required (e.g. unresolved conflict or missing commit message). Keep opening narrative minimal.
 
-**Tooling Note**: Use standard Cursor tools (`Read`, `ApplyPatch`, `Write`, `LS`, `Glob`, `Grep`) by default; MCP filesystem tools are optional fallbacks only when standard tools are unavailable or explicitly requested. **Use Cortex MCP tools for memory bank and rules operations** (e.g., `manage_file()`, `rules()`, `get_memory_bank_stats()`, `validate()`, `check_structure_health()`).
+**Tooling Note**: Use standard Cursor tools (`Read`, `ApplyPatch`, `Write`, `LS`, `Glob`, `Grep`) by default; MCP filesystem tools are optional fallbacks only when standard tools are unavailable or explicitly requested. **Use Cortex MCP tools for memory bank and rules operations** (e.g., `manage_file()`, `rules()`, `query_memory_bank(query_type="stats")`, `validate()`, `check_structure_health()`).
 
 **MCP TOOL USAGE (USE WHEN / EXAMPLES)**:
 
@@ -126,7 +126,7 @@ Steps without agents are handled directly by the orchestration workflow.
 
 4. ✅ **Understand operations** - Use MCP tools for all operations:
    - **Pre-commit checks**: Use `execute_pre_commit_checks()` MCP tool for fix_errors, format, synapse_format, synapse_lint, type_check, quality, and tests
-   - **Memory bank operations**: Use existing MCP tools (`manage_file()`, `get_memory_bank_stats()`) instead of prompt files
+   - **Memory bank operations**: Use existing MCP tools (`manage_file()`, `query_memory_bank(query_type="stats")`) instead of prompt files
    - **Validation operations**: Use existing MCP tools (`validate()`, `check_structure_health()`) instead of prompt files
 
 5. ✅ **Verify prerequisites** - Ensure all prerequisites are met:

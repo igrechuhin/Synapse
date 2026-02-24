@@ -16,7 +16,7 @@ This step is part of the **compound-engineering loop** (Plan → Work → Review
 - `load_context()` - Get optimal context for a task within token budget
 - `load_progressive_context()` - Load context progressively based on strategy
 - `get_relevance_scores()` - Get relevance scores for memory bank files
-- `get_memory_bank_stats()` - Get memory bank statistics
+- `query_memory_bank(query_type="stats")` - Get memory bank statistics
 
 **Memory Bank Update Note**: After implementing the roadmap step, you MUST update memory bank files using `manage_file(operation="write", ...)` to reflect the completed work. **roadmap.md and all other memory bank files** may be updated **only** via Cortex MCP tools (`manage_file`, `remove_roadmap_entry`, `add_roadmap_entry`, `append_progress_entry`, `append_active_context_entry`, etc.); do **not** use Write, StrReplace, or ApplyPatch on memory bank paths.
 
@@ -476,7 +476,7 @@ Before defining new data structures (classes, types, models, interfaces):
        - Investigation plans (`phase-investigate-*.md`): Archive to `archive/Investigations/YYYY-MM-DD/`
        - Session optimization plans (`session-optimization-*.md`): Archive to `archive/SessionOptimization/`
      - Update links in memory bank files to point to archive locations
-     - Validate links using `validate_links()` MCP tool
+     - Validate links using `query_memory_bank(query_type="validate_links")` or `validate_links()` MCP tool
      - Validate archive locations (verify zero completed plans remain in `.cortex/plans/`)
      - **Remove duplicate if present**: After each move, if the same plan file still exists in `.cortex/plans/` (root), delete it so only the archived copy remains. Never leave a copy in the plans root.
   3. **Report results**: Count of plans found, archived, links updated, validation status

@@ -17,7 +17,7 @@ This analysis is the **Compound** step of the Plan → Work → Review → Compo
 
 **Tooling**: Use Cortex MCP tools for memory bank, rules, and paths. Resolve paths via `get_structure_info()` (reviews directory, plans directory, memory bank). Use `manage_file()` for memory bank reads/writes. **manage_file contract**: Every `manage_file` call MUST include `file_name` and `operation`; never call `manage_file({})` or omit required parameters—this causes validation errors. See memory-bank-workflow.mdc and AGENTS.md; do not hardcode `.cortex/` paths. **Memory bank write discipline:** roadmap.md and all other memory bank files may be updated **only** via Cortex MCP tools (`manage_file`, `remove_roadmap_entry`, `add_roadmap_entry`, etc.); any edit (including one-line fixes) must use `manage_file(operation='read')` then `manage_file(operation='write', content=...)`—do **not** use Write, StrReplace, or ApplyPatch on memory-bank paths.
 
-**Phases**: (1) **Context & rules load** — read memory bank and rules via `manage_file()` and `rules()`/structure path. (2) **Analysis & insights** — `analyze_context_effectiveness()`, session data, `get_context_usage_statistics()`, `get_memory_bank_stats()`, `suggest_refactoring()` as needed. (3) **Outputs & plans** — write report to reviews directory (path from `get_structure_info()` → `structure_info.paths.reviews`); if recommendations exist, run Create Plan prompt. Aligns with Phase D (Session Analysis) in `docs/design/commit-pipeline-phases.md` (runs after successful commit when invoked from commit pipeline).
+**Phases**: (1) **Context & rules load** — read memory bank and rules via `manage_file()` and `rules()`/structure path. (2) **Analysis & insights** — `analyze_context_effectiveness()`, session data, `get_context_usage_statistics()`, `query_memory_bank(query_type="stats")`, `suggest_refactoring()` as needed. (3) **Outputs & plans** — write report to reviews directory (path from `get_structure_info()` → `structure_info.paths.reviews`); if recommendations exist, run Create Plan prompt. Aligns with Phase D (Session Analysis) in `docs/design/commit-pipeline-phases.md` (runs after successful commit when invoked from commit pipeline).
 
 ## Purpose
 
@@ -81,18 +81,55 @@ At end of session, run a single "check all" analysis: (1) evaluate `load_context
 4. **MD024 (Duplicate Heading)**: If appending a second pass (e.g. context-effectiveness addendum) to an existing review file, suffix headings (e.g. "(Addendum)", "(Context Effectiveness Pass)") to avoid duplicate headings.
 5. **Tool use anomalies (optional)**: Call `query_usage(query_type="anomalies", hours=24)`. If the tool returns `"status": "success"`, add a **Tool use anomalies** subsection to the report with: tools used in the window (tool name, calls, retries, errors), high-retry tools, and high-error tools. If status is `"unavailable"` (e.g. usage tracker disabled), omit the subsection or note "Tool use anomalies: usage tracker unavailable."
 
-### Step 2.5: Tools optimization (optional; when usage data is available)
+### Step 2.5: Tools optimization (MANDATORY when usage data is available)
 
-**Purpose**: Consider tool-set optimization so the next session or a dedicated plan can deprecate, merge, or remove poor performers. This step is project-agnostic: it uses Cortex MCP tools that work in any project with usage tracking.
+**Purpose**: Audit the full tool set for budget compliance and optimization opportunities. This goes beyond low-usage detection to catch duplicates, incomplete consolidations, and budget violations.
 
-1. Call `query_usage(query_type="recommendations", days=90, min_usage_threshold=5)` (or equivalent). If the tool returns `"status": "success"` and a non-empty `low_usage_tools` (or similar) list:
-   - Add a **Tools optimization** subsection to the Session Optimization Analysis in the report.
-   - Include: count of low-usage tools, the list of tool names (or a summary), and that these are candidates for deprecation, consolidation, or removal.
-   - If the project has tool-optimization docs (e.g. `docs/architecture/tool-optimization-baseline.md`, `docs/architecture/tool-optimization-mapping.md`), reference them and recommend creating or updating a **plan to optimize the tools set** (deprecate/merge/remove poor performers).
-   - Add an **optimization recommendation** so that Step 5 (Improvements Plan) runs: recommend "Create or update a plan to optimize the tools set: deprecate, merge, or remove low-usage tools using usage data and existing baseline/mapping docs."
-2. Optionally call `query_usage(query_type="unused", days=90, min_usage_count=5)` to get the same list for the report.
-3. If `query_usage` returns `"status": "unavailable"` or no usage data (e.g. usage tracker disabled), omit the subsection or note "Tools optimization: usage data unavailable."
-4. **When Step 5 runs**: Include the Tools optimization subsection (and any low_usage_tools list) in the analysis findings passed to the Create Plan prompt so the improvements plan can include an item to optimize the tools set (deprecate/merge/remove poor performers).
+**Hard limit**: Editors like Cursor impose a limit of ~80 tools across ALL MCPs. Cortex must stay well under this to leave room for other servers. **Target: ≤40 published `@mcp.tool()` registrations.** If the current count exceeds 40, this step MUST produce a consolidation recommendation.
+
+#### 2.5.1: Collect tool census data
+
+Gather three data points (run in parallel where possible):
+
+1. **Total registered tools**: Count `@mcp.tool()` registrations. Use `query_usage(query_type="stats", response_format="full")` and count the tools in the response, OR read `tool_categories.py` via `get_structure_info()` to get the canonical count per category (always_loaded, deferred_medium, deferred_low).
+2. **Usage distribution**: Call `query_usage(query_type="report", include_recommendations=True)` to get the full usage report with per-tool call counts. This gives the complete distribution, not just the tail.
+3. **Low-usage tools**: Call `query_usage(query_type="recommendations", days=90, min_usage_threshold=5)` for the near-dead list.
+
+#### 2.5.2: Analyze for five problem classes
+
+Using the census data, check for each of these issues:
+
+1. **Budget violation**: Is `total_registered_tools > 40`? If yes, flag as CRITICAL and calculate how many tools must be removed.
+2. **Dead tools** (< 5 calls in 90 days): List from the recommendations response. For each, decide: remove, internalize (keep function but remove `@mcp.tool()`), or merge into a consolidated dispatcher.
+3. **Duplicate tools**: Scan for tools that serve the same purpose under different names (e.g., `write_file` vs `manage_file(operation="write")`, `update_config` vs `configure`, `load_progressive_context` vs `load_context(strategy="progressive")`). Cross-reference the usage report: if two tools with overlapping functionality both have usage, the less-used one is the duplicate.
+4. **Incomplete consolidation**: Check if Phase 50 consolidated tools (`query_memory_bank`, `query_usage`) have corresponding old tools still registered. If old `get_*` tools (e.g., `get_memory_bank_stats`, `get_version_history`, `get_link_graph`, `get_tool_usage_stats`, `get_unused_tools`) still appear in the usage report alongside their consolidated replacements, flag as "consolidation incomplete — old endpoints not removed."
+5. **Consolidation candidates**: Identify groups of 3+ tools that share a domain and could be merged into a single dispatcher with an `operation` parameter (e.g., script capture tools, analytics tools, pre-commit pipeline tools). Use the Phase 50 pattern (`query_memory_bank`, `query_usage`) as the model.
+
+#### 2.5.3: Write the Tools Optimization subsection
+
+Add a **Tools optimization** subsection to the report with:
+
+- **Tool budget**: `{registered_count} / 40 target` (and `/ 80 hard limit`). Flag CRITICAL if over 40.
+- **Dead tools** ({count}): list with call counts.
+- **Duplicates** ({count}): list with both names and call counts.
+- **Incomplete consolidations** ({count}): list old tools that should have been removed.
+- **Consolidation candidates** ({count}): groups with estimated savings.
+- **Total reduction potential**: sum of tools removable across all categories.
+- **References**: link to `docs/architecture/tool-optimization-mapping.md` and `docs/architecture/tool-optimization-baseline.md` if they exist.
+
+#### 2.5.4: Generate actionable recommendation
+
+If ANY of the five problem classes has findings:
+
+- Add an **optimization recommendation** for Step 5 (Improvements Plan) with specific actions per problem class:
+  - Budget violation → "Reduce tool count from {N} to ≤40"
+  - Dead tools → "Remove or internalize: {list}"
+  - Duplicates → "Remove duplicates: {list of duplicate→canonical pairs}"
+  - Incomplete consolidation → "Complete Phase 50: remove old endpoints: {list}"
+  - Consolidation candidates → "Consolidate {group} into single dispatcher (saves ~{N} slots)"
+- Include per-tool call counts and recommended action (remove/internalize/merge) so the Plan prompt can produce a specific, actionable plan — not a generic stub.
+
+If `query_usage` returns `"status": "unavailable"`, note "Tools optimization: usage data unavailable" and skip.
 
 ### Step 3: Session Compaction (Phase 56)
 
@@ -131,12 +168,18 @@ If project scope includes health check or session-scripts analysis, add a step t
 
 ### Step 5: Improvements Plan (Phase 3: Outputs & plans; when recommendations exist)
 
-**If** the analysis findings contain **improvement recommendations** (e.g. non-empty **Optimization Recommendations**, context-effectiveness recommendations, **Tools optimization** recommendations (low-usage tools / deprecate/merge/remove), or Synapse/prompt/rule improvement items):
+**If** the analysis findings contain **improvement recommendations** (e.g. non-empty **Optimization Recommendations**, context-effectiveness recommendations, **Tools optimization** findings (budget violations, dead tools, duplicates, incomplete consolidations, consolidation candidates), or Synapse/prompt/rule improvement items):
 
 1. **Execute the Plan prompt** (Create Plan) to create an improvements plan.
 2. **Use the analysis findings as input** for the Plan prompt:
    - **Plan description**: Request an improvements plan based on the end-of-session analysis (e.g. "Create an improvements plan from the following end-of-session analysis").
-   - **Additional context**: Provide the full analysis report as input—Summary, Context Effectiveness Analysis, Session Optimization Analysis (mistake patterns, root causes, optimization recommendations, **Tools optimization** subsection when present), and report location. When tools optimization was included, ensure the plan can include an item to **optimize the tools set** (deprecate, merge, or remove poor performers) using usage data and any existing baseline/mapping docs. The Plan prompt treats all of this as input for plan creation; do not fix issues or make code changes, only create the plan.
+   - **Additional context**: Provide the full analysis report as input—Summary, Context Effectiveness Analysis, Session Optimization Analysis (mistake patterns, root causes, optimization recommendations, **Tools optimization** subsection when present), and report location. When tools optimization was included, the plan MUST contain:
+     - The exact tool budget numbers (current count vs 40 target vs 80 hard limit)
+     - Per-tool call counts and recommended actions (remove/internalize/merge) for every flagged tool
+     - Specific implementation steps grouped by problem class (dead tools, duplicates, incomplete consolidations, consolidation candidates)
+     - Files to modify for each step
+     - Expected tool count after each step
+   - The Plan prompt treats all of this as input for plan creation; do not fix issues or make code changes, only create the plan.
 3. **Outcome**: The Plan prompt will create a plan file in the plans directory and register it in the roadmap. No separate approval step is required; execute the Plan prompt automatically when recommendations exist.
 
 **If** there are no improvement recommendations in the findings, skip this step.
@@ -171,24 +214,41 @@ Produce a **single combined report** with clear sections:
 ### Optimization Recommendations
 ...
 
-### Tools optimization (optional)
-When `query_usage(query_type="recommendations", ...)` was called and returned low-usage tools: list count and tool names (or summary); recommend creating or updating a plan to deprecate/merge/remove poor performers. Omit if usage data unavailable.
+### Tools optimization (MANDATORY when usage data available)
+When Step 2.5 collected tool census data: report tool budget status, dead tools (with counts), duplicates (with counts), incomplete consolidations, consolidation candidates, and total reduction potential. Include specific per-tool actions (remove/internalize/merge) with call counts.
+
+```text
+Tool budget: {registered} / 40 target (80 hard limit) — {OK | CRITICAL: over by N}
+Dead tools ({count}): {name} ({calls} calls) → {remove|internalize}, ...
+Duplicates ({count}): {duplicate} ({calls}) → {canonical}, ...
+Incomplete consolidations ({count}): {old_tool} ({calls}) → already replaced by {new_tool}, ...
+Consolidation candidates ({count}): {group_name} ({tool_count} tools → 1, saves ~{N} slots)
+Total reduction potential: {N} tools
+```
+
+Omit if usage data unavailable.
 
 ### Tool use anomalies (optional)
+
 When `query_usage(query_type="anomalies")` was called and returned success: list tools used in the session window, tools with retries, and tools with errors. Omit if unavailable.
 
 ### Report Location
+
 Saved to: {reviews_path}/session-optimization-YYYY-MM-DDTHH-MM.md
 
 ### Session Compaction
+
 - Compaction executed: token savings, handoff written
 - Session ID: {session_id}
 - Rollback snapshots: {snapshot_paths}
 
 ### Improvements Plan (if recommendations existed)
+
 - Plan prompt executed with analysis findings as input
 - Plan file: {plans_path}/{plan-filename}.md
 - Roadmap updated with new plan entry
+
+```markdown
 ```
 
 ## Success Criteria
@@ -196,7 +256,7 @@ Saved to: {reviews_path}/session-optimization-YYYY-MM-DDTHH-MM.md
 - Pre-analysis checklist completed.
 - Step 1 (context effectiveness) executed; tool called and/or manual fallback applied when no_data.
 - Step 2 (session optimization) executed; report saved to reviews directory using path from `get_structure_info()`.
-- Step 2.5 (tools optimization): When usage data is available, `query_usage(query_type="recommendations", ...)` called; Tools optimization subsection added to report when low-usage tools exist; recommendation to create/update a plan to optimize the tools set included when applicable.
+- Step 2.5 (tools optimization): When usage data is available, tool census collected (total count, usage distribution, low-usage list); five problem classes checked (budget violation, dead tools, duplicates, incomplete consolidations, consolidation candidates); Tools optimization subsection added with per-tool call counts and specific actions; recommendation for Step 5 includes concrete actions per problem class. If tool count exceeds 40 target, flagged as CRITICAL.
 - Step 3 (session compaction) executed; `compact_session` called, handoff written, token savings reported.
 - Step 5: If findings contain improvement recommendations (including tools optimization), Plan prompt executed with analysis findings as input; improvements plan created and registered in roadmap; tools-optimization findings included so the plan can cover deprecate/merge/remove poor performers. If no recommendations, step skipped.
 - No hardcoded `.cortex/` paths; all paths from MCP or `get_structure_info()`.
