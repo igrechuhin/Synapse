@@ -59,7 +59,7 @@ For each completed plan found:
 
 ### 4. Validate links
 
-- Use `validate_links()` MCP tool to verify all links are valid after archiving
+- Use `query_memory_bank(query_type="validate_links")` MCP tool to verify all links are valid after archiving
 - Fix any broken links found
 
 ### 5. Validate archive locations

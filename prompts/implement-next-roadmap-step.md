@@ -13,8 +13,7 @@ This step is part of the **compound-engineering loop** (Plan → Work → Review
 **Memory Bank Access**: All memory bank operations MUST use structured Cortex MCP tools:
 
 - `manage_file()` - Read/write individual memory bank files
-- `load_context()` - Get optimal context for a task within token budget
-- `load_progressive_context()` - Load context progressively based on strategy
+- `load_context()` - Get optimal context for a task within token budget (including progressive strategies via `strategy` / `loading_strategy`)
 - `get_relevance_scores()` - Get relevance scores for memory bank files
 - `query_memory_bank(query_type="stats")` - Get memory bank statistics
 
@@ -56,7 +55,7 @@ When executing steps, delegate to the appropriate agent for specialized work, th
      1. **First**: Call `load_context(task_description="[roadmap step description]", depth="metadata_only", token_budget=[task-appropriate budget])` to get a lightweight context map (~500 tokens) with file names, sections, token counts, and relevance scores. This also records the session for end-of-session analyze.
      2. **Then**: Use `manage_file(file_name="[file]", operation="read", sections=["## Section Name"])` to drill into specific relevant sections on demand.
    - **Alternative for full context**: Use `load_context(task_description="[roadmap step description]", token_budget=[task-appropriate budget])` with `depth="full"` or `depth="summary"` for complete context (use when you need all content upfront).
-   - **Alternative**: Use `load_progressive_context(task_description="[roadmap step description]")` to load context progressively
+   - **Alternative**: Use `load_context(task_description="[roadmap step description]", strategy="progressive")` to load context progressively
    - **Optional**: Use `get_relevance_scores(task_description="[roadmap step description]")` to see which memory bank files are most relevant
    - **Hybrid retrieval**: When `depth="metadata_only"`, essential sections (e.g., "## Current Focus" and "## Next Steps" from activeContext.md) are automatically loaded in full via the hybrid retrieval strategy, while other files return metadata only.
    - The context loading tools will automatically select relevant files (activeContext.md, progress.md, projectBrief.md, systemPatterns.md, techContext.md, etc.) based on the task

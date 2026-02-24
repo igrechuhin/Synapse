@@ -18,7 +18,7 @@ When invoked:
 
 Key practices:
 
-- Use `validate_links()` MCP tool when available
+- Use `query_memory_bank(query_type="validate_links")` MCP tool when available
 - Check all link types: markdown links, transclusions, file references
 - Verify target files exist and are accessible
 - Report broken links with specific locations
@@ -26,7 +26,7 @@ Key practices:
 
 For each link validation:
 
-- Call MCP tool `validate_links()` to check all links
+- Call MCP tool `query_memory_bank(query_type="validate_links")` to check all links
 - Parse tool response to identify broken links
 - Report broken links with file paths and line numbers
 - Fix broken links by updating references or restoring files
