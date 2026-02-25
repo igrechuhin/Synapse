@@ -47,7 +47,7 @@ def detect_package_name(src_dir: Path) -> str:
 
 
 def get_module_imports(file_path: Path, package_name: str) -> set[str]:
-    """Extract all package imports from a module, excluding TYPE_CHECKING imports.
+    """Extract all package imports from a module.
 
     Args:
         file_path: Path to Python file
@@ -64,51 +64,18 @@ def get_module_imports(file_path: Path, package_name: str) -> set[str]:
             tree = ast.parse(f.read())
 
         imports: set[str] = set()
-        type_checking_imports: set[str] = set()
-
-        # Find all TYPE_CHECKING blocks
-        for node in ast.walk(tree):
-            if isinstance(node, ast.If):
-                # Check if this is a TYPE_CHECKING block
-                if is_type_checking_block(node):
-                    # Extract imports from TYPE_CHECKING block
-                    for child in ast.walk(node):
-                        if isinstance(child, ast.ImportFrom):
-                            if child.module and child.module.startswith(package_name):
-                                parts = child.module.split(".")
-                                if len(parts) >= 2:
-                                    layer = parts[1] if len(parts) > 1 else parts[0]
-                                    type_checking_imports.add(layer)
-
-        # Extract all imports
         for node in ast.walk(tree):
             if isinstance(node, ast.ImportFrom):
                 if node.module and node.module.startswith(package_name):
-                    # Get the full module path
                     parts = node.module.split(".")
                     if len(parts) >= 2:
-                        # Get layer (e.g., 'core', 'linking', 'validation')
                         layer = parts[1] if len(parts) > 1 else parts[0]
                         imports.add(layer)
 
-        # Remove TYPE_CHECKING imports from runtime imports
-        runtime_imports: set[str] = imports - type_checking_imports
-
-        return runtime_imports
+        return imports
     except Exception as e:
         print(f"Error parsing {file_path}: {e}", file=sys.stderr)
         return set()
-
-
-def is_type_checking_block(node: ast.If) -> bool:
-    """Check if an If node is a TYPE_CHECKING block."""
-    if isinstance(node.test, ast.Name):
-        return node.test.id == "TYPE_CHECKING"
-    elif isinstance(node.test, ast.Attribute):
-        # Handle typing.TYPE_CHECKING
-        if isinstance(node.test.value, ast.Name):
-            return node.test.value.id == "typing" and node.test.attr == "TYPE_CHECKING"
-    return False
 
 
 def get_module_layer(file_path: Path, src_dir: Path) -> str:
