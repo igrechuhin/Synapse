@@ -94,9 +94,16 @@ When executing steps, delegate to the appropriate agent for specialized work, th
 
 2. **Check the brief's `mcp_healthy` field**. If **`mcp_healthy` is false**, **STOP**. Tell the user: "Cortex MCP is disconnected or unhealthy. Please reconnect the Cortex MCP server and re-run this command." Do not proceed.
 
-3. **Use the brief** (current focus, next work item, health check, git status, suggestions) to understand current state.
+3. **Use the brief** (current focus, next work item, health check, git status, suggestions) to understand current state. The brief includes `concurrent_sessions` and `locked_tasks` when other agents are active — use these to avoid duplicate work.
 
 4. **Then proceed** to Step 1 to read the roadmap (or use `brief.next_work_item` if available).
+
+**Multi-agent task locking (Phase 58)**: When multiple Cursor tabs or agents may work on the same project:
+
+- **Before starting work**: Call `claim_task_lock(task_title="<chosen roadmap step>", role="<optional>")` to claim the task. If the task is already locked, pick a different task from `available_tasks` or avoid locked items in the brief.
+- **When done or switching tasks**: Call `release_task_lock(task_title="<task>")` so other agents can claim it.
+- **Check availability**: Use `list_active_tasks()` to see what other agents are working on; use `check_task_available_lock(task_title="...")` before claiming.
+- Locks auto-expire after 2 hours. If `session_start` shows tasks as locked, do not start work on them without claiming first.
 
 ### Step 1: Read Roadmap and Pick Next Step - **Delegate to `roadmap-implementer` agent**
 
@@ -394,6 +401,8 @@ Before defining new data structures (classes, types, models, interfaces):
 ### Step 5: Update Memory Bank - **Delegate to `memory-bank-updater` agent**
 
 **Use the `memory-bank-updater` agent (Synapse agents directory) for this step.**
+
+- **Multi-agent (Phase 58)**: If you claimed a task with `claim_task_lock`, call `release_task_lock(task_title="<task>")` when the step is complete so other agents can claim it.
 
 **CRITICAL – Safe memory bank updates (MANDATORY):** Do NOT use full-content `manage_file(..., operation="write", content=<entire file>)` for roadmap, progress, or activeContext. Use the dedicated MCP tools below to avoid corruption.
 
