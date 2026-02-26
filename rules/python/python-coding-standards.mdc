@@ -304,6 +304,8 @@ def process(data: "SomeModel") -> "ResultModel":
        data = provider.get_data()
    ```
 
+   When the same Protocol is used by **multiple modules**, define it **once** in a dedicated `*_protocols.py` or `protocols.py` module and import—do **not** duplicate across modules (DRY).
+
 3. **Restructure module hierarchy:**
    - Move shared types to a lower-level module
    - Ensure dependencies flow in one direction (no cycles)
@@ -487,6 +489,7 @@ def validate_data(data: dict) -> None:
 - ❌ Using `TYPE_CHECKING` conditional imports (STRICTLY FORBIDDEN)
 - ❌ Using `if TYPE_CHECKING:` blocks (STRICTLY FORBIDDEN)
 - ❌ String annotations to avoid circular imports (STRICTLY FORBIDDEN)
+- ❌ Duplicate Protocol or type definitions across modules (FORBIDDEN)—define in one place and reuse
 
 ## Enforcement
 
