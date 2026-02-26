@@ -91,7 +91,7 @@ At end of session, run a single "check all" analysis: (1) evaluate `load_context
 
 Gather three data points (run in parallel where possible):
 
-1. **Total registered tools**: Count `@mcp.tool()` registrations. Use `query_usage(query_type="stats", response_format="full")` and count the tools in the response, OR read `tool_categories.py` via `get_structure_info()` to get the canonical count per category (always_loaded, deferred_medium, deferred_low).
+1. **Total registered tools**: Count `@mcp.tool()` registrations. Use `query_usage(query_type="stats", response_format="detailed")` and count the tools in the response, OR read `tool_categories.py` via `get_structure_info()` to get the canonical count per category (always_loaded, deferred_medium, deferred_low).
 2. **Usage distribution**: Call `query_usage(query_type="report", include_recommendations=True)` to get the full usage report with per-tool call counts. This gives the complete distribution, not just the tail.
 3. **Low-usage tools**: Call `query_usage(query_type="recommendations", days=90, min_usage_threshold=5)` for the near-dead list.
 
