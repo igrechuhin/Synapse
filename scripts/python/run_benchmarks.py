@@ -18,6 +18,7 @@ from cortex.benchmarks.framework import BenchmarkRunner
 from cortex.benchmarks.lightweight_benchmarks import (
     create_lightweight_benchmark_suite,
 )
+from cortex.benchmarks.memory_benchmarks import create_memory_benchmark_suite
 
 
 async def main():
@@ -32,6 +33,7 @@ async def main():
 
     # Add benchmark suites
     runner.add_suite(create_lightweight_benchmark_suite())
+    runner.add_suite(create_memory_benchmark_suite())
 
     # Run all benchmarks
     results = await runner.run_all()
