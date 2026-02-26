@@ -302,6 +302,10 @@ async def validate_memory_bank(...) -> dict[str, object]:  # BLOCKED
 - Keep names to three segments or fewer
 - Document tool names, schemas, and examples
 
+## Adding New Tools (MANDATORY)
+
+- **Do not increase MAX limits** (e.g. tool caps); when adding new tools, make room by consolidating, merging, or removing underperformers.
+
 ## Violations (BLOCKED)
 
 - ❌ **MCP tool accepting project_root parameter**: Tools MUST resolve project root internally via `@ensure_usage_context`; accepting `project_root` as a parameter is STRICTLY FORBIDDEN

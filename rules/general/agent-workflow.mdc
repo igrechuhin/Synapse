@@ -154,6 +154,10 @@ You are ONLY allowed to stop when:
    - **CRITICAL**: This only applies AFTER fixing ALL issues - never stop with issues remaining
 4. **Unrecoverable Error**: An error has occurred that cannot be recovered from and requires user intervention
 
+### Plans and Blockers (MANDATORY)
+
+- **Do not mark a blocker or plan as complete** when only documentation was updated and the root cause may not have been encountered; the user expects code changes or validated recurrence before closing.
+
 ### Invalid Stopping Conditions (FORBIDDEN)
 
 You are NOT allowed to stop for:
