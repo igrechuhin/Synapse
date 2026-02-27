@@ -48,7 +48,7 @@ At end of session, run a single "check all" analysis: (1) evaluate `load_context
 
 4. **Session scope**: Confirm current session context and that reviews path is available via `get_structure_info()` → `structure_info.paths.reviews`.
 
-5. **Optional sequential thinking**: For complex sessions with many intertwined issues or recommendations, you may call the `sequentialthinking` MCP tool to break down root causes and optimization steps into numbered thoughts before drafting the final report.
+5. **Optional sequential thinking**: For complex sessions with many intertwined issues or recommendations, you may call the `think` MCP tool in full mode (pass thought_number, total_thoughts, next_thought_needed) to break down root causes and optimization steps into numbered thoughts before drafting the final report.
 
 ## Execution Order
 

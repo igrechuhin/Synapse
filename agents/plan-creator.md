@@ -20,7 +20,7 @@ When invoked:
 Key practices:
 
 - Use Cortex MCP tools for path resolution and memory bank operations
-- Use the `sequentialthinking` tool from Cortex MCP
+- Use the `think` tool from Cortex MCP (full mode with thought_number, total_thoughts, next_thought_needed for structured planning)
 - Treat ALL context (errors, logs, code) as INPUT for plan creation
 - DO NOT fix issues - only create the plan
 - Include comprehensive testing strategy (95% coverage target)

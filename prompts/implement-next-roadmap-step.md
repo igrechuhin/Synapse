@@ -17,7 +17,7 @@ This step is part of the **compound-engineering loop** (Plan → Work → Review
 - `get_relevance_scores()` - Get relevance scores for memory bank files
 - `query_memory_bank(query_type="stats")` - Get memory bank statistics
 
-**Memory Bank Update Note**: After implementing the roadmap step, you MUST update memory bank files using `manage_file(operation="write", ...)` to reflect the completed work. **roadmap.md and all other memory bank files** may be updated **only** via Cortex MCP tools (`manage_file`, `roadmap`, `append_progress_entry`, `append_active_context_entry`, etc.); do **not** use Write, StrReplace, or ApplyPatch on memory bank paths.
+**Memory Bank Update Note**: After implementing the roadmap step, you MUST update memory bank files using `manage_file(operation="write", ...)` to reflect the completed work. **roadmap.md and all other memory bank files** may be updated **only** via Cortex MCP tools (`manage_file`, `roadmap`, `append_entry`, etc.); do **not** use Write, StrReplace, or ApplyPatch on memory bank paths.
 
 **Agent Delegation**: This prompt orchestrates roadmap implementation and delegates specialized tasks to dedicated agents in the Synapse agents directory.
 
@@ -426,11 +426,11 @@ Before defining new data structures (classes, types, models, interfaces):
    - Roadmap records future/upcoming work only; completed work belongs in activeContext only.
 
 2. **Add one progress entry**
-   - **MANDATORY:** Call **`append_progress_entry(date_str="YYYY-MM-DD", entry_text="**Title** - COMPLETE. Summary...")`** to add a single entry under the date section. Use today's date (YYYY-MM-DD). The tool appends one bullet safely.
+   - **MANDATORY:** Call **`append_entry(operation="progress", date_str="YYYY-MM-DD", entry_text="**Title** - COMPLETE. Summary...")`** to add a single entry under the date section. Use today's date (YYYY-MM-DD). The tool appends one bullet safely.
    - **FORBIDDEN:** Do NOT read progress, build full content, and call `manage_file(progress.md, write, content=...)` with full content.
 
 3. **Add completed work to activeContext**
-   - **MANDATORY:** Call **`append_active_context_entry(date_str="YYYY-MM-DD", title="<step title>", summary="<short summary>")`** to append one completed entry under ## Completed Work (date). The tool creates the section if needed and appends safely.
+   - **MANDATORY:** Call **`append_entry(operation="active_context", date_str="YYYY-MM-DD", title="<step title>", summary="<short summary>")`** to append one completed entry under ## Completed Work (date). The tool creates the section if needed and appends safely.
    - **FORBIDDEN:** Do NOT read activeContext, build full content, and call `manage_file(activeContext.md, write, content=...)` with full content for this update.
    - **Write quality (before calling append_*):** Verify any coverage percentage in entry text is 0–100 (e.g. 90.01% not 900.01%). Verify phase/label names have no concatenation typos (e.g. "Phase 18 Markdown" not "Phase 18Markdown"). Use date format YYYY-MM-DD only. **Progress entry format:** When generating `progress_entry` or `entry_text`, ensure the phase/title segment is properly closed—e.g. the entry must contain ")** - COMPLETE" (not "COMPLETE" immediately after a date or unclosed parenthesis); malformed example: "20260209COMPLETE". See memory-bank-updater agent write-quality guidance.
    - **Progress entry template:** `**<Title> (<date>)** - COMPLETE. <summary>.` Use YYYY-MM-DD for dates; the tools reject invalid dates and malformed entries.
@@ -474,7 +474,7 @@ Before defining new data structures (classes, types, models, interfaces):
 
 - **Dependency**: Must run AFTER Step 5 (memory bank updates) and Step 6 (verify completion)
 - **If you used `plan(operation="complete", ..., plan_file_name=...)` in Step 5:** The plan file was already moved to the archive by that tool; no duplicate should remain in `.cortex/plans/`. Still run the plan-archiver agent to catch any other completed plans (e.g. from previous sessions) and to validate.
-- **If you used the three separate tools (roadmap(operation="remove_entry"), append_progress_entry, append_active_context_entry):** The plan file was NOT archived; you MUST run the plan-archiver agent to move the plan file to the correct archive directory.
+- **If you used the three separate tools (roadmap(operation="remove_entry"), append_entry(operation="progress"), append_entry(operation="active_context")):** The plan file was NOT archived; you MUST run the plan-archiver agent to move the plan file to the correct archive directory.
 - **Workflow**:
   1. **READ** the plan-archiver agent file (Synapse agents directory: `.cortex/synapse/agents/plan-archiver.md`)
   2. **EXECUTE** all execution steps from the agent file:
@@ -600,14 +600,14 @@ The roadmap step is considered complete when:
 - This is a generic command that can be reused for any roadmap step
 - The agent should be thorough and complete the entire step, not just part of it
 - If a step is too large, break it down into smaller sub-tasks and complete them systematically
-- For especially complex or ambiguous steps (e.g. architecture/large design or multi-module refactors), use the `sequentialthinking` MCP tool to structure your reasoning into numbered thoughts before and during implementation.
+- For especially complex or ambiguous steps (e.g. architecture/large design or multi-module refactors), use the `think` MCP tool in full mode (pass thought_number, total_thoughts, next_thought_needed) to structure your reasoning into numbered thoughts before and during implementation.
 - **MANDATORY PLAN UPDATES**: If the roadmap step references a plan file (e.g., phase-XX-*.md in the plans directory) and the work cannot be completed in one session, you MUST update the plan file at the end of the session to reflect the current implementation status. Resolve the plans directory path via `get_structure_info()` → `structure_info.paths.plans`. This ensures continuity and allows future sessions to pick up where you left off.
 - **MANDATORY PLAN ARCHIVING**: If a plan file is marked as COMPLETE (status changed to COMPLETED/COMPLETE), you MUST archive it immediately using the plan-archiver agent (Step 6.5). Do not leave completed plans in `.cortex/plans/` - archive them as soon as status becomes COMPLETE.
 - Always update the memory bank after completing work using Cortex MCP tools
 - Follow all workspace rules and coding standards throughout implementation
 - **CRITICAL**: Never access memory bank files directly via file paths - always use Cortex MCP tools for structured access
 - **Plan files**: Plan files are in the plans directory (path from `get_structure_info()` → `structure_info.paths.plans`) and should be accessed using standard file tools (not MCP tools, as they are not part of the memory bank)
-- **Script generation prevention**: Before generating a temporary script, use `suggest_tool_improvements(task_description=...)` to discover existing tools/scripts. If you do create a script, use `capture_session_script` to record it for analysis and potential promotion; use `analyze_session_scripts` and `promote_session_script` to validate and get templates.
+- **Script generation prevention**: Before generating a temporary script, use `manage_session_scripts(operation="suggest", task_description=...)` to discover existing tools/scripts. If you do create a script, use `manage_session_scripts(operation="capture", ...)` to record it for analysis and potential promotion; use `manage_session_scripts(operation="analyze", ...)` and `manage_session_scripts(operation="promote", script_id=...)` to validate and get templates.
 
 ## MISSING TOOLS (If Required)
 

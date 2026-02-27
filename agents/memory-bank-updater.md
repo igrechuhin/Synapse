@@ -29,9 +29,9 @@ Key practices:
   - **Coverage and percentages**: Use values between 0 and 100 only (e.g. `90.01%`, not `900.01%`). If the source value is > 100, treat it as a decimal (e.g. 900.01 → 90.01%).
   - **Phase and feature names**: Avoid concatenation typos. Ensure a space between number and word (e.g. `Phase 18 Markdown`, not `Phase 18Markdown`). Re-read the roadmap or plan title to copy the exact phase label.
   - **Dates**: Use `YYYY-MM-DD` only (no time component). Validate that the date string matches this format before writing.
-- **Progress entry format validation**: When generating text for `progress_entry` (for `complete_plan`) or `entry_text` (for `append_progress_entry`), ensure the phase/title segment is **properly closed** before "COMPLETE". The entry must contain the pattern `)** - COMPLETE` (closing parenthesis, bold-close, space, hyphen, space, COMPLETE). **Malformed examples** (do not use): `20260209COMPLETE`, or `Title - COMPLETE` with an unclosed `(**` in the title. **Correct example**: `**Title** - COMPLETE. Summary...`.
+- **Progress entry format validation**: When generating text for `progress_entry` (for `complete_plan`) or `entry_text` (for `append_entry(operation="progress", ...)`), ensure the phase/title segment is **properly closed** before "COMPLETE". The entry must contain the pattern `)** - COMPLETE` (closing parenthesis, bold-close, space, hyphen, space, COMPLETE). **Malformed examples** (do not use): `20260209COMPLETE`, or `Title - COMPLETE` with an unclosed `(**` in the title. **Correct example**: `**Title** - COMPLETE. Summary...`.
 - **Memory bank write discipline**: Any edit to memory-bank files—including one-line fixes—**MUST** use `manage_file(operation='read')` then `manage_file(operation='write', content=...)`. Do **not** use Write, StrReplace, or ApplyPatch on memory-bank paths; using standard file tools for memory-bank writes is a **VIOLATION**.
-- **Roadmap edit discipline (CRITICAL)**: **ALL edits to roadmap.md** (including adding plan links, updating references, removing entries, or any other modifications) **MUST** be performed via `manage_file(operation='write', ...)` after reading current content with `manage_file(operation='read')`, or via the dedicated roadmap tools (`roadmap(operation='add_entry'|'remove_entry'|'remove_section')`, `register_plan_in_roadmap`). Do **NOT** use Write, StrReplace, or ApplyPatch on roadmap.md or any other memory-bank paths. This applies to all roadmap operations, including roadmap sync cleanup, link/archive tasks, and plan registration.
+- **Roadmap edit discipline (CRITICAL)**: **ALL edits to roadmap.md** (including adding plan links, updating references, removing entries, or any other modifications) **MUST** be performed via `manage_file(operation='write', ...)` after reading current content with `manage_file(operation='read')`, or via the dedicated roadmap tools (`roadmap(operation='add_entry'|'remove_entry'|'remove_section')`, `plan(operation='register', ...)`). Do **NOT** use Write, StrReplace, or ApplyPatch on roadmap.md or any other memory-bank paths. This applies to all roadmap operations, including roadmap sync cleanup, link/archive tasks, and plan registration.
 
 ## Correct `manage_file` Usage
 
@@ -56,7 +56,7 @@ manage_file(
 
 ### Roadmap – safe tools (MANDATORY for single-entry changes)
 
-- **Adding a single new plan entry** (e.g. when invoked from create-plan): **MUST** use **`register_plan_in_roadmap(...)`** or **`roadmap(operation="add_entry", section=..., entry_text=...)`**. Do **not** build full roadmap content or call `manage_file(roadmap.md, write, content=...)` for single-entry adds—that causes corruption.
+- **Adding a single new plan entry** (e.g. when invoked from create-plan): **MUST** use **`plan(operation="register", plan_title=..., description=..., section=...)`** or **`roadmap(operation="add_entry", section=..., entry_text=...)`**. Do **not** build full roadmap content or call `manage_file(roadmap.md, write, content=...)` for single-entry adds—that causes corruption.
 - **Roadmap update (plan creation)**: Never pass truncated or summarized roadmap content to `manage_file(write)`. The content must be the full, unabridged roadmap text. If in doubt, content length must be >= length of the roadmap as last read.
 - **Recovery**: If a previous write accidentally used truncated content, restore by reading the roadmap from version control (e.g. `git show HEAD:.cortex/memory-bank/roadmap.md`) or from backup, append the intended new/updated entry, then write the full result.
 - **Removing a completed roadmap entry** (e.g. when invoked from implement Step 5): **MUST** use **`roadmap(operation="remove_entry", entry_contains="<unique substring of the bullet>")`**. Do **not** read roadmap, build updated content, and call `manage_file(roadmap.md, write, content=...)`—that causes corruption.
@@ -67,8 +67,8 @@ manage_file(
 
 When updating memory bank **after completing a roadmap step** (implement Step 5):
 
-- **Adding one progress entry**: **MUST** use **`append_progress_entry(date_str="YYYY-MM-DD", entry_text="**Title** - COMPLETE. Summary...")`**. Do **not** build full progress content or call `manage_file(progress.md, write, content=...)`.
-- **Adding one completed work entry to activeContext**: **MUST** use **`append_active_context_entry(date_str="YYYY-MM-DD", title="...", summary="...")`**. Do **not** build full activeContext content or call `manage_file(activeContext.md, write, content=...)` for this update.
+- **Adding one progress entry**: **MUST** use **`append_entry(operation="progress", date_str="YYYY-MM-DD", entry_text="**Title** - COMPLETE. Summary...")`**. Do **not** build full progress content or call `manage_file(progress.md, write, content=...)`.
+- **Adding one completed work entry to activeContext**: **MUST** use **`append_entry(operation="active_context", date_str="YYYY-MM-DD", title="...", summary="...")`**. Do **not** build full activeContext content or call `manage_file(activeContext.md, write, content=...)` for this update.
 
 For other edits (e.g. bulk updates or non-append changes), use `manage_file(..., read)` then minimal edits and `manage_file(..., write)` only when necessary; prefer the append/remove tools when they apply.
 

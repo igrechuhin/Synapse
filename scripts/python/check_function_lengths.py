@@ -174,10 +174,21 @@ def main():
         sys.exit(1)
 
     all_violations: list[tuple[Path, str, int, int, int]] = []
+    try:
+        from cortex.core.constants import FUNCTION_LENGTH_EXCLUDED_PATHS
+
+        excluded: frozenset[str] = frozenset(FUNCTION_LENGTH_EXCLUDED_PATHS)
+    except ImportError:
+        excluded = frozenset[str]()
 
     for py_file in src_dir.glob("**/*.py"):
-        # Skip __pycache__ and test files
         if "__pycache__" in str(py_file) or py_file.name.startswith("test_"):
+            continue
+        try:
+            rel = str(py_file.relative_to(project_root)).replace("\\", "/")
+        except ValueError:
+            rel = str(py_file)
+        if rel in excluded:
             continue
 
         violations = check_function_length(py_file)

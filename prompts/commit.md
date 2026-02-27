@@ -87,7 +87,7 @@
 
 **Script use (MANDATORY)**:
 
-- If during this run you created or executed any script (inline snippet or file), you MUST call `capture_session_script` and/or `analyze_session_scripts` or `suggest_tool_improvements` as appropriate. Do not run scripts without using script tooling.
+- If during this run you created or executed any script (inline snippet or file), you MUST call `manage_session_scripts(operation="capture", ...)` and/or `manage_session_scripts(operation="analyze", ...)` or `manage_session_scripts(operation="suggest", ...)` as appropriate. Do not run scripts without using script tooling.
 
 **When executing steps**: For steps that delegate to agents, you MUST:
 
@@ -149,7 +149,7 @@ This commit run is the **Work** step; when it finishes, memory bank updates (Ste
 **Compound checklist** (apply these so each session compounds; see CLAUDE.md and troubleshooting for details):
 
 1. **Memory bank writes**: Use `manage_file()` only; never StrReplace/Write/ApplyPatch on roadmap, activeContext, or progress.
-2. **Roadmap single-line edits**: Read full content with `manage_file(read)`, compute updated content, then `manage_file(write, content=...)`; use `roadmap(operation="remove_entry"|"add_entry"|"remove_section")` / `append_progress_entry` / `append_active_context_entry` where applicable.
+2. **Roadmap single-line edits**: Read full content with `manage_file(read)`, compute updated content, then `manage_file(write, content=...)`; use `roadmap(operation="remove_entry"|"add_entry"|"remove_section")` / `append_entry(operation="progress"|"active_context", ...)` where applicable.
 3. **Markdown lint**: Runs on all markdown (including under history/reviews); run early when editing markdown; use `fix_markdown_lint` or preflight.
 4. **Token budgets**: Use task-type-based budgets in `load_context` when implementing (e.g. 10k update, 15k fix/debug, 20–30k feature).
 5. **Connection closed**: If a tool returns MCP error -32000 or "Connection closed", retry once; then rely on `execute_pre_commit_checks` for gates; see troubleshooting.
@@ -346,8 +346,8 @@ The following error patterns MUST be detected and fixed before commit. These are
 ### Script run without analysis
 
 - **Pattern**: Agent ran a script (e.g. Python/shell snippet) during the pipeline without using script tooling.
-- **Detection**: Script was created or executed (inline or file) but no call to `capture_session_script`, `analyze_session_scripts`, or `suggest_tool_improvements` was made.
-- **Action**: Use script tooling: call `capture_session_script` and/or `analyze_session_scripts` or `suggest_tool_improvements` as appropriate. Not using script tooling is a process violation.
+- **Detection**: Script was created or executed (inline or file) but no call to `manage_session_scripts(operation="capture"|"analyze"|"suggest", ...)` was made.
+- **Action**: Use script tooling: call `manage_session_scripts(operation="capture", ...)` and/or `manage_session_scripts(operation="analyze", ...)` or `manage_session_scripts(operation="suggest", ...)` as appropriate. Not using script tooling is a process violation.
 - **Block Commit**: Yes - script runs without analysis violate Phase 27 script-generation-prevention and implement-next-roadmap-step guidance; do not proceed until script tooling has been used.
 
 ### Plan Status and side-effect imports (Step 12)

@@ -26,7 +26,7 @@ When executing steps, delegate to the appropriate agent for specialized analysis
 - Use `get_structure_info()` to get directory paths dynamically (e.g. `structure_info.paths.reviews`, `structure_info.paths.plans`)
 - For review reports: Use `Write` tool with path from `get_structure_info()` → `structure_info.paths.reviews`
 
-**Sequential Thinking (optional but recommended)**: For large or complex reviews (e.g. architecture changes, multi-module refactors, or sessions with many intertwined issues), use the `sequentialthinking` MCP tool to structure your reasoning into numbered thoughts and branches before writing the final review report.
+**Sequential Thinking (optional but recommended)**: For large or complex reviews (e.g. architecture changes, multi-module refactors, or sessions with many intertwined issues), use the `think` MCP tool in full mode (pass thought_number, total_thoughts, next_thought_needed) to structure your reasoning into numbered thoughts and branches before writing the final review report.
 
 **MCP TOOL USAGE (USE WHEN / EXAMPLES)**:
 
