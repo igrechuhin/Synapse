@@ -17,7 +17,7 @@ This step is part of the **compound-engineering loop** (Plan → Work → Review
 - `get_relevance_scores()` - Get relevance scores for memory bank files
 - `query_memory_bank(query_type="stats")` - Get memory bank statistics
 
-**Memory Bank Update Note**: After implementing the roadmap step, you MUST update memory bank files using `manage_file(operation="write", ...)` to reflect the completed work. **roadmap.md and all other memory bank files** may be updated **only** via Cortex MCP tools (`manage_file`, `remove_roadmap_entry`, `add_roadmap_entry`, `append_progress_entry`, `append_active_context_entry`, etc.); do **not** use Write, StrReplace, or ApplyPatch on memory bank paths.
+**Memory Bank Update Note**: After implementing the roadmap step, you MUST update memory bank files using `manage_file(operation="write", ...)` to reflect the completed work. **roadmap.md and all other memory bank files** may be updated **only** via Cortex MCP tools (`manage_file`, `roadmap`, `append_progress_entry`, `append_active_context_entry`, etc.); do **not** use Write, StrReplace, or ApplyPatch on memory bank paths.
 
 **Agent Delegation**: This prompt orchestrates roadmap implementation and delegates specialized tasks to dedicated agents in the Synapse agents directory.
 
@@ -111,7 +111,7 @@ The **roadmap defines the implementation sequence** (see the "Implementation seq
 
 **If you called `session_start()`**: The brief already contains `next_work_item` and `next_work_plan_path`. You can use those directly, but still verify by reading the roadmap entry to get full details.
 
-**Short path for plan-only steps**: When the next step references a plan file and the plan has all steps Done with no code changes (e.g. documentation-only or already-completed work), a short path is acceptable: `session_start()` → read the plan file → `complete_plan(...)` (and optional `load_context` with a small budget for rules only). This avoids full context load and implementation steps when the only action is to move the plan to completed and archive it.
+**Short path for plan-only steps**: When the next step references a plan file and the plan has all steps Done with no code changes (e.g. documentation-only or already-completed work), a short path is acceptable: `session_start()` → read the plan file → `plan(operation="complete", ...)` (and optional `load_context` with a small budget for rules only). This avoids full context load and implementation steps when the only action is to move the plan to completed and archive it.
 
 **If you skipped `session_start()`**: Follow the steps below:
 
@@ -413,15 +413,15 @@ Before defining new data structures (classes, types, models, interfaces):
 
 **When the completed step references a plan file (e.g. Plan: .cortex/plans/session-optimization-....md):**
 
-- **PREFERRED:** Call **`complete_plan(plan_title="<step title>", summary="<short summary>", completion_date="YYYY-MM-DD", progress_entry="**Title** - COMPLETE. Summary...", plan_file_name="<plan basename>")`** with the plan file basename (e.g. `session-optimization-roadmap-full-content-enforcement.md`). This single tool: removes the roadmap bullet, appends to activeContext, appends to progress, and **moves (archives) the plan file** to the correct archive directory. No separate archive step is needed for that plan.
+- **PREFERRED:** Call **`plan(operation="complete", plan_title="<step title>", summary="<short summary>", completion_date="YYYY-MM-DD", progress_entry="**Title** - COMPLETE. Summary...", plan_file_name="<plan basename>")`** with the plan file basename (e.g. `session-optimization-roadmap-full-content-enforcement.md`). This single tool: removes the roadmap bullet, appends to activeContext, appends to progress, and **moves (archives) the plan file** to the correct archive directory. No separate archive step is needed for that plan.
 - **Progress entry template:** Use this format for `progress_entry` and `entry_text`: `**<Title> (<date>)** - COMPLETE. <summary>.` Example: `**Phase 54 Session Start (2026-02-20)** - COMPLETE. Implemented session_start and doc updates.` The tools validate date (YYYY-MM-DD) and that the title segment is closed before COMPLETE (e.g. ")** - COMPLETE").
-- **Alternative:** If you cannot use complete_plan, use the three tools below and then run the plan-archiver agent (Step 6.5) to archive the plan file manually.
+- **Alternative:** If you cannot use plan(operation="complete"), use the three tools below and then run the plan-archiver agent (Step 6.5) to archive the plan file manually.
 
 **When the step does not reference a plan file, or you use the alternative:**
 
 1. **Remove the completed step from roadmap**
-   - **MANDATORY:** Call **`remove_roadmap_entry(entry_contains="<unique substring>")`** with a substring that uniquely identifies the completed roadmap bullet (e.g. the step title or plan name). The tool removes that single bullet and writes the file safely.
-   - **Optional – orphan section:** If the last bullet in a subsection was removed and the subsection heading should be removed too, call **`remove_roadmap_section(section_heading_contains="<heading substring>")`** instead of full-content roadmap write.
+   - **MANDATORY:** Call **`roadmap(operation="remove_entry", entry_contains="<unique substring>")`** with a substring that uniquely identifies the completed roadmap bullet (e.g. the step title or plan name). The tool removes that single bullet and writes the file safely.
+   - **Optional – orphan section:** If the last bullet in a subsection was removed and the subsection heading should be removed too, call **`roadmap(operation="remove_section", section_heading_contains="<heading substring>")`** instead of full-content roadmap write.
    - **FORBIDDEN:** Do NOT read roadmap, build updated content, and call `manage_file(roadmap.md, write, content=...)` with full content. That pattern causes corruption.
    - Roadmap records future/upcoming work only; completed work belongs in activeContext only.
 
@@ -466,15 +466,15 @@ Before defining new data structures (classes, types, models, interfaces):
 3. **Run roadmap sync validation (MANDATORY)**:
    - Use Cortex MCP validation for roadmap synchronization (either via `validate(check_type="roadmap_sync")` or the dedicated roadmap-sync MCP tool).
    - Treat any `valid: false` result, invalid references, or non-empty `unlinked_plans` as **BLOCKING**: fix roadmap/plan/archive/memory-bank inconsistencies (e.g., completed plans still in `.cortex/plans/`, plans removed from roadmap but not archived, stale plan links) before proceeding to Step 6.5 and Step 7.
-   - **⚠️ CRITICAL - Roadmap edit discipline**: When fixing roadmap sync issues (e.g., adding plan links, updating references, removing stale entries), **ALL edits to roadmap.md MUST be performed via `manage_file(operation='write', ...)` after reading current content with `manage_file(operation='read')`**. Do **NOT** use Write, StrReplace, or ApplyPatch on memory-bank paths. For single-entry changes (add/remove), prefer the dedicated roadmap tools (`add_roadmap_entry`, `remove_roadmap_entry`, `register_plan_in_roadmap`) over full-content writes. See memory-bank-updater agent and Step 5 for safe roadmap update patterns.
+   - **⚠️ CRITICAL - Roadmap edit discipline**: When fixing roadmap sync issues (e.g., adding plan links, updating references, removing stale entries), **ALL edits to roadmap.md MUST be performed via `manage_file(operation='write', ...)` after reading current content with `manage_file(operation='read')`**. Do **NOT** use Write, StrReplace, or ApplyPatch on memory-bank paths. For single-entry changes (add/remove), prefer the dedicated roadmap tools (`roadmap(operation='add_entry'|'remove_entry'|'remove_section')`, `register_plan_in_roadmap`) over full-content writes. See memory-bank-updater agent and Step 5 for safe roadmap update patterns.
 
 ### Step 6.5: Archive Completed Plans - **Delegate to `plan-archiver` agent**
 
 **Use the `plan-archiver` agent (Synapse agents directory) for this step.**
 
 - **Dependency**: Must run AFTER Step 5 (memory bank updates) and Step 6 (verify completion)
-- **If you used `complete_plan(..., plan_file_name=...)` in Step 5:** The plan file was already moved to the archive by that tool; no duplicate should remain in `.cortex/plans/`. Still run the plan-archiver agent to catch any other completed plans (e.g. from previous sessions) and to validate.
-- **If you used the three separate tools (remove_roadmap_entry, append_progress_entry, append_active_context_entry):** The plan file was NOT archived; you MUST run the plan-archiver agent to move the plan file to the correct archive directory.
+- **If you used `plan(operation="complete", ..., plan_file_name=...)` in Step 5:** The plan file was already moved to the archive by that tool; no duplicate should remain in `.cortex/plans/`. Still run the plan-archiver agent to catch any other completed plans (e.g. from previous sessions) and to validate.
+- **If you used the three separate tools (roadmap(operation="remove_entry"), append_progress_entry, append_active_context_entry):** The plan file was NOT archived; you MUST run the plan-archiver agent to move the plan file to the correct archive directory.
 - **Workflow**:
   1. **READ** the plan-archiver agent file (Synapse agents directory: `.cortex/synapse/agents/plan-archiver.md`)
   2. **EXECUTE** all execution steps from the agent file:

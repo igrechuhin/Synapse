@@ -23,4 +23,4 @@ alwaysApply: false
 
 ## Memory bank and roadmap
 
-- Follow memory-bank-workflow.mdc for updates. Use `manage_file()` for memory bank files; use dedicated MCP tools (`remove_roadmap_entry`, `append_progress_entry`, `append_active_context_entry`, `complete_plan`) for safe single-entry updates to roadmap, progress, and activeContext.
+- Follow memory-bank-workflow.mdc for updates. Use `manage_file()` for memory bank files; use dedicated MCP tools (`roadmap(operation="remove_entry"|"add_entry"|"remove_section")`, `append_progress_entry`, `append_active_context_entry`, `plan(operation="complete")`) for safe single-entry updates to roadmap, progress, and activeContext.

@@ -149,7 +149,7 @@ This commit run is the **Work** step; when it finishes, memory bank updates (Ste
 **Compound checklist** (apply these so each session compounds; see CLAUDE.md and troubleshooting for details):
 
 1. **Memory bank writes**: Use `manage_file()` only; never StrReplace/Write/ApplyPatch on roadmap, activeContext, or progress.
-2. **Roadmap single-line edits**: Read full content with `manage_file(read)`, compute updated content, then `manage_file(write, content=...)`; use `remove_roadmap_entry` / `append_progress_entry` / `append_active_context_entry` where applicable.
+2. **Roadmap single-line edits**: Read full content with `manage_file(read)`, compute updated content, then `manage_file(write, content=...)`; use `roadmap(operation="remove_entry"|"add_entry"|"remove_section")` / `append_progress_entry` / `append_active_context_entry` where applicable.
 3. **Markdown lint**: Runs on all markdown (including under history/reviews); run early when editing markdown; use `fix_markdown_lint` or preflight.
 4. **Token budgets**: Use task-type-based budgets in `load_context` when implementing (e.g. 10k update, 15k fix/debug, 20–30k feature).
 5. **Connection closed**: If a tool returns MCP error -32000 or "Connection closed", retry once; then rely on `execute_pre_commit_checks` for gates; see troubleshooting.
