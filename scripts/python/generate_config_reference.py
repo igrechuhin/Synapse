@@ -47,7 +47,7 @@ def _serialize(obj: object) -> Any:
 
 def main() -> int:
     """Dump default configs to docs/api/config-defaults.json."""
-    from cortex.optimization.optimization_config import DEFAULT_OPTIMIZATION_CONFIG
+    from cortex.optimization.config import DEFAULT_OPTIMIZATION_CONFIG
     from cortex.structure.structure_config import DEFAULT_STRUCTURE
     from cortex.tools.tool_categories import build_category_config
     from cortex.validation.models import ValidationConfigModel
