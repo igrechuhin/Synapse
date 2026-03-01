@@ -148,14 +148,14 @@ def _resolve_doc_overrides(tree: ast.Module, path: Path) -> dict[str, str]:
     imports: dict[str, str] = {}
     for node in tree.body:
         if isinstance(node, ast.ImportFrom):
-            if node.module and "phase8_structure_docs" in node.module:
+            if node.module and "structure_docs" in node.module:
                 for alias in node.names:
                     if alias.name:
                         imports[alias.name] = alias.name
 
-    # Load constants from phase8_structure_docs if imported
+    # Load constants from structure_docs if imported
     if imports:
-        docs_path = path.parent / "phase8_structure_docs.py"
+        docs_path = path.parent / "structure_docs.py"
         if docs_path.exists():
             try:
                 docs_tree = ast.parse(docs_path.read_text(encoding="utf-8"))
