@@ -28,7 +28,7 @@ from cortex.analysis.structure_analyzer import StructureAnalyzer
 from cortex.core.dependency_graph import DependencyGraph
 from cortex.core.file_system import FileSystemManager
 from cortex.core.token_counter import TokenCounter
-from cortex.linking.link_parser import LinkParser
+from cortex.linking.parser import LinkParser
 from cortex.linking.transclusion_engine import TransclusionEngine
 
 
