@@ -47,7 +47,7 @@ def _get_baseline_path(project_root: Path) -> Path:
 
 async def _run_eval(mode: str, project_root: Path) -> str:
     """Run tool evaluation and return JSON payload string."""
-    from cortex.tools.phase5_evaluation import run_tool_evaluation
+    from cortex.tools.evaluation import run_tool_evaluation
 
     return await run_tool_evaluation(
         task_ids=None,

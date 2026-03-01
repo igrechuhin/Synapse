@@ -72,7 +72,7 @@ def _snapshot_from_payload(payload: object) -> dict[str, object]:
 async def _run_token_efficiency(project_root: Path, days: int) -> str:
     """Run token efficiency analysis and return JSON payload string."""
     from cortex.tools import usage_analytics
-    from cortex.tools.phase5_token_efficiency_helpers import (
+    from cortex.tools.token_efficiency_helpers import (
         get_token_efficiency_payload,
     )
 
