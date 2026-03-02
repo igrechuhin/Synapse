@@ -49,7 +49,7 @@ def main() -> int:
     """Dump default configs to docs/api/config-defaults.json."""
     from cortex.optimization.config import DEFAULT_OPTIMIZATION_CONFIG
     from cortex.structure.structure_config import DEFAULT_STRUCTURE
-    from cortex.tools.categories import build_category_config
+    from cortex.tools.structure.categories import build_category_config
     from cortex.validation.models import ValidationConfigModel
 
     out_path = _PROJECT_ROOT / "docs" / "api" / "config-defaults.json"
