@@ -1,0 +1,42 @@
+---
+globs: "**/tools/**/*.py"
+alwaysApply: false
+---
+# MCP Tools Subpackage Organization (MANDATORY for new/further development)
+
+**ENFORCEMENT**: All new MCP tool code and tool-related modules MUST follow the project's domain subpackage structure. CI and review must block violations.
+
+**Principle**: Organize the tools package by functional domain subpackages. Avoid flat layouts (many files at package root); place new code in the subpackage that matches its domain.
+
+## Placement Rules (MANDATORY)
+
+### New MCP tool implementations
+
+1. **Place in domain subpackage** - Add tool entry points, handlers, and helpers under the subpackage that matches the tool's functional domain (e.g. config, context, files, session, validation).
+2. **Do NOT add flat files** at the tools package root for new functionality.
+3. **Shared modules at root only** - Keep at root only: `__init__.py`, shared `models.py` or `models_base.py`, `prompts.py`, and any compatibility shims explicitly documented in project plans.
+
+### New helper modules
+
+1. **Colocate with domain** - Add `*_helpers.py`, `*_operations.py`, `*_models.py` inside the subpackage they serve.
+2. **Naming** - Use `*_helpers.py` for pure helpers; `*_operations.py` for operation logic; `*_models.py` for Pydantic models.
+3. **Avoid root-level helpers** - Prefer subpackage-local helpers over creating new root-level helper modules.
+
+## Violations (BLOCKED)
+
+- ❌ Adding new flat `.py` files at the tools package root (except shared models, `__init__`, `prompts`)
+- ❌ Placing tool code in a subpackage that does not match its functional domain
+- ❌ Creating new root-level helpers instead of subpackage-local helpers
+- ❌ Mixing domains in a single module
+
+## When Unsure
+
+1. **Check existing tools** - Inspect tool registration and package `__init__.py` to see which subpackage owns similar tools.
+2. **Check project plans** - Refer to project plans or architecture docs for the canonical subpackage structure.
+3. **Infer from domain** - Choose the subpackage whose name best matches the tool's responsibility (e.g. file operations → files; session/health → session; validation → validation).
+
+## See Also
+
+- [python-package-structure.mdc](../python/python-package-structure.mdc) - General package layout rules
+- [python-mcp-development.mdc](../python/python-mcp-development.mdc) - MCP tool implementation standards
+- [maintainability.mdc](maintainability.mdc) - Helper extraction and file/function limits
