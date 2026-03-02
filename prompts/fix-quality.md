@@ -13,7 +13,7 @@
 ### Tooling Requirements (MANDATORY)
 
 - Prefer these Cortex MCP tools:
-  - `fix_quality_issues(include_untracked_markdown=True)` for automated quality fixes.
+  - `execute_pre_commit_checks(checks=["fix_quality"], include_untracked_markdown=True)` for automated quality fixes.
   - `execute_pre_commit_checks(checks=["type_check", "quality", "format"], test_timeout=300, coverage_threshold=0.90, strict_mode=False)` for targeted quality verification.
 - **Do NOT** run `black`, `ruff`, `isort`, or other formatters/linters directly; rely on Cortex MCP tools.
 
@@ -39,7 +39,7 @@ Before making changes, you MUST:
 ### Execution Steps
 
 1. **Run automatic quality fixes**
-   - Call `fix_quality_issues(include_untracked_markdown=True)` to apply automated fixes.
+   - Call `execute_pre_commit_checks(checks=["fix_quality"], include_untracked_markdown=True)` to apply automated fixes.
    - Inspect the response:
      - Note which files were modified.
      - Note any remaining type errors or issues that could not be auto-fixed.
