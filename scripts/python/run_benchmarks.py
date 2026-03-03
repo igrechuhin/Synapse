@@ -9,16 +9,29 @@ import asyncio
 import sys
 from pathlib import Path
 
-from _utils import get_project_root
+try:
+    from _utils import get_project_root
+except ImportError:
+    # Fallback if running from a different location
+    sys.path.insert(0, str(Path(__file__).parent))
+    from _utils import get_project_root
 
-# Add src to path (project root via shared _utils)
-sys.path.insert(0, str(get_project_root(Path(__file__)) / "src"))
-
-from cortex.benchmarks.framework import BenchmarkRunner
-from cortex.benchmarks.lightweight_benchmarks import (
-    create_lightweight_benchmark_suite,
-)
-from cortex.benchmarks.memory_benchmarks import create_memory_benchmark_suite
+try:
+    from cortex.benchmarks.framework import BenchmarkRunner
+    from cortex.benchmarks.lightweight_benchmarks import (
+        create_lightweight_benchmark_suite,
+    )
+    from cortex.benchmarks.memory_benchmarks import create_memory_benchmark_suite
+    from cortex.core.path_resolver import CortexResourceType, get_cortex_path
+except ImportError:
+    # Ensure src is on sys.path when cortex is not installed
+    sys.path.insert(0, str(get_project_root(Path(__file__)) / "src"))
+    from cortex.benchmarks.framework import BenchmarkRunner
+    from cortex.benchmarks.lightweight_benchmarks import (
+        create_lightweight_benchmark_suite,
+    )
+    from cortex.benchmarks.memory_benchmarks import create_memory_benchmark_suite
+    from cortex.core.path_resolver import CortexResourceType, get_cortex_path
 
 
 async def main():
@@ -27,8 +40,12 @@ async def main():
     print("MCP Memory Bank Performance Benchmarks")
     print("=" * 80)
 
-    # Create benchmark runner
-    output_dir = get_project_root(Path(__file__)) / "benchmark_results"
+    # Resolve project root and create benchmark runner under .cortex/benchmark_results
+    project_root = get_project_root(Path(__file__))
+    output_dir = (
+        get_cortex_path(project_root, CortexResourceType.CORTEX_DIR)
+        / "benchmark_results"
+    )
     runner = BenchmarkRunner(output_dir=output_dir)
 
     # Add benchmark suites
