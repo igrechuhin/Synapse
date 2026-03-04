@@ -32,10 +32,10 @@ When executing steps, delegate to the appropriate agent for specialized work, th
 **BEFORE executing this command, you MUST:**
 
 0. ✅ **Verify MCP and get session orientation** - Do not proceed without Cortex MCP:
-   - **Use Cortex MCP tool `session_start(task_description=None)`** to get a session brief (< 1000 tokens). If this call **fails** (e.g. connection error, tool not found), **STOP**. Report to the user: "Cortex MCP is disconnected or unhealthy. Please reconnect the Cortex MCP server and re-run this command." Do not call any other tools.
-   - **After session_start**: Check the brief's **`mcp_healthy`** field. If **`mcp_healthy` is false**, **STOP**. Report to the user: "Cortex MCP is disconnected or unhealthy. Please reconnect the Cortex MCP server and re-run this command." Do not proceed with implementation.
+   - **Use Cortex MCP tool `session(operation="start")`** to get a session brief (< 1000 tokens). If this call **fails** (e.g. connection error, tool not found), **STOP**. Report to the user: "Cortex MCP is disconnected or unhealthy. Please reconnect the Cortex MCP server and re-run this command." Do not call any other tools.
+   - **After session(operation="start")**: Check the brief's **`mcp_healthy`** field. If **`mcp_healthy` is false**, **STOP**. Report to the user: "Cortex MCP is disconnected or unhealthy. Please reconnect the Cortex MCP server and re-run this command." Do not proceed with implementation.
    - The brief also contains: current focus, recent completed work, next work item, health check, git status, actionable suggestions.
-   - **Example pattern**: `session_start()` → if brief.mcp_healthy is true → `load_context(task_description=brief.next_work_item, ...)` → implement
+   - **Example pattern**: `session(operation="start")` → if brief.mcp_healthy is true → `load_context(task_description=brief.next_work_item, ...)` → implement
 
 1. ✅ **Read the roadmap** - Get next step from implementation sequence:
    - **Use Cortex MCP tool `manage_file(file_name="roadmap.md", operation="read")`** to get the roadmap
@@ -88,9 +88,9 @@ When executing steps, delegate to the appropriate agent for specialized work, th
 
 ### Step 0: Verify MCP and Get Session Orientation (MANDATORY)
 
-**Call `session_start()` first. Do not proceed if MCP is unhealthy.**
+**Call `session(operation="start")` first. Do not proceed if MCP is unhealthy.**
 
-1. **Call `session_start(task_description=None)`**. If the call **fails** (connection error, tool not found, etc.), **STOP**. Tell the user: "Cortex MCP is disconnected or unhealthy. Please reconnect the Cortex MCP server and re-run this command." Do not use other Cortex tools or continue.
+1. **Call `session(operation="start")`**. If the call **fails** (connection error, tool not found, etc.), **STOP**. Tell the user: "Cortex MCP is disconnected or unhealthy. Please reconnect the Cortex MCP server and re-run this command." Do not use other Cortex tools or continue.
 
 2. **Check the brief's `mcp_healthy` field**. If **`mcp_healthy` is false**, **STOP**. Tell the user: "Cortex MCP is disconnected or unhealthy. Please reconnect the Cortex MCP server and re-run this command." Do not proceed.
 
@@ -100,20 +100,20 @@ When executing steps, delegate to the appropriate agent for specialized work, th
 
 **Multi-agent task locking (Phase 58)**: When multiple Cursor tabs or agents may work on the same project:
 
-- **Before starting work**: Call `claim_task_lock(task_title="<chosen roadmap step>", role="<optional>")` to claim the task. If the task is already locked, pick a different task from `available_tasks` or avoid locked items in the brief.
-- **When done or switching tasks**: Call `release_task_lock(task_title="<task>")` so other agents can claim it.
-- **Check availability**: Use `list_active_tasks()` to see what other agents are working on; use `check_task_available_lock(task_title="...")` before claiming.
-- Locks auto-expire after 2 hours. If `session_start` shows tasks as locked, do not start work on them without claiming first.
+- **Before starting work**: Call `session(operation="register", task_title="<chosen roadmap step>", role="<optional>")` to claim the task. If the task is already locked, pick a different task from `available_tasks` or avoid locked items in the brief.
+- **When done or switching tasks**: Call `session(operation="deregister")` so other agents can claim it.
+- **Check availability**: The session brief from `session(operation="start")` includes `concurrent_sessions` and `locked_tasks` showing what other agents are working on.
+- Locks auto-expire after 2 hours. If the session brief shows tasks as locked, do not start work on them without registering first.
 
 ### Step 1: Read Roadmap and Pick Next Step - **Delegate to `roadmap-implementer` agent**
 
 The **roadmap defines the implementation sequence** (see the "Implementation sequence" note at the top of roadmap.md). You pick the **next** step only—no priority logic in this prompt.
 
-**If you called `session_start()`**: The brief already contains `next_work_item` and `next_work_plan_path`. You can use those directly, but still verify by reading the roadmap entry to get full details.
+**If you called `session(operation="start")`**: The brief already contains `next_work_item` and `next_work_plan_path`. You can use those directly, but still verify by reading the roadmap entry to get full details.
 
-**Short path for plan-only steps**: When the next step references a plan file and the plan has all steps Done with no code changes (e.g. documentation-only or already-completed work), a short path is acceptable: `session_start()` → read the plan file → `plan(operation="complete", ...)` (and optional `load_context` with a small budget for rules only). This avoids full context load and implementation steps when the only action is to move the plan to completed and archive it.
+**Short path for plan-only steps**: When the next step references a plan file and the plan has all steps Done with no code changes (e.g. documentation-only or already-completed work), a short path is acceptable: `session(operation="start")` → read the plan file → `plan(operation="complete", ...)` (and optional `load_context` with a small budget for rules only). This avoids full context load and implementation steps when the only action is to move the plan to completed and archive it.
 
-**If you skipped `session_start()`**: Follow the steps below:
+**If you skipped `session(operation="start")`**: Follow the steps below:
 
 1. **Use Cortex MCP tool `manage_file(file_name="roadmap.md", operation="read")`** to get the roadmap content.
 2. **Next step** = first PENDING item when reading the roadmap in this order (top to bottom within each section):
@@ -126,7 +126,7 @@ The **roadmap defines the implementation sequence** (see the "Implementation seq
    - If the entry references a plan file (e.g. `Plan: .cortex/plans/phase-XX-....md`): resolve the plan path via `get_structure_info()` → `structure_info.paths.plans`; read the plan file with standard file tools; implement the plan **in sequential step order** (see "Plan step sequence" below).
    - Otherwise implement the step from the roadmap entry (description, requirements).
 
-**Call load_context at step start**: Right after picking the next step (from `session_start()` brief or roadmap), use the two-step pattern: first call `load_context(task_description="[description of roadmap step]", depth="metadata_only", token_budget=[task-appropriate budget])` to get a lightweight context map, then use `manage_file(sections=[...])` to drill into specific sections as needed. This records the session for end-of-session analyze and provides 90%+ token savings. Prefer token-efficient workflow: use task-appropriate token budget; when usage search or fetch-by-ID tools exist, use search → select IDs → fetch instead of loading all.
+**Call load_context at step start**: Right after picking the next step (from `session(operation="start")` brief or roadmap), use the two-step pattern: first call `load_context(task_description="[description of roadmap step]", depth="metadata_only", token_budget=[task-appropriate budget])` to get a lightweight context map, then use `manage_file(sections=[...])` to drill into specific sections as needed. This records the session for end-of-session analyze and provides 90%+ token savings. Prefer token-efficient workflow: use task-appropriate token budget; when usage search or fetch-by-ID tools exist, use search → select IDs → fetch instead of loading all.
 
 **⚠️ Explicit budget required for non-trivial tasks**: For refactor/fix/debug/implement, `load_context` requires an explicit non-zero `token_budget`; omitting it or passing 0 returns a validation error. If `load_context` returns `files_selected=0` for a non-trivial task, re-run with an appropriate explicit budget (10k-15k for fix/debug, 20k-30k for implement/add). The end-of-session analysis will flag zero-budget or zero-files in `learned_patterns` warnings. **Example**: `load_context(task_description="Implement feature X", token_budget=10000)` — always pass an explicit token_budget for non-trivial tasks (e.g. 10000, 15000).
 
@@ -139,7 +139,7 @@ The **roadmap defines the implementation sequence** (see the "Implementation seq
 - **narrow review/documentation**: 7,000–8,000
 - **architecture/large design**: 40,000–50,000
 
-**AgentRole-aware budgets**: Context-effectiveness analysis tracks statistics by agent role (feature/quality/testing/docs/planning/debugging/review) and provides role-specific budget recommendations. The `load_context` tool automatically detects roles from task descriptions and uses role-aware file selection. See `analyze_context_effectiveness()` results for role-aware budget recommendations. **Role detection**: Roles are automatically inferred from task descriptions using keyword heuristics (e.g., "test" → testing, "fix" → debugging, "format" → quality, "docs" → docs, "plan" → planning). The detected role is logged in session logs and used for role-aware context selection and statistics. See AGENTS.md for role descriptions and when each role is appropriate.
+**AgentRole-aware budgets**: Context-effectiveness analysis tracks statistics by agent role (feature/quality/testing/docs/planning/debugging/review) and provides role-specific budget recommendations. The `load_context` tool automatically detects roles from task descriptions and uses role-aware file selection. See `analyze(target="context")` results for role-aware budget recommendations. **Role detection**: Roles are automatically inferred from task descriptions using keyword heuristics (e.g., "test" → testing, "fix" → debugging, "format" → quality, "docs" → docs, "plan" → planning). The detected role is logged in session logs and used for role-aware context selection and statistics. See AGENTS.md for role descriptions and when each role is appropriate.
 
 **Plan step sequence (MANDATORY when implementing a plan)**:
 
@@ -312,7 +312,7 @@ Before defining new data structures (classes, types, models, interfaces):
    - Fix type errors
    - Fix formatting issues using project's code formatter
    - Ensure all tests pass
-   - **Before Step 4.5**, run ReadLints on all new/modified files (or call `fix_quality_issues()`) and fix any reported type or lint errors. Note: All Cortex MCP tools resolve project root internally; do NOT pass `project_root` as a parameter.
+   - **Before Step 4.5**, run ReadLints on all new/modified files (or call `execute_pre_commit_checks(checks=["fix_errors", "format", "quality", "type_check"])`) and fix any reported type or lint errors. Note: All Cortex MCP tools resolve project root internally; do NOT pass `project_root` as a parameter.
 
 ### Step 4.5: Verify Test Coverage (MANDATORY)
 
@@ -402,7 +402,7 @@ Before defining new data structures (classes, types, models, interfaces):
 
 **Use the `memory-bank-updater` agent (Synapse agents directory) for this step.**
 
-- **Multi-agent (Phase 58)**: If you claimed a task with `claim_task_lock`, call `release_task_lock(task_title="<task>")` when the step is complete so other agents can claim it.
+- **Multi-agent (Phase 58)**: If you registered a task with `session(operation="register")`, call `session(operation="deregister")` when the step is complete so other agents can claim it.
 
 **CRITICAL – Safe memory bank updates (MANDATORY):** Do NOT use full-content `manage_file(..., operation="write", content=<entire file>)` for roadmap, progress, or activeContext. Use the dedicated MCP tools below to avoid corruption.
 
@@ -563,15 +563,15 @@ If you encounter any issues during implementation:
      - Plan Location: Path to created investigation plan
    - **DO NOT** use standard file tools as fallback - the tool failure must be investigated first
    - **DO NOT** continue with implementation until the tool issue is resolved
-5. **Connection closed during `fix_quality_issues` (special case)**:
-   - **When**: `fix_quality_issues` returns an MCP error whose message or code indicates "Connection closed" or "ClosedResourceError" (e.g. `MCP error -32000: Connection closed`) while running as a pre-flight helper (before new work or after code changes).
+5. **Connection closed during quality pre-flight (special case)**:
+   - **When**: `execute_pre_commit_checks(checks=["fix_errors", "format", "quality", "type_check"])` returns an MCP error whose message or code indicates "Connection closed" or "ClosedResourceError" (e.g. `MCP error -32000: Connection closed`) while running as a pre-flight helper (before new work or after code changes).
    - **Action**:
      1. Use `check_mcp_connection_health` to confirm the MCP connection is healthy.
-     2. If healthy, **retry `fix_quality_issues` once**.
+     2. If healthy, **retry the pre-flight checks once**.
      3. If the second attempt fails with the same class of error (or "tool not found" immediately after a connection closed error), **do not attempt a shell fallback**; instead:
         - Treat the workspace as potentially stale but **continue the roadmap implementation**, relying on `execute_pre_commit_checks` for strict quality/type/test gates.
-        - Note in your summary that "`fix_quality_issues` could not complete due to client connection closure; quality gates were enforced via `execute_pre_commit_checks` only."
-   - **Rationale**: `fix_quality_issues` is a convenience helper, not a hard gate. Connection-closed errors here usually indicate client timeout/disconnect rather than a server bug; retry-once then proceed with strict quality gates prevents the implementation flow from being blocked while still enforcing correctness.
+        - Note in your summary that "Quality pre-flight could not complete due to client connection closure; quality gates were enforced via `execute_pre_commit_checks` only."
+   - **Rationale**: The quality pre-flight is a convenience helper, not a hard gate. Connection-closed errors here usually indicate client timeout/disconnect rather than a server bug; retry-once then proceed with strict quality gates prevents the implementation flow from being blocked while still enforcing correctness.
 6. **Quality gate unavailable (doc-only sessions)**: When the change set is documentation-only (no code under `src/` or `tests/` affecting behavior) and `execute_pre_commit_checks` fails due to environment issues—e.g. ruff/black not found at expected paths, or type_check failing with download/certificate errors—you may treat Step 4.7 as satisfied for this session. Add to your summary: "Quality gate skipped - environment (doc-only session); run full pre-commit before commit." Do **not** skip when code was changed or when the failure is due to actual lint/type errors; only when the failure is clearly tool-unavailable or network/certificate. See also [Troubleshooting: Quality gate unavailable in environment](../../../docs/guides/troubleshooting.md#quality-gate-unavailable-in-environment).
 
 ## SUCCESS CRITERIA
@@ -617,4 +617,4 @@ If the following tools would be helpful but are not available, they should be pl
 - `batch_read_memory_bank_files(file_names)` - Read multiple memory bank files in a single call
 - `get_memory_bank_file_list()` - Get list of all available memory bank files with metadata
 
-These tools would provide more efficient and structured access patterns, but the existing tools (`load_context()`, `load_progressive_context()`, `manage_file()`) are sufficient for current needs.
+These tools would provide more efficient and structured access patterns, but the existing tools (`load_context()`, `load_context(strategy="progressive")`, `manage_file()`) are sufficient for current needs.

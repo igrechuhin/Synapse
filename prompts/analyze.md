@@ -12,12 +12,12 @@ This analysis is the **Compound** step of the Plan → Work → Review → Compo
 
 - The `mcp_tool_wrapper` decorator automatically retries connection errors once.
 - If a tool fails after retry, skip that analysis step and continue with remaining steps.
-- For `analyze_context_effectiveness`: If it fails after retry, note "Context effectiveness analysis unavailable due to connection error" in the report and proceed with session optimization analysis.
+- For `analyze(target="context")`: If it fails after retry, note "Context effectiveness analysis unavailable due to connection error" in the report and proceed with session optimization analysis.
 - Complete as much of the analysis as possible; partial analysis is better than no analysis.
 
 **Tooling**: Use Cortex MCP tools for memory bank, rules, and paths. Resolve paths via `get_structure_info()` (reviews directory, plans directory, memory bank). Use `manage_file()` for memory bank reads/writes. **manage_file contract**: Every `manage_file` call MUST include `file_name` and `operation`; never call `manage_file({})` or omit required parameters—this causes validation errors. See memory-bank-workflow.mdc and AGENTS.md; do not hardcode `.cortex/` paths. **Memory bank write discipline:** roadmap.md and all other memory bank files may be updated **only** via Cortex MCP tools (`manage_file`, `remove_roadmap_entry`, `add_roadmap_entry`, etc.); any edit (including one-line fixes) must use `manage_file(operation='read')` then `manage_file(operation='write', content=...)`—do **not** use Write, StrReplace, or ApplyPatch on memory-bank paths.
 
-**Phases**: (1) **Context & rules load** — read memory bank and rules via `manage_file()` and `rules()`/structure path. (2) **Analysis & insights** — `analyze_context_effectiveness()`, session data, `get_context_usage_statistics()`, `query_memory_bank(query_type="stats")`, `suggest_refactoring()` as needed. (3) **Outputs & plans** — write report to reviews directory (path from `get_structure_info()` → `structure_info.paths.reviews`); if recommendations exist, run Create Plan prompt. Aligns with Phase D (Session Analysis) in `docs/design/commit-pipeline-phases.md` (runs after successful commit when invoked from commit pipeline).
+**Phases**: (1) **Context & rules load** — read memory bank and rules via `manage_file()` and `rules()`/structure path. (2) **Analysis & insights** — `analyze(target="context")`, session data, `analyze(target="context_stats")`, `query_memory_bank(query_type="stats")`, `suggest_refactoring()` as needed. (3) **Outputs & plans** — write report to reviews directory (path from `get_structure_info()` → `structure_info.paths.reviews`); if recommendations exist, run Create Plan prompt. Aligns with Phase D (Session Analysis) in `docs/design/commit-pipeline-phases.md` (runs after successful commit when invoked from commit pipeline).
 
 ## Purpose
 
@@ -44,7 +44,7 @@ At end of session, run a single "check all" analysis: (1) evaluate `load_context
 3. **Context-effectiveness recall** (for manual fallback if needed):
    - Recall `load_context` / `load_progressive_context` calls this session: task descriptions, files selected, relevance scores, token budget and utilization, agent roles.
    - Identify what context was actually used: files read, modified, mentioned; files needed but missing; files provided but unused.
-   - **AgentRole awareness**: Context-effectiveness analysis tracks statistics by agent role (feature/quality/testing/docs/planning/debugging/review). The `analyze_context_effectiveness()` tool provides role-aware insights and budget recommendations. Roles are automatically detected from task descriptions and logged for analysis.
+   - **AgentRole awareness**: Context-effectiveness analysis tracks statistics by agent role (feature/quality/testing/docs/planning/debugging/review). The `analyze(target="context")` tool provides role-aware insights and budget recommendations. Roles are automatically detected from task descriptions and logged for analysis.
 
 4. **Session scope**: Confirm current session context and that reviews path is available via `get_structure_info()` → `structure_info.paths.reviews`.
 
@@ -56,14 +56,14 @@ At end of session, run a single "check all" analysis: (1) evaluate `load_context
 
 **⚠️ Zero-budget/zero-files reminder**: Zero-budget (`token_budget=0`) or zero-files (`files_selected=0`) `load_context` calls are only acceptable for trivial/no-op tasks. For non-trivial tasks (refactor/fix/debug/implement), these indicate a configuration error and the tool returns a validation error when `token_budget=0` is passed. INCORRECT: `load_context(task_description="end-of-session analysis", token_budget=0)`. CORRECT: `load_context(task_description="end-of-session analysis", token_budget=5000)` or `load_context(task_description="end-of-session analysis")` (uses default).
 
-1. Call `analyze_context_effectiveness()` (default: current session only).
-2. If the tool returns `"status": "no_data"` (e.g. no `load_context` calls this session), that is expected for **analysis-only sessions** (e.g. when the only action in the session is running this Analyze prompt). Proceed to manual fallback if useful. **Optional**: To record one call for context-effectiveness metrics, the agent may call `session_start()` or `load_context(task_description="end-of-session analysis", token_budget=5000)` before running the analysis steps.
+1. Call `analyze(target="context")` (default: current session only).
+2. If the tool returns `"status": "no_data"` (e.g. no `load_context` calls this session), that is expected for **analysis-only sessions** (e.g. when the only action in the session is running this Analyze prompt). Proceed to manual fallback if useful. **Optional**: To record one call for context-effectiveness metrics, the agent may call `session(operation="start")` or `load_context(task_description="end-of-session analysis", token_budget=5000)` before running the analysis steps.
    - **Usage analysis**: Files used vs provided vs missing vs unused (from checklist).
    - **Scoring** (if applicable): precision, recall, F1, token efficiency; feedback categories (helpful, over_provisioned, under_provisioned, irrelevant, missed_dependencies).
    - **Role-aware statistics**: Context-effectiveness analysis breaks down statistics by agent role (feature/quality/testing/docs/planning/debugging/review). Review `role_recommendations` and `role_budget_recommendations` in the insights to understand role-specific patterns and tune budgets per role.
    - **Zero-budget/zero-files detection**: If `learned_patterns` includes warnings about `token_budget=0` or `files_selected=0` for non-trivial tasks (refactor/fix/debug/implement), this is a **configuration error**. Document in the report and recommend re-running `load_context` with appropriate budget (10k-15k for fix/debug, 20k-30k for implement/add).
-3. Optionally call `get_context_usage_statistics()` for aggregated stats.
-4. Optionally use `analyze_context_effectiveness(analyze_all_sessions=True)` for full history.
+3. Optionally call `analyze(target="context_stats")` for aggregated stats.
+4. Optionally use `analyze(target="context_all_sessions")` for full history.
 5. Summarize in **Context Effectiveness Analysis** (see Output Format below). If no data and no manual analysis, state "No session logs found" and suggest using `load_context()` at task start and re-running later.
 
 ### Step 2: Session Optimization (Phase 2 & 3: Analysis, then Outputs)
@@ -135,7 +135,7 @@ If `query_usage` returns `"status": "unavailable"`, note "Tools optimization: us
 
 **MANDATORY**: At end of session, compact memory bank files to reduce token usage and create session handoff:
 
-1. Call `compact_session(summary="<brief session summary>")` tool:
+1. Call `session(operation="compact", summary="<brief session summary>")` tool:
    - Compacts `activeContext.md` (keeps current date's Completed Work, summarizes older dates)
    - Compacts `progress.md` (applies progressive summarization tiers)
    - Writes session handoff JSON to `.cortex/.cache/session/last_handoff.json`
@@ -148,7 +148,7 @@ If `query_usage` returns `"status": "unavailable"`, note "Tools optimization: us
    - Token savings achieved
 3. **Error handling**: If compaction fails, note in report but continue with remaining steps. Compaction is non-blocking for analysis completion.
 
-**Note**: The session handoff JSON is automatically read by `session_start` at the beginning of the next session, providing continuity.
+**Note**: The session handoff JSON is automatically read by `session(operation="start")` at the beginning of the next session, providing continuity.
 
 ### Step 3.5: Markdown Lint Enforcement (Markdownlint CLI parity)
 
@@ -257,7 +257,7 @@ Saved to: {reviews_path}/session-optimization-YYYY-MM-DDTHH-MM.md
 - Step 1 (context effectiveness) executed; tool called and/or manual fallback applied when no_data.
 - Step 2 (session optimization) executed; report saved to reviews directory using path from `get_structure_info()`.
 - Step 2.5 (tools optimization): When usage data is available, tool census collected (total count, usage distribution, low-usage list); five problem classes checked (budget violation, dead tools, duplicates, incomplete consolidations, consolidation candidates); Tools optimization subsection added with per-tool call counts and specific actions; recommendation for Step 5 includes concrete actions per problem class. If tool count exceeds 40 target, flagged as CRITICAL.
-- Step 3 (session compaction) executed; `compact_session` called, handoff written, token savings reported.
+- Step 3 (session compaction) executed; `session(operation="compact")` called, handoff written, token savings reported.
 - Step 5: If findings contain improvement recommendations (including tools optimization), Plan prompt executed with analysis findings as input; improvements plan created and registered in roadmap; tools-optimization findings included so the plan can cover deprecate/merge/remove poor performers. If no recommendations, step skipped.
 - No hardcoded `.cortex/` paths; all paths from MCP or `get_structure_info()`.
 - Single report produced with both Context Effectiveness and Session Optimization sections.

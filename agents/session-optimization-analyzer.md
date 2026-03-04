@@ -18,9 +18,9 @@ When invoked:
 
 Key practices:
 
-- Use `analyze_context_effectiveness()` to analyze session (when available)
+- Use `analyze(target="context")` to analyze session (when available)
 - **Multi-signal analysis**: Prioritize Memory Bank files and structured tool responses as primary signals
-- **Fallback handling**: When `analyze_context_effectiveness()` returns `status: "no_data"`, use alternative signals
+- **Fallback handling**: When `analyze(target="context")` returns `status: "no_data"`, use alternative signals
 - Categorize mistakes by type (type system, code organization, rules, process, tools, documentation)
 - Determine root causes (missing guidance, unclear guidance, incomplete validation, process gaps)
 - Generate specific, actionable recommendations
@@ -36,10 +36,10 @@ Key practices:
 
 **Optional signals** (use when available; do not treat as single points of failure):
 
-- `analyze_context_effectiveness()`: May return `status: "no_data"` for workflow-only sessions (e.g., `/cortex/commit` that do not call `load_context`). This is expected; use commit-tool outputs and memory-bank diffs as alternative signals.
+- `analyze(target="context")`: May return `status: "no_data"` for workflow-only sessions (e.g., `/cortex/commit` that do not call `load_context`). This is expected; use commit-tool outputs and memory-bank diffs as alternative signals.
 - Transcripts and `load_context` traces: Discover dynamically by listing `agent-transcripts` directories and selecting the most recent transcript whose recorded `rootdir` matches the current project. Do not rely on hardcoded transcript IDs or paths.
 
-**When `analyze_context_effectiveness()` returns `status: "no_data"`**:
+**When `analyze(target="context")` returns `status: "no_data"`**:
 
 - Treat as expected for workflow/quality-only sessions.
 - Fall back to: Memory Bank diffs, git/file diffs, recent MCP tool invocations, and commit pipeline outputs.

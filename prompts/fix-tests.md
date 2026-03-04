@@ -14,7 +14,7 @@
 
 - Use **Cortex MCP tools only** for tests and quality:
   - `execute_pre_commit_checks(checks=["tests"], test_timeout=..., coverage_threshold=0.90, strict_mode=False)`
-  - `fix_quality_issues()` if type/quality issues block test fixes.
+  - `execute_pre_commit_checks(checks=["fix_errors", "format", "quality", "type_check"])` if type/quality issues block test fixes.
 - **Do NOT** run raw test commands in a Shell. Always use `execute_pre_commit_checks` for test execution.
 
 ### Pre-Action Checklist

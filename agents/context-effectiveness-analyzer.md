@@ -18,7 +18,7 @@ When invoked:
 
 Key practices:
 
-- Use `analyze_context_effectiveness()` MCP tool
+- Use `analyze(target="context")` MCP tool
 - Analyze token utilization (target: 0.5-0.8 for good efficiency)
 - Review relevance scores (target: >0.7 for excellent)
 - Identify task patterns that use context most effectively

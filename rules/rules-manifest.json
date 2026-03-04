@@ -1,0 +1,128 @@
+{
+  "version": "1.0",
+  "categories": {
+    "general": {
+      "description": "General purpose rules for all projects",
+      "rules": [
+        {
+          "file": "agent-workflow.mdc",
+          "priority": 90,
+          "keywords": ["agent", "workflow", "self-improvement", "self-audit", "quality", "execution"],
+          "description": "Agent workflow and self-improvement loop (mandatory)"
+        },
+        {
+          "file": "coding-standards.mdc",
+          "priority": 90,
+          "keywords": ["coding", "standards", "readability", "DRY", "functions", "files", "type-hints", "validation"],
+          "description": "Core coding standards: readable, DRY code with small units and explicit typing"
+        },
+        {
+          "file": "commit-pipeline.mdc",
+          "priority": 80,
+          "keywords": ["commit", "pipeline", "CI", "zero-errors", "testing", "quality", "pre-commit"],
+          "description": "Phase-based commit pipeline with zero-errors policy"
+        },
+        {
+          "file": "maintainability.mdc",
+          "priority": 80,
+          "keywords": ["maintainability", "architecture", "memory-bank", "file-responsibilities", "synchronization", "planning"],
+          "description": "Maintainability and architecture rules for memory bank and file organization"
+        },
+        {
+          "file": "memory-bank-workflow.mdc",
+          "priority": 80,
+          "keywords": ["memory-bank", "activeContext", "roadmap", "workflow", "link-validation", "compound-engineering"],
+          "description": "Memory bank workflow, file responsibilities, and link validation"
+        },
+        {
+          "file": "no-test-skipping.mdc",
+          "priority": 70,
+          "keywords": ["testing", "test-skipping", "pytest", "skip", "xfail", "environment"],
+          "description": "No blanket test skipping; every skip must be justified with linked ticket"
+        },
+        {
+          "file": "real-time-references.mdc",
+          "priority": 70,
+          "keywords": ["time", "timestamps", "real-time", "artifacts", "date"],
+          "description": "All time references must use real time; never invent timestamps"
+        },
+        {
+          "file": "testing-standards.mdc",
+          "priority": 85,
+          "keywords": ["testing", "AAA", "arrange-act-assert", "deterministic", "coverage", "pytest", "performance"],
+          "description": "Testing standards: AAA pattern, deterministic tests, 90%+ coverage"
+        },
+        {
+          "file": "tools-subpackage-organization.mdc",
+          "priority": 60,
+          "keywords": ["MCP", "tools", "subpackage", "organization", "domain-driven", "structure"],
+          "description": "MCP tools subpackage organization by functional domain"
+        }
+      ]
+    },
+    "python": {
+      "description": "Python-specific coding and development rules",
+      "rules": [
+        {
+          "file": "python-async-patterns.mdc",
+          "priority": 85,
+          "keywords": ["python", "async", "asyncio", "concurrency", "event-loop", "resource-management"],
+          "description": "Python async patterns: all I/O must be async, structured concurrency"
+        },
+        {
+          "file": "python-coding-standards.mdc",
+          "priority": 90,
+          "keywords": ["python", "coding-standards", "PEP8", "readability", "clarity", "style"],
+          "description": "Python coding standards: PEP 8, readability first, explicit over implicit"
+        },
+        {
+          "file": "python-mcp-development.mdc",
+          "priority": 80,
+          "keywords": ["python", "MCP", "development", "server", "architecture", "protocol"],
+          "description": "Python MCP development standards and server architecture"
+        },
+        {
+          "file": "python-package-structure.mdc",
+          "priority": 70,
+          "keywords": ["python", "packaging", "structure", "layout", "pyproject", "dependencies"],
+          "description": "Python package structure: project layout and dependency management"
+        },
+        {
+          "file": "python-performance.mdc",
+          "priority": 75,
+          "keywords": ["python", "performance", "algorithm", "complexity", "Big-O", "optimization"],
+          "description": "Python performance: algorithm complexity requirements and Big O analysis"
+        },
+        {
+          "file": "python-pydantic-standards.mdc",
+          "priority": 90,
+          "keywords": ["python", "pydantic", "BaseModel", "structured-data", "validation", "typing"],
+          "description": "Pydantic 2 standards: all structured data must use BaseModel"
+        },
+        {
+          "file": "python-security.mdc",
+          "priority": 85,
+          "keywords": ["python", "security", "input-validation", "sanitization", "pydantic"],
+          "description": "Python security: comprehensive input validation and sanitization"
+        },
+        {
+          "file": "python-testing-standards.mdc",
+          "priority": 85,
+          "keywords": ["python", "testing", "pytest", "test-organization", "naming", "coverage"],
+          "description": "Python testing standards: pytest, naming conventions, test organization"
+        }
+      ]
+    },
+    "markdown": {
+      "description": "Markdown formatting and documentation rules",
+      "rules": [
+        {
+          "file": "markdown-formatting.mdc",
+          "priority": 60,
+          "keywords": ["markdown", "formatting", "CI", "lint", "documentation"],
+          "description": "Markdown formatting rules enforced by CI"
+        }
+      ]
+    }
+  }
+}
