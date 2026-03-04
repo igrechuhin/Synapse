@@ -84,6 +84,31 @@ When executing steps, delegate to the appropriate agent for specialized work, th
 
 **VIOLATION**: Executing this command without following this checklist is a CRITICAL violation that blocks proper implementation.
 
+## MANDATORY VERIFICATION GATES (Phase 78)
+
+These gates prevent declaring work done when it has not been properly verified. Do not skip them.
+
+**Post-edit verification (per file)**:
+
+- After editing a file, the agent MUST re-read the file to confirm the edit was applied.
+- The re-read MUST be a separate tool call (e.g. `Read` or `manage_file(operation="read")` on the file path); do not rely on cached edit result.
+
+**Post-step verification (per plan step that eliminates or replaces something)**:
+
+- After completing a plan step that eliminates a pattern (e.g. removing `exec()`, replacing string matching), the agent MUST verify by searching the codebase for that pattern.
+- The search MUST cover the **full repository** (not a subdirectory). Use the project root as search scope.
+
+**Plan-scope verification (before marking a plan complete)**:
+
+- Before declaring a plan complete, the agent MUST re-read the plan's Success Criteria section.
+- For each criterion, the agent MUST provide evidence (file path + line, search result, or test output).
+- If any criterion cannot be verified with evidence, the plan MUST NOT be marked complete.
+
+**Duplicate-definition search (before modifying a function)**:
+
+- Before modifying a function (e.g. fixing a bug or changing behavior), the agent MUST search the full codebase for all definitions of that function name.
+- If multiple definitions exist, apply the fix (or document the need) to all of them; do not fix one copy and leave others unpatched.
+
 ## EXECUTION STEPS
 
 ### Step 0: Verify MCP and Get Session Orientation (MANDATORY)
@@ -250,7 +275,9 @@ Before defining new data structures (classes, types, models, interfaces):
 ### Step 4: Implement the Step
 
 1. Execute all implementation tasks:
+   - **Before modifying a function**: Search the full codebase for all definitions of that function name (see "Duplicate-definition search" in MANDATORY VERIFICATION GATES). If multiple definitions exist, address all of them.
    - Create/modify/delete files as needed
+   - **After each file edit**: Re-read the edited file in a separate tool call to confirm the edit was applied (see "Post-edit verification" in MANDATORY VERIFICATION GATES).
    - Write or update code according to coding standards
    - Ensure type annotations are complete per language-specific standards
    - **For tool parameters and internal dispatch data**: Use Pydantic `BaseModel` (e.g. `QueryXParams`), not `dict[str, Any]`. Apply when introducing or refactoring tool param objects or internal structured data structures. Check AGENTS.md/CLAUDE.md or language-specific rules for project standards.
@@ -453,11 +480,13 @@ Before defining new data structures (classes, types, models, interfaces):
 ### Step 6: Verify Completion
 
 1. Verify the roadmap step is fully implemented:
+   - **When the step implemented a plan file**: Before marking the plan complete, re-read the plan's **Success Criteria** section. For each criterion, provide evidence (file path + line, search result, or test output). If any criterion cannot be verified with evidence, do NOT mark the plan complete (see "Plan-scope verification" in MANDATORY VERIFICATION GATES).
    - All requirements are met
    - All tests pass
    - Code follows all standards
    - **Quality gate passed**: Step 4.7 was run and `execute_pre_commit_checks(checks=["quality"])` returned success with zero file-size, function-length, lint, and type_check violations (no rot code left for commit pipeline)
    - Memory bank is updated
+   - **If a plan step eliminated a pattern**: Verification was done via full-repository search (not a subdirectory only); evidence is available (see "Post-step verification" in MANDATORY VERIFICATION GATES).
    - **If a plan file exists and work is incomplete**: Plan file is updated with current status
 2. If the step is not fully complete:
    - **If work cannot be completed in this session**: Ensure the plan file (if referenced) is updated with current status before ending

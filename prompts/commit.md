@@ -622,9 +622,20 @@ git -C <Synapse-directory-path> status --porcelain
   10. **Explicit verification provided**: You have documented the execution of Step 12 with actual command outputs
   11. **All validation gates passed**: Steps 0-12 have completed successfully, including Step 12.1, Step 12.6, and Step 12.7
 - **⚠️ BLOCK COMMIT**: If user did not explicitly request commit OR if Step 11 was skipped OR if Step 12 execution cannot be verified OR if any Step 12 check failed (including Step 12.1, Step 12.6, or Step 12.7) OR if Step 12.1 was skipped due to connection closure OR if Step 12.6 was skipped due to connection closure OR if Step 12.7 failed after retry, DO NOT proceed to Step 13
-- **Workflow**: Stage all changes, generate comprehensive commit message, create commit
-- **Includes**: All changes from Steps 0-11, including submodule reference if Step 11 was executed
-- **Note**: Use user-provided commit message if provided, otherwise generate from changes
+- **Workflow**: Stage related changes selectively, generate a content-descriptive commit message, create commit, then verify with `git show --stat`.
+- **Staging (MANDATORY – selective, no `git add -A`)**:
+  - Use `git add <path>` for each file that is part of the current work. Do NOT use `git add -A` or "stage all".
+  - From `git status`, list the changed files and stage only those that belong to this commit (e.g. code, tests, memory bank, plan files for the completed work).
+  - Before staging, review `git status` output. Do NOT stage files matching `.env*`, `credentials*`, `*.key`, `*.pem`, or other sensitive patterns. If in doubt, stage only files you explicitly modified for the current task.
+  - Aligns with AGENTS.md: "stage only related changes."
+- **Commit message (MANDATORY – content-descriptive, not process-descriptive)**:
+  - The message MUST describe **what changed** (files added/modified/removed, features or fixes), not **what the agent did** (e.g. "ran pipeline", "executed checks").
+  - Anti-pattern: "Run full Cortex commit pipeline and update memory bank" (describes process).
+  - Good pattern: "Add Phase 70–78 plans, update activeContext and reviews" (describes changes). Use conventional commit style (`feat:`, `fix:`, `docs:`, `chore:`) when applicable.
+  - The message MUST reference the actual content of the diff, not the commit pipeline steps.
+- **Includes**: All changes from Steps 0-11, including submodule reference if Step 11 was executed.
+- **Note**: Use user-provided commit message if provided; otherwise generate from the changes (content-descriptive).
+- **Post-commit verification**: After creating the commit, run `git show --stat` and confirm the commit includes all expected files.
 
 ### Step 14: Push branch
 
@@ -641,7 +652,9 @@ git -C <Synapse-directory-path> status --porcelain
 ### Step 15: Execute end-of-session Analyze (MANDATORY, but non-blocking on connection errors)
 
 - **Dependency**: Must run AFTER Step 14 (push completed).
-- **MANDATORY**: At the end of the commit workflow, you MUST execute the **Analyze (End of Session)** prompt (`analyze.md` from the Synapse prompts directory). Read and execute that prompt in full: it runs context effectiveness analysis and session optimization, saves a report to the reviews directory, and optionally creates an improvements plan. Do not skip this step.
+- **MANDATORY**: At the end of the commit workflow, you MUST run the Analyze (End of Session) flow. Either read and execute the **Analyze prompt** (`analyze.md` from the Synapse prompts directory) in full, or call the analyze MCP tool with the correct targets as below.
+- **Valid analyze targets**: `usage_patterns`, `structure`, `insights`, `context`, `context_stats`, `context_all_sessions`, `health`. Do NOT use `session` as a target (invalid).
+- **Recommended tool sequence**: Call `analyze(target="context")` for context effectiveness, then `analyze(target="usage_patterns")` for session patterns. The prompt runs context effectiveness, session optimization, writes a report to the reviews directory, and optionally creates an improvements plan.
 - **Path**: Resolve the Analyze prompt path via project structure or `get_structure_info()` (e.g. Synapse prompts directory); the prompt file is `analyze.md`.
 - **Connection error handling**: If Step 15 fails with MCP error -32000 ("Connection closed") or similar connection errors:
   1. **Retry once**: The `mcp_tool_wrapper` decorator automatically retries connection errors once.

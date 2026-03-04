@@ -187,6 +187,11 @@ User request: "Add validation for memory bank file structure"
    - **Context**: Why this plan is needed, user needs, business requirements
    - **Approach**: High-level implementation strategy
    - **Implementation Steps**: Detailed breakdown of tasks. Steps define an **implementation sequence** (like the roadmap): the implement command will execute them in order (Step 1, then Step 2, then Step 3, …). Number steps clearly and list them in the order they should be implemented; do not rely on agents to reorder or skip steps.
+   - **Verification Checklist** (MANDATORY when steps eliminate or replace patterns): For each implementation step that removes or replaces something (e.g. remove `exec()`, replace string matching), define:
+     - **What to search for**: Pattern that should be eliminated (e.g. `exec(`)
+     - **Search scope**: Full repo, specific directory, or specific files
+     - **Expected result**: Zero matches, specific count, or documented exception
+     - **Files to re-read**: Which files must be re-read after editing to confirm the change
    - **Dependencies**: Dependencies on other plans or external work
    - **Success Criteria**: Measurable outcomes
    - **Technical Design**: Architecture, data model, UI/UX changes (if applicable)
