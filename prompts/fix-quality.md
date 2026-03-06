@@ -38,6 +38,8 @@ Before making changes, you MUST:
 
 ### Execution Steps
 
+Once the checklist above is satisfied, **move directly into these steps without pausing for user confirmation or waiting for an “ok, proceed” message.**
+
 1. **Run automatic quality fixes**
    - Call `execute_pre_commit_checks(checks=["fix_quality"], include_untracked_markdown=True)` to apply automated fixes.
    - Inspect the response:

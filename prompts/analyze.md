@@ -2,11 +2,11 @@
 
 **AI EXECUTION COMMAND**: Run end-of-session analysis. Check all: (1) context effectiveness, (2) session optimization. Execute automatically; do not ask for permission.
 
-This analysis is the **Compound** step of the Plan → Work → Review → Compound loop; use it to make the next session easier.
+This analysis is the **Compound** step of the Plan -> Work -> Review -> Compound loop; use it to make the next session easier.
 
 **CRITICAL**: This is the single entry point for end-of-session analysis. Run all steps in order. If findings contain improvement recommendations, execute the Plan prompt with the analysis findings as input to create an improvements plan.
 
-**END-TO-END EXECUTION**: Run this analysis from start to finish without stopping to announce the plan or ask for permission. Begin with the Pre-Analysis Checklist (memory bank, rules, structure path), then run analysis steps and write the report. Only stop if a tool fails or user input is explicitly required.
+**END-TO-END EXECUTION**: Run this analysis from start to finish without stopping to announce the plan or ask for permission. Begin with the Pre-Analysis Checklist (memory bank, rules, structure path), then delegate to agents and assemble the report. Only stop if a tool fails or user input is explicitly required.
 
 **CONNECTION ERROR HANDLING**: If any MCP tool call fails with "Connection closed" (MCP error -32000) or similar connection errors:
 
@@ -15,174 +15,104 @@ This analysis is the **Compound** step of the Plan → Work → Review → Compo
 - For `analyze(target="context")`: If it fails after retry, note "Context effectiveness analysis unavailable due to connection error" in the report and proceed with session optimization analysis.
 - Complete as much of the analysis as possible; partial analysis is better than no analysis.
 
-**Tooling**: Use Cortex MCP tools for memory bank, rules, and paths. Resolve paths via `get_structure_info()` (reviews directory, plans directory, memory bank). Use `manage_file()` for memory bank reads/writes. **manage_file contract**: Every `manage_file` call MUST include `file_name` and `operation`; never call `manage_file({})` or omit required parameters—this causes validation errors. See memory-bank-workflow.mdc and AGENTS.md; do not hardcode `.cortex/` paths. **Memory bank write discipline:** roadmap.md and all other memory bank files may be updated **only** via Cortex MCP tools (`manage_file`, `remove_roadmap_entry`, `add_roadmap_entry`, etc.); any edit (including one-line fixes) must use `manage_file(operation='read')` then `manage_file(operation='write', content=...)`—do **not** use Write, StrReplace, or ApplyPatch on memory-bank paths.
+**Tooling**: Use Cortex MCP tools for memory bank, rules, and paths. Resolve paths via `get_structure_info()` (reviews directory, plans directory, memory bank). Use `manage_file()` for memory bank reads/writes. **manage_file contract**: Every `manage_file` call MUST include `file_name` and `operation`; never call `manage_file({})` or omit required parameters -- this causes validation errors. See memory-bank-workflow.mdc and AGENTS.md; do not hardcode `.cortex/` paths. **Memory bank write discipline:** roadmap.md and all other memory bank files may be updated **only** via Cortex MCP tools (`manage_file`, `remove_roadmap_entry`, `add_roadmap_entry`, etc.); do **not** use Write, StrReplace, or ApplyPatch on memory-bank paths.
 
-**Phases**: (1) **Context & rules load** — read memory bank and rules via `manage_file()` and `rules()`/structure path. (2) **Analysis & insights** — `analyze(target="context")`, session data, `analyze(target="context_stats")`, `query_memory_bank(query_type="stats")`, `suggest_refactoring()` as needed. (3) **Outputs & plans** — write report to reviews directory (path from `get_structure_info()` → `structure_info.paths.reviews`); if recommendations exist, run Create Plan prompt. Aligns with Phase D (Session Analysis) in `docs/design/commit-pipeline-phases.md` (runs after successful commit when invoked from commit pipeline).
+**Agent Delegation**: This prompt orchestrates end-of-session analysis and delegates specialized tasks to dedicated agents in the Synapse agents directory:
+
+- **common-checklist** -- Pre-analysis: Loads structure, memory bank, rules, and detects primary language
+- **context-effectiveness-analyzer** -- Step 1: Context effectiveness evaluation
+- **session-optimization-analyzer** -- Step 2: Session optimization and tool anomalies
+- **tools-optimizer** -- Step 3: Tool set optimization audit
+- **session-compactor** -- Step 4: Memory bank compaction + markdown lint
+- **improvements-planner** -- Step 6: Conditional improvements plan creation
+
+**Inter-agent communication**: All agents return structured results per `shared-handoff-schema.md`. The orchestrator validates required fields before assembling the report.
+
+**Subagent execution: STRICTLY SEQUENTIAL.** Run each agent one at a time. Do not proceed to the next until the previous reports completion.
 
 ## Purpose
 
-At end of session, run a single "check all" analysis: (1) evaluate `load_context` effectiveness and update statistics; (2) identify mistake patterns, root causes, and Synapse optimization recommendations, then save a report. This replaces the former separate "Analyze Context Effectiveness" and "Analyze Session Optimization" prompts. Running this analysis is the **Compound** step of the loop: it captures mistake patterns, root causes, and recommendations so the next session can avoid repeating them; the session optimization report and memory bank updates are the primary compound artifacts.
+At end of session, run a single "check all" analysis: (1) evaluate `load_context` effectiveness and update statistics; (2) identify mistake patterns, root causes, and Synapse optimization recommendations, then save a report. Running this analysis is the **Compound** step of the loop: it captures mistake patterns, root causes, and recommendations so the next session can avoid repeating them; the session optimization report and memory bank updates are the primary compound artifacts.
 
-## Pre-Analysis Checklist (Phase 1: Context & Rules Load)
+## Pre-Analysis Checklist — Delegate to `common-checklist`
 
-**BEFORE running any analysis step:**
+**Delegate to `common-checklist` agent** (Synapse agents directory).
 
-1. **Read relevant memory bank files** (Cortex MCP tool `manage_file`). **Before each manage_file call**: Verify `file_name` and `operation` are set; never call `manage_file({})` or omit required parameters. Read both activeContext and roadmap so end-of-session analysis reflects completed work (activeContext) and current/upcoming work (roadmap):
-   - `activeContext.md` – completed work only (for current status and upcoming work see roadmap.md)
-   - `roadmap.md` – current status and upcoming work
-   - `progress.md` – recent achievements
-   - `systemPatterns.md` – architectural patterns
-   - `techContext.md` – technical context
+The common-checklist agent loads all shared prerequisites:
 
-2. **Read relevant rules** (Cortex MCP tool `rules(operation="get_relevant", task_description="Coding standards, session analysis")` or rules directory path from `get_structure_info()` → `structure_info.paths.rules`).
-   - **FIRST**: Check rules indexing status by inspecting the `rules_manager_status.indexed_files` field in the `rules()` response.
-   - **When rules indexing is enabled and `indexed_files > 0`**: Treat rules as a **first-class source** of coding standards. Use `rules(operation="get_relevant", ...)` as the primary method for loading rules. The indexed rules will be automatically selected based on relevance to the task description.
-   - **When `rules()` returns `status: "disabled"` or `indexed_files=0`**: Fall back to reading key rules from the Synapse rules directory (path from `get_structure_info()` → `structure_info.paths.rules`) or from AGENTS.md/CLAUDE.md for coding standards and memory bank access.
-   - **Troubleshooting**: If rules are enabled (`rules_enabled: true` in optimization.json) but `indexed_files=0`, run `rules(operation="index", force=True)` to index rules, then retry `get_relevant`. If indexing still returns 0 files, check that the `rules_folder` path in optimization.json points to a directory containing `.mdc` rule files.
-   - **Rule discovery fallback**: When `rules()` returns empty results or the task involves tool implementation/refactoring, also check `get_synapse_rules(task_description="[language] models, structured data")` or read AGENTS.md/CLAUDE.md for language-specific structured-data standards.
+- Project structure paths (plans, memory bank, reviews, rules)
+- All core memory bank files (activeContext, roadmap, progress, systemPatterns, techContext)
+- Relevant rules for `task_description="Coding standards, session analysis"`
+- Primary language detection from techContext.md
 
-3. **Context-effectiveness recall** (for manual fallback if needed):
-   - Recall `load_context` / `load_progressive_context` calls this session: task descriptions, files selected, relevance scores, token budget and utilization, agent roles.
-   - Identify what context was actually used: files read, modified, mentioned; files needed but missing; files provided but unused.
-   - **AgentRole awareness**: Context-effectiveness analysis tracks statistics by agent role (feature/quality/testing/docs/planning/debugging/review). The `analyze(target="context")` tool provides role-aware insights and budget recommendations. Roles are automatically detected from task descriptions and logged for analysis.
+**CRITICAL**: Verify the agent returns `status: "complete"` before proceeding. If `status: "error"`, STOP.
 
-4. **Session scope**: Confirm current session context and that reviews path is available via `get_structure_info()` → `structure_info.paths.reviews`.
+**Additional pre-analysis steps** (orchestrator, after common-checklist completes):
 
-5. **Optional sequential thinking**: For complex sessions with many intertwined issues or recommendations, you may call the `think` MCP tool in full mode (pass thought_number, total_thoughts, next_thought_needed) to break down root causes and optimization steps into numbered thoughts before drafting the final report.
+1. **Context-effectiveness recall** (for manual fallback if needed):
+   - Recall `load_context` calls this session: task descriptions, files selected, relevance scores, token budget and utilization, agent roles.
+   - Identify what context was actually used vs provided vs missing vs unused.
+
+2. **Session scope**: Confirm reviews path is available from common-checklist result (`structure_info.paths.reviews`).
+
+3. **Optional sequential thinking**: For complex sessions, use the `think` MCP tool in full mode to break down root causes before delegating.
+
+After this checklist is satisfied, **continue directly to Step 1 without pausing for user confirmation.**
 
 ## Execution Order
 
-### Step 1: Context Effectiveness (Phase 2: Analysis & Insights)
+### Step 1: Context Effectiveness -- Delegate to `context-effectiveness-analyzer`
 
-**⚠️ Zero-budget/zero-files reminder**: Zero-budget (`token_budget=0`) or zero-files (`files_selected=0`) `load_context` calls are only acceptable for trivial/no-op tasks. For non-trivial tasks (refactor/fix/debug/implement), these indicate a configuration error and the tool returns a validation error when `token_budget=0` is passed. INCORRECT: `load_context(task_description="end-of-session analysis", token_budget=0)`. CORRECT: `load_context(task_description="end-of-session analysis", token_budget=5000)` or `load_context(task_description="end-of-session analysis")` (uses default).
+- **Agent**: Use the `context-effectiveness-analyzer` agent for evaluating load_context effectiveness, token utilization, and role-aware statistics
+- **CRITICAL**: Must complete before Step 2
+- **Input**: Memory bank files, rules, reviews path (all loaded in Pre-Analysis Checklist)
+- **Output needed**: sessions_analyzed, calls_analyzed, key_metrics, role_recommendations, zero_budget_warnings, status
+- **If no_data**: Expected for analysis-only sessions; agent handles gracefully
 
-1. Call `analyze(target="context")` (default: current session only).
-2. If the tool returns `"status": "no_data"` (e.g. no `load_context` calls this session), that is expected for **analysis-only sessions** (e.g. when the only action in the session is running this Analyze prompt). Proceed to manual fallback if useful. **Optional**: To record one call for context-effectiveness metrics, the agent may call `session(operation="start")` or `load_context(task_description="end-of-session analysis", token_budget=5000)` before running the analysis steps.
-   - **Usage analysis**: Files used vs provided vs missing vs unused (from checklist).
-   - **Scoring** (if applicable): precision, recall, F1, token efficiency; feedback categories (helpful, over_provisioned, under_provisioned, irrelevant, missed_dependencies).
-   - **Role-aware statistics**: Context-effectiveness analysis breaks down statistics by agent role (feature/quality/testing/docs/planning/debugging/review). Review `role_recommendations` and `role_budget_recommendations` in the insights to understand role-specific patterns and tune budgets per role.
-   - **Zero-budget/zero-files detection**: If `learned_patterns` includes warnings about `token_budget=0` or `files_selected=0` for non-trivial tasks (refactor/fix/debug/implement), this is a **configuration error**. Document in the report and recommend re-running `load_context` with appropriate budget (10k-15k for fix/debug, 20k-30k for implement/add).
-3. Optionally call `analyze(target="context_stats")` for aggregated stats.
-4. Optionally use `analyze(target="context_all_sessions")` for full history.
-5. Summarize in **Context Effectiveness Analysis** (see Output Format below). If no data and no manual analysis, state "No session logs found" and suggest using `load_context()` at task start and re-running later.
+### Step 2: Session Optimization -- Delegate to `session-optimization-analyzer`
 
-### Step 2: Session Optimization (Phase 2 & 3: Analysis, then Outputs)
+- **Agent**: Use the `session-optimization-analyzer` agent for identifying mistake patterns, root causes, and generating Synapse optimization recommendations
+- **CRITICAL**: Must complete before Step 3
+- **Input**: Memory bank files, rules, session data (tool outputs, diffs, commit results)
+- **Output needed**: mistake_patterns, root_causes, recommendations, tool_anomalies
 
-1. Use session data (tool outputs, memory-bank diffs, commit/pre-commit results, code changes) to identify:
-   - **Mistake patterns**: type/system violations, code organization, rule compliance, process violations, tool usage, documentation.
-   - **Root causes**: missing/unclear guidance, incomplete validation, process gaps, tool limitations.
-   - **Memory bank write discipline**: When reporting mistake patterns related to memory bank edits (e.g., roadmap.md edited via Write/StrReplace instead of `manage_file()`, memory-bank files accessed via hardcoded paths), reference memory-bank-workflow.mdc and the dedicated MCP tools (`manage_file`, `remove_roadmap_entry`, `append_progress_entry`, etc.) to reinforce the correct pattern. All memory-bank file edits—including one-line fixes—must use `manage_file(operation='read')` then `manage_file(operation='write', content=...)`; do not use Write, StrReplace, or ApplyPatch on memory-bank paths.
-2. Generate **prioritized recommendations** for Synapse prompts/rules (prompt improvements, rule improvements, process improvements) with target file/section and expected impact.
-3. **Save the report** (Phase 3: Outputs):
-   - Call `get_structure_info()` and use `structure_info.paths.reviews` (project root is resolved internally; do NOT pass it as a parameter).
-   - **Filename**: `session-optimization-YYYY-MM-DDTHH-MM.md` (e.g. `session-optimization-2026-02-02T17-58.md`).
-   - **Timestamp**: Use real time only (e.g. shell `date +%Y-%m-%dT%H-%M` or file mtime). Do not invent values.
-   - Write the **full** report to `{reviews_path}/session-optimization-YYYY-MM-DDTHH-MM.md` (no truncation; same no-truncation rule as memory-bank writes per memory-bank-workflow.mdc).
-4. **MD024 (Duplicate Heading)**: If appending a second pass (e.g. context-effectiveness addendum) to an existing review file, suffix headings (e.g. "(Addendum)", "(Context Effectiveness Pass)") to avoid duplicate headings.
-5. **Tool use anomalies (optional)**: Call `query_usage(query_type="anomalies", hours=24)`. If the tool returns `"status": "success"`, add a **Tool use anomalies** subsection to the report with: tools used in the window (tool name, calls, retries, errors), high-retry tools, and high-error tools. If status is `"unavailable"` (e.g. usage tracker disabled), omit the subsection or note "Tool use anomalies: usage tracker unavailable."
+### Step 3: Tools Optimization -- Delegate to `tools-optimizer`
 
-### Step 2.5: Tools optimization (MANDATORY when usage data is available)
+- **Agent**: Use the `tools-optimizer` agent for auditing tool set budget compliance and optimization opportunities
+- **CRITICAL**: If tool count exceeds 40 target, flag as CRITICAL in report
+- **Input**: Memory bank context, reviews path
+- **Output needed**: tool_budget, dead_tools, duplicates, incomplete_consolidations, consolidation_candidates, total_reduction_potential, actionable_recommendation, report_subsection, status
+- **Skip if**: Agent reports `status="unavailable"` (query_usage data not available)
 
-**Purpose**: Audit the full tool set for budget compliance and optimization opportunities. This goes beyond low-usage detection to catch duplicates, incomplete consolidations, and budget violations.
+### Report Assembly (orchestrator)
 
-**Hard limit**: Editors like Cursor impose a limit of ~80 tools across ALL MCPs. Cortex must stay well under this to leave room for other servers. **Target: ≤40 published `@mcp.tool()` registrations.** If the current count exceeds 40, this step MUST produce a consolidation recommendation.
+After Steps 1-3 complete, assemble the combined report:
 
-#### 2.5.1: Collect tool census data
+1. Call `get_structure_info()` and use `structure_info.paths.reviews`.
+2. Generate timestamp via shell `date +%Y-%m-%dT%H-%M`. **Use real time only.** Do not invent values.
+3. Assemble report using Output Format below with outputs from all agents.
+4. **Filename**: `session-optimization-YYYY-MM-DDTHH-MM.md`.
+5. Write the **full** report to `{reviews_path}/session-optimization-YYYY-MM-DDTHH-MM.md` (no truncation).
+6. **MD024 (Duplicate Heading)**: If appending to an existing review file, suffix headings to avoid duplicates.
 
-Gather three data points (run in parallel where possible):
+### Step 4: Maintenance -- Delegate to `session-compactor`
 
-1. **Total registered tools**: Count `@mcp.tool()` registrations. Use `query_usage(query_type="stats", response_format="detailed")` and count the tools in the response, OR read `tool_categories.py` via `get_structure_info()` to get the canonical count per category (always_loaded, deferred_medium, deferred_low).
-2. **Usage distribution**: Call `query_usage(query_type="report", include_recommendations=True)` to get the full usage report with per-tool call counts. This gives the complete distribution, not just the tail.
-3. **Low-usage tools**: Call `query_usage(query_type="recommendations", days=90, min_usage_threshold=5)` for the near-dead list.
+- **Agent**: Use the `session-compactor` agent for memory bank compaction and markdown lint enforcement
+- **Input**: Session summary (from Step 2 findings), report file path (from Report Assembly)
+- **Output needed**: compaction_status, session_id, token_savings, snapshot_paths, lint_status
+- **Note**: Runs AFTER report is written so the report file is included in lint
 
-#### 2.5.2: Analyze for five problem classes
+### Step 5 (Optional): Health / Session Scripts
 
-Using the census data, check for each of these issues:
+If project scope includes health check or session-scripts analysis, call relevant tools and include a short subsection in the report. Otherwise omit.
 
-1. **Budget violation**: Is `total_registered_tools > 40`? If yes, flag as CRITICAL and calculate how many tools must be removed.
-2. **Dead tools** (< 5 calls in 90 days): List from the recommendations response. For each, decide: remove, internalize (keep function but remove `@mcp.tool()`), or merge into a consolidated dispatcher.
-3. **Duplicate tools**: Scan for tools that serve the same purpose under different names (e.g., `write_file` vs `manage_file(operation="write")`, `update_config` vs `configure`, `load_progressive_context` vs `load_context(strategy="progressive")`). Cross-reference the usage report: if two tools with overlapping functionality both have usage, the less-used one is the duplicate.
-4. **Incomplete consolidation**: Check if Phase 50 consolidated tools (`query_memory_bank`, `query_usage`) have corresponding old tools still registered. If old `get_*` tools (e.g., `get_memory_bank_stats`, `get_version_history`, `get_link_graph`, `get_tool_usage_stats`, `get_unused_tools`) still appear in the usage report alongside their consolidated replacements, flag as "consolidation incomplete — old endpoints not removed."
-5. **Consolidation candidates**: Identify groups of 3+ tools that share a domain and could be merged into a single dispatcher with an `operation` parameter (e.g., script capture tools, analytics tools, pre-commit pipeline tools). Use the Phase 50 pattern (`query_memory_bank`, `query_usage`) as the model.
+### Step 6: Improvements Plan -- Delegate to `improvements-planner`
 
-#### 2.5.3: Write the Tools Optimization subsection
-
-Add a **Tools optimization** subsection to the report with:
-
-- **Tool budget**: `{registered_count} / 40 target` (and `/ 80 hard limit`). Flag CRITICAL if over 40.
-- **Dead tools** ({count}): list with call counts.
-- **Duplicates** ({count}): list with both names and call counts.
-- **Incomplete consolidations** ({count}): list old tools that should have been removed.
-- **Consolidation candidates** ({count}): groups with estimated savings.
-- **Total reduction potential**: sum of tools removable across all categories.
-- **References**: link to `docs/architecture/tool-optimization-mapping.md` and `docs/architecture/tool-optimization-baseline.md` if they exist.
-
-#### 2.5.4: Generate actionable recommendation
-
-If ANY of the five problem classes has findings:
-
-- Add an **optimization recommendation** for Step 5 (Improvements Plan) with specific actions per problem class:
-  - Budget violation → "Reduce tool count from {N} to ≤40"
-  - Dead tools → "Remove or internalize: {list}"
-  - Duplicates → "Remove duplicates: {list of duplicate→canonical pairs}"
-  - Incomplete consolidation → "Complete Phase 50: remove old endpoints: {list}"
-  - Consolidation candidates → "Consolidate {group} into single dispatcher (saves ~{N} slots)"
-- Include per-tool call counts and recommended action (remove/internalize/merge) so the Plan prompt can produce a specific, actionable plan — not a generic stub.
-
-If `query_usage` returns `"status": "unavailable"`, note "Tools optimization: usage data unavailable" and skip.
-
-### Step 3: Session Compaction (Phase 56)
-
-**MANDATORY**: At end of session, compact memory bank files to reduce token usage and create session handoff:
-
-1. Call `session(operation="compact", summary="<brief session summary>")` tool:
-   - Compacts `activeContext.md` (keeps current date's Completed Work, summarizes older dates)
-   - Compacts `progress.md` (applies progressive summarization tiers)
-   - Writes session handoff JSON to `.cortex/.cache/session/last_handoff.json`
-   - Creates pre-compaction snapshots for rollback safety
-   - Reports token savings
-2. **Include handoff summary** in the report:
-   - Session ID
-   - Completed tasks (if extracted from activeContext)
-   - Next actions (from summary parameter)
-   - Token savings achieved
-3. **Error handling**: If compaction fails, note in report but continue with remaining steps. Compaction is non-blocking for analysis completion.
-
-**Note**: The session handoff JSON is automatically read by `session(operation="start")` at the beginning of the next session, providing continuity.
-
-### Step 3.5: Markdown Lint Enforcement (Markdownlint CLI parity)
-
-After writing the report and completing compaction, run markdown lint to ensure modified/new markdown files (including the new review) conform to the same rules as the CI quality gate:
-
-1. Call `fix_markdown_lint(include_untracked_markdown=True, dry_run=False)`.
-2. If the tool reports any remaining errors or a non-success status:
-   - Treat this as a **mistake pattern** in the Session Optimization Analysis
-   - Describe the affected files and rules in the report
-   - Re-run `fix_markdown_lint` after applying fixes until the summary shows `Summary: 0 error(s)`.
-3. **Do not skip this step**: markdownlint errors must be fixed before the session is considered complete so the CI quality gate will pass on push.
-4. **Full-repo check** (optional): For comprehensive CI parity, run `node_modules/.bin/markdownlint-cli2 --fix` from the shell.
-
-### Step 4 (Optional): Health / Session Scripts
-
-If project scope includes health check or session-scripts analysis, add a step that calls the relevant tools and include a short subsection in the unified report. Otherwise omit.
-
-### Step 5: Improvements Plan (Phase 3: Outputs & plans; when recommendations exist)
-
-**If** the analysis findings contain **improvement recommendations** (e.g. non-empty **Optimization Recommendations**, context-effectiveness recommendations, **Tools optimization** findings (budget violations, dead tools, duplicates, incomplete consolidations, consolidation candidates), or Synapse/prompt/rule improvement items):
-
-1. **Execute the Plan prompt** (Create Plan) to create an improvements plan.
-2. **Use the analysis findings as input** for the Plan prompt:
-   - **Plan description**: Request an improvements plan based on the end-of-session analysis (e.g. "Create an improvements plan from the following end-of-session analysis").
-   - **Additional context**: Provide the full analysis report as input—Summary, Context Effectiveness Analysis, Session Optimization Analysis (mistake patterns, root causes, optimization recommendations, **Tools optimization** subsection when present), and report location. When tools optimization was included, the plan MUST contain:
-     - The exact tool budget numbers (current count vs 40 target vs 80 hard limit)
-     - Per-tool call counts and recommended actions (remove/internalize/merge) for every flagged tool
-     - Specific implementation steps grouped by problem class (dead tools, duplicates, incomplete consolidations, consolidation candidates)
-     - Files to modify for each step
-     - Expected tool count after each step
-   - The Plan prompt treats all of this as input for plan creation; do not fix issues or make code changes, only create the plan.
-3. **Outcome**: The Plan prompt will create a plan file in the plans directory and register it in the roadmap. No separate approval step is required; execute the Plan prompt automatically when recommendations exist.
-
-**If** there are no improvement recommendations in the findings, skip this step.
+- **Agent**: Use the `improvements-planner` agent for creating improvement plans from analysis findings
+- **CRITICAL**: Only runs when recommendations exist from Steps 1-3
+- **Input**: Full assembled report content, report file location, tools optimization findings, optimization recommendations, context effectiveness recommendations
+- **Output needed**: status, plan_file, roadmap_updated
+- **Skip if**: No improvement recommendations exist across all analysis steps
 
 ## Output Format
 
@@ -200,7 +130,7 @@ Produce a **single combined report** with clear sections:
 **Calls Analyzed**: Z (if any)
 
 ### Key Metrics (or Manual Summary)
-- Avg Token Utilization / Precision–Recall / Feedback type
+- Avg Token Utilization / Precision-Recall / Feedback type
 - Task patterns and recommendations
 
 ## Session Optimization Analysis
@@ -215,49 +145,34 @@ Produce a **single combined report** with clear sections:
 ...
 
 ### Tools optimization (MANDATORY when usage data available)
-When Step 2.5 collected tool census data: report tool budget status, dead tools (with counts), duplicates (with counts), incomplete consolidations, consolidation candidates, and total reduction potential. Include specific per-tool actions (remove/internalize/merge) with call counts.
-
-```text
-Tool budget: {registered} / 40 target (80 hard limit) — {OK | CRITICAL: over by N}
-Dead tools ({count}): {name} ({calls} calls) → {remove|internalize}, ...
-Duplicates ({count}): {duplicate} ({calls}) → {canonical}, ...
-Incomplete consolidations ({count}): {old_tool} ({calls}) → already replaced by {new_tool}, ...
-Consolidation candidates ({count}): {group_name} ({tool_count} tools → 1, saves ~{N} slots)
-Total reduction potential: {N} tools
-```
-
-Omit if usage data unavailable.
+[tools-optimizer agent output: tool budget, dead tools, duplicates,
+incomplete consolidations, consolidation candidates, total reduction potential]
 
 ### Tool use anomalies (optional)
-
-When `query_usage(query_type="anomalies")` was called and returned success: list tools used in the session window, tools with retries, and tools with errors. Omit if unavailable.
+[session-optimization-analyzer tool_anomalies output, if available]
 
 ### Report Location
-
 Saved to: {reviews_path}/session-optimization-YYYY-MM-DDTHH-MM.md
 
 ### Session Compaction
-
 - Compaction executed: token savings, handoff written
 - Session ID: {session_id}
 - Rollback snapshots: {snapshot_paths}
 
 ### Improvements Plan (if recommendations existed)
-
 - Plan prompt executed with analysis findings as input
 - Plan file: {plans_path}/{plan-filename}.md
 - Roadmap updated with new plan entry
-
-```markdown
 ```
 
 ## Success Criteria
 
 - Pre-analysis checklist completed.
-- Step 1 (context effectiveness) executed; tool called and/or manual fallback applied when no_data.
-- Step 2 (session optimization) executed; report saved to reviews directory using path from `get_structure_info()`.
-- Step 2.5 (tools optimization): When usage data is available, tool census collected (total count, usage distribution, low-usage list); five problem classes checked (budget violation, dead tools, duplicates, incomplete consolidations, consolidation candidates); Tools optimization subsection added with per-tool call counts and specific actions; recommendation for Step 5 includes concrete actions per problem class. If tool count exceeds 40 target, flagged as CRITICAL.
-- Step 3 (session compaction) executed; `session(operation="compact")` called, handoff written, token savings reported.
-- Step 5: If findings contain improvement recommendations (including tools optimization), Plan prompt executed with analysis findings as input; improvements plan created and registered in roadmap; tools-optimization findings included so the plan can cover deprecate/merge/remove poor performers. If no recommendations, step skipped.
+- Step 1 (context effectiveness) executed via `context-effectiveness-analyzer` agent; tool called and/or manual fallback applied when no_data.
+- Step 2 (session optimization) executed via `session-optimization-analyzer` agent; findings collected.
+- Step 3 (tools optimization) executed via `tools-optimizer` agent when usage data available; five problem classes checked; Tools optimization subsection added with per-tool call counts and specific actions. If tool count exceeds 40 target, flagged as CRITICAL.
+- Report assembled and saved to reviews directory using path from `get_structure_info()`.
+- Step 4 (maintenance) executed via `session-compactor` agent; `session(operation="compact")` called, handoff written, token savings reported, markdown lint enforced.
+- Step 6: If findings contain improvement recommendations (including tools optimization), `improvements-planner` agent executed; improvements plan created and registered in roadmap. If no recommendations, step skipped.
 - No hardcoded `.cortex/` paths; all paths from MCP or `get_structure_info()`.
 - Single report produced with both Context Effectiveness and Session Optimization sections.

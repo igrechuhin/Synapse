@@ -35,6 +35,8 @@ Before making changes, you MUST:
 
 ### Execution Steps
 
+After you have identified failing tests from the checklist above, **proceed directly through these steps without pausing for user confirmation or waiting for an “ok, proceed” message.**
+
 1. **Run or reuse test results**
    - If you already have recent structured results from `execute_pre_commit_checks(checks=["tests"], ...)`, reuse them.
    - Otherwise, call `execute_pre_commit_checks(checks=["tests"], test_timeout=600, coverage_threshold=0.90, strict_mode=False)` to run tests.

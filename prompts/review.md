@@ -8,14 +8,19 @@
 
 **Agent Delegation**: This prompt orchestrates code review and delegates specialized analysis to dedicated agents in the Synapse agents directory:
 
+- **common-checklist** - Pre-action: Loads structure, memory bank, rules, and detects primary language
 - **static-analyzer** - Step 1: Static analysis (linting)
-- **bug-detector** - Step 2: Bug detection
+- **bug-detector** - Step 2: Bug detection (language-aware)
 - **consistency-checker** - Step 3: Consistency check
 - **rules-compliance-checker** - Step 4: Rules compliance check
 - **completeness-verifier** - Step 5: Completeness verification
 - **test-coverage-reviewer** - Step 6: Test coverage review
 - **security-assessor** - Step 7: Security assessment
 - **performance-reviewer** - Step 8: Performance review
+
+**Inter-agent communication**: All agents return structured results per `shared-handoff-schema.md`. The orchestrator validates required fields before assembling the final report.
+
+**Language-Aware Review**: The `common-checklist` agent detects the project's primary language from `techContext.md`. Pass `primary_language` to all sub-agents so they filter their checklists to relevant patterns (e.g., Python agents skip force-unwrap checks; Swift agents skip `None`-type checks).
 
 When executing steps, delegate to the appropriate agent for specialized analysis, then aggregate results into the review report.
 
@@ -52,30 +57,24 @@ When executing steps, delegate to the appropriate agent for specialized analysis
 
 ## ⚠️ MANDATORY PRE-ACTION CHECKLIST
 
-**BEFORE executing this command, you MUST:**
+**Delegate to `common-checklist` agent** (Synapse agents directory).
 
-1. ✅ **Read relevant memory bank files** - Understand current project context:
-   - **Use Cortex MCP tool `manage_file(file_name="activeContext.md", operation="read")`** to understand current work focus
-   - **Use Cortex MCP tool `manage_file(file_name="progress.md", operation="read")`** to see recent achievements
-   - **Use Cortex MCP tool `manage_file(file_name="roadmap.md", operation="read")`** to understand project priorities
-   - **Use Cortex MCP tool `manage_file(file_name="systemPatterns.md", operation="read")`** to understand architectural patterns
-   - **Use Cortex MCP tool `manage_file(file_name="techContext.md", operation="read")`** to understand technical context
+The common-checklist agent loads all shared prerequisites:
 
-2. ✅ **Read relevant rules** - Understand project requirements:
-   - Use Cortex MCP tool `rules(operation="get_relevant", task_description="Code review, coding standards, maintainability, testing")` or read from the rules directory (path from `get_structure_info()` → `structure_info.paths.rules`)
-   - Ensure core coding standards, maintainability rules, testing standards, and other rules relevant to the code being reviewed are in context
+- Project structure paths (plans, memory bank, reviews, rules)
+- All core memory bank files (activeContext, roadmap, progress, systemPatterns, techContext)
+- Relevant rules for `task_description="Code review, coding standards, maintainability, testing"`
+- Primary language detection from techContext.md
 
-3. ✅ **Understand review scope** - Determine what needs to be reviewed:
-   - Identify the module, directory, or files to review
-   - Understand the context and purpose of the code
-   - Check for previous reviews of the same scope
+**CRITICAL**: Verify the agent returns `status: "complete"` before proceeding. If `status: "error"`, STOP.
 
-4. ✅ **Verify prerequisites** - Ensure all prerequisites are met:
-   - Confirm review scope is clear and actionable
-   - Verify access to all necessary files
-   - Check that build system is accessible for validation
+After the checklist completes, determine the **review scope**:
 
-**VIOLATION**: Executing this command without following this checklist is a CRITICAL violation that blocks proper code review.
+- Identify the module, directory, or files to review
+- Understand the context and purpose of the code
+- Check for previous reviews of the same scope
+
+**VIOLATION**: Executing this command without running `common-checklist` first is a CRITICAL violation that blocks proper code review.
 
 ## Steps
 
@@ -89,14 +88,11 @@ When executing steps, delegate to the appropriate agent for specialized analysis
    - Verify code follows best practices
 2. **Bug detection** - **Delegate to `bug-detector` agent**:
    - Use the `bug-detector` agent (Synapse agents directory) for this step
-   - The agent will search for potential bugs and logic errors:
-   - Search for force unwraps (`!`) and analyze safety
-   - Check for null pointer dereferences
-   - Identify potential race conditions in concurrent code
-   - Look for logic errors in business logic
-   - Check for off-by-one errors in loops
-   - Verify array bounds checking
-   - Check for integer overflow possibilities
+   - **Pass `primary_language`** from common-checklist result so the agent filters its checklist
+   - The agent will search for potential bugs and logic errors relevant to the project language:
+   - **Python**: Unguarded `None` access, mutable default arguments, exception swallowing, async/await misuse, unclosed resources
+   - **Swift/ObjC**: Force unwraps (`!`), null pointer dereferences, retain cycles
+   - **All languages**: Race conditions in concurrent code, logic errors, off-by-one errors, integer overflow
 3. **Consistency check** - **Delegate to `consistency-checker` agent**:
    - Use the `consistency-checker` agent (Synapse agents directory) for this step
    - The agent will verify cross-file consistency (naming conventions, code style uniformity):
@@ -154,15 +150,11 @@ When executing steps, delegate to the appropriate agent for specialized analysis
 
 ## Review Criteria
 
-### Bugs to Find
+### Bugs to Find (filtered by `primary_language` from common-checklist)
 
-- **Null pointer dereferences**: Force unwraps (`!`) that may fail
-- **Race conditions**: Concurrent access to shared mutable state
-- **Logic errors**: Incorrect business logic implementation
-- **Memory leaks**: Retain cycles, unclosed resources
-- **Incorrect error handling**: Missing error handling, wrong error types
-- **Off-by-one errors**: Array bounds, loop indices
-- **Integer overflow**: Unsafe arithmetic operations
+- **Python**: Unguarded `None` access, mutable default arguments, bare `except:`, async/await misuse, unclosed resources
+- **Swift**: Force unwraps (`!`) that may fail, retain cycles, unclosed resources
+- **All languages**: Race conditions, logic errors, memory leaks, incorrect error handling, off-by-one errors, integer overflow
 
 ### Inconsistencies to Check
 
@@ -367,10 +359,11 @@ For each improvement suggestion, provide the following structure to enable effic
 - Suggest implementation order based on dependencies
 - Identify quick wins (low effort, high impact)
 
-## After the review (MANDATORY): Execute Analyze prompt
+## After the review (CONDITIONAL): Execute Analyze prompt
 
-- **MANDATORY**: After saving the review report, you MUST execute the **Analyze (End of Session)** prompt (`analyze.md` from the Synapse prompts directory). Read and execute that prompt in full: it runs context effectiveness analysis and session optimization, saves a report to the reviews directory, and optionally creates an improvements plan. Do not skip this step.
-- **Path**: Resolve the Analyze prompt path via project structure or `get_structure_info()` (e.g. Synapse prompts directory); the prompt file is `analyze.md`.
+- **Condition**: Run ONLY if this is the last workflow in the current session. If the user will invoke another prompt (e.g., `/cortex/commit`) afterward, skip this step — that prompt's own session-end hook will handle it.
+- **When running**: Execute the **Analyze (End of Session)** prompt (`analyze.md` from the Synapse prompts directory). Read and execute that prompt in full.
+- **Path**: Resolve via project structure or `get_structure_info()`.
 
 ## Success Criteria
 
@@ -392,7 +385,7 @@ For each improvement suggestion, provide the following structure to enable effic
   - Risk assessment and mitigation
   - File locations and code examples
 - ✅ **Report structure optimized for `create-plan.md`** - Report can be directly used to create comprehensive plans
-- ✅ **Analyze prompt executed** - Analyze (End of Session) prompt (`analyze.md`) run after the review to complete context effectiveness and session optimization analysis
+- ✅ **Analyze prompt executed (conditional)** - If this is the last workflow in the session, Analyze (End of Session) prompt (`analyze.md`) run after the review
 
 ## Failure Handling
 

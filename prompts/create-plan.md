@@ -15,14 +15,17 @@
 
 **Tooling Note**: Use standard Cursor tools (`Read`, `ApplyPatch`, `Write`, `LS`, `Glob`, `Grep`) by default; MCP filesystem tools are optional fallbacks only when standard tools are unavailable or explicitly requested. **MANDATORY: Use Cortex MCP tools for all memory bank and structure operations** - do NOT access files directly via hardcoded paths.
 
-**Path Resolution**: Resolve all paths via Cortex MCP tools (see memory-bank-workflow.mdc and AGENTS.md). Use `get_structure_info()` for plans/memory_bank/rules paths; use `manage_file(file_name="roadmap.md", ...)` for roadmap. Do not hardcode `.cortex/` or memory-bank paths.
+**Path Resolution**: Resolve all paths via Cortex MCP tools (see memory-bank-workflow.mdc and AGENTS.md). Use `get_structure_info()` for plans/memory_bank/rules paths; use `manage_file(file_name="roadmap.md", ...)` for roadmap. Use the **absolute path** from `structure_info.paths.plans`; do not hardcode `.cortex/` or `structure_info.root` or memory-bank paths. Use canonical paths from the tool only.
 
 **Sequential Thinking**: If the `think` tool from Cortex MCP is available, use it in full mode (thought_number, total_thoughts, next_thought_needed) to ensure best results when creating the plan.
 
 **Agent Delegation**: This prompt orchestrates plan creation and delegates specialized tasks to dedicated agents in the Synapse agents directory:
 
+- **common-checklist** - Loads project structure, memory bank, rules, and detects primary language
 - **plan-creator** - Creates the development plan from description
 - **memory-bank-updater** - Updates roadmap.md with new plan entry
+
+**Inter-agent communication**: All agents return structured results per `shared-handoff-schema.md`. The orchestrator validates required fields before passing data downstream.
 
 **Existing Plan Reuse (CRITICAL)**: Before creating a brand-new plan, you MUST check whether a same/similar plan already exists.
 
@@ -33,68 +36,24 @@ When executing steps, delegate to the appropriate agent for specialized work, th
 
 ## ⚠️ MANDATORY PRE-ACTION CHECKLIST
 
-**BEFORE executing this command, you MUST:**
+**Delegate to `common-checklist` agent** (Synapse agents directory).
 
-1. ✅ **Get project structure information** - Obtain paths dynamically:
-   - **Use Cortex MCP tool `get_structure_info()`** to get (project root is resolved internally; do NOT pass it as a parameter):
-     - Plans directory path (`structure_info.paths.plans`)
-     - Memory bank path (`structure_info.paths.memory_bank`)
-     - Project root path (`structure_info.root`)
-   - **DO NOT** hardcode paths; use Cortex MCP tools to resolve the **plans directory** and **memory-bank** (roadmap) paths
-   - Parse the JSON response from `get_structure_info()` and `manage_file()` to get actual paths
+The common-checklist agent loads all shared prerequisites:
 
-2. ✅ **Read relevant memory bank files** - Understand current project context:
-   - **Use Cortex MCP tool `manage_file(file_name="roadmap.md", operation="read")`** to understand current roadmap structure and priorities
-   - **Use Cortex MCP tool `manage_file(file_name="activeContext.md", operation="read")`** to understand current work focus
-   - **Use Cortex MCP tool `manage_file(file_name="progress.md", operation="read")`** to see recent achievements
-   - **Use Cortex MCP tool `manage_file(file_name="projectBrief.md", operation="read")`** to understand project goals
-   - **Use Cortex MCP tool `manage_file(file_name="systemPatterns.md", operation="read")`** to understand architectural patterns
+- Project structure paths (plans, memory bank, reviews, rules)
+- All core memory bank files (activeContext, roadmap, progress, systemPatterns, techContext)
+- Relevant rules for `task_description="Plan creation and roadmap management"`
+- Primary language detection from techContext.md
 
-3. ✅ **Check for `think` MCP tool** - Use if available for better plan quality:
-   - Check if the `think` MCP tool is available (list MCP servers/resources or tools)
-   - If available, use it in full mode to think through the plan structure and ensure comprehensive coverage
-   - If not available, proceed with standard planning approach
+**CRITICAL**: Verify the agent returns `status: "complete"` before proceeding. If `status: "error"`, STOP and report the failure.
 
-4. ✅ **Understand user description and ALL context** - Parse the plan description AND all provided context:
-   - Extract key requirements, goals, and scope from the description
-   - **Analyze ALL additional context** (error logs, code snippets, file contents, etc.) as INPUT for the plan
-   - **DO NOT fix issues** - treat errors/logs as requirements/constraints to address in the plan
-   - Identify dependencies and prerequisites
-   - Determine estimated complexity and timeline
-   - Note any specific constraints or preferences
-   - **Remember**: When a plan is requested, everything provided is input for plan creation, not separate tasks to execute
-
-**VIOLATION**: Executing this command without following this checklist is a CRITICAL violation that blocks proper plan creation.
+**VIOLATION**: Executing this command without running `common-checklist` first is a CRITICAL violation that blocks proper plan creation.
 
 ## EXECUTION STEPS
 
-**Phases**: (1) Structure & context load — get paths, read memory bank. (2) Existing-plan check — reuse vs new. (3) Create/enrich plan — plan-creator agent; **prefer `plan(operation="create", ...)`** for new plan files when available. (4) Register in roadmap — memory-bank-updater agent; **prefer `plan(operation="register", plan_title=..., description=..., section=...)`** or `update_memory_bank(operation="roadmap_add", ...)`. (5) Verify & Analyze — confirm no truncation, then run Analyze (End of Session) prompt. All paths via `get_structure_info()` and `manage_file()`; see memory-bank-workflow.mdc.
+**Phases**: (1) Common checklist (via `common-checklist` agent). (2) Existing-plan check — reuse vs new. (3) Create/enrich plan — `plan-creator` agent; **prefer `plan(operation="create", ...)`**. (4) Register in roadmap — `memory-bank-updater` agent; **use `plan(operation="register", ...)`** only. (5) Verify completion.
 
-### Step 1: Get Project Structure and Paths (Phase 1)
-
-1. **Use Cortex MCP tool `get_structure_info()`** to get structure information (the tool resolves project root internally)
-2. Parse the JSON response to extract:
-   - **Plans directory path**: Use the **absolute path** from `structure_info.paths.plans` returned by `get_structure_info()`. Do not hardcode the plans path or derive it from `structure_info.root` plus a segment; the canonical plans path is always `structure_info.paths.plans`.
-   - Memory bank path: `structure_info.paths.memory_bank` (use the value returned by `get_structure_info()`; do not hardcode)
-   - Project root: `structure_info.root` (note: `structure_info.root` may be the Cortex directory (e.g. `.cortex`) or the project root depending on configuration; the canonical plans path is always `structure_info.paths.plans`)
-3. Verify that the plans directory exists (check `structure_info.exists.plans`)
-4. If plans directory doesn't exist, note this in the plan creation process
-5. **When reporting paths** (e.g. in plan summary or "Issues encountered"), use the value from `get_structure_info()` (e.g. `structure_info.paths.plans`) so it is unambiguous. Do not report a relative or inferred path; report the actual path returned by the Cortex tool.
-
-### Step 2: Load Project Context (Phase 1)
-
-1. **Use Cortex MCP tool `manage_file(file_name="roadmap.md", operation="read")`** to read current roadmap
-2. **Use Cortex MCP tool `manage_file(file_name="activeContext.md", operation="read")`** to read active context
-3. **Use Cortex MCP tool `manage_file(file_name="progress.md", operation="read")`** to read progress
-4. **Use Cortex MCP tool `manage_file(file_name="projectBrief.md", operation="read")`** to read project brief
-5. **Use Cortex MCP tool `manage_file(file_name="systemPatterns.md", operation="read")`** to read system patterns
-6. Analyze the context to understand:
-   - Current project priorities
-   - Existing plans and their status
-   - Architectural patterns and constraints
-   - Recent progress and achievements
-
-### Step 2.5: Check for Existing Related Plans (Phase 2: Reuse vs New)
+### Step 1: Check for Existing Related Plans (Phase 2: Reuse vs New)
 
 1. **Discover existing plans**:
    - Use `get_structure_info()` paths (`structure_info.paths.plans`) to locate the plans directory.
@@ -118,29 +77,9 @@ When executing steps, delegate to the appropriate agent for specialized work, th
 5. **Record decision**:
    - Keep track of whether you are **enriching an existing plan** (with its path) or **creating a new plan**. This decision controls later steps.
 
-### Step 3: Check for `think` MCP tool
+### Step 2: Analyze All Provided Context
 
-1. **List available MCP resources or tools** to check if the `think` MCP tool is available
-2. If the `think` tool is available:
-   - Use it in full mode (thought_number, total_thoughts, next_thought_needed) to think through the plan structure systematically
-   - Ensure comprehensive coverage of all aspects
-   - Validate plan completeness and coherence
-3. If not available, proceed with standard planning approach
-
-### Step 4: Analyze All Provided Context
-
-**Before analyzing, use the `think` tool to scope the plan:**
-
-```text
-<think_example>
-User request: "Add validation for memory bank file structure"
-- Scope: Need to validate schema, sections, frontmatter
-- Dependencies: Existing validation tools, memory bank schema definition
-- Risks: Breaking existing valid files, performance on large files
-- Success criteria: All memory bank files pass validation, clear error messages
-- Timeline: Medium complexity, estimate 1 sprint
-</think_example>
-```
+**Use the `think` tool (if available) to scope the plan before analyzing.**
 
 1. **Analyze the user's plan description AND all additional context**:
    - Parse the explicit plan description/request
@@ -163,7 +102,7 @@ User request: "Add validation for memory bank file structure"
 3. **Wait for user responses** before proceeding to plan creation
 4. **If no clarification is needed**, proceed directly to plan creation
 
-### Step 5: Create or Enrich the Plan (Phase 3) - **Delegate to `plan-creator` agent**
+### Step 3: Create or Enrich the Plan (Phase 3) - **Delegate to `plan-creator` agent**
 
 **Use the `plan-creator` agent (Synapse agents directory) for this step.**
 
@@ -225,60 +164,39 @@ User request: "Add validation for memory bank file structure"
    - Check file content is complete and well-structured
    - Ensure all required sections are present
 
-### Step 6: Register Plan in Roadmap (Phase 4, MANDATORY) - **Delegate to `memory-bank-updater` agent**
+### Step 4: Register Plan in Roadmap (Phase 4, MANDATORY) - **Delegate to `memory-bank-updater` agent**
 
 **Use the `memory-bank-updater` agent (Synapse agents directory) for this step.**
 
 Every new or enriched plan MUST be registered in the roadmap. Do not skip this step.
 
-**Roadmap sync**: When adding a new plan, ensure the roadmap entry includes the plan filename (e.g. `Plan: .cortex/plans/session-optimization-foo.md`) so `validate(check_type="roadmap_sync")` remains valid. `plan(operation="register", ...)` adds this link; when using `update_memory_bank(operation="roadmap_add", ...)`, include the plan path in the entry text.
+**Never truncate** roadmap content when updating. Never pass **shortened** or **summarized** roadmap content to the write; the content written must be the full roadmap. **Pre-write content length check**: Before calling the write tool, verify that the new content length (e.g. string length or `len(content)`) is **at least as long** as the roadmap as read.
 
-1. **Read current roadmap**:
-   - **Use Cortex MCP tool `manage_file(file_name="roadmap.md", operation="read")`** to get current roadmap content
+**PROHIBITED**: Using StrReplace, direct Write, or any edit that bypasses Cortex MCP tools on roadmap files is a critical violation.
 
-2. **Parse roadmap structure** to understand:
-   - Current roadmap format and structure
-   - **Implementation sequence** (see roadmap intro): section order is Blockers → Active Work → Future Enhancements → Implementation queue (Pending plans). Order within each section is top-to-bottom; the implement command picks the first PENDING item in this order.
-   - Where to add the new plan entry so **execution order is correct**: use roadmap structure from `manage_file(read)` to place the entry in the right section and position.
+1. **If this is a new plan** (sole API):
+   - **REQUIRED**: Call `plan(operation=”register”, plan_title=..., description=..., status=”PENDING”, section=...)`.
+   - Choose `section` from: `blockers` | `active_work` | `future` | `pending` (default).
+   - The tool performs server-side read-modify-write and inserts the entry in the correct place. It automatically includes the plan file link for `roadmap_sync` validation.
+   - **If `plan(operation=”register”)` fails**: STOP and report error. Do NOT fall back to `manage_file(write)` for single-entry adds — that path causes roadmap corruption from full-content string assembly.
 
-3. **Full-content rule and pre-write check (MANDATORY)**:
-   - **Prohibition**: Never pass a shortened, summarized, or placeholder version of the roadmap. The `content` parameter MUST be the complete file content as read in Step 6 (read roadmap). If the content would be larger than a safe payload, do not truncate; use the full content.
-   - **Pre-write check**: Before calling `manage_file(roadmap.md, write, content=...)`, confirm that the string length of `content` is at least as long as the roadmap content read in Step 6. If it is shorter, do not write; re-build the full content (current roadmap + new/updated entry only) and try again.
-   - **Prefer single-entry tools**: When available, prefer **`plan(operation="register", plan_title=..., description=..., section=...)`** or **`update_memory_bank(operation="roadmap_add", ...)`** for adding a single new plan entry instead of full-content write.
+2. **If enriching an existing plan**:
+   - Use `update_memory_bank(operation=”roadmap_add”, section=..., entry_text=..., position=...)` to update the existing entry.
+   - Expand the description, update priority/status, add urgency markers as needed.
+   - Ensure the link to the plan file remains correct.
 
-4. **Add or update plan entry in roadmap** (register the plan in correct order for execution):
-   - **If this is a new plan**:
-     - **REQUIRED for adding a single new plan entry**: Use **`plan(operation="register", plan_title=..., description=..., status="PENDING", section=...)`**. Do **not** build full roadmap content or call `manage_file(roadmap.md, write, content=...)` for adding one plan entry—that causes roadmap corruption. Choose `section` from: `blockers` (for ASAP/blocker plans), `active_work`, `future`, or `pending` (default; use for most new plans). The tool performs server-side read-modify-write and inserts the entry in the correct place.
-     - **Alternative**: If you need to add a single preformatted bullet line, use **`update_memory_bank(operation="roadmap_add", section=..., entry_text=..., position=...)`** instead of building full content.
-     - **Placement**: (1) If the plan is a blocker, use `section="blockers"`. (2) Otherwise use `section="pending"` so the entry goes into "Pending plans (from .cortex/plans)" at the end. (3) For Active Work or Future Enhancements use `section="active_work"` or `section="future"` as appropriate.
-     - **Fallback**: Use `manage_file(file_name="roadmap.md", operation="write", content=<full roadmap>, change_description=...)` **only** when updating multiple entries at once or when `plan(operation="register", ...)` is unavailable; the `content` MUST be the full, unabridged roadmap text. Never truncate.
-   - **If enriching an existing plan**:
-     - Locate the existing roadmap entry that links to the target plan.
-     - **Enrich** the entry to reflect the new context and scope (e.g., expand description, reference new constraints or logs).
-     - **Increase implementation priority** based on the new request, for example by:
-       - Moving the entry into an “Active Work” / higher-priority section, or
-       - Upgrading the status (e.g., from PLANNED to IN PROGRESS), and/or
-       - Adding a clear urgency marker such as **FIX-ASAP** when appropriate.
-     - For enrich/update that edits a single existing line, prefer a single `manage_file(roadmap.md, write, content=<full roadmap>, ...)` with the complete content if no tool supports in-place line edit; keep that path rare and never truncate.
-     - Ensure the link to the plan file remains correct and roadmap formatting is preserved.
-
-5. **Update roadmap file** (mandatory tool usage):
-   - **PROHIBITED**: Updating the roadmap during plan creation by StrReplace, direct Write to the roadmap file path, or any edit that bypasses Cortex MCP tools. Using StrReplace or direct Write is a critical violation.
-   - **REQUIRED for new plan**: For **adding one new plan entry**, you **must** call **`plan(operation="register", plan_title=..., description=..., section=...)`** (or **`update_memory_bank(operation="roadmap_add", ...)`** for a single formatted line). Do **not** use `manage_file(roadmap.md, write, content=...)` for single-entry adds—that leads to roadmap corruption from full-content string assembly.
-   - **Fallback only**: Use `manage_file(file_name="roadmap.md", operation="write", content=<complete resulting text>, change_description=...)` only when (a) updating multiple entries in one go, or (b) enriching an existing entry and no single-entry tool applies, or (c) `plan(operation="register", ...)` is unavailable. When using fallback, the `content` MUST be the full, unabridged roadmap text; never truncate, summarize, or shorten existing bullets. Before calling, verify `len(content) >= len(roadmap_as_read_in_step_6)`; if shorter, do not write—re-build full content and try again.
-   - Ensure roadmap formatting is preserved and verify the update was successful
-
-### Step 7: Verify Completion (Phase 5)
+### Step 5: Verify Completion (Phase 5)
 
 1. **Verify plan file exists**:
    - Check that plan file was created in the plans directory
    - Verify file content is complete and accurate
 
 2. **Verify roadmap was updated**:
-   - **Re-read roadmap via `manage_file(file_name="roadmap.md", operation="read")`** and confirm: (1) the new or updated plan entry is present and correct, and (2) **all existing roadmap entries are unchanged (no truncation or removal)**. For new plans, registration should have been done via **`plan(operation="register", ...)`** (or **`update_memory_bank(operation="roadmap_add", ...)`**); if the agent used fallback `manage_file(write, ...)` and any existing entry was shortened or removed, restore the full content and repeat the update with complete content—**not** StrReplace or direct Write.
+   - Re-read roadmap via `manage_file(file_name=”roadmap.md”, operation=”read”)`
+   - Confirm the new or updated plan entry is present and correct
    - Check that roadmap entry is properly formatted and linked
 
-3. **Provide summary**:
+3. **Provide summary** using **PlanCreatorResult** schema (see `shared-handoff-schema.md`):
    - Report plan creation status
    - Provide plan file path
    - Confirm roadmap update
@@ -311,7 +229,7 @@ Every new or enriched plan MUST be registered in the roadmap. Do not skip this s
 
 ### Path Resolution
 
-- Follow **memory-bank-workflow.mdc** and **AGENTS.md**: resolve plans directory via `get_structure_info()` → `structure_info.paths.plans`; roadmap via `manage_file(file_name="roadmap.md", ...)`. Never hardcode `.cortex/` or memory-bank paths. Verify `structure_info.exists.plans` before use. Report paths as returned by Cortex tools.
+- Follow **memory-bank-workflow.mdc** and **AGENTS.md**: resolve plans directory via `get_structure_info()` → `structure_info.paths.plans` (use absolute path from tool only); roadmap via `manage_file(file_name="roadmap.md", ...)`. Do not hardcode `.cortex/`, `structure_info.root`, or memory-bank paths; use canonical paths from Cortex tools. Verify `structure_info.exists.plans` before use. **VIOLATION**: Hardcoding or inferring the plans path is a path resolution violation. Report paths as returned by Cortex tools.
 
 ## ERROR HANDLING
 
@@ -366,13 +284,13 @@ The plan creation is considered complete when:
 - ✅ All paths obtained dynamically using MCP tools
 - ✅ Sequential-thinking MCP used if available
 - ✅ Clarifying questions asked if needed
-- ✅ **Analyze prompt executed** – Analyze (End of Session) prompt (`analyze.md`) run after plan creation to complete context effectiveness and session optimization analysis
+- ✅ **Analyze prompt executed (conditional)** – If this is the last workflow in the session, Analyze (End of Session) prompt (`analyze.md`) run after plan creation
 
-## After creating a plan (MANDATORY): Execute Analyze prompt
+## After creating a plan (CONDITIONAL): Execute Analyze prompt
 
-- **Dependency**: Must run AFTER the plan file is created and registered in the roadmap (success criteria above).
-- **MANDATORY**: At the end of the plan creation workflow, you MUST execute the **Analyze (End of Session)** prompt (`analyze.md` from the Synapse prompts directory). Read and execute that prompt in full: it runs context effectiveness analysis and session optimization, saves a report to the reviews directory, and optionally creates an improvements plan. Do not skip this step.
-- **Path**: Resolve the Analyze prompt path via project structure or `get_structure_info()` (e.g. Synapse prompts directory); the prompt file is `analyze.md`.
+- **Condition**: Run ONLY if this is the last workflow in the current session. If the user will invoke another prompt (e.g., `/cortex/commit`, `/cortex/implement`) afterward, skip this step — that prompt's own session-end hook will handle it.
+- **When running**: Execute the **Analyze (End of Session)** prompt (`analyze.md` from the Synapse prompts directory). Read and execute that prompt in full.
+- **Path**: Resolve via project structure or `get_structure_info()`.
 
 ## OUTPUT FORMAT
 
