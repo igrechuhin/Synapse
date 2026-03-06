@@ -1,2 +1,7 @@
 __pycache__
-.cache/
+# Ignore .cache except usage/events (allow committing usage stats to share across projects)
+.cache/*
+!.cache/usage/
+.cache/usage/*
+!.cache/usage/events/
+!.cache/usage/events/*
