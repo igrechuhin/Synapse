@@ -720,6 +720,23 @@ The commit procedure executes steps in this specific order to ensure dependencie
 
 The original checks in Steps 0-4 are INVALIDATED by any subsequent code changes or new file creation.
 
+### Dirty-State Optimization (Phase 89)
+
+When Phase A passes, the pipeline records a fingerprint of source files. Step 12 checks can use `skip_if_clean=True` to skip redundant re-runs when no source files (`.py`, `.ts`, `.rs`, etc.) changed between Phase A and Step 12. This reduces commit time by ~50% in the common case where Steps 5-11 only modify documentation and memory bank files.
+
+**Usage**: For Step 12 sub-steps that re-run source-dependent checks:
+
+```text
+execute_pre_commit_checks(checks=["type_check"], skip_if_clean=True)
+execute_pre_commit_checks(checks=["tests"], skip_if_clean=True, test_timeout=600, coverage_threshold=0.90)
+execute_pre_commit_checks(checks=["format"], skip_if_clean=True)
+execute_pre_commit_checks(checks=["quality"], skip_if_clean=True)
+```
+
+**When skipped**: Returns `{"status": "success", "skipped": true, "skip_reason": "No source files changed since Phase A"}`.
+
+**Safety**: If any source file changed between Phase A and Step 12, `skip_if_clean` has no effect — the full check runs. Non-source checks (`test_naming`, `markdown_lint`) always run regardless of `skip_if_clean`.
+
 **CRITICAL RULE**: ANY code change OR new file creation after Step 1 REQUIRES re-running formatting AND verification before commit.
 
 **CRITICAL RULE (Step 12)**: After ANY code change during Step 12 (e.g. fixing type errors in 12.2, fixing lint in 12.3, or any other edit to `src/` or `tests/`), you MUST re-run Step 12.1 (format → format check → format_ci_parity via `execute_pre_commit_checks`) and verify they pass, then MUST re-run Step 12.3 (quality) and verify `results.quality.success` is true and error count is zero. Do NOT proceed to Step 12.4 or Step 13 until Step 12.3 has been run again and passed. Edits made inside the final gate must be formatted before commit; otherwise CI will fail on the formatting check.
