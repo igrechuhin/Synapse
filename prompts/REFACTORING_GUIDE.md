@@ -4,6 +4,16 @@
 
 **Prompts = Orchestration** | **Agents = Implementation**
 
+## Severity Hierarchy
+
+All prompts and agents MUST use these three levels consistently:
+
+- **GATE**: Blocks pipeline/workflow. Failure = stop. Use sparingly for true blockers.
+- **CHECK**: Requires explicit verification. Parse output and confirm zero errors.
+- **PREFER**: Best practice. Recommended but non-blocking.
+
+**Do NOT use**: CRITICAL, MANDATORY, ABSOLUTE BLOCK, NO EXCEPTIONS, ZERO TOLERANCE, or other ad-hoc emphasis. Map all severity to GATE/CHECK/PREFER.
+
 ## What Prompts Should Keep
 
 ### ✅ Orchestration Logic
@@ -97,3 +107,39 @@
 - Error reporting
 
 This separation makes the system more maintainable and clear.
+
+## Agent Existence Check (MANDATORY)
+
+Before delegating to any agent, orchestrators MUST verify the agent file exists:
+
+1. Resolve the Synapse agents directory path
+2. Check that `{agents_dir}/{agent-name}.md` exists (e.g., `Glob` or `Read`)
+3. If the file is missing, report a clear error: `"Agent file '{agent-name}.md' not found in Synapse agents directory at {agents_dir}"`
+4. Do NOT hallucinate agent content or proceed without the file
+
+This prevents silent failures when agent files are renamed, deleted, or the Synapse submodule is out of date.
+
+For the complete list of agents and their pipeline assignments, see `agents/agents-manifest.json`. The `agent-health-checker` agent can batch-validate all required agents at pipeline start instead of checking one-by-one.
+
+## Session Model
+
+Each prompt (commit, review, implement, plan, analyze, fix) runs in an **independent agent session**. No agent state carries between sessions.
+
+- The **memory bank** (roadmap.md, activeContext.md, progress.md) is the sole inter-session continuity mechanism.
+- Prompts must NOT assume access to outputs from prior sessions or other prompts.
+- Within a session, `pipeline-state-tracker` or `commit-state-tracker` may be used for intra-session checkpointing to survive context compression.
+- The `analyze` compound step at the end of commit feeds learning back for the next session cycle.
+
+The Plan -> Work -> Review -> Compound loop is **inter-session**:
+
+```text
+Session A: create-plan.md      → plan file + roadmap entry
+Session B: implement.md        → code + tests + quality gate + memory bank update
+Session C: commit.md           → full pipeline + push + analyze
+```
+
+Because memory bank is the sole bridge, its integrity is mission-critical. See `memory-bank-contract.md` for the write discipline.
+
+## Shared Conventions
+
+Cross-cutting conventions (severity levels, pre-flight protocol, path resolution, tooling preferences, max-retry limits, memory bank contract) are defined in `agents/shared-conventions.md`. All orchestration prompts reference it instead of duplicating definitions inline.

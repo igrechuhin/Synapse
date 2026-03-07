@@ -2,9 +2,13 @@
 
 **AI EXECUTION COMMAND**: Read the roadmap, identify the next pending step, and implement it completely.
 
-**CRITICAL**: These steps are for the AI to execute AUTOMATICALLY. DO NOT ask the user for permission or confirmation. Execute immediately.
+Execute all steps AUTOMATICALLY. DO NOT ask the user for permission or confirmation.
 
-This step is part of the **compound-engineering loop** (Plan → Work → Review → Compound). When done, update memory bank and run session optimization (analyze prompt) if end-of-session.
+## Conventions
+
+Per `shared-conventions.md`. Severity: GATE/CHECK/PREFER. Memory bank writes: per `memory-bank-contract.md`.
+
+This step is part of the **compound-engineering loop** (Plan -> Work -> Review -> Compound).
 
 **CURSOR COMMAND**: This is a Cursor command from the Synapse prompts directory, NOT a terminal command.
 
@@ -27,7 +31,7 @@ This step is part of the **compound-engineering loop** (Plan → Work → Review
 
 ## When Executing Steps
 
-For steps that delegate to agents, you MUST:
+Agent availability is verified by the pre-flight health check. For steps that delegate to agents:
 
 1. **READ** the agent file from the Synapse agents directory (`{agent-name}.md`)
 2. **EXECUTE** all phases/steps from the agent file
@@ -46,9 +50,7 @@ These gates apply throughout all agent delegations. Agents are expected to honor
 
 ### Step 0: Pre-Action Checklist — Delegate to `common-checklist`
 
-**Delegate to `common-checklist` agent** (Synapse agents directory).
-
-The agent loads project structure, memory bank files, rules, and detects primary language. Verify it returns `status: "complete"` before proceeding.
+Execute standard pre-flight protocol (see `shared-conventions.md`) with all agents from the "Agent Delegation" list.
 
 Also verify:
 
@@ -61,18 +63,18 @@ After this checklist is satisfied, **continue directly to Step 1 without pausing
 ### Step 1: Select Step and Load Context — Delegate to `roadmap-implementer`
 
 - **Agent**: Use the `roadmap-implementer` agent for MCP health check, roadmap reading, step selection, and context/rules loading
-- **CRITICAL**: This step MUST complete successfully before proceeding. If MCP is unhealthy, STOP.
+- **GATE**: This step MUST complete successfully before proceeding. If MCP is unhealthy, STOP.
 - **Outputs needed for Step 2**: Step description/title, plan file path (if any), loaded context and rules
-- **BLOCKING**: If no pending steps found, report "Roadmap complete" and stop
-- **Multi-agent**: If task locking detects conflicts, pick an alternative step or report
+- **GATE**: If no pending steps found, report "Roadmap complete" and stop
+- **CHECK**: If task locking detects conflicts, pick an alternative step or report
 
 ### Step 2: Implement — Delegate to `implement-executor`
 
 - **Agent**: Use the `implement-executor` agent for planning, coding, testing, and quality gate
 - **Input**: Pass the step description, plan file path, and confirm context/rules are loaded from Step 1
 - **Dependency**: MUST run AFTER Step 1 completes successfully
-- **CRITICAL**: Quality gate (Phase 6 of the agent) MUST pass before proceeding
-- **BLOCKING**: If quality gate fails after fix attempts, do NOT proceed to Step 3
+- **GATE**: Quality gate (Phase 6 of the agent) MUST pass before proceeding
+- **GATE**: If quality gate fails after **3 fix iterations** (see `shared-conventions.md` Max-Retry Limits), do NOT proceed to Step 3
 - **Outputs needed for Step 3**: Implementation status, files changed, test coverage, quality gate result
 
 ### Step 3: Finalize — Delegate to `implement-finalizer`
@@ -80,16 +82,9 @@ After this checklist is satisfied, **continue directly to Step 1 without pausing
 - **Agent**: Use the `implement-finalizer` agent for memory bank updates, verification, and plan archiving
 - **Input**: Pass the step description, plan file path/basename, implementation results from Step 2, today's date
 - **Dependency**: MUST run AFTER Step 2 completes with quality gate passed
-- **CRITICAL**: Roadmap sync validation MUST pass before proceeding
-- **BLOCKING**: If memory bank errors occur (CRITICAL), STOP and create investigation plan
+- **GATE**: Roadmap sync validation MUST pass before proceeding
+- **GATE**: If memory bank errors occur, STOP and create investigation plan
 - **Outputs**: Memory bank update status, archive status, roadmap sync result
-
-### Step 4: End-of-Session Analyze (CONDITIONAL)
-
-- **Dependency**: MUST run AFTER Step 3 completes
-- **Condition**: Run ONLY if this is the last workflow in the current session. If the user will invoke another prompt (e.g., `/cortex/commit`) afterward, skip this step — that prompt's own session-end hook will handle it.
-- **When running**: Execute the **Analyze (End of Session)** prompt (`analyze.md` from the Synapse prompts directory). Read and execute that prompt in full.
-- **Path**: Resolve via project structure or `get_structure_info()`
 
 ## SUCCESS CRITERIA
 
@@ -102,13 +97,12 @@ The roadmap step is considered complete when:
 - ✅ Memory bank is updated (roadmap entry removed, progress added, activeContext updated)
 - ✅ Completed plans archived (no completed plans in `.cortex/plans/` root)
 - ✅ Roadmap sync validation passed (no unlinked plans, no invalid references)
-- ✅ Analyze prompt executed (if end-of-session)
 
 ## ERROR HANDLING
 
 - **MCP unhealthy (Step 1)**: STOP immediately, report to user
 - **No pending steps (Step 1)**: Report "Roadmap complete" and stop
-- **Quality gate fails (Step 2)**: Fix violations and re-run; do NOT proceed until passed
+- **Quality gate fails (Step 2)**: Fix violations and re-run, maximum **3 iterations** (see `shared-conventions.md`); do NOT proceed until passed or iteration limit reached
 - **Memory bank tool crash (Step 3)**: STOP. Create investigation plan via create-plan prompt. Link in roadmap under "Blockers (ASAP Priority)". Report with FIX-ASAP priority.
 - **Connection closed during quality pre-flight**: Retry once. If still fails, continue with quality gate in implement-executor Phase 6.
 - **Quality gate unavailable (doc-only sessions)**: When changes are documentation-only and quality gate fails due to environment issues, record: "Quality gate skipped - environment (doc-only session)."

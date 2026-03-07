@@ -2,9 +2,13 @@
 
 **AI EXECUTION COMMAND**: Run end-of-session analysis. Check all: (1) context effectiveness, (2) session optimization. Execute automatically; do not ask for permission.
 
+## Conventions
+
+Per `shared-conventions.md`. Severity: GATE/CHECK/PREFER. Memory bank writes: per `memory-bank-contract.md`.
+
 This analysis is the **Compound** step of the Plan -> Work -> Review -> Compound loop; use it to make the next session easier.
 
-**CRITICAL**: This is the single entry point for end-of-session analysis. Run all steps in order. If findings contain improvement recommendations, execute the Plan prompt with the analysis findings as input to create an improvements plan.
+**GATE**: This is the single entry point for end-of-session analysis. Run all steps in order.
 
 **END-TO-END EXECUTION**: Run this analysis from start to finish without stopping to announce the plan or ask for permission. Begin with the Pre-Analysis Checklist (memory bank, rules, structure path), then delegate to agents and assemble the report. Only stop if a tool fails or user input is explicitly required.
 
@@ -15,18 +19,19 @@ This analysis is the **Compound** step of the Plan -> Work -> Review -> Compound
 - For `analyze(target="context")`: If it fails after retry, note "Context effectiveness analysis unavailable due to connection error" in the report and proceed with session optimization analysis.
 - Complete as much of the analysis as possible; partial analysis is better than no analysis.
 
-**Tooling**: Use Cortex MCP tools for memory bank, rules, and paths. Resolve paths via `get_structure_info()` (reviews directory, plans directory, memory bank). Use `manage_file()` for memory bank reads/writes. **manage_file contract**: Every `manage_file` call MUST include `file_name` and `operation`; never call `manage_file({})` or omit required parameters -- this causes validation errors. See memory-bank-workflow.mdc and AGENTS.md; do not hardcode `.cortex/` paths. **Memory bank write discipline:** roadmap.md and all other memory bank files may be updated **only** via Cortex MCP tools (`manage_file`, `remove_roadmap_entry`, `add_roadmap_entry`, etc.); do **not** use Write, StrReplace, or ApplyPatch on memory-bank paths.
+**Tooling**: Use Cortex MCP tools for memory bank, rules, and paths. Path resolution and tooling per `shared-conventions.md`. **manage_file contract**: Every `manage_file` call MUST include `file_name` and `operation`; never call `manage_file({})` or omit required parameters -- this causes validation errors. **Memory bank write discipline:** per `memory-bank-contract.md`.
 
 **Agent Delegation**: This prompt orchestrates end-of-session analysis and delegates specialized tasks to dedicated agents in the Synapse agents directory:
 
 - **common-checklist** -- Pre-analysis: Loads structure, memory bank, rules, and detects primary language
+- **pipeline-state-tracker** -- State: Pipeline state checkpointing (analyze)
 - **context-effectiveness-analyzer** -- Step 1: Context effectiveness evaluation
 - **session-optimization-analyzer** -- Step 2: Session optimization and tool anomalies
 - **tools-optimizer** -- Step 3: Tool set optimization audit
 - **session-compactor** -- Step 4: Memory bank compaction + markdown lint
 - **improvements-planner** -- Step 6: Conditional improvements plan creation
 
-**Inter-agent communication**: All agents return structured results per `shared-handoff-schema.md`. The orchestrator validates required fields before assembling the report.
+**Inter-agent communication**: All agents return structured results per `shared-handoff-schema.md`. The orchestrator validates required fields before assembling the report. Pipeline state is persisted after each step via `pipeline-state-tracker` to prevent state loss.
 
 **Subagent execution: STRICTLY SEQUENTIAL.** Run each agent one at a time. Do not proceed to the next until the previous reports completion.
 
@@ -36,18 +41,9 @@ At end of session, run a single "check all" analysis: (1) evaluate `load_context
 
 ## Pre-Analysis Checklist — Delegate to `common-checklist`
 
-**Delegate to `common-checklist` agent** (Synapse agents directory).
+Execute standard pre-flight protocol (see `shared-conventions.md`) with all agents from the "Agent Delegation" list.
 
-The common-checklist agent loads all shared prerequisites:
-
-- Project structure paths (plans, memory bank, reviews, rules)
-- All core memory bank files (activeContext, roadmap, progress, systemPatterns, techContext)
-- Relevant rules for `task_description="Coding standards, session analysis"`
-- Primary language detection from techContext.md
-
-**CRITICAL**: Verify the agent returns `status: "complete"` before proceeding. If `status: "error"`, STOP.
-
-**Additional pre-analysis steps** (orchestrator, after common-checklist completes):
+**Additional pre-analysis steps** (orchestrator, after pre-flight completes):
 
 1. **Context-effectiveness recall** (for manual fallback if needed):
    - Recall `load_context` calls this session: task descriptions, files selected, relevance scores, token budget and utilization, agent roles.
@@ -68,6 +64,7 @@ After this checklist is satisfied, **continue directly to Step 1 without pausing
 - **Input**: Memory bank files, rules, reviews path (all loaded in Pre-Analysis Checklist)
 - **Output needed**: sessions_analyzed, calls_analyzed, key_metrics, role_recommendations, zero_budget_warnings, status
 - **If no_data**: Expected for analysis-only sessions; agent handles gracefully
+- After agent completes, delegate to `pipeline-state-tracker` (checkpoint_write, step_name="step_1_context_effectiveness")
 
 ### Step 2: Session Optimization -- Delegate to `session-optimization-analyzer`
 
@@ -75,6 +72,7 @@ After this checklist is satisfied, **continue directly to Step 1 without pausing
 - **CRITICAL**: Must complete before Step 3
 - **Input**: Memory bank files, rules, session data (tool outputs, diffs, commit results)
 - **Output needed**: mistake_patterns, root_causes, recommendations, tool_anomalies
+- After agent completes, delegate to `pipeline-state-tracker` (checkpoint_write, step_name="step_2_session_optimization")
 
 ### Step 3: Tools Optimization -- Delegate to `tools-optimizer`
 
@@ -83,17 +81,19 @@ After this checklist is satisfied, **continue directly to Step 1 without pausing
 - **Input**: Memory bank context, reviews path
 - **Output needed**: tool_budget, dead_tools, duplicates, incomplete_consolidations, consolidation_candidates, total_reduction_potential, actionable_recommendation, report_subsection, status
 - **Skip if**: Agent reports `status="unavailable"` (query_usage data not available)
+- After agent completes, delegate to `pipeline-state-tracker` (checkpoint_write, step_name="step_3_tools_optimization")
 
 ### Report Assembly (orchestrator)
 
-After Steps 1-3 complete, assemble the combined report:
+After Steps 1-3 complete:
 
-1. Call `get_structure_info()` and use `structure_info.paths.reviews`.
-2. Generate timestamp via shell `date +%Y-%m-%dT%H-%M`. **Use real time only.** Do not invent values.
-3. Assemble report using Output Format below with outputs from all agents.
-4. **Filename**: `session-optimization-YYYY-MM-DDTHH-MM.md`.
-5. Write the **full** report to `{reviews_path}/session-optimization-YYYY-MM-DDTHH-MM.md` (no truncation).
-6. **MD024 (Duplicate Heading)**: If appending to an existing review file, suffix headings to avoid duplicates.
+1. Delegate to `pipeline-state-tracker` (checkpoint_read) to recall all agent results from Steps 1-3.
+2. Call `get_structure_info()` and use `structure_info.paths.reviews`.
+3. Generate timestamp via shell `date +%Y-%m-%dT%H-%M`. **Use real time only.** Do not invent values.
+4. Assemble report using Output Format below with outputs from all agents.
+5. **Filename**: `session-optimization-YYYY-MM-DDTHH-MM.md`.
+6. Write the **full** report to `{reviews_path}/session-optimization-YYYY-MM-DDTHH-MM.md` (no truncation).
+7. **MD024 (Duplicate Heading)**: If appending to an existing review file, suffix headings to avoid duplicates.
 
 ### Step 4: Maintenance -- Delegate to `session-compactor`
 
@@ -176,3 +176,4 @@ Saved to: {reviews_path}/session-optimization-YYYY-MM-DDTHH-MM.md
 - Step 6: If findings contain improvement recommendations (including tools optimization), `improvements-planner` agent executed; improvements plan created and registered in roadmap. If no recommendations, step skipped.
 - No hardcoded `.cortex/` paths; all paths from MCP or `get_structure_info()`.
 - Single report produced with both Context Effectiveness and Session Optimization sections.
+- Pipeline state cleared via `pipeline-state-tracker` (checkpoint_clear) after Step 6 completes.

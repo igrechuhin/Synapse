@@ -32,6 +32,21 @@ Read all core memory bank files using `manage_file()`. **Before each call**: Ver
 
 If any file is missing, note it as a warning but continue.
 
+### Phase 2.1: Memory Bank Integrity Check
+
+After loading, verify integrity of the three critical files (per `memory-bank-contract.md`):
+
+1. **activeContext.md**: Must be non-empty and contain at least one markdown heading (`#`)
+2. **roadmap.md**: Must be non-empty and contain at least one markdown heading (`#`)
+3. **progress.md**: Must be non-empty and contain at least one markdown heading (`#`)
+
+If any of these three files is empty, missing, or contains no headings:
+
+- Report `status: "error"` with details: `"Memory bank integrity check failed: {file_name} is empty or corrupted"`
+- The orchestrator must STOP — do not proceed with a corrupted memory bank
+
+Optional files (systemPatterns.md, techContext.md) failing integrity are added to `memory_bank_warnings` but do not block.
+
 ## Phase 3: Load Rules
 
 1. Call `rules(operation="get_relevant", task_description="[task description from orchestrator]")`.
@@ -63,6 +78,7 @@ Report to orchestrator using the **CommonChecklistResult** schema:
   },
   "memory_bank_loaded": ["activeContext.md", "roadmap.md", "progress.md", "systemPatterns.md", "techContext.md"],
   "memory_bank_warnings": [],
+  "memory_bank_integrity": "passed | failed",
   "rules_loaded": true,
   "primary_language": "Python 3.13",
   "error": null
@@ -72,5 +88,6 @@ Report to orchestrator using the **CommonChecklistResult** schema:
 ## Error Handling
 
 - **`get_structure_info()` fails**: Report `status: "error"`. The orchestrator must STOP.
-- **Memory bank file missing**: Add to `memory_bank_warnings`; continue with available files.
+- **Critical memory bank file empty/corrupted** (activeContext, roadmap, progress): Report `status: "error"` with `memory_bank_integrity: "failed"`. The orchestrator must STOP.
+- **Optional memory bank file missing** (systemPatterns, techContext): Add to `memory_bank_warnings`; continue with available files.
 - **Rules unavailable**: Set `rules_loaded: false`; note fallback was used.

@@ -251,11 +251,22 @@ This document defines **typed JSON schemas** for structured communication betwee
   "plan_title": "Phase 95: manage_file response format",
   "plan_reused": false,
   "enriched_existing": false,
+  "similarity_decision": "create_new | enrich_existing",
+  "similarity_table": [
+    {
+      "candidate": "phase-81-oversized-module-reduction.md",
+      "component_match": 1,
+      "keyword_overlap": 1,
+      "action_verb_match": 0,
+      "score": 2,
+      "similar": true
+    }
+  ],
   "error": null
 }
 ```
 
-**Required fields**: `agent`, `status`, `plan_file_path`
+**Required fields**: `agent`, `status`, `plan_file_path`, `similarity_decision`
 
 ---
 
@@ -306,13 +317,168 @@ This document defines **typed JSON schemas** for structured communication betwee
 
 ---
 
+## SubmoduleHandlerResult
+
+**Produced by**: `submodule-handler` agent
+**Consumed by**: `commit.md` orchestrator (Step 11)
+
+```json
+{
+  "agent": "submodule-handler",
+  "status": "clean | pointer_only | committed | dirty_after_commit | commit_failed | error",
+  "submodule_path": "/absolute/path/to/synapse",
+  "push_succeeded": true,
+  "push_error": null,
+  "pointer_updated": true,
+  "error": null
+}
+```
+
+**Required fields**: `agent`, `status`
+
+---
+
+## FinalGateValidatorResult
+
+**Produced by**: `final-gate-validator` agent
+**Consumed by**: `commit.md` orchestrator (Step 12 -> Step 13 gate)
+
+```json
+{
+  "agent": "final-gate-validator",
+  "status": "passed | failed | error",
+  "phases_executed": {
+    "markdown_revalidation": true,
+    "formatting": true,
+    "type_check": true,
+    "quality": true,
+    "spelling": true,
+    "test_naming": true,
+    "markdown_lint": true,
+    "quality_recheck": true,
+    "tests_coverage": true
+  },
+  "phases_passed": {
+    "markdown_revalidation": true,
+    "formatting": true,
+    "type_check": true,
+    "quality": true,
+    "spelling": true,
+    "test_naming": true,
+    "markdown_lint": true,
+    "quality_recheck": true,
+    "tests_coverage": true
+  },
+  "coverage": 0.92,
+  "fix_loops_executed": 0,
+  "fallbacks_used": [],
+  "connection_errors": [],
+  "dirty_state_skips": [],
+  "error": null
+}
+```
+
+**Required fields**: `agent`, `status`, `phases_executed`, `phases_passed`, `coverage`
+
+---
+
+## CommitStateTrackerResult
+
+**Produced by**: `commit-state-tracker` agent
+**Consumed by**: `commit.md` orchestrator (state management across pipeline)
+
+```json
+{
+  "agent": "commit-state-tracker",
+  "status": "complete | error",
+  "operation": "write | read | clear",
+  "state": {
+    "pipeline_id": "2026-03-07T14-30",
+    "current_step": 12,
+    "rules_loaded": true,
+    "mcp_healthy": true,
+    "phase_a": {
+      "executed": true,
+      "passed": true,
+      "coverage": 0.92
+    },
+    "steps_completed": {},
+    "final_gate": {
+      "executed": false,
+      "all_passed": false
+    },
+    "source_files_dirty_since_phase_a": false
+  },
+  "checkpoint_path": "/absolute/path/to/commit-pipeline-state.json",
+  "error": null
+}
+```
+
+**Required fields**: `agent`, `status`, `operation`
+
+---
+
+## AgentHealthCheckerResult
+
+**Produced by**: `agent-health-checker` agent
+**Consumed by**: All orchestrator prompts (pre-flight validation before any delegation)
+
+```json
+{
+  "agent": "agent-health-checker",
+  "status": "passed | failed | error",
+  "pipeline_name": "commit",
+  "agents_checked": 12,
+  "found_agents": ["error-fixer.md", "quality-checker.md"],
+  "missing_agents": [],
+  "malformed_agents": [],
+  "unregistered_agents": [],
+  "error": null
+}
+```
+
+**Required fields**: `agent`, `status`, `pipeline_name`, `agents_checked`, `missing_agents`
+
+---
+
+## PipelineStateTrackerResult
+
+**Produced by**: `pipeline-state-tracker` agent
+**Consumed by**: `review.md` and `analyze.md` orchestrators (state management)
+
+```json
+{
+  "agent": "pipeline-state-tracker",
+  "status": "complete | no_checkpoint | error",
+  "operation": "write | read | clear",
+  "pipeline_name": "review | analyze",
+  "state": {
+    "pipeline_name": "review",
+    "pipeline_id": "2026-03-07T14-30",
+    "current_step": "step_3_consistency",
+    "steps": {
+      "step_1_static_analysis": { "status": "complete", "result": {} },
+      "step_2_bug_detection": { "status": "complete", "result": {} }
+    }
+  },
+  "checkpoint_path": "/absolute/path/to/review-pipeline-state.json",
+  "error": null
+}
+```
+
+**Required fields**: `agent`, `status`, `operation`, `pipeline_name`
+
+**Note**: The `state.steps.*.result` fields conform to the individual agent schemas defined earlier in this document (e.g., `BugDetectorResult` for step_2_bug_detection).
+
+---
+
 ## Validation Rules
 
 Orchestrators MUST check:
 
 1. **`status` field exists** and is not `"error"` (unless the orchestrator has error-handling logic)
 2. **All required fields are present** for the specific schema
-3. **Downstream dependencies are met**: e.g., `quality_gate_passed` must be `true` before invoking `implement-finalizer`
+3. **Downstream dependencies are met**: e.g., `quality_gate_passed` must be `true` before invoking `implement-finalizer`; `final-gate-validator.status` must be `"passed"` before Step 13
 
 If validation fails, the orchestrator should:
 

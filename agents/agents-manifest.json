@@ -1,0 +1,279 @@
+{
+  "version": "1.0",
+  "categories": {
+    "commit": {
+      "description": "Agents used in the commit pipeline (Steps 0-15)",
+      "agents": [
+        {
+          "file": "error-fixer.md",
+          "name": "error-fixer",
+          "description": "Fix compiler errors, type errors, formatting issues, and warnings",
+          "keywords": ["errors", "fix", "type-errors", "formatting"]
+        },
+        {
+          "file": "quality-checker.md",
+          "name": "quality-checker",
+          "description": "Validate file size/function length limits and code quality",
+          "keywords": ["quality", "lint", "file-size", "function-length"]
+        },
+        {
+          "file": "code-formatter.md",
+          "name": "code-formatter",
+          "description": "Code formatting enforcement",
+          "keywords": ["format", "black", "isort"]
+        },
+        {
+          "file": "markdown-linter.md",
+          "name": "markdown-linter",
+          "description": "Markdown lint error fixing",
+          "keywords": ["markdown", "lint", "mdl"]
+        },
+        {
+          "file": "type-checker.md",
+          "name": "type-checker",
+          "description": "Type checking validation",
+          "keywords": ["types", "mypy", "pyright"]
+        },
+        {
+          "file": "test-executor.md",
+          "name": "test-executor",
+          "description": "Test execution and coverage validation",
+          "keywords": ["tests", "pytest", "coverage"]
+        },
+        {
+          "file": "timestamp-validator.md",
+          "name": "timestamp-validator",
+          "description": "Timestamp format validation in memory bank files",
+          "keywords": ["timestamps", "dates", "validation"]
+        },
+        {
+          "file": "submodule-handler.md",
+          "name": "submodule-handler",
+          "description": "Synapse submodule commit/push handling",
+          "keywords": ["submodule", "synapse", "git"]
+        },
+        {
+          "file": "final-gate-validator.md",
+          "name": "final-gate-validator",
+          "description": "Final validation gate with fix-loop state machine",
+          "keywords": ["final-gate", "validation", "commit"]
+        },
+        {
+          "file": "commit-state-tracker.md",
+          "name": "commit-state-tracker",
+          "description": "Pipeline state checkpointing for commit workflow",
+          "keywords": ["state", "checkpoint", "pipeline"]
+        },
+        {
+          "file": "memory-bank-updater.md",
+          "name": "memory-bank-updater",
+          "description": "Memory bank and roadmap updates",
+          "keywords": ["memory-bank", "roadmap", "activeContext"]
+        },
+        {
+          "file": "plan-archiver.md",
+          "name": "plan-archiver",
+          "description": "Archive completed plans",
+          "keywords": ["plans", "archive"]
+        }
+      ]
+    },
+    "review": {
+      "description": "Agents used in the code review pipeline",
+      "agents": [
+        {
+          "file": "static-analyzer.md",
+          "name": "static-analyzer",
+          "description": "Static analysis and linting",
+          "keywords": ["static-analysis", "lint"]
+        },
+        {
+          "file": "bug-detector.md",
+          "name": "bug-detector",
+          "description": "Language-aware bug detection",
+          "keywords": ["bugs", "detection", "language-aware"]
+        },
+        {
+          "file": "consistency-checker.md",
+          "name": "consistency-checker",
+          "description": "Cross-file consistency checks",
+          "keywords": ["consistency", "naming", "style"]
+        },
+        {
+          "file": "rules-compliance-checker.md",
+          "name": "rules-compliance-checker",
+          "description": "Project rules compliance validation",
+          "keywords": ["rules", "compliance", "SOLID", "DRY"]
+        },
+        {
+          "file": "completeness-verifier.md",
+          "name": "completeness-verifier",
+          "description": "Incomplete implementation detection",
+          "keywords": ["completeness", "TODO", "placeholder"]
+        },
+        {
+          "file": "test-coverage-reviewer.md",
+          "name": "test-coverage-reviewer",
+          "description": "Test coverage review",
+          "keywords": ["coverage", "tests", "review"]
+        },
+        {
+          "file": "security-assessor.md",
+          "name": "security-assessor",
+          "description": "Security assessment",
+          "keywords": ["security", "secrets", "auth"]
+        },
+        {
+          "file": "performance-reviewer.md",
+          "name": "performance-reviewer",
+          "description": "Performance review",
+          "keywords": ["performance", "complexity", "memory"]
+        }
+      ]
+    },
+    "implement": {
+      "description": "Agents used in the implement-next-roadmap-step pipeline",
+      "agents": [
+        {
+          "file": "roadmap-implementer.md",
+          "name": "roadmap-implementer",
+          "description": "Roadmap step selection and context loading",
+          "keywords": ["roadmap", "step-selection"]
+        },
+        {
+          "file": "implement-executor.md",
+          "name": "implement-executor",
+          "description": "Code implementation and quality gate",
+          "keywords": ["implement", "coding", "quality-gate"]
+        },
+        {
+          "file": "implement-finalizer.md",
+          "name": "implement-finalizer",
+          "description": "Memory bank updates and plan archiving after implementation",
+          "keywords": ["finalize", "archive", "memory-bank"]
+        },
+        {
+          "file": "plan-creator.md",
+          "name": "plan-creator",
+          "description": "Development plan creation and enrichment",
+          "keywords": ["plan", "create", "enrich"]
+        },
+        {
+          "file": "plan-archiver.md",
+          "name": "plan-archiver",
+          "description": "Archive completed plans",
+          "keywords": ["plans", "archive"]
+        }
+      ]
+    },
+    "analyze": {
+      "description": "Agents used in the end-of-session analysis pipeline",
+      "agents": [
+        {
+          "file": "context-effectiveness-analyzer.md",
+          "name": "context-effectiveness-analyzer",
+          "description": "Evaluate load_context effectiveness and token utilization",
+          "keywords": ["context", "effectiveness", "tokens"]
+        },
+        {
+          "file": "session-optimization-analyzer.md",
+          "name": "session-optimization-analyzer",
+          "description": "Identify mistake patterns and optimization recommendations",
+          "keywords": ["session", "optimization", "mistakes"]
+        },
+        {
+          "file": "tools-optimizer.md",
+          "name": "tools-optimizer",
+          "description": "Tool set budget audit and optimization",
+          "keywords": ["tools", "budget", "optimization"]
+        },
+        {
+          "file": "session-compactor.md",
+          "name": "session-compactor",
+          "description": "Memory bank compaction and markdown lint",
+          "keywords": ["compaction", "markdown-lint", "handoff"]
+        },
+        {
+          "file": "improvements-planner.md",
+          "name": "improvements-planner",
+          "description": "Create improvement plans from analysis findings",
+          "keywords": ["improvements", "planning"]
+        }
+      ]
+    },
+    "shared": {
+      "description": "Cross-pipeline agents used by multiple orchestrators",
+      "agents": [
+        {
+          "file": "common-checklist.md",
+          "name": "common-checklist",
+          "description": "Shared pre-action checklist: loads structure, memory bank, rules, language",
+          "keywords": ["checklist", "setup", "memory-bank", "rules"]
+        },
+        {
+          "file": "memory-bank-updater.md",
+          "name": "memory-bank-updater",
+          "description": "Memory bank access patterns and safe update tools",
+          "keywords": ["memory-bank", "roadmap"]
+        },
+        {
+          "file": "link-validator.md",
+          "name": "link-validator",
+          "description": "Link integrity validation in memory bank files",
+          "keywords": ["links", "validation", "integrity"]
+        },
+        {
+          "file": "roadmap-sync-validator.md",
+          "name": "roadmap-sync-validator",
+          "description": "Roadmap-codebase synchronization validation",
+          "keywords": ["roadmap", "sync", "validation"]
+        },
+        {
+          "file": "agent-health-checker.md",
+          "name": "agent-health-checker",
+          "description": "Pre-flight batch validation of required agent files",
+          "keywords": ["health-check", "validation", "pre-flight", "agents"]
+        },
+        {
+          "file": "pipeline-state-tracker.md",
+          "name": "pipeline-state-tracker",
+          "description": "General-purpose pipeline state checkpointing for review and analyze",
+          "keywords": ["state", "checkpoint", "pipeline", "persistence"]
+        }
+      ]
+    },
+    "reference": {
+      "description": "Non-invocable reference documents for other agents",
+      "agents": [
+        {
+          "file": "shared-handoff-schema.md",
+          "name": "shared-handoff-schema",
+          "description": "Typed JSON schemas for inter-agent communication",
+          "keywords": ["schema", "handoff", "JSON"],
+          "invocable": false
+        },
+        {
+          "file": "review-output-schema.md",
+          "name": "review-output-schema",
+          "description": "Output format and templates for code review reports",
+          "keywords": ["review", "output", "schema"],
+          "invocable": false
+        },
+        {
+          "file": "error-pattern-detector.md",
+          "name": "error-pattern-detector",
+          "description": "Reference catalog of known error patterns",
+          "keywords": ["errors", "patterns", "detection"],
+          "invocable": false
+        },
+        {
+          "file": "OPTIMIZATION_ANALYSIS.md",
+          "name": "optimization-analysis",
+          "description": "Agent set optimization analysis document",
+          "keywords": ["optimization", "analysis", "agents"],
+          "invocable": false
+        }
+      ]
+    }
+  }
+}

@@ -2,1841 +2,281 @@
 
 **AI EXECUTION COMMAND**: Execute the mandatory commit procedure with all required pre-commit checks, including testing of all runnable project tests.
 
-**CRITICAL**: ONLY run this commit workflow when the user explicitly invoked `/cortex/commit` (or equivalent commit command). NEVER commit or push based on implicit assumptions like "as always" or "user expects this". Invoking this command IS an explicit commit request per `no-auto-commit.mdc` rule. Once invoked, execute all steps AUTOMATICALLY without asking for additional permission or confirmation.
+**CRITICAL**: ONLY run this commit workflow when the user explicitly invoked `/cortex/commit` (or equivalent commit command). NEVER commit or push based on implicit assumptions. Invoking this command IS an explicit commit request per `no-auto-commit.mdc` rule. Once invoked, execute all steps AUTOMATICALLY without asking for additional permission or confirmation.
 
-**⚠️ ZERO ERRORS TOLERANCE (MANDATORY)**: This project has ZERO errors tolerance. ANY errors found in ANY check (formatting, types, linting, quality, tests) MUST block commit - NO EXCEPTIONS. Pre-existing errors are NOT acceptable - they MUST be fixed before commit. You MUST explicitly parse error counts from output and verify they are ZERO before proceeding to commit. DO NOT dismiss errors as "pre-existing" or "in files I didn't modify" - ALL errors must be fixed.
+**END-TO-END EXECUTION**: Run from start to finish without pausing. Begin immediately with the Pre-Action Checklist and tool calls. When a step fails, apply fixes automatically and re-run validation — do NOT stop merely to report the failure. Only stop when: (1) a step fails after genuine fix attempts, (2) a Cortex MCP tool returns a hard failure, or (3) user input is explicitly required.
 
-**⚠️ END-TO-END EXECUTION (MANDATORY)**: Run this pipeline from start to finish when no user input is required. Do NOT stop to announce your plan, summarize next steps, or ask for confirmation. Begin immediately with the Pre-Action Checklist and tool calls (e.g. `load_context`, `manage_file`, `rules`, `get_structure_info`, then Step 0); use the todo checklist for progress. When a step fails (formatting, type check, quality, tests, roadmap sync, timestamps, etc.), apply fixes automatically and re-run validation—do NOT stop merely to report the failure or wait for the user to request fixes; only stop after genuine fix attempts if validation still fails or context is insufficient. "Block commit" means do not advance to the next step until the failure is resolved; it does NOT mean stop the pipeline and report to the user. Only stop the pipeline when: (1) a step fails and cannot be resolved after genuine fix attempts, (2) a Cortex MCP tool returns a hard failure, or (3) user input is explicitly required (e.g. unresolved conflict or missing commit message). Keep opening narrative minimal. **After Phase A passes, continue directly to later phases and Step 12 without pausing for user confirmation or an “ok, proceed” message—only stop if a check fails or genuine clarification is required.**
+## Conventions
 
-**Tooling Note**: Use standard Cursor tools (`Read`, `ApplyPatch`, `Write`, `LS`, `Glob`, `Grep`) by default; MCP filesystem tools are optional fallbacks only when standard tools are unavailable or explicitly requested. **Use Cortex MCP tools for memory bank and rules operations** (e.g., `manage_file()`, `rules()`, `query_memory_bank(query_type="stats")`, `validate()`, `check_structure_health()`).
+Per `shared-conventions.md`. Severity: GATE/CHECK/PREFER. Memory bank writes: per `memory-bank-contract.md`.
 
-**MCP TOOL USAGE (USE WHEN / EXAMPLES)**:
-
-- **manage_file**
-  - **Use when** you need to read or write Memory Bank files (`activeContext.md`, `progress.md`, `roadmap.md`) or query their metadata during the commit workflow.
-  - **Required parameters**: `file_name`, `operation` (`"read"`, `"write"`, `"metadata"`).
-  - **Anti-pattern**: NEVER call `manage_file({})` or omit `file_name`/`operation`; this indicates a missing plan step or a bug in the orchestration prompt.
-  - **Friendly error behavior**: If you forget `file_name` or `operation`, `manage_file` returns a structured error with a `details.missing` list and a `hint` explaining how to call it correctly.
-  - **Examples**:
-    - Read current roadmap with metadata:
-      - `manage_file(file_name="roadmap.md", operation="read", include_metadata=True)`
-    - Update progress after tests pass:
-      - `manage_file(file_name="progress.md", operation="write", content="[updated content]", change_description="Updated after commit checks")`
-    - Check metadata only:
-      - `manage_file(file_name="activeContext.md", operation="metadata")`
-
-- **rules**
-  - **Use when** you need project rules context (coding standards, testing rules, etc.) as part of pre-commit validation or report generation.
-  - **Required parameter**: `operation` (`"index"` or `"get_relevant"`). `task_description` is REQUIRED for `"get_relevant"`.
-  - **Zero-budget reminder**: Zero-budget or zero-files `load_context` calls are only acceptable for trivial/no-op tasks; for commit-related work use a non-zero budget (e.g. 10k–15k).
-  - **Friendly error behavior**: If you omit `operation`, `rules` returns a structured error with `details.missing=["operation"]` and a `hint` that lists valid values. If you pass an invalid operation, it returns `valid_operations` plus a `hint`.
-  - **Examples**:
-    - Index rules before a large refactor:
-      - `rules(operation="index")`
-    - Load rules relevant to commit/test work:
-      - `rules(operation="get_relevant", task_description="Commit pipeline and test coverage enforcement")`
-
-**Pre-Commit Checks (Phase A helper)**: Prefer `execute_pre_commit_checks(phase="A", ...)` as the primary entrypoint for Phase A preflight (Steps 0–4). It runs the default preflight checks (fix_errors, format, synapse_format, synapse_lint, type_check, quality, tests) and `fix_markdown_lint()` once, and returns a structured result with a top-level `preflight_passed` flag and per-check summaries. **CI parity**: synapse_format and synapse_lint run the same Synapse script checks as CI (Black and Ruff for `.cortex/synapse/scripts/`), so Phase A failures for these checks must be fixed before commit to avoid quality gate failures on push. **CRITICAL**: All of these tools resolve project root internally (via MCP context when available) and language on their own. **NEVER pass `project_root` as a parameter** - Cortex MCP tools resolve project root internally. When you need to re-run a single check (e.g., during Step 12) or debug a specific failure, call `execute_pre_commit_checks()` directly as documented below. Both tools provide:
-
-- Language auto-detection (resolved internally)
-- Structured parameters and return values
-- Consistent error handling
-- Type safety
-
-**Agent Delegation**: This prompt orchestrates the commit workflow and delegates specialized tasks to dedicated agents in the Synapse agents directory.
-
-**IMPORTANT**: This prompt focuses on **orchestration** (order, dependencies, workflow coordination). For **implementation details** (MCP tool calls, validation logic, specific checks), see the referenced agent files.
+## Architecture
 
-**Agents Used**:
+### Prompts = Orchestration | Agents = Implementation
 
-- **error-fixer** - Step 0: Fix errors and warnings
-- **quality-checker** - Step 0.5: Quality preflight (fail-fast)
-- **code-formatter** - Step 1: Code formatting
-- **markdown-linter** - Step 1.5: Markdown linting
-- **type-checker** - Step 2: Type checking
-- **quality-checker** - Step 3: Code quality checks
-- **test-executor** - Step 4: Test execution
-- **memory-bank-updater** - Step 5: Memory bank operations
-- **memory-bank-updater** - Step 6: Roadmap updates
-- **plan-archiver** - Step 7: Plan archiving
-- **plan-archiver** - Step 8: Archive location validation
-- **timestamp-validator** - Step 9: Timestamp validation
-- **Step 10** - Ensure roadmap and activeContext reflect actual state (orchestration only; no dedicated agent)
+This prompt focuses on **step order, dependencies, and workflow coordination**. For implementation details (MCP tool calls, validation logic, response parsing), see the referenced agent files. For known error patterns, see `error-pattern-detector.md`.
 
-**Subagent execution strategy (MANDATORY)**:
+**Pipeline state**: The `commit-state-tracker` agent maintains a checkpoint file across the pipeline. Delegate to it after Phase A and before Step 12 to persist/recall step outcomes.
 
-- For **state-changing steps (0–8)** you MUST run agents **sequentially**, never in parallel.
-- For **read-only validators and submodule handling (9–11)** you MAY run them in parallel **only if** the platform safely supports concurrent tool calls; otherwise, default to sequential execution.
-- NEVER start new subagents that can touch the same files while a previous subagent that might modify those files is still running.
-- If there is **any doubt** about shared files or race conditions, choose **sequential execution**.
+## Agents Used
 
-**Concurrency rules (Steps 9–11 parallel block)**:
+| Step | Agent | Purpose |
+|---|---|---|
+| Pre-Step | common-checklist | Load structure, memory bank, rules, language |
+| State | commit-state-tracker | Pipeline state checkpointing |
+| 0 | error-fixer | Fix errors and warnings |
+| 0.5 | quality-checker | Quality preflight (fail-fast) |
+| 1 | code-formatter | Code formatting |
+| 1.5 | markdown-linter | Markdown linting |
+| 2 | type-checker | Type checking |
+| 3 | quality-checker | Code quality checks |
+| 4 | test-executor | Test execution |
+| 5-6 | memory-bank-updater | Memory bank and roadmap updates |
+| 7-8 | plan-archiver | Plan archiving and validation |
+| 9 | timestamp-validator | Timestamp validation |
+| 11 | submodule-handler | Synapse submodule handling |
+| 12 | final-gate-validator | Final validation gate (all re-checks) |
+| — | error-pattern-detector | Reference catalog for error detection |
 
-- **Steps 0–8** and **Steps 12–14** MUST remain strictly sequential (ordering and dependencies).
-- **Steps 9, 10, and 11** form a **parallel validation/submodule block**: they are logically independent (read-only validators + submodule handling) and MAY run concurrently when the platform safely supports concurrent tool calls.
-- When running Steps 9–11 in parallel: start all three after Step 8 completes; wait for **all three** to finish before proceeding to Step 12; aggregate their results; if **any** of the three fails or reports blocking issues, treat the block as failed and do not proceed to Step 12.
-- Do **not** add other steps to the parallel group without explicit dependency analysis (see Phase 56 plan). Memory-bank and plan writers remain serialized.
+**Steps without dedicated agents** (handled in orchestration): 10 (state check), 13 (commit), 14 (push), 15 (analyze).
 
-**Steps without dedicated agents** (handled directly in orchestration):
+**Inter-agent communication**: All agents return structured results per `shared-handoff-schema.md`. Validate required fields before proceeding.
 
-- **Step 11**: Submodule handling (Synapse submodule)
-- **Step 12**: Final validation gate (re-verification of formatting, types, linting, quality)
-- **Step 13**: Commit creation
-- **Step 14**: Push branch
-- **Step 15**: Execute Analyze (End of Session) prompt (`analyze.md`)
+**When executing steps**: Agent availability is verified by the pre-flight health check. READ the agent file, EXECUTE all steps from it, VERIFY success before proceeding.
 
-**Script use (MANDATORY)**:
+## Execution Strategy
 
-- If during this run you created or executed any script (inline snippet or file), you MUST call `manage_session_scripts(operation="capture", ...)` and/or `manage_session_scripts(operation="analyze", ...)` or `manage_session_scripts(operation="suggest", ...)` as appropriate. Do not run scripts without using script tooling.
+### Concurrency rules
 
-**When executing steps**: For steps that delegate to agents, you MUST:
+- **Steps 0-8**: Strictly sequential (state-changing, dependencies)
+- **Steps 9-11**: Strictly sequential (deterministic execution; no conditional parallelism)
+- **Steps 12-15**: Strictly sequential
 
-1. **READ** the agent file from the Synapse agents directory (`{agent-name}.md`); resolve path via project structure or `get_structure_info()` if needed
-2. **EXECUTE** all execution steps from the agent file
-3. **VERIFY** success and proceed with orchestration
+## Pre-Action Checklist
 
-Steps without agents are handled directly by the orchestration workflow.
+Execute standard pre-flight protocol (see `shared-conventions.md`) with all agents from the "Agents Used" table.
 
-## ⚠️ MANDATORY PRE-ACTION CHECKLIST
+Additionally, the orchestrator MUST verify:
 
-**BEFORE executing this command, you MUST:**
+0. **GATE**: Call `check_mcp_connection_health()`. If unhealthy, STOP.
+1. **CHECK**: Load memory bank files (essential: activeContext, roadmap, progress). Token budget 3000-4000 for commit pipeline.
+2. **GATE**: Load rules via `rules(operation="get_relevant", task_description="Commit pipeline, test coverage, type fixes, and visibility rules")`. Pipeline MUST NOT proceed without rules.
+3. **CHECK**: Verify code conforms to loaded rules before running checks
+4. **CHECK**: Confirm changes exist to commit
+5. **CHECK**: Scan recent MCP tool responses for validation errors
 
-0. ✅ **Verify Cortex MCP is connected** - Do not run the commit pipeline without MCP:
-   - Call **`check_mcp_connection_health()`**. If the call **fails** (e.g. connection error, tool not found), **STOP**. Report to the user: "Cortex MCP is disconnected or unhealthy. Please reconnect the Cortex MCP server and re-run this command." Do not proceed.
-   - If the result has **`health.healthy` false**, **STOP**. Report the same message. Do not run Steps 0–15 without a healthy MCP connection.
-
-1. ✅ **Read relevant memory bank files** - Understand current project context:
-   - **Non-zero token budget (MANDATORY when using load_context)**: For commit or fix-path work, if you call `load_context`, use an explicit non-zero `token_budget` (e.g. 10,000–15,000 for fix/debug). Zero-budget or zero-files for non-trivial tasks is a configuration error.
-   - **For commit pipeline tasks**: Use targeted file selection to optimize token usage (40-60% reduction):
-     - **Essential files** (always load): `activeContext.md`, `roadmap.md`, `progress.md`
-     - **Optional files** (load only if task-specific relevance): `techContext.md`, `systemPatterns.md`, `productContext.md`, `projectBrief.md`
-     - **Token budget**: Use 3000-4000 tokens for commit pipeline workflow tasks (reduced from 5000)
-     - **When using `load_context()`**: Specify commit pipeline task type and use the reduced token budget; the tool will automatically select essential files
-   - **Use Cortex MCP tool `manage_file(file_name="activeContext.md", operation="read")`** to understand current work focus
-   - **Use Cortex MCP tool `manage_file(file_name="progress.md", operation="read")`** to see recent achievements
-   - **Use Cortex MCP tool `manage_file(file_name="roadmap.md", operation="read")`** to understand project priorities
-   - **Note**: Access memory bank files via Cortex MCP tool `manage_file(file_name="...", operation="read"|"write")`; do not hardcode paths. Resolve memory bank path via `get_structure_info()` → `structure_info.paths.memory_bank` if needed.
-
-2. ✅ **Read relevant rules** - Understand commit requirements:
-   - **Skipping the rules load step is a CRITICAL violation.** Any fix (especially type, lint, or visibility) must be validated against **loaded** rules before applying.
-   - Call `rules(operation="get_relevant", task_description="Commit pipeline, test coverage, type fixes, and visibility rules")`. If the rules tool is unavailable (e.g. disabled), read rules from the rules directory (path from `get_structure_info()` → `structure_info.paths.rules`) or the Synapse rules directory so that coding standards and visibility/API rules are in context.
-   - **Rules loaded via MCP (rules tool) or rule files read for this run: Yes / No. If No, do not proceed to Step 0. When `rules()` returns `disabled`, read rule files via Read tool and record "Rules loaded: Yes (via file read)".**
+**PREFER**: Use `think` tool to plan which checks apply to current changes.
 
-3. ✅ **Verify code conformance to rules** - Before running checks, verify code conforms to the rules loaded above (coding standards, type annotations, data modeling, file/function limits, dependency injection). See language-specific rules and memory-bank-workflow.mdc. **BLOCKING**: Data structures must comply with project's required modeling standards; fix any violations before pre-commit checks.
-
-4. ✅ **Understand operations** - Use MCP tools for all operations:
-   - **Pre-commit checks**: Use `execute_pre_commit_checks()` MCP tool for fix_errors, format, synapse_format, synapse_lint, type_check, quality, and tests
-   - **Memory bank operations**: Use existing MCP tools (`manage_file()`, `query_memory_bank(query_type="stats")`) instead of prompt files
-   - **Validation operations**: Use existing MCP tools (`validate()`, `check_structure_health()`) instead of prompt files
-
-5. ✅ **Verify prerequisites** - Ensure all prerequisites are met:
-   - Confirm there are changes to commit
-   - Verify build system is accessible
-   - Check that test suite can be executed
-
-6. ✅ **Scan for MCP validation errors** - Before proceeding, check recent MCP tool invocations:
-   - Look for validation errors in tool responses (e.g., `status="error"` with `details.missing` or `details.invalid` fields)
-   - Common errors: Missing `file_name`/`operation` in `manage_file()`, missing `operation` in `rules()`, invalid parameter types
-   - **If validation errors are present**: Update prompts/rules to eliminate them before proceeding
-   - **BLOCK COMMIT**: MCP validation errors indicate bugs in orchestration prompts/agents that MUST be fixed
+When `rules()` returns status `disabled` or indexed_files=0, read rule files from the rules directory (Read tool) and record "Rules loaded: Yes (via file read)". Use `get_structure_info()` for paths.
 
-**VIOLATION**: Executing this command without following this checklist is a CRITICAL violation that blocks proper commit procedure.
+After checklist passes, delegate to `commit-state-tracker` (checkpoint_write) to record initial state.
 
-## Compound (Plan → Work → Review → Compound)
+## Pre-Step: Load Rules (GATE — before Step 0)
 
-This commit run is the **Work** step; when it finishes, memory bank updates (Steps 5–6) and Step 15 (Analyze) are the **Compound** step: they keep activeContext/progress/roadmap accurate and run session optimization so the next session is easier.
+Call `rules(operation="get_relevant", task_description="Commit pipeline, test coverage, type fixes, and visibility rules")`. If disabled, read rules from rules directory (path from `get_structure_info()` -> `structure_info.paths.rules`). Record "Rules loaded: Yes" in state.
 
-**Compound checklist** (apply these so each session compounds; see CLAUDE.md and troubleshooting for details):
-
-1. **Memory bank writes**: Use `manage_file()` only; never StrReplace/Write/ApplyPatch on roadmap, activeContext, or progress.
-2. **Roadmap single-line edits**: Read full content with `manage_file(read)`, compute updated content, then `manage_file(write, content=...)`; use `roadmap(operation="remove_entry"|"add_entry"|"remove_section")` / `append_entry(operation="progress"|"active_context", ...)` where applicable.
-3. **Markdown lint**: Runs on all markdown (including under history/reviews); run early when editing markdown; use `fix_markdown_lint` or preflight.
-4. **Token budgets**: Use task-type-based budgets in `load_context` when implementing (e.g. 10k update, 15k fix/debug, 20–30k feature).
-5. **Connection closed**: If a tool returns MCP error -32000 or "Connection closed", retry once; then rely on `execute_pre_commit_checks` for gates; see troubleshooting.
+**Fix-path rule**: When ANY step fails and you apply fixes, you MUST load context and rules BEFORE making changes: `load_context(task_description="Fixing errors and quality issues for commit", token_budget=15000)`.
 
-## Pre-Step: Load Rules (MANDATORY — BEFORE Step 0)
+**Zero-budget reminder**: Zero-budget or zero-files `load_context` calls are only acceptable for trivial/no-op tasks. For commit work use non-zero budget (10k-15k).
 
-Satisfy **Pre-Action Checklist item 2** (Read relevant rules) before Step 0. Call `rules(operation="get_relevant", task_description="Commit pipeline, test coverage, type fixes, and visibility rules")`; if the tool returns `disabled`, read rules from the rules directory (path from `get_structure_info()` → `structure_info.paths.rules`) or Synapse rules directory and record "Rules loaded: Yes (via file read)". Do not run Step 0 until rules are loaded. See also commit-pipeline.mdc and memory-bank-workflow.mdc via `rules(operation="get_relevant")` for shared behavior.
+## Phase A: Pre-Commit Checks (Steps 0-4)
 
-**⚠️ Zero-budget/zero-files reminder**: Zero-budget (`token_budget=0`) or zero-files (`files_selected=0`) `load_context` calls are only acceptable for trivial/no-op tasks. For non-trivial tasks (refactor/fix/debug/implement), these indicate a configuration error and MUST use a non-zero budget (typically 10k-15k for fix/debug, 20k-30k for implement/add).
+**GATE**: Fix loops in Phase A are limited to **3 iterations** per step (see `shared-conventions.md` Max-Retry Limits). After 3 failed fix attempts on any step, STOP and report unresolvable issues.
 
-**Load context when fixing (MANDATORY — after a step failure)**: When any step fails (formatting, type check, quality, tests, roadmap sync, timestamps, etc.) and you are about to apply fixes, you **must** load context and rules **before** making code or test changes so fixes follow project rules and guidelines. Call `load_context(task_description="Fixing errors and quality issues for commit", token_budget=15000)` (15k for fix/debug path). If rules are enabled, call `rules(operation="get_relevant", task_description="Commit pipeline, test coverage, type fixes, and visibility rules")`; if the tool returns `disabled`, read key coding standards from the rules directory (path from `get_structure_info()` → `structure_info.paths.rules`) or Synapse rules directory. Only after context and rules are loaded, proceed with fixes. This applies whether you are re-running a single check (e.g. within Step 12) or debugging a specific failure.
+**PREFER**: Use `execute_pre_commit_checks(phase="A", test_timeout=300, coverage_threshold=0.90, strict_mode=False)` as single entry point. If `preflight_passed: true`, proceed to Step 5. If `preflight_passed: false`, delegate to individual agents below to fix, then point user to `/cortex/fix` with `target=tests` or `target=quality` for targeted follow-up if needed.
 
-## Using the think tool
-
-Before taking action after receiving tool results or analyzing changes, use the `think` tool to:
-
-- List which pre-commit checks apply to the current changes
-- Verify all files are staged and no secrets included
-- Check if memory bank updates are needed
-- Analyze dependencies between validation steps
-
-**Example thinking before Step 0:**
-
-```text
-<think_example>
-Changes include: 3 Python files, 1 markdown file
-- Need: fix_errors, format, synapse_format, synapse_lint, type_check, quality, tests
-- Markdown changed: need markdown lint
-- Memory bank: activeContext needs update for completed work
-- Check: no .env files staged, no hardcoded secrets
-</think_example>
-```
-
-**Example thinking before memory bank updates:**
-
-```text
-<think_example>
-Pre-commit checks passed: format, type_check, quality, tests
-- Memory bank updates needed: progress.md (add entry), activeContext.md (completed work)
-- Roadmap: no changes needed (work was from roadmap, already tracked)
-- Timestamps: verify YYYY-MM-DDTHH:MM format in progress entries
-</think_example>
-```
-
-## Phase Helper MCP Tools (Phase A and B)
-
-Overview: AGENTS.md "Commit pipeline (phase-based)". To reduce prompt size and make the commit pipeline easier to orchestrate, use the dedicated phase helpers instead of micromanaging every individual check where possible:
+### Step 0: Fix errors — Delegate to `error-fixer`
 
-- **Phase A – `execute_pre_commit_checks(phase="A")`**:
-  - Call `execute_pre_commit_checks(phase="A", test_timeout=300, coverage_threshold=0.90, strict_mode=False)` once at the start of the pipeline (after rules are loaded).
-  - Inspect the structured JSON response:
-    - If `status="error"`, treat this as a tool failure and stop the commit pipeline; report the error and do not attempt to commit.
-    - If `status="success"` but `preflight_passed` is `False`, stop the commit pipeline, summarize failing checks from the `checks` array (e.g. `tests`, `quality`, `markdown_lint`), and point the user to targeted follow-up commands such as `/cortex/fix_tests` and `/cortex/fix_quality` instead of trying to debug everything inside `/cortex/commit`.
-    - Only when `status="success"` and `preflight_passed` is `True` may you proceed to Phase B and later phases.
-  - Use direct `execute_pre_commit_checks()` calls later only when you need to re-run a specific check (e.g. within Step 12) or for focused debugging of a single failure.
+- **GATE**: Must complete successfully before Step 1
+- **Dependency**: Rules must be loaded (Pre-Step)
+- **Output**: Zero errors remaining
 
-- **Phase B – `execute_pre_commit_checks(phase="B")`**:
-  - After completing the state-changing docs/memory steps (5–8), call `execute_pre_commit_checks(phase="B")` once to validate timestamps and roadmap/memory-bank sync.
-  - Inspect the structured JSON response:
-    - If `status="error"`, treat this as a tool failure and stop the commit pipeline; report the error and do not attempt to commit.
-    - If `status="success"` but `docs_phase_passed` is `False`, stop the commit pipeline, summarize issues from the `checks` array (e.g. `timestamps`, `roadmap_sync`), and fix them using a focused docs/memory helper command such as `/cortex/docs-sync` before proceeding.
-    - Only when `status="success"` and `docs_phase_passed` is `True` may you proceed to Phase C (submodule + final gate + git operations).
-
-These helpers encapsulate the detailed validation logic for Phases A and B so `/cortex/commit` can focus on high-level orchestration and clear failure semantics.
+### Step 0.5: Quality preflight — Delegate to `quality-checker`
 
-## ⚠️ CRITICAL: Synapse Architecture (MANDATORY)
-
-When modifying Synapse (prompts/rules/agents) files:
+- **GATE**: Must complete before Step 1
+- **Purpose**: Fail-fast on quality violations
 
-- **Prompts (`prompts/*.md`)**: MUST be language-agnostic and project-agnostic
-  - DO NOT hardcode language-specific commands (e.g., `ruff`, `black`, `prettier`)
-  - DO NOT reference project-specific requirements (e.g., "Pydantic models")
-  - DO use Cortex MCP tools for all checks (e.g., `execute_pre_commit_checks()`)
-  - DO use generic language: "check language-specific rules", "use project-mandated types"
-  - DO NOT instruct agents to run scripts directly; tools resolve language and run the appropriate checks
-
-- **Rules (`rules/*.mdc`)**: Language-specific rules are allowed
-  - Python-specific rules go in `rules/python/`
-  - General rules go in `rules/general/`
-
-- **Scripts (`scripts/{language}/*.py`)**: Language-specific implementations
-  - Each language has its own directory
-  - Scripts handle tool detection and project structure automatically
-
-## ⚠️ COMMON ERRORS TO CATCH BEFORE COMMIT
-
-The following error patterns MUST be detected and fixed before commit. These are common issues that have caused problems in the past:
-
-### Type Errors
-
-- **Pattern**: Type checker reports type errors (not warnings)
-- **Detection**: Parse type checker output for error count using the project’s configured type system.
-- **Action**: Fix all type errors, re-run type checker, verify zero errors
-- **Block Commit**: Yes - type errors will cause CI to fail
-- **⚠️ CRITICAL**: Step 12.2 uses `execute_pre_commit_checks(checks=["type_check"])` which checks BOTH source and tests to match CI. Step 12.2 result is AUTHORITATIVE - if the tool finds errors, commit MUST be blocked.
-- **Note**: Only applicable if the project uses a type system (for example, static analysis for Python, TypeScript, or other typed languages).
-- **Example (unused call-result diagnostics in tests)**: When the type checker reports that a call result is unused (for example on assertion helpers or verification methods in tests), treat this as a **type error**, not ignorable “rot”. Fix by intentionally using the result (for example, assigning it to a dedicated “unused” variable or otherwise consuming it according to the project’s language rules), then re-run type checking and quality checks to verify zero remaining errors.
-
-### Test Failures
-
-- **Pattern**: Test suite reports failures (failed count > 0)
-- **Detection**: Parse test output for failure count
-- **Action**: Fix failing tests, re-run tests, verify zero failures
-- **Block Commit**: Yes - test failures will cause CI to fail
+### Step 1: Formatting — Delegate to `code-formatter`
 
-### Test Coverage Below Threshold
+- **GATE**: Formatting check must pass before Step 1.5
+- **Dependency**: After Step 0
 
-- **Pattern**: Coverage percentage < 90%
-- **Detection**: Parse coverage report from test output (MANDATORY - must extract exact percentage)
-- **Action**: Add tests to increase coverage, re-run tests, verify coverage ≥ 90% — **in this same run** (same as other violations). Do NOT stop and report; keep adding tests and re-running until coverage ≥ 90% or context is insufficient.
-- **Block Commit**: Yes - do not proceed to Step 5 (memory bank, etc.) until coverage ≥ 90%. "Block commit" means do not advance to the next step; it does NOT mean stop the commit procedure and report.
-- **CRITICAL**: Coverage MUST be parsed from test output, not estimated or assumed
-- **CRITICAL**: If coverage is below 90%, DO NOT proceed to Step 5 - fix coverage first **in this same run** (add tests, re-run, repeat until ≥ 90%)
-- **CRITICAL**: Coverage validation is MANDATORY - there are NO exceptions or "slightly below" allowances
-- **Validation**: Coverage percentage MUST be explicitly extracted and verified ≥ 90.0% before proceeding
-- **Enforcement**: If coverage < 90.0%, do not advance to Step 5; fix coverage in this same run (add tests, re-run tests) until coverage ≥ 90.0%. Only stop and provide summary if context is insufficient AFTER attempting fixes, per "Context Assessment" in Failure Handling.
-- **Re-run tests / coverage report (MANDATORY)**: When re-running tests or when you need a coverage report to fix coverage, use **only** the Cortex MCP tool:
-  - `execute_pre_commit_checks(checks=["tests"], test_timeout=600, coverage_threshold=0.90, strict_mode=False)`
-- **Coverage guidance**: When adding tests to fix coverage, prioritize files with most uncovered lines (use coverage gap analysis tools if available); focus on error paths, edge cases, and public entry points for quick coverage gains.
-  Do **NOT** run raw test commands in a Shell - use the MCP tool only. Running the test runner directly can produce huge output and long runs and bypass project timeout/configuration.
+### Step 1.5: Markdown linting — Delegate to `markdown-linter`
 
-**Coverage at commit (full test run)**:
-
-- **Mandatory**: For the normal commit pipeline, the **full** test suite runs with `fail-under=90`. If total coverage is below 90%, the commit is **blocked** and you **must** add or improve tests until coverage ≥ 90% before committing. There is no exception for "technical debt" on the main commit run.
-
-**Coverage interpretation for focused work (targeted test runs only)**:
-
-- **New or modified code**: Must meet ≥95% coverage.
-- **Global `fail-under=90` failures when running targeted tests**: When you run a **subset** of tests (e.g. only tests for one module), the **global** coverage number can still be below 90% because many modules were not exercised. In that situation only:
-  - **"Logged as technical debt"** means: **document** the shortfall in Memory Bank (e.g. in `progress.md` or `activeContext.md`) and, where appropriate, add or reference a roadmap phase for coverage improvement — instead of blocking the current focused task or trying to fix all coverage ad hoc during unrelated work.
-  - You must still **improve the test set** to achieve the 90% target; that work is tracked as a dedicated phase/plan (e.g. "Phase XX: raise coverage for module Y") rather than done ad hoc in the current change.
-- **Recording coverage debt**: Use wording like: "Global coverage at 21.7% due to untested analysis/structure modules. This is expected legacy debt and does not block focused roadmap sync work. Coverage improvement tracked in Phase XX."
-- **Reference coverage plans**: Reference relevant coverage-improvement plan from roadmap entries instead of attempting broad, unscheduled coverage work.
-
-**Testing MCP JSON in tests**: When adding tests that assert on MCP tool JSON (e.g., manage_file, rules, execute_pre_commit_checks), follow the project's language-specific testing rules for structured JSON (see language rules and tests/tools/ for the required pattern).
-
-### File Size Violations
-
-- **Pattern**: Files exceeding 400 lines
-- **Detection**: Parse MCP tool response - check `results.quality.success` = false OR `len(results.quality.file_size_violations)` > 0
-- **Action**: Split large files, re-run check, verify `success` = true AND violations array is empty
-- **Block Commit**: Yes - file size violations will cause CI to fail
-- **⚠️ NO EXCEPTIONS**: Pre-existing violations are NOT acceptable - they MUST be fixed before commit
-
-### Function Length Violations
-
-- **Pattern**: Functions exceeding 30 lines
-- **Detection**: Parse MCP tool response - check `results.quality.success` = false OR `len(results.quality.function_length_violations)` > 0
-- **Action**: Refactor long functions, re-run check, verify `success` = true AND violations array is empty
-- **Block Commit**: Yes - function length violations will cause CI to fail
-- **⚠️ NO EXCEPTIONS**: Pre-existing violations are NOT acceptable - they MUST be fixed before commit
-
-### ⚠️ Pre-Existing Violations (CRITICAL ANTI-PATTERN)
-
-- **Pattern**: Agent dismisses violations as "pre-existing issues" and proceeds with commit
-- **Detection**: Agent acknowledges violations exist but commits anyway with reasoning like "these are pre-existing"
-- **Why This Is WRONG**: CI doesn't care if violations are new or pre-existing - it will FAIL regardless
-- **Action**: NEVER proceed with commit when violations exist, regardless of their origin
-- **Block Commit**: Yes - ANY violation blocks commit, period
-- **Note**: The only acceptable state is `results.quality.success` = true with empty violation arrays
+- **GATE**: Zero markdown lint errors before Step 2
+- **Dependency**: After Step 1
+- **PREFER**: Pre-commit hook also runs markdown lint on staged files
 
-### Formatting Violations
+### Step 2: Type checking — Delegate to `type-checker`
 
-- **Pattern**: Formatter check reports formatting issues
-- **Detection**: Parse MCP tool response (e.g., `execute_pre_commit_checks(checks=["format"])`) or formatter check script output for file count
-- **Action**: Run formatter, re-run formatter check, verify zero violations
-- **Block Commit**: Yes - formatting violations will cause CI to fail
+- **Conditional**: Only if project uses a type system
+- **GATE**: Zero type errors AND zero warnings
+- **Dependency**: After Step 1.5
 
-### Linter Errors
+### Step 3: Code quality — Delegate to `quality-checker`
 
-- **Pattern**: Linter reports errors (not warnings)
-- **Detection**: Parse linter output for error count - MUST explicitly extract and verify error count = 0
-- **Action**: Fix linting errors, re-run linter, verify zero errors
-- **Block Commit**: Yes - linter errors will cause CI to fail
-- **⚠️ ZERO ERRORS TOLERANCE**: The project has ZERO errors tolerance - ANY errors (new or pre-existing) MUST block commit
-- **⚠️ NO EXCEPTIONS**: Pre-existing linting errors are NOT acceptable - they MUST be fixed before commit
-- **⚠️ ABSOLUTE BLOCK**: If error count > 0 (even if errors are in files you didn't modify), stop immediately - DO NOT proceed to commit
-- **Note**: **Use `execute_pre_commit_checks()` MCP tool for all pre-commit operations** (e.g. `execute_pre_commit_checks(checks=["quality"])` for the quality gate; quality gate runs both quality (lint, file sizes, function lengths) and type_check so type diagnostics match IDE/CI)
+- **GATE**: Zero file size violations AND zero function length violations
+- **Dependency**: After Step 2
+- **PREFER**: Run type+quality after EACH refactor (incremental validation)
 
-### Integration Test Failures
+### Step 3.5-3.6: Intermediate validation and duplicate detection (PREFER)
 
-- **Pattern**: Integration tests fail (specific test category)
-- **Detection**: Parse test output to identify integration test failures
-- **Action**: Fix integration test issues, re-run tests, verify all pass
-- **Block Commit**: Yes - integration test failures indicate broken functionality
+- Run type+quality check after each refactor during Step 3
+- Before creating helpers, search for existing functions with similar names
 
-### Fixing type/visibility without loaded rules
+### Step 4: Tests — Delegate to `test-executor`
 
-- **Pattern**: Agent applies type or visibility fixes (e.g. reportPrivateUsage, silencing) without having loaded rules first.
-- **Detection**: No `rules()` call (or rule files read) before Step 0 or before applying fixes.
-- **Action**: Load rules first, then re-validate fix against rules (e.g. test via public API, do not use reportPrivateUsage=false). BLOCK commit if fixes were applied without rule context.
-- **Block Commit**: Yes - fixes applied without rule context must be re-validated; do not proceed until rules are loaded and fix is rule-compliant.
+- **GATE**: 100% pass rate AND coverage >= threshold
+- **Coverage threshold**: Default 90%. For brownfield bootstrapping (first commits on projects with large untested codebases), check if `progress.md` or `techContext.md` contains a `coverage_threshold: <value>` override. If present, use that value instead of 90%. This prevents deadlock on initial commits while tracking the debt.
+- **Dependency**: After Steps 0-3 pass
+- **PREFER**: Call `check_mcp_connection_health()` before if pipeline has been running long
 
-### Script run without analysis
+After Phase A passes, delegate to `commit-state-tracker` (checkpoint_write) to record Phase A results.
 
-- **Pattern**: Agent ran a script (e.g. Python/shell snippet) during the pipeline without using script tooling.
-- **Detection**: Script was created or executed (inline or file) but no call to `manage_session_scripts(operation="capture"|"analyze"|"suggest", ...)` was made.
-- **Action**: Use script tooling: call `manage_session_scripts(operation="capture", ...)` and/or `manage_session_scripts(operation="analyze", ...)` or `manage_session_scripts(operation="suggest", ...)` as appropriate. Not using script tooling is a process violation.
-- **Block Commit**: Yes - script runs without analysis violate Phase 27 script-generation-prevention and implement-next-roadmap-step guidance; do not proceed until script tooling has been used.
+## Phase B: Documentation and State (Steps 5-8)
 
-### Plan Status and side-effect imports (Step 12)
+### Step 5: Memory bank — Delegate to `memory-bank-updater`
 
-- **New or modified plan files**: Ensure the Status section uses `Status: VALUE` or a heading (e.g. `### PENDING`), not `**VALUE**` alone—avoids MD036.
-- **New or modified tests with side-effect imports**: Ensure the import is referenced (e.g. `_ = module`) so the type checker does not report it as unused (satisfies reportUnusedImport).
+- **Dependency**: After Step 4
+- Updates activeContext.md, progress.md, roadmap.md
+- **CHECK**: Use `manage_file()` only for memory bank writes (never StrReplace/Write/ApplyPatch)
 
-### Type Checker Warnings
+### Step 6: Roadmap updates — Delegate to `memory-bank-updater`
 
-- **Pattern**: Type checker reports warnings (not errors)
-- **Detection**: Parse type checker output for warning count
-- **Action**: Fix all warnings, re-run type checker, verify zero warnings
-- **Block Commit**: Yes - warnings must be resolved before commit
-- **Note**: Only applicable if project uses a type system (Python with type hints, TypeScript, etc.)
+- **Dependency**: Part of Step 5
+- **CHECK**: Never truncate roadmap content; new content must be >= length of original
 
-### ⚠️ Errors Introduced After Initial Checks (CRITICAL)
+### Step 7: Archive completed plans — Delegate to `plan-archiver`
 
-- **Pattern 1 - Code changes**: Code changes made AFTER Step 2-4 (type check, quality, tests) introduce NEW errors
-- **Pattern 2 - New files**: NEW files created during Step 4 (e.g., test files to fix coverage) are NEVER formatted by Step 1
-- **Detection**: CI fails with type/lint/formatting errors that weren't present in original checks
-- **Root Cause 1**: Agent makes code changes during steps 5-11 without re-running type check
-- **Root Cause 2**: Agent creates new test files during Step 4 to fix coverage, but Step 1 (Formatting) already ran
-- **Example Failure 1**: Agent adds constants to fix tests, those constants have type errors, agent commits without re-checking
-- **Example Failure 2**: Agent creates `test_new_module.py` during Step 4 coverage fix, file is never formatted, CI fails on Black check
-- **Action**: ALWAYS run Step 12 (Final Validation Gate) immediately before commit - use `execute_pre_commit_checks(checks=["format"])` (fix then check) and verify success
-- **Block Commit**: Yes - Step 12 is MANDATORY and cannot be skipped
-- **Prevention**: ANY code change OR new file creation after Step 1 REQUIRES re-running formatting fix AND verification before commit
-- **Note**: This is the most common cause of CI failures that "should have been caught"
+- **GATE**: All completed plans must be archived
+- **Dependency**: After Step 5
+- **CHECK**: Step must execute even if 0 plans found (report "0 plans archived")
 
-### ⚠️ Step 12.1 Skipped Due to Connection Error (CRITICAL ANTI-PATTERN)
+### Step 8: Validate archive locations — Part of `plan-archiver`
 
-- **Pattern**: Agent encounters MCP connection error during Step 12.1 (formatting fix/check), retries once, retry fails, but proceeds to commit using Phase A (Step 1) results
-- **Detection**: Agent acknowledges Step 12.1 failed with connection error but commits anyway with reasoning like "Step 1 passed earlier" or "connection closed; Step 1 results sufficient"
-- **Why This Is WRONG**: New files created during Steps 4-11 (especially test files added to fix coverage) are NEVER formatted by Step 1. Step 12.1 validates that all files (including new ones) are properly formatted before commit. Skipping Step 12.1 risks committing unformatted code that will fail CI formatting checks.
-- **Action**: NEVER proceed to commit when Step 12.1 fails after retry. Use shell script fallbacks (`fix_formatting.py` then `check_formatting.py`). If fallbacks also fail, BLOCK COMMIT immediately and report the failure.
-- **Block Commit**: Yes - Step 12.1 MUST execute successfully in Step 12. Phase A (Step 1) results are NOT sufficient.
-- **NO EXCEPTIONS**: Step 12.1 cannot be skipped. If MCP fails after retry, fallback scripts must be used. If fallbacks fail, commit MUST be blocked.
-- **CI parity for Step 12.1 fallback (MANDATORY)**: The CI workflow (Code Quality) uses **Black** for formatting (`uv run black --check src/ tests/`). Step 12.1 fallback MUST use Black—either the Synapse scripts `fix_formatting.py` and `check_formatting.py` (which use Black) or explicitly `uv run black src/ tests/` then `uv run black --check src/ tests/`. Do NOT use `ruff format` as a substitute—it is not CI-equivalent and will cause the quality gate to fail with "Black formatting check failed". If you already ran a non-CI-equivalent format command (e.g. ruff format), BLOCK COMMIT and report; re-run with MCP connected or with the exact Black commands above.
+- **GATE**: No completed plans remain in plans directory
+- **Dependency**: Part of Step 7
 
-### ⚠️ Step 12.7 Skipped Due to Connection Error (CRITICAL ANTI-PATTERN)
+After Phase B, run `execute_pre_commit_checks(phase="B")` to validate timestamps and roadmap sync. If `docs_phase_passed: false`, fix using `/cortex/fix` with `target=docs`.
 
-- **Pattern**: Agent encounters MCP connection error during Step 12.7 (test re-run), retries once, retry fails, but proceeds to commit using Phase A results
-- **Detection**: Agent acknowledges Step 12.7 failed with connection error but commits anyway with reasoning like "Phase A results valid" or "connection closed; Phase A results sufficient"
-- **Why This Is WRONG**: Code changes during Steps 5-11 may affect test results. Step 12.7 validates that tests still pass and coverage is maintained after all changes. Skipping Step 12.7 risks committing code that breaks tests or reduces coverage below the 90% threshold.
-- **Action**: NEVER proceed to commit when Step 12.7 fails after retry. BLOCK COMMIT immediately and report the connection failure.
-- **Block Commit**: Yes - Step 12.7 MUST execute successfully in Step 12. Phase A results are NOT sufficient.
-- **NO EXCEPTIONS**: There is no fallback for Step 12.7. If it cannot complete after retry, the commit MUST be blocked.
-- **Note**: This anti-pattern causes CI failures where tests pass in Phase A but fail in CI due to code changes made after Phase A.
+## Phase C: Validation and Git (Steps 9-15)
 
-**CRITICAL**: All error patterns above MUST be validated by parsing command output, not just checking exit codes. Exit codes can be misleading - always parse actual output to verify results.
+**Execution order**: Steps 0-8 strictly sequential. Steps 9, 10, 11 strictly sequential. Steps 12-14 strictly sequential (Step 15 analyze after).
 
-## ⚠️ Only healthy commits (MANDATORY)
+### Steps 9-11: Validation block
 
-Commits must be **healthy**: they must pass the same checks that CI runs. Only proceed to Step 13 when **Step 12 was executed in full in this run** and all sub-steps passed. **Phase A (Step 1) results are NOT sufficient** — Step 12 re-verifies after Steps 4–11 and includes type_check over both `src/` and `tests/`; skipping Step 12 causes "pipeline passed locally, quality gate failed on push." Use MCP (`execute_pre_commit_checks`) or **CI-equivalent** fallbacks (Black for format—see Step 12.1; no fallback for Step 12.7). If Step 12 was completed using any command that does not match CI (e.g. `ruff format` instead of Black for 12.1), do NOT commit—block and report that the user should reconnect MCP and re-run, or run the exact CI format command locally: `uv run black src/ tests/` then `uv run black --check src/ tests/`. **Unacceptable**: Commit pipeline "passed" but quality gate failed on push; the pipeline must ensure only health commits.
+Execute Steps 9, 10, 11 sequentially. If ANY fails, do not proceed to Step 12.
 
-## ⚠️ GIT WRITE SAFETY (CRITICAL - MANDATORY)
+**Step 9: Timestamps — Delegate to `timestamp-validator`**
 
-**ONLY run this commit workflow when the user explicitly invoked `/cortex/commit` command. NEVER commit or push based on implicit assumptions like 'as always' or 'user expects this'.**
+- **GATE**: All timestamps YYYY-MM-DD format
+- **Dependency**: After Step 5
 
-### Branch Safety Rule
+### Step 10: Ensure roadmap/activeContext reflect actual state
 
-- **Push on commit**: When the user invokes `/cortex/commit`, run the full pipeline including push. Push the current branch (including `main`) without requiring extra confirmation.
-- **Pre-commit checks**: Before any `git add`, `git commit`, or `git push`, verify:
-  1. User explicitly requested commit/push (via `/cortex/commit` or explicit "commit"/"push" instruction)
-  2. All validation gates have passed
+- **Dependency**: After Steps 5-6
+- Read roadmap.md and activeContext.md via `manage_file`
+- Verify: roadmap = future work only, activeContext = completed work only
+- Fix if needed: move completed items from roadmap to activeContext
+- **No codebase scan**: Do NOT run `validate(check_type="roadmap_sync")`. No TODO matching.
+- **Non-blocking**: State consistency check only
 
-### Git Write Preconditions
+**Step 11: Submodule handling — Delegate to `submodule-handler`**
 
-Before any `git add`, `git commit`, or `git push`:
+- **GATE**: Step 11 CANNOT be skipped. Must execute every run.
+- **Agent**: submodule-handler (Synapse agents directory)
+- **Input**: `synapse_path` resolved via `get_structure_info()` or project-relative path
+- **Output**: `SubmoduleHandlerResult` — check `status` field
+- **GATE**: If `status` is `dirty_after_commit` or `commit_failed`, block commit
 
-1. **User explicitly requested** commit/push (via `/cortex/commit` or explicit "commit"/"push" instruction).
-2. **All validation gates** (Steps 0–12) have passed.
+### Step 12: Final validation gate — Delegate to `final-gate-validator`
 
-Step 13 and Step 14 below contain mandatory precondition checks; do not skip them.
+- **GATE**: Must execute in full. Phase A results are NOT sufficient.
+- **Dependency**: After Steps 9-11 ALL complete
+- **PREFER**: Call `check_mcp_connection_health()` before starting
+- The agent runs all re-verification with fix-loop state machine and **dirty-state optimization (Phase 89)**: for source-dependent checks (format, type_check, quality, tests), the agent passes `skip_if_clean=True` to `execute_pre_commit_checks`. When no source files changed since Phase A, those checks may be skipped and reported as e.g. "Step 12.7: Skipped (no changes since Phase A)."
+- **Output**: `FinalGateValidatorResult` with all phases passed/failed; optional `dirty_state_skips` lists any skipped checks
+- **GATE**: If `status != "passed"`, block commit
 
-### Step 1.5: Markdown linting (delegate to `markdown-linter`)
-
-- **Agent**: Use the markdown-linter agent (Synapse agents directory) for implementation details
-- **Dependency**: Must run AFTER Step 1 (code formatting)
-- **Scope**: The MCP tool `fix_markdown_lint(include_untracked_markdown=True)` lints git-modified and untracked markdown files. For full-repo lint (matching CI), run `node_modules/.bin/markdownlint-cli2 --fix` from the shell.
-- **BLOCK COMMIT**: If ANY markdown lint errors remain (not just critical errors in memory bank/plans)
-- **ZERO ERRORS TOLERANCE**: The project has ZERO errors tolerance - ANY markdown lint error (in ANY file) MUST block commit
-- **NO EXCEPTIONS**: Pre-existing markdown lint errors are NOT acceptable - they MUST be fixed before commit
-- **Workflow**: After agent completes, verify zero errors remain in ALL markdown files before proceeding to Step 2
-- **Pre-commit hook**: When pre-commit is installed (`pre-commit install`), the git pre-commit hook runs markdown lint on staged `.md`/`.mdc` files (auto-fix then block commit if unfixable errors remain). Cortex setup (Initialize prompt) can create the hook in any project; see docs/getting-started.md and docs/prompts/initialize.md.
-- **Formatting guidelines**: To prevent MD036 (emphasis used as heading) and other violations, follow [docs/guides/markdown-formatting.md](docs/guides/markdown-formatting.md) (headings vs emphasis, examples). Use headings (`#`, `##`, `###`) for section titles, not bold alone.
-
-### Step 2: Type checking (delegate to `type-checker`)
-
-- **Agent**: Use the type-checker agent (Synapse agents directory) for implementation details
-- **Dependency**: Must run AFTER Step 1.5 (markdown linting)
-- **Conditional**: Only execute if project uses a type system (Python with type hints, TypeScript, etc.)
-- **CRITICAL**: Must verify zero type errors AND zero warnings
-- **⚠️ IMPORTANT**: Step 12.2 (Final Validation Gate) uses `execute_pre_commit_checks(checks=["type_check"])` which checks BOTH `src/` AND `tests/` to match CI - Step 12.2 is AUTHORITATIVE and takes precedence.
-- **BLOCK COMMIT**: If any type errors OR warnings remain
-- **Workflow**: After agent completes, verify zero errors and zero warnings before proceeding to Step 3
-- **Skip if**: Project does not use a type system
-
-### Step 3: Code quality checks (delegate to `quality-checker`)
-
-- **Agent**: Use the quality-checker agent (Synapse agents directory) for implementation details
-- **Dependency**: Must run AFTER Step 2 (type checking)
-- **CRITICAL**: Must verify zero file size violations AND zero function length violations
-- **⚠️ ABSOLUTE BLOCK**: If any violations exist (pre-existing or new), stop immediately - CI will fail
-- **NO EXCEPTIONS**: Pre-existing violations are NOT acceptable
-- **Workflow**: After agent completes, verify zero violations before proceeding to Step 4
-- **Context Assessment**: If insufficient context remains after fixing violations, provide comprehensive summary and advise re-running commit pipeline
-
-- **3.5: Intermediate Validation During Refactoring**: When fixing function length violations by extracting helper functions, run type check and quality check after EACH refactor to catch new violations early. Do not batch all refactoring then validate at end; validate incrementally to reduce fix iterations. If a refactor introduces new type errors or quality violations, fix them immediately before proceeding to next refactor.
-
-- **3.6: Duplicate Detection Before Creating Helpers**: Before creating new helper functions during refactoring, search for existing functions with similar names or purposes (use the Grep tool or your language’s search/grep for function declarations). If a similar function exists, reuse it or rename the new one to avoid duplicates. Duplicate or redeclared symbols cause type-check and lint errors that require additional fix iterations.
-
-### Step 4: Test execution (delegate to `test-executor`)
-
-- **Agent**: Use the test-executor agent (Synapse agents directory) for implementation details
-- **Dependency**: Must run AFTER Steps 0-3 (errors, formatting, type checking, quality checks are fixed)
-- **CRITICAL**: Tests must pass with 100% pass rate AND coverage ≥ 90% (NO exceptions)
-- **BLOCK COMMIT**: If any test fails OR coverage < 90%, stop immediately
-- **Workflow**: After agent completes, verify 100% pass rate and 90%+ coverage before proceeding to Step 5
-
-### Step 5: Memory bank operations (delegate to `memory-bank-updater`)
-
-- **Agent**: Use the memory-bank-updater agent (Synapse agents directory) for implementation details
-- **Dependency**: Must run AFTER Step 4 (test execution)
-- **Workflow**: Agent updates activeContext.md, progress.md, and roadmap.md with current changes
-
-### Step 6: Update roadmap (delegate to `memory-bank-updater`)
-
-- **Agent**: Use the memory-bank-updater agent (Synapse agents directory) for implementation details
-- **Dependency**: Runs as part of Step 5 (memory bank operations)
-- **Workflow**: Agent updates roadmap.md with completed items and new milestones
-
-### Step 7: Archive completed plans (delegate to `plan-archiver`)
-
-- **Agent**: **MANDATORY** - Read the plan-archiver agent (Synapse agents directory) and execute ALL its execution steps
-- **Dependency**: Must run AFTER Step 5 (memory bank operations)
-- **CRITICAL**: If no completed plans are found, report "0 plans archived" but DO NOT skip this step
-- **BLOCK COMMIT**: If completed plans are found but not archived, or if link validation fails
-- **Workflow**:
-  1. **READ** the plan-archiver agent file (Synapse agents directory)
-  2. **EXECUTE** all execution steps from the agent file (detect completed plans, archive them, update links, validate)
-  3. After agent completes, verify all plans archived and links updated before proceeding to Step 8
-
-### Step 8: Validate archive locations (part of `plan-archiver`)
-
-- **Agent**: This validation is handled by `plan-archiver` agent in Step 7
-- **Dependency**: Runs as part of Step 7 (plan archiving)
-- **CRITICAL**: Verify no completed plans remain in the plans directory; resolve path via `get_structure_info()` → `structure_info.paths.plans`
-- **BLOCK COMMIT**: If any completed plans remain unarchived or in wrong locations
-- **Workflow**: After Step 7 completes, verify archive validation passed before proceeding to Step 9
-
-**Parallel validation/submodule block (Steps 9–11)**: Steps 9, 10, and 11 may run in parallel when the platform supports concurrent tool calls; Step 12 runs only after all three complete. See "Concurrency rules" above.
-
-### Step 9: Validate memory bank timestamps (delegate to `timestamp-validator`)
-
-- **Agent**: Use the timestamp-validator agent (Synapse agents directory) for implementation details
-- **Dependency**: Must run AFTER Step 5 (memory bank operations)
-- **CRITICAL**: All timestamps must use YYYY-MM-DD format (no time components)
-- **BLOCK COMMIT**: If any timestamp violations are found
-- **Workflow**: After agent completes, verify zero violations before proceeding to Step 10
-
-### Step 10: Ensure roadmap and activeContext reflect actual state
-
-- **When reporting this step** (e.g. in todos or failure messages), use the name: **"Ensure roadmap and activeContext reflect actual state"**. Do not use "Roadmap synchronization validation".
-- **Dependency**: Must run AFTER Step 5 and Step 6 (memory bank and roadmap updates)
-- **Workflow** (orchestration only; no `validate(check_type="roadmap_sync")`):
-  1. **Read** `roadmap.md` and `activeContext.md` via `manage_file(file_name="roadmap.md", operation="read")` and `manage_file(file_name="activeContext.md", operation="read")`.
-  2. **Verify split**: Roadmap must contain only **future/upcoming** work. activeContext must contain **completed** work only (per memory bank workflow).
-  3. **Fix if needed**: If any bullet in `roadmap.md` clearly represents completed work (e.g. contains " - COMPLETE", " - COMPLETED", "✅ ... COMPLETE"), add a brief summary to `activeContext.md` (if not already there) and **remove** those lines from `roadmap.md` via `manage_file(file_name="roadmap.md", operation="write", content=...)` (or equivalent). Do not scan the codebase for TODOs or validate plan references.
-  4. **Proceed**: Once roadmap and activeContext reflect the actual split (future vs completed), consider Step 10 complete and proceed to Step 11.
-- **No codebase scan**: Do NOT run `validate(check_type="roadmap_sync")`. Do NOT match production TODOs to roadmap entries or validate unlinked plans as part of this step.
-- **Non-blocking**: This step ensures state consistency only. If the content is already consistent, no changes are required. No hard gate that blocks commit.
-
-### Step 11: Submodule handling (Synapse submodule)
-
-- **⚠️ Step 11 cannot be skipped.** You MUST execute Step 11 every run: run Step 11.1 (check parent repo status) first; only sub-steps 11.2–11.5 may be skipped based on 11.1/11.2 outcomes. Do not proceed to Step 12 without having run Step 11.1. If you skip Step 11 entirely, the pipeline is incomplete and submodule changes may be left uncommitted.
-- **Path resolution**: Resolve the Synapse directory path via `get_structure_info()` (e.g. `structure_info.paths.synapse` if available) or use the project-relative path to the Synapse submodule. Use this path for all `git -C <Synapse-directory-path>` and `git add <Synapse-directory-path>` commands.
-- **Dependency**: Must run AFTER Step 10 (roadmap/activeContext state)
-- **Workflow**: Follow explicit command sequence below to handle submodule changes deterministically.
-- **Strict decision rule**: Execute sub-steps 11.1 → 11.5 in order. At each step, only proceed to the next sub-step when the condition is met; otherwise skip to Step 12 (or, in 11.5, block commit). Do not run sub-steps in parallel or reorder them.
-
-**Step 11.1 - Check parent repo status**:
-
-```bash
-git status --porcelain
-```
-
-- **If output contains dirty Synapse submodule** (e.g. `m` on Synapse path): Proceed to Step 11.2
-- **If Synapse submodule is clean**: Skip to Step 12 (submodule pointer is clean)
-
-**Step 11.2 - Check submodule working tree**:
-
-```bash
-git -C <Synapse-directory-path> status --porcelain
-```
-
-- **If empty**: Skip to Step 12 (submodule pointer changed but no local edits)
-- **If non-empty**: Proceed to Step 11.3 (submodule has uncommitted changes)
-
-**Step 11.3 - Commit and push in submodule**:
-
-```bash
-git -C <Synapse-directory-path> add -A
-git -C <Synapse-directory-path> commit -m "Update Synapse prompts/rules"
-git -C <Synapse-directory-path> push
-```
-
-- **Verify**: Each command succeeds before proceeding to next.
-- **If the commit command fails**: Report the error and block the main commit; submodule changes MUST be committed successfully before updating the parent submodule pointer.
-- **If the push command fails (e.g. auth/network/SSL)**: The submodule commit is still local; you may proceed with the parent commit and instruct the user to push the Synapse submodule manually later. Provide the submodule path and branch name, and link to [Git operations (push and SSL)](../../../docs/guides/git-operations.md#push-failures-and-ssl) and [Troubleshooting: Git and SSL certificate issues](../../../docs/guides/troubleshooting.md#git-and-ssl-certificate-issues) for manual push guidance. Submodule push failure is **non-blocking** for the parent commit.
-
-**Step 11.4 - Update parent repo submodule pointer**:
-
-```bash
-git add <Synapse-directory-path>
-git diff --submodule=log -- <Synapse-directory-path>
-```
-
-- **Verify**: `git diff` shows pointer movement (submodule commit hash changed)
-- **If no pointer movement**: Investigate - submodule commit may have failed
-- **Note**: Updated submodule reference will be included in main commit (Step 13)
-
-**Step 11.5 - Verify submodule is clean** (MANDATORY, CRITICAL):
-
-- **MUST run after Step 11.4** to catch any uncommitted changes remaining after submodule operations (e.g., missed by 11.3 or introduced during Steps 0–11).
-- Run:
-
-```bash
-git -C <Synapse-directory-path> status --porcelain
-```
-
-- **If output is empty**: Proceed to Step 12 (submodule is clean).
-- **If output is non-empty**: **BLOCK COMMIT** — report uncommitted changes and require manual intervention. Stop immediately; do not proceed to Step 12 or Step 13 until the user has committed and pushed submodule changes.
-- **Rationale**: Prevents uncommitted submodule changes from being missed, which causes inconsistent state between parent repo and submodule.
-
-### Step 12: Final validation gate (MANDATORY re-verification)
-
-- **⚠️ Phase A is NEVER sufficient**: Step 12 MUST be executed in full in **this run** before Step 13. Do NOT proceed to commit based on Phase A (Step 1) results. Committing without completing Step 12 causes the Code Quality workflow to fail on push (e.g. type errors in `tests/`, formatting, or coverage). Every sub-step 12.1–12.7 must run and be verified in this session.
-- **Dependency**: Must run AFTER Steps 4-11 (any code changes may have been made). Step 11 MUST have been executed (11.1 run; 11.2–11.5 run or skipped per conditions) before starting Step 12.
-- **Before Step 12 — Connection health (recommended)**: Call **`check_mcp_connection_health()`** before starting Step 12. If **`health.healthy`** is false, report to the user and do not start Step 12 until MCP is healthy. This reduces connection closure failures during the validation gate. Connection health is already checked at pipeline start (Pre-Action Checklist item 0); re-checking before Step 12 provides early warning after the gap between Steps 4–11.
-- **Connection retry during Step 12**: On MCP connection errors (e.g. -32000 "Connection closed") during any Step 12 sub-step, retry the failing tool call **once** after a short delay (2–5 seconds). If the retry fails, follow the step-specific handling (fallback scripts for 12.1/12.6, block commit for 12.7). **If retry fails for any sub-step**: Report to the user to **reconnect Cortex MCP and re-run the commit command**; do not proceed to Step 13 until tools are available again. Do not batch or reorder Step 12 sub-steps to reduce connection overhead; run them sequentially as defined. See [Troubleshooting: MCP disconnect runbook (commit pipeline)](../../../docs/guides/troubleshooting.md#mcp-disconnect-runbook-commit) for typical disconnect points and recovery.
-- **CRITICAL**: This step exists because Steps 4-11 may create new files or make code changes that weren't validated
-- **⚠️ ABSOLUTE MANDATORY**: Step 12 CANNOT be skipped, bypassed, or assumed to have passed. It MUST be executed in full before Step 13.
-- **⚠️ EXECUTION VERIFICATION REQUIRED**: Before proceeding to Step 13, you MUST provide explicit evidence that ALL Step 12 sub-steps were executed:
-  - Step 12.0: Markdown re-validation on modified files executed (output shown)
-  - Step 12.1: Formatting fix AND check executed (output shown); Step 12.1.2 result parsed and verified before Step 12.2; CI parity (12.1.3) recommended. **CRITICAL**: If MCP connection closed, fallback MUST use Black (scripts `fix_formatting.py` then `check_formatting.py`, or `uv run black src/ tests/` then `uv run black --check src/ tests/`). Do NOT use `ruff format`—CI uses Black; using ruff format causes quality gate failure. Both fix and check must exit 0. Step 12.1 cannot be skipped based on Step 1 results.
-  - Step 12.2: Type check tool executed (`execute_pre_commit_checks(checks=["type_check"])` result shown with success and 0 errors)
-  - Step 12.3: Linter check executed (output shown with error count = 0)
-  - Step 12.4: Test naming check executed (output shown)
-  - Step 12.5: Markdown lint check executed (output shown). If MCP connection closed, retry once. If retry fails, report to the user to reconnect Cortex MCP and re-run the commit command; do not proceed to Step 12.6 until 12.5 passes or MCP is reconnected.
-  - Step 12.6: File sizes AND function lengths checks executed (output shown). If MCP connection closed, fallback scripts must be used and verified (both exit code 0).
-  - Step 12.7: Tests with coverage validation executed (output shown). If MCP connection closed, retry must be attempted. If retry fails, commit MUST be blocked (no fallback).
-- **Workflow**: Re-run formatting, type checking, linting, and quality checks to catch any new issues
-- **⚠️ ZERO ERRORS TOLERANCE**: The project has ZERO errors tolerance - ANY errors (new or pre-existing) MUST block commit
-- **⚠️ NO EXCEPTIONS**: Pre-existing errors are NOT acceptable - they MUST be fixed before commit
-- **⚠️ ABSOLUTE BLOCK**: If ANY errors are found in ANY check (formatting, types, linting, quality), stop immediately - DO NOT proceed to commit
-- **BLOCK COMMIT**: If any checks fail in this step OR if any error count > 0 OR if Step 12 execution cannot be verified
-- **See detailed instructions below** for specific validation steps
+Before Step 12, delegate to `commit-state-tracker` (checkpoint_read) to recall Phase A outcomes.
 
 ### Step 13: Commit creation
 
-- **Dependency**: Must run AFTER Step 12 (final validation gate passes)
-- **⚠️ PRECONDITION CHECK (MANDATORY)**: Before executing Step 13, you MUST verify:
-  1. **User explicitly requested commit**: Verify user invoked `/cortex/commit` or explicitly requested commit. If not, STOP and ask for confirmation.
-  2. **Step 11 was executed**: Step 11.1 was run (parent repo status checked); 11.2–11.5 were run or skipped per conditions. Step 11 cannot be skipped.
-  3. **Step 12 was fully executed**: All Step 12 sub-steps (12.1-12.7) were executed and their outputs were verified
-  4. **Step 12.1 executed and passed**: Step 12.1 (formatting fix AND check) MUST be executed successfully and verified passing. **CRITICAL**: If MCP connection closed during Step 12.1, retry once. If retry fails, use fallbacks that match CI: shell scripts `fix_formatting.py` then `check_formatting.py` (they use Black), or `uv run black src/ tests/` then `uv run black --check src/ tests/`. Do NOT use `ruff format`—CI uses Black; using ruff causes quality gate failure. Both must exit with code 0. **Phase A results are NOT sufficient** - Step 12.1 must execute successfully in Step 12. Verify `results.format.success` = true AND `results.format.errors` empty (or fallback exit code 0).
-  5. **Step 12.2 type check passed in this run**: The type check tool (`execute_pre_commit_checks(checks=["type_check"])`) was executed in Step 12 of this run and returned success with 0 errors. It checks both `src/` and `tests/` to match CI. Do NOT rely on Phase A type_check — CI runs the same scope; skipping 12.2 causes type errors in tests to slip through and fail the quality gate on push.
-  6. **No errors in any Step 12 check**: All Step 12 checks passed with zero errors
-  7. **If you fixed type errors (12.2) or lint errors (12.3) during this run**: Step 12.3 was executed again after the fix and `results.quality.success` is true with zero errors; do not proceed if 12.3 was not re-run after a code change in 12.2 or 12.3
-  8. **Step 12.6 executed and passed**: Step 12.6 (file sizes AND function lengths) MUST be executed and verified passing. If MCP connection closed, fallback scripts must be used. **Phase A results are NOT sufficient** - Step 12.6 must be executed in Step 12. Verify `results.quality.file_size_violations` empty AND `results.quality.function_length_violations` empty (or fallback script exit code 0).
-  9. **Step 12.7 executed and passed**: Step 12.7 (tests with coverage) MUST be executed successfully and verified passing. **CRITICAL**: If MCP connection closed during Step 12.7, retry once. If retry fails, **BLOCK COMMIT** - do NOT proceed with Phase A results. **Phase A results are NOT sufficient** - Step 12.7 must execute successfully in Step 12. Verify `results.tests.success` = true AND `results.tests.coverage` ≥ 0.90. **NO FALLBACK** - Unlike Step 12.6, there is no shell script fallback for tests.
-  10. **Explicit verification provided**: You have documented the execution of Step 12 with actual command outputs
-  11. **All validation gates passed**: Steps 0-12 have completed successfully, including Step 12.1, Step 12.6, and Step 12.7
-- **⚠️ BLOCK COMMIT**: If user did not explicitly request commit OR if Step 11 was skipped OR if Step 12 execution cannot be verified OR if any Step 12 check failed (including Step 12.1, Step 12.6, or Step 12.7) OR if Step 12.1 was skipped due to connection closure OR if Step 12.6 was skipped due to connection closure OR if Step 12.7 failed after retry, DO NOT proceed to Step 13
-- **Workflow**: Stage related changes selectively, generate a content-descriptive commit message, create commit, then verify with `git show --stat`.
-- **Staging (MANDATORY – selective, no `git add -A`)**:
-  - Use `git add <path>` for each file that is part of the current work. Do NOT use `git add -A` or "stage all".
-  - From `git status`, list the changed files and stage only those that belong to this commit (e.g. code, tests, memory bank, plan files for the completed work).
-  - Before staging, review `git status` output. Do NOT stage files matching `.env*`, `credentials*`, `*.key`, `*.pem`, or other sensitive patterns. If in doubt, stage only files you explicitly modified for the current task.
-  - Aligns with AGENTS.md: "stage only related changes."
-- **Commit message (MANDATORY – content-descriptive, not process-descriptive)**:
-  - The message MUST describe **what changed** (files added/modified/removed, features or fixes), not **what the agent did** (e.g. "ran pipeline", "executed checks").
-  - Anti-pattern: "Run full Cortex commit pipeline and update memory bank" (describes process).
-  - Good pattern: "Add Phase 70–78 plans, update activeContext and reviews" (describes changes). Use conventional commit style (`feat:`, `fix:`, `docs:`, `chore:`) when applicable.
-  - The message MUST reference the actual content of the diff, not the commit pipeline steps.
-- **Includes**: All changes from Steps 0-11, including submodule reference if Step 11 was executed.
-- **Note**: Use user-provided commit message if provided; otherwise generate from the changes (content-descriptive).
-- **Post-commit verification**: After creating the commit, run `git show --stat` and confirm the commit includes all expected files.
+- **Dependency**: After Step 12 passes
+- **GATE — Preconditions** (verify ALL before executing):
+  1. User explicitly requested commit (via `/cortex/commit`)
+  2. Step 11 `submodule-handler` returned non-blocking status
+  3. Step 12 `final-gate-validator` returned `status: "passed"`
+  4. Pipeline state shows all steps completed
+- **Staging**: `git add <path>` for each related file. Never `git add -A`. Never stage `.env*`, credentials, keys.
+- **Commit message**: Content-descriptive, not process-descriptive. Use conventional commits (`feat:`, `fix:`, `docs:`, `chore:`). Describe WHAT changed. Anti-pattern: "Run full Cortex commit pipeline." Good: "feat: Phase 70-78 plans, update activeContext."
+- **Includes**: All changes from Steps 0-11, including submodule reference
+- **Post-commit**: `git show --stat` to verify
 
 ### Step 14: Push branch
 
-- **Dependency**: Must run AFTER Step 13 (commit created)
-- **⚠️ PRECONDITION CHECK (MANDATORY)**: Before executing Step 14, you MUST verify:
-  1. **User explicitly requested push**: Verify user invoked `/cortex/commit` or explicitly requested push. If not, STOP and ask for confirmation.
-  2. **Commit was created**: Step 13 completed successfully and commit exists
-- **⚠️ BLOCK PUSH**: If user did not explicitly request push OR if commit was not created, DO NOT proceed to Step 14
-- **Workflow**: Determine current branch, push to remote, verify success. Push the current branch (including `main`) without asking for extra confirmation.
-- **Error handling**: Handle push errors (remote tracking, authentication issues). **Push failures are non-blocking**: the commit was already created in Step 13; pipeline success is not invalidated by push failure.
-  - **SSL/certificate errors**: If push fails with an SSL or certificate verification error (e.g. "unable to get local issuer certificate", "SSL certificate problem"), retry up to 2 times with a short delay (e.g. 2–5 seconds) between attempts. After 2 failed retries (or if the error is clearly not transient), provide the user with the branch name, suggest manual push (`git push origin <branch>`), and link to [Git operations (push and SSL)](../../../docs/guides/git-operations.md#push-failures-and-ssl) and [Troubleshooting: Git and SSL certificate issues](../../../docs/guides/troubleshooting.md#git-and-ssl-certificate-issues).
-  - **Other push failures**: If push fails for other reasons (auth, network, permissions), provide the same manual-push instructions and troubleshooting links; no retry required unless the error message suggests a transient issue.
+- **Dependency**: After Step 13
+- **GATE**: Verify user requested push (via `/cortex/commit`)
+- Push current branch (including `main`) without extra confirmation
+- **Non-blocking**: Push failures do not invalidate the commit
+- **SSL errors**: Retry up to 2 times; if persistent, provide manual push instructions and link to troubleshooting
 
-### Step 15: Execute end-of-session Analyze (MANDATORY, but non-blocking on connection errors)
+After commit+push, delegate to `commit-state-tracker` (checkpoint_clear).
 
-- **Dependency**: Must run AFTER Step 14 (push completed).
-- **MANDATORY**: At the end of the commit workflow, you MUST run the Analyze (End of Session) flow. Either read and execute the **Analyze prompt** (`analyze.md` from the Synapse prompts directory) in full, or call the analyze MCP tool with the correct targets as below.
-- **Valid analyze targets**: `usage_patterns`, `structure`, `insights`, `context`, `context_stats`, `context_all_sessions`, `health`. Do NOT use `session` as a target (invalid).
-- **Recommended tool sequence**: Call `analyze(target="context")` for context effectiveness, then `analyze(target="usage_patterns")` for session patterns. The prompt runs context effectiveness, session optimization, writes a report to the reviews directory, and optionally creates an improvements plan.
-- **Path**: Resolve the Analyze prompt path via project structure or `get_structure_info()` (e.g. Synapse prompts directory); the prompt file is `analyze.md`.
-- **Connection error handling**: If Step 15 fails with MCP error -32000 ("Connection closed") or similar connection errors:
-  1. **Retry once**: The `mcp_tool_wrapper` decorator automatically retries connection errors once.
-  2. **If retry fails**: Report the error but **do not block the commit pipeline**. Step 15 is analysis-only (Compound step) and commit success is not invalidated by analysis failures. Record "Step 15 (Analyze) failed due to connection error; commit succeeded" and proceed.
-  3. **Rationale**: Analysis tools may take time and can be affected by client-side timeouts; the commit itself (Steps 0-14) has already succeeded, so analysis failures are non-blocking.
+### Step 15: Analyze (end-of-session) — MANDATORY
 
-## Command Execution Order
+- **Dependency**: After Step 14
+- Execute the **Analyze prompt** (`analyze.md`) in full, OR call `analyze(target="context")` then `analyze(target="usage_patterns")`
+- **Non-blocking on connection errors**: If analysis fails after retry, record failure but do not invalidate commit
 
-The commit procedure executes steps in this specific order to ensure dependencies are met:
+## Synapse Architecture (when modifying Synapse files)
 
-0. **Fix Errors** (Fix Errors) - Fixes all compiler errors, type errors, formatting issues, and warnings BEFORE testing
-   - **CRITICAL**: Must complete successfully before any other step
-   - **VALIDATION**: Verify zero errors remain after fix-errors completes (type checker, linter checks)
-   - **Async test maintenance**: If changes involve async code, ensure all test calls to async methods/functions use `await`. The Final Validation Gate (Step 12) runs `check_async_tests`; see [Test maintenance guide](../../../docs/guides/test-maintenance.md).
-   - **BLOCK COMMIT** if any errors remain
-1. **Formatting** - Ensures code style consistency with project formatter
-   - **CRITICAL**: Must verify with formatter check after formatting to ensure CI will pass
-   - **VALIDATION**: Formatter check MUST pass - **BLOCK COMMIT** if it fails
-1.5. **Markdown Linting** - Fixes markdown lint errors in modified markdown files
-   - **CRITICAL**: Must run markdown lint fix tool to ensure all markdown files are properly formatted
-   - **VALIDATION**: Markdown lint errors MUST be fixed - **BLOCK COMMIT** if critical errors remain
-2. **Type Checking** - Validates type safety with type checker (if applicable)
-   - **CRITICAL**: Must pass with zero type errors AND zero warnings before proceeding (skip if project doesn't use types)
-   - **VALIDATION**: Type checker MUST report zero errors AND zero warnings - **BLOCK COMMIT** if type errors OR warnings exist
-3. **Code Quality Checks** - Validates file size and function/method length limits (matches CI quality gate)
-   - **CRITICAL**: Must pass before testing to ensure code meets quality standards
-   - **VALIDATION**: Both checks MUST show zero violations - **BLOCK COMMIT** if violations exist
-4. **Testing** (Run Tests) - Executes test suite to ensure functionality correctness
-   - **Optional before Step 4**: If the pipeline has been running a long time, call `check_mcp_connection_health()` before starting Step 4; if unhealthy, report and do not run tests until MCP is reconnected.
-   - **CRITICAL**: Uses `execute_pre_commit_checks()` MCP tool for structured test execution
-   - **CRITICAL**: Runs AFTER errors, formatting, and code quality are fixed
-   - **CRITICAL**: Tests must pass with 100% pass rate AND coverage ≥ 90.0% before proceeding
-   - **VALIDATION**: Must verify `results.tests.success` = true AND zero test failures, 100% pass rate, 90%+ coverage (MANDATORY), all integration tests pass
-   - **CRITICAL COVERAGE ENFORCEMENT**:
-     - Coverage threshold of 90% is MANDATORY and absolute
-     - Coverage MUST be parsed from tool response (`results.tests.coverage`) and verified ≥ 0.90 (as float)
-     - `results.tests.success` = false OR `results.tests.coverage` < 0.90 MUST block commit
-     - The tool now validates coverage internally, but you MUST also verify `results.tests.success` = true AND `results.tests.coverage` ≥ 0.90
-     - If coverage < 90.0%, commit procedure MUST STOP and coverage MUST be fixed
-     - NO exceptions, NO "close enough", NO proceeding with coverage below threshold
-   - **BLOCK COMMIT** if `results.tests.success` = false OR `results.tests.coverage` < 0.90 OR any test validation fails
-5. **Documentation** (Memory Bank) - Updates project context
-6. **Roadmap Updates** (Roadmap Update) - Ensures roadmap reflects current progress
-7. **Plan Archiving** (Archive Completed Plans) - Cleans up completed build plans
-8. **Archive Validation** (Validate Archive Locations) - Ensures archived files are in correct locations
-9. **Optimization** (Memory Bank Validation) - Validates and optimizes memory bank
-10. **Roadmap/activeContext state** - Ensures roadmap and activeContext reflect actual state (future work in roadmap, completed work in activeContext)
-11. **Submodule Handling** - Commits and pushes Synapse submodule changes if any (resolve Synapse directory path via project structure or `get_structure_info()` if available)
-12. **⚠️ FINAL VALIDATION GATE** - **MANDATORY re-verification before commit** (see details below)
-13. **Commit** - Creates the commit with all changes (including updated submodule reference)
-14. **Push** - Pushes committed changes to remote repository
-15. **Analyze** - **MANDATORY**: Execute the Analyze (End of Session) prompt (`analyze.md`) to run context effectiveness and session optimization analysis.
+- **Prompts**: Language-agnostic, project-agnostic. Use Cortex MCP tools, not raw commands.
+- **Rules**: Language-specific rules allowed in `rules/{language}/`
+- **Scripts**: Language-specific implementations in `scripts/{language}/`
 
-**MCP Tools**: Steps 0 (Fix Errors), 1 (Formatting), 2 (Type Checking), 3 (Code Quality), and 4 (Testing) use the `execute_pre_commit_checks()` MCP tool. Step 12 (Final Validation Gate) also uses only Cortex MCP tools (format, format_ci_parity, type_check, quality, test_naming, check_async_tests, tests, and fix_markdown_lint). This provides structured parameters, type safety, and consistent error handling. Do NOT run scripts directly; use tools only.
+## Git Safety
 
-## ⚠️ STEP 12: FINAL VALIDATION GATE (CRITICAL - MANDATORY)
+- **GATE**: Only commit/push when user explicitly invoked `/cortex/commit`
+- Push current branch including `main` without extra confirmation
+- Before `git add`: verify no sensitive files staged
+- Selective staging only (no `git add -A`)
 
-**WHY THIS STEP EXISTS**: During steps 4-11, the agent may:
+## Script Tracking
 
-1. **Create NEW files** (e.g., new test files to fix coverage in Step 4) that were never formatted
-2. **Make code changes** (adding constants, fixing tests, etc.) that introduce NEW type errors or linting issues
+**Script use**: If any script is created or executed during this pipeline, MUST call `manage_session_scripts(operation="capture"|"analyze"|"suggest")`. Use script tooling whenever a script was run.
 
-The original checks in Steps 0-4 are INVALIDATED by any subsequent code changes or new file creation.
+**COMMON ERRORS TO CATCH**: Script run without analysis (script executed but manage_session_scripts not called).
 
-### Dirty-State Optimization (Phase 89)
+## Compound Engineering
 
-When Phase A passes, the pipeline records a fingerprint of source files. Step 12 checks can use `skip_if_clean=True` to skip redundant re-runs when no source files (`.py`, `.ts`, `.rs`, etc.) changed between Phase A and Step 12. This reduces commit time by ~50% in the common case where Steps 5-11 only modify documentation and memory bank files.
+This commit is the **Work** step of Plan -> Work -> Review -> Compound. Steps 5-6 and Step 15 are the **Compound** step: memory bank updates and session optimization.
 
-**Usage**: For Step 12 sub-steps that re-run source-dependent checks:
+**Compound checklist**:
 
-```text
-execute_pre_commit_checks(checks=["type_check"], skip_if_clean=True)
-execute_pre_commit_checks(checks=["tests"], skip_if_clean=True, test_timeout=600, coverage_threshold=0.90)
-execute_pre_commit_checks(checks=["format"], skip_if_clean=True)
-execute_pre_commit_checks(checks=["quality"], skip_if_clean=True)
-```
-
-**When skipped**: Returns `{"status": "success", "skipped": true, "skip_reason": "No source files changed since Phase A"}`.
-
-**Safety**: If any source file changed between Phase A and Step 12, `skip_if_clean` has no effect — the full check runs. Non-source checks (`test_naming`, `markdown_lint`) always run regardless of `skip_if_clean`.
-
-**CRITICAL RULE**: ANY code change OR new file creation after Step 1 REQUIRES re-running formatting AND verification before commit.
-
-**CRITICAL RULE (Step 12)**: After ANY code change during Step 12 (e.g. fixing type errors in 12.2, fixing lint in 12.3, or any other edit to `src/` or `tests/`), you MUST re-run Step 12.1 (format → format check → format_ci_parity via `execute_pre_commit_checks`) and verify they pass, then MUST re-run Step 12.3 (quality) and verify `results.quality.success` is true and error count is zero. Do NOT proceed to Step 12.4 or Step 13 until Step 12.3 has been run again and passed. Edits made inside the final gate must be formatted before commit; otherwise CI will fail on the formatting check.
-
-- **Type or lint fixes can introduce new lint**: Fixes applied in Step 12.2 or 12.3 can introduce new lint issues (e.g. Ruff E402 if a non-import line is placed between imports). You MUST re-run Step 12.3 (quality) after any such fix and parse the full tool output; verify zero errors before proceeding. Do not assume an earlier 12.3 run still applies. When adding `_ = module` to satisfy reportUnusedImport, place it after all imports to avoid E402.
-
-**⚠️ STEP 12.1 MUST NOT RUN IN PARALLEL WITH 12.2/12.3**: You MUST run Step 12.1.2 (formatting check), wait for its result, and verify exit code 0 and success message BEFORE starting Step 12.2 or 12.3. If you run 12.1.2 in parallel with 12.2/12.3, the formatting result can be missed and unformatted code may be committed (this has caused CI failures: Black formatting check failed on push).
-
-**⚠️ ZERO ERRORS TOLERANCE**: This project has ZERO errors tolerance. ANY errors found in Step 12 (formatting, types, linting, quality) MUST block commit - NO EXCEPTIONS, even if errors are pre-existing or in files you didn't modify. You MUST explicitly parse error counts from output and verify they are ZERO before proceeding.
-
-**⚠️ AUTHORITATIVE CHECKS**: Step 12 uses the same Cortex MCP tools; the type_check check runs on BOTH `src/` AND `tests/` to match CI.
-
-- **Type checking**: Step 12.2 tool (`execute_pre_commit_checks(checks=["type_check"])`) checks BOTH `src/` AND `tests/`
-- **Step 12 results take precedence**: If any Step 12 check finds errors (even if an earlier step passed), commit MUST be blocked
-- **NO DISCREPANCY ALLOWED**: If a Step 12 check finds errors, those errors MUST be fixed before commit
-
-## ⚠️ MANDATORY: NO OUTPUT TRUNCATION IN STEP 12
-
-- **PROHIBITED**: NEVER use `| tail`, `| head`, `| grep`, or ANY output piping/truncation in Step 12 commands
-- **REQUIRED**: Read and parse the FULL output of every command in Step 12
-- **REASON**: Truncated output hides critical errors and makes verification impossible - this has caused CI failures
-
-- **VERIFICATION**: Every check in Step 12 MUST show explicit success indicators in FULL output
-- **BLOCK COMMIT**: If output is truncated or unclear, DO NOT proceed to commit - re-run command without truncation
-
-### 12.0 Re-validate markdown files modified during Steps 0-11 (MANDATORY)
-
-**Purpose**: Catch markdown lint errors in files modified during Steps 0-11 (especially Synapse prompts/rules and session review files) before they propagate to submodule or require extra commits.
-
-- **When**: Run immediately at the start of Step 12, before Step 12.1
-- **What**: Identify markdown files modified during Steps 0-11 and run markdown lint check on those files
-- **How**: Use `fix_markdown_lint(include_untracked_markdown=True)` to lint git-modified and untracked markdown files (including any session review files created during this session). The tool resolves project root via MCP roots when the client supports them. Resolve reviews path via `get_structure_info()` → `structure_info.paths.reviews` if needed.
-- **If you wrote session review files**: If you created or updated any markdown files during Steps 0–11 (e.g. session-optimization-*.md in the reviews directory), `fix_markdown_lint(include_untracked_markdown=True)` will include them since they are untracked or modified.
-- **Fix**: Resolve any markdown lint errors before proceeding to Step 12.1
-- **BLOCK COMMIT**: If markdown lint errors are found on modified files, fix them before continuing to Step 12.1
-- **Rationale**: Reduces extra iterations by catching markdown lint errors immediately after modification, before Step 12.5 full check
-
-### 12.1 Re-run Formatting FIX then CHECK (MANDATORY)
-
-**CRITICAL**: New files created during Steps 4-11 (especially test files added to fix coverage) will NOT have been formatted by Step 1. You MUST run the format tool (`execute_pre_commit_checks(checks=["format"])`) first, then verify.
-
-**CRITICAL (re-run after fixes in Step 12)**: If you fix type errors (12.2), lint (12.3), or make any other code edit to `src/` or `tests/` during Step 12, you MUST re-run 12.1.1 (format via tool), then 12.1.2 (format check), then 12.1.3 (format_ci_parity), then MUST re-run Step 12.3 (quality) and verify `results.quality.success` is true with zero errors. Do NOT proceed to Step 12.4 or Step 13 until Step 12.3 has been executed again and passed.
-
-**⚠️ SEQUENTIAL EXECUTION REQUIRED (MANDATORY)**:
-
-- **Do not interleave other state-changing operations** between final formatting fix and check.
-- **Do NOT run Step 12.1.2 in parallel with Step 12.2 or 12.3** - you MUST run Step 12.1.2, wait for its result, parse the FULL tool output and verify success (e.g. `results.format.status` = "passed" or `results.format.errors` empty) BEFORE starting Step 12.2. Running 12.1.2 in parallel can cause the formatting result to be ignored and allow unformatted code to be committed (this has caused CI failures).
-
-- **Recommended pattern**: Run format (fix), wait for completion, then run format (check) immediately after, then verify result before proceeding.
-
-**Step 12.1.1 - Run formatting FIX** (always run this, not just on failure):
-
-Use the Cortex MCP tool:
-
-```text
-execute_pre_commit_checks(checks=["format"])
-```
-
-**⚠️ CRITICAL**: Do NOT run format check in parallel - wait for fix to complete first
-
-**Step 12.1.2 - Run formatting CHECK** to verify (MUST run AFTER Step 12.1.1 completes):
-
-Use the same tool again (idempotent; verify no files were formatted and success):
-
-```text
-execute_pre_commit_checks(checks=["format"])
-```
-
-**⚠️ CRITICAL**: Do NOT truncate output - read FULL tool response to verify check passed
-
-- **MUST verify**: Tool returns `status` = "success" and `results.format` indicates passed (e.g. `results.format.errors` empty or success message)
-- **MUST verify**: If any formatting violations remain, BLOCK COMMIT and re-run format fix (12.1.1) then check again
-- **BLOCK COMMIT** if ANY formatting violations are reported OR if tool returns status "error" for format
-- **BLOCK COMMIT** if you did not wait for and parse Step 12.1.2 result before proceeding to Step 12.2
-- **Scope**: The tool runs the same scope as CI (`src/`, `tests/` where applicable).
-
-**⚠️ CRITICAL (Step 12.1 - Connection Error Handling)**: If MCP connection closes during Step 12.1.1 or 12.1.2:
-
-  1. **Retry once**: The `mcp_tool_wrapper` decorator automatically retries connection errors once.
-  2. **If retry fails**: Use shell script fallbacks (language-specific):
-     - **Format fix**: Run the language-specific formatting fix script from `.cortex/synapse/scripts/{language}/fix_formatting.{ext}`
-     - **Format check**: Run the language-specific formatting check script from `.cortex/synapse/scripts/{language}/check_formatting.{ext}`
-     - **Both must exit with code 0** before proceeding to Step 12.2
-     - **Note**: Scripts handle tool detection and project structure automatically (see scripts/{language}/* pattern)
-  3. **BLOCK COMMIT** if formatting check fails after retry and fallback - do NOT proceed with Phase A results
-  4. **Phase A results are NOT sufficient** - Step 12.1 MUST execute successfully in Step 12, even if Step 1 passed earlier. New files created during Steps 4-11 may not have been formatted.
-  5. **Record**: Document "MCP connection closed; fallback scripts used" if fallbacks were executed
-
-**Step 12.1.3 - CI parity (RECOMMENDED)** - Match CI formatting step exactly:
-
-After Step 12.1.2 passes, run the format_ci_parity check via the Cortex MCP tool so the same formatter and paths as CI are used:
-
-```text
-execute_pre_commit_checks(checks=["format_ci_parity"])
-```
-
-- **Purpose**: CI runs a language-specific formatter on the main source and test trees. This check runs the same validation locally (e.g. for Python: formatter check on `src/` and `tests/`).
-- **BLOCK COMMIT** if this check returns non-success - fix formatting and re-run from Step 12.1.1
-- **Note**: The tool resolves language automatically; no script paths in the prompt.
-
-### 12.2 Re-run Type Check (MANDATORY for typed projects)
-
-**⚠️ EXECUTION MANDATORY**: This step CANNOT be skipped for Python projects. You MUST execute this check via the Cortex MCP tool and show its result before proceeding to Step 13.
-
-Use the Cortex MCP tool (checks `src/` and `tests/` to match CI):
-
-```text
-execute_pre_commit_checks(checks=["type_check"])
-```
-
-**⚠️ CRITICAL**: Do NOT truncate output - read FULL tool response to verify check passed
-
-- **MUST execute**: This tool call MUST be executed - do not skip or assume it passed
-- **MUST show result**: The tool response (or key fields: status, results.type_check) MUST be used to verify execution
-- **MUST verify**: Tool returns `status` = "success" and `results.type_check` indicates passed (e.g. 0 errors)
-- **MUST verify**: `results.type_check.errors` is empty (or equivalent success)
-- **⚠️ ABSOLUTE BLOCK**: If ANY type errors or warnings are reported (even if Step 2 passed earlier), STOP IMMEDIATELY - DO NOT proceed to commit
-- **⚠️ NO EXCEPTIONS**: Step 12.2 result is AUTHORITATIVE - type errors MUST block commit
-- **⚠️ ZERO ERRORS TOLERANCE**: The project has ZERO errors tolerance - ANY errors (new or pre-existing, in src/ or tests/) MUST block commit
-- **BLOCK COMMIT** if ANY type errors or warnings are reported OR if tool returns status "error" for type_check
-- **BLOCK COMMIT** if this check was not executed - Step 12.2 execution is mandatory
-- **DO NOT rely on memory of earlier checks** - you MUST re-run and verify result NOW
-- **DO NOT dismiss errors as "pre-existing"** - ALL errors must be fixed before commit
-- **Skip if**: Project does not use a type system (Python projects use type hints, so this step is NOT skipped for Python)
-- **If you fixed type errors in this step**: Re-run Step 12.1 (format → format check → format_ci_parity via tools) and verify all pass, then MUST re-run Step 12.3 (quality) and verify `results.quality.success` is true and error count is zero. Do NOT proceed to Step 12.4 or Step 13 until Step 12.3 has been run again and passed (see "CRITICAL RULE (Step 12)" above).
-
-### 12.3 Re-run Linter, Spelling, and Type Check (MANDATORY)
-
-**Step 12.3.1 - Re-run Quality Check** (MANDATORY):
-
-Use the Cortex MCP tool (quality gate runs quality + type_check; same scope as CI):
-
-```text
-execute_pre_commit_checks(checks=["quality"])
-```
-
-**⚠️ CRITICAL**: Do NOT truncate output - read FULL tool response to verify check passed
-
-- **MUST verify**: Tool returns `status` = "success"
-- **MUST verify**: Parse `results.quality` - errors list must be empty (error count = 0); quality check indicates passed (no lint errors)
-- **MUST verify**: Parse `results.type_check` - success = true and errors list empty (quality gate includes type_check; catches reportRedeclaration etc.)
-- **⚠️ ABSOLUTE BLOCK**: If ANY linter or type violations are reported (even 1 error), stop immediately - DO NOT proceed to commit
-- **BLOCK COMMIT** if ANY linter or type violations are reported OR if tool returns status "error" for quality or type_check
-
-**Step 12.3.2 - Re-run Spelling Check** (MANDATORY):
-
-Use the Cortex MCP tool (runs spelling check via synapse script; same scope as CI):
-
-```text
-execute_pre_commit_checks(checks=["spelling"])
-```
-
-**⚠️ CRITICAL**: Do NOT truncate output - read FULL tool response to verify check passed
-
-- **MUST verify**: Tool returns `status` = "success"
-- **MUST verify**: Parse `results.spelling` - success = true and errors list empty (spelling check matches CI)
-- **⚠️ ABSOLUTE BLOCK**: If ANY spelling violations are reported (even 1 error), stop immediately - DO NOT proceed to commit
-- **⚠️ NO EXCEPTIONS**: Pre-existing spelling errors are NOT acceptable - they MUST be fixed before commit
-- **⚠️ ZERO ERRORS TOLERANCE**: The project has ZERO errors tolerance - ANY spelling errors (new or pre-existing) MUST block commit
-- **BLOCK COMMIT** if ANY spelling violations are reported OR if tool returns status "error" for spelling
-- **DO NOT rely on memory of earlier checks** - you MUST re-run and verify result NOW
-- **DO NOT dismiss errors as "pre-existing"** - ALL errors must be fixed before commit
-
-**If you fixed lint or spelling in this step**: Re-run Step 12.1 (format → format check → format_ci_parity via tools) and verify all pass, then MUST re-run Step 12.3 (quality and spelling) again and verify both checks pass with zero errors before proceeding to Step 12.4 (see "CRITICAL RULE (Step 12)" above).
-
-### 12.4 Re-run Test Naming Check (MANDATORY)
-
-Use the Cortex MCP tool (runs language-specific test naming check):
-
-```text
-execute_pre_commit_checks(checks=["test_naming"])
-```
-
-**⚠️ CRITICAL**: Do NOT truncate output - read FULL tool response to verify check passed
-
-- **MUST verify**: Tool returns `status` = "success" and `results.test_naming` indicates passed
-- **MUST verify**: No test naming violations reported (all test functions follow `test_<name>` pattern)
-- **BLOCK COMMIT** if ANY test naming violations are reported OR if tool returns status "error" for test_naming
-- **DO NOT rely on memory of earlier checks** - you MUST re-run and verify result NOW
-- **Fix violations**: Test functions must follow pattern `test_<name>` (with underscore after "test")
-  - Invalid: `testread`, `testgenerate`, `testcreate`, `testsetup` (missing underscore)
-  - Valid: `test_read`, `test_generate`, `test_create`, `test_setup` (with underscore)
-
-### 12.5 Re-run Markdown Lint Check (MANDATORY)
-
-**CRITICAL**: Markdown files may have been modified during Steps 5-11. Markdown lint MUST be re-checked.
-
-**⚠️ AUTHORITATIVE**: Step 12.5 checks ALL markdown files (like CI does) - this is the final markdown validation before commit.
-
-**⚠️ ORDERING RATIONALE**: Markdown lint runs BEFORE tests to avoid MCP connection staleness. The test suite can take several minutes, and running markdown lint after tests has historically caused "Connection closed" errors due to the MCP connection timing out during the long test run.
-
-**Step 12.5.1 - Re-run markdown lint check** (MANDATORY):
-
-Use the MCP tool to lint git-modified and untracked markdown files. Project root is resolved by the server (MCP roots when available):
-
-```python
-fix_markdown_lint(include_untracked_markdown=True)
-```
-
-**Scope**: The tool lints git-modified and untracked `.md`/`.mdc` files, including new files in `.cortex/history/` and `.cortex/reviews/`. For full-repo lint (matching CI), run `node_modules/.bin/markdownlint-cli2 --fix` from the shell.
-
-**⚠️ CRITICAL**: Do NOT truncate output - read FULL output to verify check passed
-
-- **MUST verify**: Zero errors in ALL markdown files (not just memory bank/plans)
-- **MUST verify**: Exit code is 0 (zero) - command must succeed
-- **MUST verify**: Output shows "✅" or "passed" or equivalent success message
-- **⚠️ ABSOLUTE BLOCK**: If ANY markdown lint errors are reported (even 1 error in any file), stop immediately - DO NOT proceed to commit
-- **⚠️ NO EXCEPTIONS**: Pre-existing markdown lint errors are NOT acceptable - they MUST be fixed before commit
-- **⚠️ ZERO ERRORS TOLERANCE**: The project has ZERO errors tolerance - ANY markdown lint error (in ANY file) MUST block commit
-- **BLOCK COMMIT** if ANY markdown lint errors are reported OR if exit code is non-zero
-- **BLOCK COMMIT** if output is truncated or unclear - re-run without truncation
-- **DO NOT rely on memory of earlier checks** - you MUST re-run and verify output NOW
-- **DO NOT dismiss errors as "pre-existing"** - ALL errors must be fixed before commit
-- **Match CI behavior**: CI checks ALL markdown files and fails on ANY error - Step 12.5 MUST match this exactly
-- **Example fallback command** (when MCP tool unavailable): Run markdown lint via shell with the same scope. Example (match CI scope): `npx markdownlint-cli2 '**/*.md' '**/*.mdc' !**/node_modules/** !**/.venv/** !**/venv/** !**/__pycache__/** !**/.git/**` with `--fix` to fix, or without `--fix` for check-only. Record "MCP connection closed; fallback used" in the commit output.
-- **⚠️ FALLBACK WHEN NO RULE CODES**: If `fix_markdown_lint` returns `files_with_errors` > 0 but `errors` is empty for those files (no rule codes like MD036), the tool may have failed to parse markdownlint output. In this case:
-  1. **First**: Retry `fix_markdown_lint` once (may be a transient parsing issue)
-  2. **If retry still returns no rule codes**: Run markdown lint locally to obtain rule codes:
-     - From project root: `npx --yes markdownlint-cli2 --fix '**/*.md' '**/*.mdc'` (with project ignore patterns if configured)
-     - Or: `node_modules/.bin/markdownlint-cli2 --fix '**/*.md' '**/*.mdc'` if local install exists
-  3. **Review output**: The local run will show rule codes (e.g. MD036, MD022) and file locations
-  4. **Fix violations**: Apply fixes based on rule codes, then re-run commit pipeline
-  5. **Record**: Note "fix_markdown_lint returned no rule codes; used local markdownlint fallback" in commit output
-
-### 12.6 Re-run Quality Checks (MANDATORY)
-
-**CRITICAL**: Quality violations (file sizes, function lengths) can be introduced during Steps 4-11 and MUST be validated before commit.
-
-**⚠️ ABSOLUTE REQUIREMENT**: Step 12.6 MUST be executed before commit. If MCP connection closes during Step 12, you MUST retry Step 12.6 specifically (not just format). If retry fails, use shell script fallbacks below. **DO NOT proceed to commit without verifying Step 12.6 passes** - Phase A results are NOT sufficient; Step 12.6 must be executed in Step 12.
-
-**Step 12.6.1 - Check file sizes** (MANDATORY):
-
-Use the Cortex MCP tool (quality gate runs quality + type_check; quality includes file sizes):
-
-```text
-execute_pre_commit_checks(checks=["quality"])
-```
-
-- **MUST verify**: Tool returns `status` = "success"; `results.quality.file_size_violations` empty; `results.type_check.success` true and `results.type_check.errors` empty
-- **MUST verify**: No file size violations (all files within 400 lines); no type errors
-- **BLOCK COMMIT** if ANY file size or type violations are reported
-- **NO EXCEPTIONS**: Pre-existing violations are NOT acceptable
-- **Connection closed handling**: If MCP tool returns connection error, retry once. If retry fails, use shell script fallback: Run the language-specific file size check script from `.cortex/synapse/scripts/{language}/check_file_sizes.{ext}` (must exit with code 0 and show "✅ All files within size limits"). Record "MCP connection closed; fallback used" and verify exit code 0 before proceeding.
-
-**Step 12.6.2 - Check function lengths** (MANDATORY):
-
-Same tool as 12.6.1 (quality gate includes quality + type_check):
-
-```text
-execute_pre_commit_checks(checks=["quality"])
-```
-
-- **MUST verify**: Tool returns `status` = "success" and `results.quality.function_length_violations` is empty
-- **MUST verify**: No function length violations (all functions within 30 lines)
-- **BLOCK COMMIT** if ANY function length violations are reported
-- **NO EXCEPTIONS**: Pre-existing violations are NOT acceptable
-- **Connection closed handling**: If MCP tool returns connection error, retry once. If retry fails, use shell script fallback: Run the language-specific function length check script from `.cortex/synapse/scripts/{language}/check_function_lengths.{ext}` (must exit with code 0 and show "✅ All functions within length limits"). Record "MCP connection closed; fallback used" and verify exit code 0 before proceeding.
-
-### 12.7 Re-run Tests with Coverage Validation (MANDATORY)
-
-**CRITICAL**: Code changes during Steps 5-11 may affect test coverage. Tests MUST be re-run and coverage MUST be validated.
-
-**Sandbox limitations**: In sandboxed environments (e.g. restricted CI or agent runners), test execution in Step 12.7 may fail or be unavailable. When Step 12.7 cannot complete after retry, commit MUST be blocked. Run the test suite outside the sandbox (e.g. locally or in a non-sandboxed CI job), ensure tests pass and coverage ≥ 90%, then re-run the commit pipeline. Phase A test results are NOT acceptable when Step 12.7 cannot execute—see [Troubleshooting: Step 12.7 and sandboxed environments](../../../docs/guides/troubleshooting.md#step-127-and-sandboxed-environments).
-
-**⚠️ ORDERING RATIONALE**: Tests run AFTER markdown lint (12.5) and quality checks (12.6) because the test suite takes several minutes and can cause MCP connection staleness for subsequent tool calls. Running tests last in the validation sequence ensures all other checks complete reliably.
-
-**Step 12.7.0 - Connection health check before Step 12.7** (MANDATORY):
-
-**CRITICAL**: Connection health check is MANDATORY before Step 12.7 execution. This fails fast with a clear message instead of timing out during the long test run.
-
-1. Call `check_mcp_connection_health()` immediately before Step 12.7.1
-2. If **health.healthy** is false:
-   - Wait 2-5 seconds
-   - Retry health check once
-   - If still unhealthy, **BLOCK COMMIT** with message: "MCP connection unhealthy before Step 12.7. Please reconnect Cortex MCP server and re-run commit pipeline."
-   - Do not start Step 12.7.1 until MCP is healthy
-
-**Step 12.7.1 - Re-run tests with coverage** (MANDATORY):
-
-Use the MCP tool:
-
-```python
-execute_pre_commit_checks(checks=["tests"], test_timeout=600, coverage_threshold=0.90, strict_mode=False)
-```
-
-- **MUST verify**: `results.tests.success` = true (PRIMARY indicator)
-- **MUST verify**: `results.tests.tests_failed` = 0 (zero failures)
-- **MUST verify**: `results.tests.pass_rate` = 100.0 (100% pass rate)
-- **MUST verify**: `results.tests.coverage` ≥ 0.90 (coverage ≥ 90%, parsed as float)
-- **BLOCK COMMIT** if `results.tests.success` = false OR `results.tests.coverage` < 0.90 OR any test fails
-- **CRITICAL**: Coverage validation is MANDATORY - NO EXCEPTIONS
-- **⚠️ CRITICAL - Connection Error Handling with Exponential Backoff**: If MCP tool returns connection error (e.g., "Connection closed", "ClosedResourceError", MCP error -32000):
-  - **First retry**: Wait 2 seconds, then retry `execute_pre_commit_checks(checks=["tests"])`
-  - **Second retry** (if first retry fails): Wait 5 seconds, then retry again
-  - **If both retries fail**:
-    - **BLOCK COMMIT IMMEDIATELY** - Do NOT proceed to Step 13
-    - **Phase A results are NOT sufficient** - Step 12.7 MUST execute successfully in Step 12
-    - **NO FALLBACK** - Unlike Step 12.6, there is no shell script fallback for tests. If Step 12.7 cannot complete after retries, the commit MUST be blocked
-    - **Report error**: Document the connection failure and tell the user to **reconnect Cortex MCP and re-run the commit command**. See [MCP disconnect runbook (commit pipeline)](../../../docs/guides/troubleshooting.md#mcp-disconnect-runbook-commit).
-  - **Rationale**: Code changes during Steps 5-11 may affect test results. Step 12.7 validates that tests still pass and coverage is maintained after all changes. Skipping Step 12.7 risks committing code that breaks tests or reduces coverage below the 90% threshold. Exponential backoff retry (2s, then 5s) provides better recovery from transient connection issues.
-
-### 12.9 Verification Requirements (CRITICAL)
-
-## ⚠️ MANDATORY: NO OUTPUT TRUNCATION IN STEP 12 (Verification)
-
-- **PROHIBITED**: NEVER use `| tail`, `| head`, or any output piping/truncation in Step 12 commands
-- **REQUIRED**: Read and parse the FULL output of every command in Step 12
-- **REASON**: Truncated output hides critical errors and makes verification impossible
-- **Parse actual command output** - do not assume success
-- **Look for success indicators**: "✅" or "passed" in output
-- **If output is unclear or missing success indicators**: Re-run command without any piping/truncation
-- **If any check fails**: Fix issues and restart from Step 12.1
-- **BLOCK COMMIT**: If ANY check in Step 12 fails OR if output cannot be fully verified, DO NOT proceed to commit
-
-### 12.10 Checklist Before Proceeding to Commit
-
-**⚠️ MANDATORY**: This checklist MUST be completed and verified BEFORE proceeding to Step 13. Each item MUST be checked with explicit evidence (command outputs, exit codes, parsed error counts).
-
-- [ ] **Step 12.0 executed**: Markdown re-validation on modified files executed, full output shown
-- [ ] **Step 12.1 executed**: Formatting fix AND check via `execute_pre_commit_checks(checks=["format"])` executed, full result shown; Step 12.1.2 run and result verified BEFORE starting Step 12.2 (not in parallel)
-- [ ] Formatting re-run: **check passed** confirmed in tool result (status success, results.format indicates passed)
-- [ ] Formatting re-run: **NO output truncation** - full output read and verified
-- [ ] Formatting re-run: **Connection error handling** - If MCP connection closed, retry was attempted; if retry failed, fallback scripts (`fix_formatting.py` then `check_formatting.py`) were used and both exited with code 0
-- [ ] Formatting re-run: **Phase A results NOT used** - Step 12.1 was executed in Step 12, not skipped based on Step 1 results
-- [ ] **Step 12.1.3 (recommended)**: CI parity check via `execute_pre_commit_checks(checks=["format_ci_parity"])` executed and status success
-- [ ] **Step 12.2 executed**: Type check via `execute_pre_commit_checks(checks=["type_check"])` executed, full result shown
-- [ ] Type check re-run: **Tool executed**: `execute_pre_commit_checks(checks=["type_check"])` was run (MANDATORY for Python/typed projects)
-- [ ] Type check re-run: **Output shown**: Full command output displayed in response (not just "passed")
-- [ ] Type check re-run: **0 errors, 0 warnings** confirmed in FULL output (if applicable)
-- [ ] Type check re-run: **NO output truncation** - full output read and verified
-- [ ] Type check re-run: **Step 12.2 result is AUTHORITATIVE** - if tool found errors (even if Step 2 passed earlier), commit MUST be blocked
-- [ ] **Step 12.3.1 executed**: Quality check tool executed, full result shown
-- [ ] Quality re-run: **0 violations** confirmed in FULL output (error count explicitly parsed and verified = 0)
-- [ ] Quality re-run: **NO output truncation** - full output read and verified
-- [ ] Quality re-run: **ZERO ERRORS TOLERANCE** - verified that error count = 0 (NO exceptions, even for pre-existing errors)
-- [ ] **Step 12.3.2 executed**: Spelling check tool executed, full result shown
-- [ ] Spelling re-run: **Tool executed**: `execute_pre_commit_checks(checks=["spelling"])` was run (MANDATORY)
-- [ ] Spelling re-run: **Output shown**: Full command output displayed in response (not just "passed")
-- [ ] Spelling re-run: **0 errors** confirmed in FULL output (results.spelling.success = true, errors list empty)
-- [ ] Spelling re-run: **NO output truncation** - full output read and verified
-- [ ] Spelling re-run: **ZERO ERRORS TOLERANCE** - verified that error count = 0 (NO exceptions, even for pre-existing errors)
-- [ ] **Step 12.4 executed**: Test naming check tool executed, full result shown
-- [ ] **Step 12.5 executed**: Markdown lint tool executed, full result shown
-- [ ] Markdown lint re-run: **0 errors** confirmed in git-modified/untracked markdown files
-- [ ] **Step 12.6 executed**: File sizes AND function lengths via quality tool executed, full results shown (MANDATORY - cannot be skipped even if connection closed; use fallback scripts if MCP unavailable)
-- [ ] File sizes re-run: **0 violations** confirmed in FULL output (or fallback script exit code 0)
-- [ ] File sizes re-run: **NO output truncation** - full output read and verified
-- [ ] Function lengths re-run: **0 violations** confirmed in FULL output (or fallback script exit code 0)
-- [ ] Function lengths re-run: **NO output truncation** - full output read and verified
-- [ ] **Step 12.6 NOT skipped**: Verified that Step 12.6 was executed in Step 12 (not relying on Phase A results)
-- [ ] **Step 12.7 executed (Tests)**: `results.tests.success` = true AND `results.tests.coverage` ≥ 0.90 confirmed (MANDATORY)
-- [ ] **Step 12.7 NOT skipped**: Verified that Step 12.7 was executed successfully in Step 12 (not relying on Phase A results)
-- [ ] **Step 12.7 connection errors**: If connection error occurred, retry was attempted; if retry failed, commit was BLOCKED (not proceeded with Phase A results)
-- [ ] **Coverage validation**: `results.tests.coverage` ≥ 0.90 (parsed as float, MANDATORY)
-- [ ] All output was **fully read and parsed**, not assumed
-- [ ] All commands in Step 12 executed **WITHOUT** `| tail`, `| head`, or any output truncation
-- [ ] **Step 12 execution verified**: Explicit evidence provided that ALL Step 12 sub-steps were executed
-
-**⚠️ CRITICAL**: Before proceeding to Step 13, you MUST provide explicit evidence that Step 12.2 was executed. This means:
-
-1. Show the tool call that was run: `execute_pre_commit_checks(checks=["type_check"])`
-2. Show the tool response (or key fields: status, results.type_check) (not truncated)
-3. Verify the response shows type check passed (e.g. status "success", results.type_check.errors empty)
-4. Verify tool returned status "success" for type_check
-
-**⚠️ VIOLATION**: Proceeding to commit creation without completing Step 12 with verified zero-error output is a CRITICAL VIOLATION that will cause CI failures.
-
-**⚠️ VIOLATION**: Using output truncation (`| tail`, `| head`, etc.) in Step 12 is a CRITICAL VIOLATION that prevents proper verification and will cause CI failures.
-
-**⚠️ VIOLATION**: Skipping Step 12.2 (type check re-run) or proceeding to Step 13 without executing Step 12.2 is a CRITICAL VIOLATION that will cause CI failures. The tool runs type check on `src/` and `tests/` to match CI - if Step 12.2 is skipped, type errors may not be caught until CI fails.
-
-**⚠️ VIOLATION**: Proceeding to Step 13 without providing explicit evidence (command outputs) that Step 12 was executed is a CRITICAL VIOLATION. You MUST show actual command executions and their outputs, not just state that Step 12 passed.
-
-## ⚠️ MANDATORY CHECKLIST UPDATES
-
-**CRITICAL**: The AI MUST update the todo checklist in real-time as each step completes:
-
-- Mark each step as `completed` immediately after it finishes successfully
-- Mark steps as `in_progress` when starting them
-- Update status immediately, not at the end
-- This provides transparency and allows tracking progress during execution
-
-## Pre-Commit Validation Summary
-
-Before proceeding to commit creation, provide a validation summary confirming all checks passed:
-
-### **Pre-Commit Validation Checklist**
-
-- [ ] **Fix Errors Validation**: Type checker = 0 errors (if applicable), Linter = 0 errors
-- [ ] **Linter Check Validation**: Linter check = 0 errors (parsed from MCP tool response: `results.fix_errors.errors`, CRITICAL - catches non-fixable errors)
-- [ ] **Formatting Validation**: Formatter check = 0 violations (parsed from MCP tool response)
-- [ ] **Type Checking Validation**: Type checker = 0 type errors AND 0 warnings (parsed from MCP tool response, skip if not applicable)
-  - **⚠️ CRITICAL**: Step 12.2 tool checks BOTH `src/` AND `tests/` - if tool finds errors (even if Step 2 passed earlier), commit MUST be blocked
-- [ ] **Code Quality Validation**: File size = 0 violations, Function length = 0 violations (parsed from MCP tool response)
-- [ ] **Test Execution Validation**:
-  - Test failures = 0 (parsed from test output)
-  - Pass rate = 100% (calculated from test output)
-  - Coverage ≥ 90% (parsed from test output)
-  - Integration tests = all pass (explicitly verified)
-- [ ] **⚠️ FINAL VALIDATION GATE (Step 12) - MANDATORY**:
-  - Markdown re-validation (Step 12.0) executed: Yes (MUST run on modified files before Step 12.1)
-  - Formatting FIX executed: Yes (MUST run to format any new files created since Step 1)
-  - Formatting CHECK: `would be left unchanged` (output verified)
-  - Type check RE-RUN: `0 errors, 0 warnings, 0 informations` (output verified)
-  - Linter RE-RUN: `0 violations` (output verified)
-  - File sizes RE-RUN: `0 violations` (output verified)
-  - Function lengths RE-RUN: `0 violations` (output verified)
-  - This step MUST be executed IMMEDIATELY before commit, not relied on from earlier steps
-  - **CRITICAL**: New test files created during Step 4 (coverage fix) MUST be formatted
-  - **CRITICAL**: Quality checks (file sizes, function lengths) MUST be re-verified before commit
-- [ ] **All Validations Passed**: All above validations confirmed successful
-
-**If any validation fails, BLOCK COMMIT and fix issues before proceeding.**
-
-**⚠️ CRITICAL**: Step 12 (Final Validation Gate) exists because code changes during steps 5-11 can introduce NEW errors. DO NOT skip this step or rely on earlier checks.
-
-## Output Format
-
-Provide a structured commit procedure report:
-
-### **Commit Procedure Summary**
-
-- **Status**: Success/Failure status of the commit procedure
-- **Steps Completed**: Count and list of steps that completed successfully
-- **Steps Failed**: Count and list of steps that failed (should be 0)
-- **Total Duration**: Time taken for the entire commit procedure
-
-### **Step-by-Step Results**
-
-Use this ordering when numbering results:
-
-- Step 0: Fix Errors
-- Step 1: Formatting
-- Step 1.5: Markdown Linting
-- Step 2: Type Checking
-- Step 3: Code Quality Checks
-- Step 4: Test Execution
-- Step 5: Memory Bank Update
-- Step 6: Roadmap Update
-- Step 7: Plan Archiving
-- Step 8: Archive Validation
-- Step 9: Memory Bank Timestamp Validation
-- Step 10: Ensure roadmap and activeContext reflect actual state
-- Step 11: Submodule Handling
-- Step 12: ⚠️ Final Validation Gate (MANDATORY)
-- Step 13: Commit Creation
-- Step 14: Push Branch
-
-#### **0. Fix Errors**
-
-- **Status**: Success/Failure
-- **Command Used**: `execute_pre_commit_checks(checks=["fix_errors"])` MCP tool
-- **Errors Fixed**: Count and list of errors fixed (from tool response: `results.fix_errors.errors`)
-- **Warnings Fixed**: Count and list of warnings fixed (from tool response: `results.fix_errors.warnings`)
-- **Formatting Issues Fixed**: Count and list of formatting issues fixed (from tool response)
-- **Type Errors Fixed**: Count and list of type errors fixed (from tool response)
-- **Files Modified**: List of files modified during error fixing (from tool response: `stats.files_modified`)
-- **Tool Response Parsed**: Yes/No (MUST be Yes)
-- **Details**: Summary from fix-errors tool response
-- **Validation Results**:
-  - Tool executed: Yes/No (MUST be Yes)
-  - Fix errors status: Pass/Fail (from tool response: `results.fix_errors.status`, MUST be "passed")
-  - Zero errors confirmed: Yes/No (parsed from tool response: `results.fix_errors.errors`, MUST be empty list)
-  - Zero warnings confirmed: Yes/No (parsed from tool response: `results.fix_errors.warnings`, MUST be empty list or acceptable)
-  - Total errors = 0: Yes/No (from tool response: `stats.total_errors`, MUST be 0)
-- **Commit Blocked**: Yes/No (blocked if any errors OR warnings remain)
-- **Fallback Used**: Yes/No (only if MCP tool was unavailable)
-
-#### **1. Formatting**
-
-- **Status**: Success/Failure
-- **Command Used**: `execute_pre_commit_checks(checks=["format"])` MCP tool
-- **Files Formatted**: Count of files formatted (from tool response: `results.format.files_formatted`)
-- **Formatter Check Status**: Pass/Fail (from tool response: `results.format.status`, MUST be "passed")
-- **Tool Response Parsed**: Yes/No (MUST be Yes)
-- **Errors**: Any formatting errors encountered (from tool response)
-- **Warnings**: Any formatting warnings (from tool response)
-- **Validation Results**:
-  - Tool executed: Yes/No (MUST be Yes)
-  - Formatting status confirmed: Yes/No (parsed from tool response, MUST be "passed")
-  - Zero violations confirmed: Yes/No (parsed from tool response)
-- **Verification**: Confirmation that formatter check passed before proceeding
-- **Fallback Used**: Yes/No (only if MCP tool was unavailable)
-
-#### **1.5. Markdown Linting**
-
-- **Status**: Success/Failure/Skipped
-- **MCP Tool Used**: `fix_markdown_lint(include_untracked_markdown=True)` (lints git-modified + untracked files)
-- **Tool Available**: Whether markdownlint-cli2 is installed
-- **Files Processed**: Count of markdown files processed (should match CI - all .md and .mdc files)
-- **Files Fixed**: Count of markdown files with errors fixed
-- **Files Unchanged**: Count of markdown files with no errors
-- **Files With Errors**: Count of files with non-auto-fixable errors (MUST be 0)
-- **Check-Only Validation**: Whether markdownlint check-only mode was run
-- **Total Errors Found**: Count of ALL errors found in ALL markdown files (MUST be 0)
-- **Errors Fixed**: List of markdown lint errors fixed
-- **Errors Remaining**: List of non-auto-fixable errors with file paths and error codes (MUST be empty)
-- **Validation Results**:
-  - Tool executed: Yes/No (MUST be Yes if tool available)
-  - Check-only validation run: Yes/No (MUST be Yes if files_with_errors > 0)
-  - All auto-fixable errors fixed: Yes/No (MUST be Yes if tool available)
-  - Zero errors in ALL files: Yes/No (MUST be Yes - parsed from check-only output, matches CI)
-  - Tool response parsed: Yes/No
-  - Check-only output parsed: Yes/No (MUST be Yes if files_with_errors > 0)
-- **Details**: Summary of markdown lint fixing operations, including all errors found and fixed
-- **Commit Blocked**: Yes/No (blocked if ANY markdown lint errors remain in ANY file - ZERO ERRORS TOLERANCE, matches CI behavior)
-- **⚠️ ZERO ERRORS TOLERANCE**: ANY markdown lint error (in ANY file) MUST block commit - NO EXCEPTIONS
-- **⚠️ NO EXCEPTIONS**: Pre-existing markdown lint errors are NOT acceptable - they MUST be fixed before commit
-- **REQUIRED**: markdownlint-cli2 must be installed (required dependency for Cortex MCP)
-- **⚠️ FALLBACK WHEN NO RULE CODES**: If `fix_markdown_lint` returns `files_with_errors` > 0 but `errors` is empty for those files (no rule codes like MD036), the tool may have failed to parse markdownlint output. In this case:
-  1. **First**: Retry `fix_markdown_lint` once (may be a transient parsing issue)
-  2. **If retry still returns no rule codes**: Run markdown lint locally to obtain rule codes:
-     - From project root: `npx --yes markdownlint-cli2 --fix '**/*.md' '**/*.mdc'` (with project ignore patterns if configured)
-     - Or: `node_modules/.bin/markdownlint-cli2 --fix '**/*.md' '**/*.mdc'` if local install exists
-  3. **Review output**: The local run will show rule codes (e.g. MD036, MD022) and file locations
-  4. **Fix violations**: Apply fixes based on rule codes, then re-run commit pipeline
-  5. **Record**: Note "fix_markdown_lint returned no rule codes; used local markdownlint fallback" in commit output
-
-#### **2. Type Checking**
-
-- **Status**: Success/Failure/Skipped
-- **Command Used**: `execute_pre_commit_checks(checks=["type_check"])` MCP tool
-- **Type Errors Found**: Count of type errors found (from tool response: `results.type_check.errors`, must be 0)
-- **Type Warnings Found**: Count of type warnings found (from tool response: `results.type_check.warnings`, must be 0)
-- **Type Check Status**: Pass/Fail (from tool response: `results.type_check.status`, MUST be "passed")
-- **Tool Response Parsed**: Yes/No (MUST be Yes)
-- **Validation Results**:
-  - Tool executed: Yes/No (MUST be Yes if project uses type system)
-  - Zero type errors confirmed: Yes/No (parsed from tool response, MUST be 0)
-  - Zero type warnings confirmed: Yes/No (parsed from tool response, MUST be 0)
-  - Tool output parsed: Yes/No
-- **Details**: Summary of any type errors/warnings and their resolution
-- **Commit Blocked**: Yes/No (blocked if any type errors OR warnings remain)
-- **Skip if**: Project does not use a type system
-- **Fallback Used**: Yes/No (only if MCP tool was unavailable)
-
-#### **3. Code Quality Checks**
-
-- **Status**: Success/Failure
-- **Command Used**: `execute_pre_commit_checks(checks=["quality"])` MCP tool
-- **Quality Success Flag**: `results.quality.success` (MUST be true - PRIMARY indicator)
-- **File Size Violations**: Count from `len(results.quality.file_size_violations)` (MUST be 0, array must be empty)
-- **Function Length Violations**: Count from `len(results.quality.function_length_violations)` (MUST be 0, array must be empty)
-- **Tool Response Parsed**: Yes/No (MUST be Yes)
-- **Violations Found**: Count of violations found (must be 0 to proceed)
-- **Violations Fixed**: Count of violations fixed
-- **Validation Results**:
-  - Tool executed: Yes/No (MUST be Yes)
-  - Quality success flag: Yes/No (MUST be Yes - from `results.quality.success`)
-  - File size violations array empty: Yes/No (MUST be Yes, parsed from tool response)
-  - Function length violations array empty: Yes/No (MUST be Yes, parsed from tool response)
-  - Tool output parsed: Yes/No
-- **Details**: Summary of any violations and their resolution
-- **⚠️ ABSOLUTE BLOCK**: If success=false OR any violations exist:
-  - Pre-existing violations are NOT acceptable
-  - Cannot dismiss as "pre-existing issues"
-  - CI will fail, so commit is blocked
-- **Commit Blocked**: Yes/No (blocked if success=false OR any violations remain - NO EXCEPTIONS)
-- **Fallback Used**: Yes/No (only if MCP tool was unavailable)
-
-#### **4. Test Execution**
-
-- **Status**: Success/Failure
-- **Command Used**: `execute_pre_commit_checks(checks=["tests"], test_timeout=600, coverage_threshold=0.90, strict_mode=False)` MCP tool
-- **Tests Executed**: Count of tests executed (from tool response: `results.tests.tests_run`)
-- **Tests Passed**: Count of passing tests (from tool response: `results.tests.tests_passed`)
-- **Tests Failed**: Count of failing tests (from tool response: `results.tests.tests_failed`, must be 0)
-- **Pass Rate**: Percentage pass rate (from tool response: `results.tests.pass_rate`, target: 100%)
-- **Coverage**: Test coverage percentage (from tool response: `results.tests.coverage`, target: 90%+)
-- **Coverage Value**: Exact coverage percentage extracted from tool response (e.g., 90.32%)
-- **Coverage Threshold**: 90.0% (absolute minimum, no exceptions)
-- **Tool Response Parsed**: Yes/No (MUST be Yes)
-- **Validation Results**:
-  - Tool executed: Yes/No (MUST be Yes)
-  - Tests success flag: Yes/No (from tool response: `results.tests.success`, MUST be true - PRIMARY indicator)
-  - Tests status: Pass/Fail (from tool response: `results.tests.status`, MUST be "passed" if success=true)
-  - Zero failures confirmed: Yes/No (parsed from tool response: `results.tests.tests_failed`, MUST be 0)
-  - 100% pass rate confirmed: Yes/No (parsed from tool response: `results.tests.pass_rate`, MUST be 100.0)
-  - Coverage value extracted: Yes/No (exact percentage must be shown from tool response: `results.tests.coverage`)
-  - Coverage threshold met: Yes/No (MANDATORY: `results.tests.coverage` MUST be ≥ 0.90, parsed as float)
-  - Coverage validation: Yes/No (MANDATORY: Verify `results.tests.success` = true AND `results.tests.coverage` ≥ 0.90)
-  - Integration tests passed: Yes/No (explicitly verified from tool response)
-  - Tool output parsed: Yes/No
-- **Details**: Complete summary from test execution tool response
-- **Commit Blocked**: Yes/No (blocked if `results.tests.success` = false OR `results.tests.coverage` < 0.90 OR any validation fails)
-- **CRITICAL**: `results.tests.success` = false OR `results.tests.coverage` < 0.90 MUST block commit - NO EXCEPTIONS
-- **CRITICAL**: Coverage validation is MANDATORY - the tool now validates coverage internally, but you MUST also verify
-- **Fallback Used**: Yes/No (only if MCP tool was unavailable)
-
-#### **5. Memory Bank Update**
-
-- **Status**: Success/Failure/Skipped
-- **MCP Tool Used**: `manage_file()` MCP tool for memory bank operations
-- **Files Updated**: List of memory bank files updated (activeContext.md, progress.md, roadmap.md)
-- **Entries Added**: Count of new entries added (if any)
-- **Details**: Summary of memory bank updates made
-
-#### **6. Roadmap Update**
-
-- **Status**: Success/Failure
-- **Items Marked Complete**: Count of completed milestones/tasks marked in roadmap.md
-- **New Items Added**: Count of new roadmap items added
-- **Status Updates**: Summary of progress indicator updates
-- **Details**: Summary of roadmap changes made
-
-#### **7. Plan Archiving**
-
-- **Status**: Success/Failure
-- **Plans Found**: Count of completed plans detected (must show detection was performed)
-- **Plans Archived**: Count of plans moved to archive directory (must match Plans Found if > 0)
-- **Plans Processed**: Count of plan files checked
-- **Archive Directories Created**: List of PhaseX directories created
-- **Links Updated**: Count of links updated in memory bank files
-- **Link Validation Status**: Pass/Fail after archiving
-- **Validation Results**:
-  - Detection performed: Yes/No (MUST be Yes - show command/output)
-  - All completed plans archived: Yes/No (MUST be Yes if Plans Found > 0)
-  - Links updated: Yes/No (MUST be Yes if Plans Archived > 0)
-  - Link validation passed: Yes/No (MUST be Yes if Plans Archived > 0)
-  - Archive locations verified: Yes/No (MUST be Yes if Plans Archived > 0)
-- **Archive Directory**: Location where plans were archived
-- **Details**: Summary of plan archiving operations including detection method and results
-- **Commit Blocked**: Yes/No (blocked if completed plans found but not archived, or if link validation fails)
-
-#### **8. Archive Location Validation**
-
-- **Status**: Success/Failure
-- **Completed Plans Re-check**: Count of completed plans found in the plans directory (path from `get_structure_info()` → `structure_info.paths.plans`) (must be 0)
-- **Unarchived Plans**: List of any completed plans still in the plans directory (must be empty)
-- **Plan Archive Checked**: Count of files in the plans archive subdirectory (e.g. `structure_info.paths.plans_archived` if available)
-- **Archive Structure Valid**: Whether all archived plans are in PhaseX subdirectories
-- **Violations Found**: Count of violations (unarchived completed plans + wrong locations, must be 0)
-- **Violations List**: List of any plan files in wrong locations or unarchived completed plans
-- **Validation Results**:
-  - Completed plans re-check performed: Yes/No (MUST be Yes - show command/output)
-  - Zero unarchived completed plans: Yes/No (MUST be Yes)
-  - All archived plans in correct locations: Yes/No (MUST be Yes)
-  - Archive structure valid: Yes/No (MUST be Yes)
-- **Details**: Summary of archive location validation results
-- **Commit Blocked**: Yes/No (blocked if any completed plans remain unarchived or if archive structure is invalid)
-
-#### **9. Memory Bank Timestamp Validation**
-
-- **Status**: Success/Failure
-- **Command Used**: `validate(check_type="timestamps")` MCP tool
-- **Total Valid Timestamps**: Count of valid YYYY-MM-DD timestamps found
-- **Total Invalid Format**: Count of invalid date format violations (must be 0)
-- **Total Invalid With Time**: Count of timestamps with time components (must be 0)
-- **Files Valid**: Whether all files passed validation
-- **Validation Results**:
-  - Zero invalid format violations confirmed: Yes/No (parsed from tool output)
-  - Zero invalid with time violations confirmed: Yes/No (parsed from tool output)
-  - All files valid confirmed: Yes/No (parsed from tool output)
-  - Tool output parsed: Yes/No
-- **Details**: Summary of timestamp validation results, including any violations found
-- **Commit Blocked**: Yes/No (blocked if any violations found)
-
-#### **10. Roadmap and activeContext state**
-
-- **Status**: Success/Done
-- **Roadmap read**: Whether roadmap.md was read via manage_file
-- **activeContext read**: Whether activeContext.md was read via manage_file
-- **Completed-in-roadmap fixed**: Whether any completed-work bullets were moved from roadmap to activeContext and removed from roadmap
-- **Details**: Brief summary (e.g. "State consistent" or "Moved N completed items from roadmap to activeContext")
-
-#### **11. Submodule Handling**
-
-- **Status**: Success/Failure/Skipped
-- **Submodule Changes Detected**: Whether the Synapse submodule had changes
-- **Submodule Committed**: Whether submodule changes were committed
-- **Submodule Pushed**: Whether submodule changes were pushed to remote
-- **Submodule Commit Hash**: Git commit hash of submodule commit (if committed)
-- **Parent Reference Updated**: Whether parent repository's submodule reference was updated
-- **Details**: Summary of submodule operations performed
-
-#### **12. ⚠️ Final Validation Gate (MANDATORY)**
-
-- **Status**: Success/Failure (MUST be Success to proceed)
-- **⚠️ EXECUTION VERIFICATION REQUIRED**: You MUST provide explicit evidence that Step 12 was executed. This means showing actual MCP tool calls and their results (or key result fields), not just stating that Step 12 passed.
-- **⚠️ AUTHORITATIVE**: Step 12 tool checks use the same scope as CI (e.g. `src/` + `tests/` for type check, format, quality).
-- **⚠️ PRECEDENCE**: Step 12 tool results are AUTHORITATIVE - if a check finds errors, commit MUST be blocked.
-- **Formatting Fix Run**: Result of `execute_pre_commit_checks(checks=["format"])` (MUST run to format any new files; show status and results.format).
-- **Formatting Check Re-run**: Result of `execute_pre_commit_checks(checks=["format"])` (MUST show check passed; verify results.format indicates success).
-- **Type Check Re-run**: Result of `execute_pre_commit_checks(checks=["type_check"])` (MUST be executed for typed projects; show status and results.type_check).
-  - **⚠️ CRITICAL**: Tool checks BOTH `src/` AND `tests/` - if tool finds errors (even if Step 2 passed earlier), commit MUST be blocked.
-  - **⚠️ NO EXCEPTIONS**: Step 12.2 result is AUTHORITATIVE.
-  - **⚠️ EXECUTION MANDATORY**: This tool MUST be executed - do not skip or assume it passed. Show the tool result.
-- **Quality Re-run**: Result of `execute_pre_commit_checks(checks=["quality"])` (MUST show 0 lint errors - ZERO ERRORS TOLERANCE, NO EXCEPTIONS).
-- **Spelling Re-run**: Result of `execute_pre_commit_checks(checks=["spelling"])` (MUST show check passed with 0 errors - ZERO ERRORS TOLERANCE, NO EXCEPTIONS, matches CI behavior).
-- **Markdown Lint Re-run**: Result of `fix_markdown_lint(include_untracked_markdown=True)` MCP tool (MUST show 0 errors - ZERO ERRORS TOLERANCE). For full-repo check: `node_modules/.bin/markdownlint-cli2 --fix` from shell.
-- **Test Naming Re-run**: Result of `execute_pre_commit_checks(checks=["test_naming"])` (MUST show check passed).
-- **File Sizes Re-run**: Result of `execute_pre_commit_checks(checks=["quality"])` (MUST show results.quality.file_size_violations empty).
-- **Function Lengths Re-run**: Result of `execute_pre_commit_checks(checks=["quality"])` (MUST show results.quality.function_length_violations empty).
-- **Output Verified**: Whether actual command output was parsed (not assumed) - MUST be Yes for all Step 12 checks
-- **New Files Created Since Step 1**: List any new files created during steps 4-11 (especially test files for coverage)
-- **Code Changes Since Step 4**: List any code changes made during steps 5-11 that required re-verification
-- **Discrepancy Handling**: If any Step 12 check finds errors (even if an earlier step passed), document and BLOCK commit
-- **Validation Results**:
-  - Step 12.0 executed: Yes/No (MUST be Yes - markdown re-validation on modified files executed)
-  - Step 12.1 executed: Yes/No (MUST be Yes - formatting fix AND check commands executed)
-  - Formatting fix executed: Yes/No (MUST be Yes)
-  - Formatting check passed: Yes/No (MUST be Yes)
-  - Step 12.2 executed: Yes/No (MUST be Yes for typed projects - type check tool executed)
-  - Type check command shown: Yes/No (MUST be Yes - actual command output displayed)
-  - Type check passed: Yes/No (MUST be Yes, or N/A if project doesn't use types)
-    - **⚠️ CRITICAL**: If Step 12.2 tool found errors (even if Step 2 passed earlier), this MUST be No and commit MUST be blocked
-  - Step 12.3 executed: Yes/No (MUST be Yes - linter check command executed)
-  - Linter passed: Yes/No (MUST be Yes - error count explicitly parsed and verified = 0, ZERO ERRORS TOLERANCE, NO EXCEPTIONS even for pre-existing errors)
-  - Step 12.4 executed: Yes/No (MUST be Yes - test naming check command executed)
-  - Step 12.5 executed: Yes/No (MUST be Yes - markdown lint check command executed)
-  - Markdown lint passed: Yes/No (MUST be Yes - zero errors in ALL markdown files, matches CI behavior, ZERO ERRORS TOLERANCE, NO EXCEPTIONS)
-  - Step 12.6 executed: Yes/No (MUST be Yes - file sizes AND function lengths checks executed, even if connection closed - use fallback scripts if MCP unavailable)
-  - File sizes check passed: Yes/No (MUST be Yes - verified via MCP tool OR fallback script exit code 0)
-  - Function lengths check passed: Yes/No (MUST be Yes - verified via MCP tool OR fallback script exit code 0)
-  - Step 12.6 fallback used: Yes/No (only Yes if MCP connection closed and shell scripts were used)
-  - Step 12.7 executed: Yes/No (MUST be Yes - tests with coverage validation executed successfully)
-  - Step 12.7 NOT skipped: Yes/No (MUST be Yes - Step 12.7 executed in Step 12, not relying on Phase A results)
-  - Step 12.7 connection errors handled: Yes/No (MUST be Yes - if connection error occurred, retry attempted; if retry failed, commit BLOCKED)
-  - Step 12.7 tests passed: Yes/No (MUST be Yes - results.tests.success = true AND results.tests.coverage ≥ 0.90)
-  - Output fully read: Yes/No (MUST be Yes for all Step 12 checks)
-  - Step 12 tool results take precedence: Yes/No (MUST be Yes - if any Step 12 check finds errors, commit blocked)
-  - Step 12 execution verified: Yes/No (MUST be Yes - explicit evidence provided that all Step 12 sub-steps were executed)
-- **BLOCK COMMIT** if any check in Step 12 fails OR if Step 12 execution cannot be verified OR if Step 12.7 failed after retry
-
-#### **13. Commit Creation**
-
-- **Status**: Success/Failure
-- **Commit Hash**: Git commit hash if successful
-- **Commit Message**: The commit message used
-- **Files Committed**: Count and list of files in the commit
-- **Submodule Reference Updated**: Whether submodule reference was included in commit
-
-#### **14. Push Branch**
-
-- **Status**: Success/Failure
-- **Branch Name**: Current branch that was pushed
-- **Remote**: Remote repository name (e.g., origin)
-- **Push Result**: Summary of push operation
-- **Errors**: Any push errors encountered and their resolution
-
-### **Issues Encountered**
-
-- **Error Fixing Issues**: Any errors or warnings encountered during fix-errors step and their resolution
-- **Formatting Issues**: Any formatting issues and their resolution
-  - **CRITICAL**: If formatter check fails after formatting, this indicates files were not properly formatted
-  - Must re-run formatter and verify formatter check passes before proceeding
-- **Code Quality Issues**: File size or function length violations and their resolution
-- **Test Failures**: Any test failures and their resolution
-- **Memory Bank Issues**: Any memory bank update issues
-- **Roadmap Update Issues**: Any issues updating roadmap.md with completed items
-- **Plan Archiving Issues**: Any issues archiving completed build plans
-- **Archive Validation Issues**: Any archive location violations found and their resolution
-- **Roadmap/activeContext state issues**: Any issues ensuring roadmap (future only) and activeContext (completed only) reflect actual state
-- **Submodule Issues**: Any submodule commit or push errors and their resolution
-- **Push Issues**: Any push errors and their resolution
-
-### **Commit Details**
-
-- **Commit Hash**: Full commit hash
-- **Commit Message**: Complete commit message
-- **Files Changed**: List of all files in the commit
-- **Lines Added**: Count of lines added
-- **Lines Removed**: Count of lines removed
-- **Net Change**: Net lines changed
-
-### **Push Details**
-
-- **Branch Pushed**: Name of the branch that was pushed
-- **Remote**: Remote repository name
-- **Push Status**: Success or failure status
-- **Remote Tracking**: Whether remote tracking branch was set
-
-## ⚠️ MANDATORY: Fix ALL Issues Automatically
-
-**CRITICAL RULE**: When ANY error or violation is detected, you MUST fix ALL of them automatically. No explicit user request is required to apply fixes—fixing is part of the pipeline.
-
-## ⚠️ MANDATORY: Load Context Before Fixing
-
-**CRITICAL**: Before attempting to fix ANY errors, violations, or failures, you MUST load project context and rules so fixes follow all project rules and guidelines. This prevents fix-path work from proceeding without project context and reduces mistake patterns (e.g. wrong mocks, usage-context assumptions).
-
-**Required actions before fixing**:
-
-1. **Load context**: Call `load_context(task_description="Fixing errors and quality issues for commit", token_budget=15000)` (or use task-type budget per context-effectiveness recommendations—15k for fix/debug path).
-2. **Load rules**: If rules are enabled, call `rules(operation="get_relevant", task_description="Fixing errors, quality issues, and test failures")`. If rules return `disabled`, load key coding standards from the rules directory (path from `get_structure_info()` → `structure_info.paths.rules`) using the Read tool.
-3. **Then proceed**: Only after context and rules are loaded, apply fixes following project rules and guidelines.
-
-**When this applies**: This requirement applies whenever you switch to "fix mode"—when Step 0 fails, when any validation step fails, when test failures occur, when quality violations are detected, or when any error requires fixing. The step-start `load_context` (if present) is for the planned step; this fix-path `load_context` is additional when you actually fix issues.
-
-- **No explicit request needed**: The user does not need to say "fix it" or "yes, fix that". Apply fixes as soon as a failure is detected.
-- **NEVER ask for permission** to fix issues - just fix them all
-- **NEVER ask "should I continue?"** - continue fixing until ALL issues are resolved
-- **NEVER stop after fixing some issues** - fix ALL of them, no matter how many
-- **NEVER report and stop without attempting fixes first** - always try to fix before reporting
-- **It's OK to stop the commit procedure** if context is insufficient after fixing, but ALL issues must still be fixed first
-- **After fixing ALL issues**: Re-run validation, verify zero issues remain, then proceed or provide summary
-- **No exceptions**: Whether it's 1 issue or 100 issues, fix ALL of them automatically
-
-## Error/Violation Handling Strategy
-
-**PRIMARY FOCUS**: When any error or violation is detected during the commit procedure, the agent's PRIMARY FOCUS must be to fix ALL of them immediately. **Do not wait for explicit user requests to fix**—apply fixes as part of the pipeline.
-
-**After Fixing ALL Issues**:
-
-1. **Fix ALL Issues First**: Continue fixing ALL issues until zero remain
-   - Do not stop after fixing some issues - fix ALL of them
-   - Do not ask for permission - just fix them all automatically
-   - Re-run validation after fixing to verify zero issues remain
-   - Continue fixing until validation shows zero issues
-
-2. **If sufficient free context remains AFTER fixing ALL issues**: Continue with the commit pipeline automatically
-   - Re-run the validation check that detected the issue
-   - Verify the fix resolved ALL issues (zero violations remain)
-   - Proceed to the next step in the commit pipeline
-
-3. **If free context is insufficient AFTER fixing ALL issues**: Stop the commit pipeline and provide:
-   - **Comprehensive Changes Summary**: Document ALL fixes made, files modified, and changes applied
-   - **Re-run Recommendation**: Advise the user to re-run the commit pipeline (`/commit` or equivalent)
-   - **Status Report**: Clearly indicate which step was completed and which step should be executed next
-   - **CRITICAL**: ALL issues must be fixed before stopping - do not stop with issues remaining
-
-**Context Assessment**: The agent should assess available context AFTER fixing ALL issues:
-
-- Consider remaining token budget
-- Consider complexity of remaining steps
-- If context is insufficient AFTER fixing all issues, provide summary and recommend re-run
-- **CRITICAL**: Do not assess context until ALL issues are fixed
+1. Memory bank writes via `manage_file()` only
+2. Roadmap edits via MCP tools only
+3. Markdown lint early when editing markdown
+4. Task-type-based token budgets in `load_context`
+5. Connection closed: retry once, then use `execute_pre_commit_checks` for gates
 
 ## Failure Handling
 
-**Block commit vs stop pipeline**:
-
-- **Block commit** = Do not advance to the next step; do not create the commit. Correct: keep the pipeline running and focus on resolving the failure (fix, re-validate) in this same run.
-- **Stop pipeline and report** = Only after you have attempted resolution (fixes + re-validation) and either validation still fails or context is insufficient. Wrong: stopping and reporting to the user as the first response to a failure—problem resolution is the first response.
-
-### Code Quality Check Failure
-
-- **Action**: **PRIMARY FOCUS** - Fix ALL violations immediately, then assess context to continue or summarize
-- **⚠️ MANDATORY: Load Context Before Fixing**: Before applying fixes, you MUST load context and rules:
-  - Call `load_context(task_description="Fixing code quality violations", token_budget=15000)` (15k for fix/debug path)
-  - If rules are enabled, call `rules(operation="get_relevant", task_description="Fixing code quality violations")`; if disabled, read key coding standards from rules directory
-  - Only after context and rules are loaded, proceed with fixes following project rules
-- **Process**:
-  1. **LOAD CONTEXT FIRST**: Load context and rules as specified above
-  2. **IMMEDIATE FIX**: Report the specific code quality violation (file size or function length)
-  3. Provide detailed error information including file path, function name, and violation details
-  4. Parse MCP tool response or check output to extract exact violation counts and details
-  5. **FIX ALL**: Fix ALL file size violations by splitting large files or extracting modules
-  6. **FIX ALL**: Fix ALL function length violations by extracting helper functions or refactoring logic
-  7. **CRITICAL**: Continue fixing until ALL violations are resolved - do not stop after fixing some
-  8. **NEVER ask for permission** - just fix them all automatically
-  9. Re-run checks to verify ALL fixes
-  10. **VALIDATION**: Re-parse MCP tool response or check output to confirm zero violations remain
-  11. **CONTEXT ASSESSMENT**: After fixing ALL violations, assess if sufficient free context remains:
-      - If YES: Continue with commit pipeline (re-run check, verify, proceed to next step)
-      - If NO: Provide comprehensive changes summary and advise re-running commit pipeline
-  12. **CRITICAL**: These checks match CI quality gate requirements - failures will cause CI to fail
-- **No Partial Commits**: Do not proceed with commit until all code quality checks pass and validation confirms zero violations
-- **No Partial Fixes**: Fix ALL violations before proceeding or stopping - never stop with violations remaining
-
-### Test Suite Failure
-
-- **Action**: **PRIMARY FOCUS** - Fix ALL test failures immediately, then assess context to continue or summarize
-- **⚠️ MANDATORY: Load Context Before Fixing**: Before applying fixes, you MUST load context and rules:
-  - Call `load_context(task_description="Fixing test failures", token_budget=15000)` (15k for fix/debug path)
-  - If rules are enabled, call `rules(operation="get_relevant", task_description="Fixing test failures and ensuring test standards")`; if disabled, read key testing standards from rules directory
-  - Only after context and rules are loaded, proceed with fixes following project rules and test standards
-- **Process**:
-  1. **LOAD CONTEXT FIRST**: Load context and rules as specified above
-  2. **IMMEDIATE FIX**: Review test failure output from `run-tests` command
-  3. Parse test output to extract exact failure counts, test names, and error messages
-  4. Analyze test failure messages and stack traces
-  5. Identify root cause (code issue vs test issue)
-  6. **FIX ALL**: Fix ALL underlying issues
-  7. **CRITICAL**: Continue fixing until ALL test failures are resolved - do not stop after fixing some
-  8. **NEVER ask for permission** - just fix them all automatically
-  9. Re-run `run-tests` command to verify ALL fixes
-  10. **VALIDATION**: Re-parse test output to verify:
-  - Zero test failures (failed count = 0)
-  - 100% pass rate for executable tests
-  - Coverage meets 90%+ threshold (MANDATORY - extract exact percentage and verify ≥ 90.0%)
-  - All integration tests pass
-  1. **CONTEXT ASSESSMENT**: After fixing ALL test failures, assess if sufficient free context remains:
-      - If YES: Continue with commit pipeline (re-run tests, verify, proceed to next step)
-      - If NO: Provide comprehensive changes summary and advise re-running commit pipeline
-  2. Continue until all tests pass with 100% pass rate and all validations pass, including coverage ≥ 90.0%
-- **No Partial Commits**: Do not proceed with commit until all tests pass and all validations confirm success
-- **No Partial Fixes**: Fix ALL test failures before proceeding or stopping - never stop with failures remaining
-- **Coverage Enforcement**: Coverage threshold of 90% is absolute - if coverage < 90.0%, commit MUST be blocked
-- **BLOCK COMMIT**: If any test validation fails, including coverage below 90.0%, do not proceed with commit
-
-### Coverage Below Threshold
-
-- **Action**: **PRIMARY FOCUS** - Focus on **problem resolution**: fix coverage **in this same run** by adding tests and re-running until coverage ≥ 90.0%. Do NOT stop and report to the user as the first response; treat like other violations (fix until resolved or context insufficient).
-- **Process**:
-  1. **IMMEDIATE FIX**: Parse `results.tests.coverage` from test output; if < 0.90, coverage is a violation to fix in this run. Do not stop and report—start adding tests.
-  2. **FIX IN SAME RUN**: Add or improve tests (e.g. target recently changed or low-coverage modules), then re-run `execute_pre_commit_checks(checks=["tests"], test_timeout=600, coverage_threshold=0.90, strict_mode=False)`.
-  3. **CRITICAL**: Continue adding tests and re-running until `results.tests.coverage` ≥ 0.90 - do not stop after one or two attempts and report "blocked". Problem resolution is the focus; only report after genuine fix attempts.
-  4. **NEVER stop and report** with coverage < 90% unless: (a) context is insufficient after fixing, or (b) you have made multiple fix attempts with no coverage gain and need to recommend a dedicated coverage phase.
-  5. **VALIDATION**: Re-run tests, verify `results.tests.success` = true AND `results.tests.coverage` ≥ 0.90 before proceeding to Step 5.
-  6. **CONTEXT ASSESSMENT**: Only after coverage ≥ 90% (or genuine context exhaustion): continue pipeline or provide summary and re-run recommendation.
-- **No Partial Commits**: Do not proceed to Step 5 until coverage ≥ 90.0%.
-- **No Partial Fixes**: Treat coverage below 90% like any other violation - fix in this same run, do not stop and report.
-
-### Submodule Failure
-
-- **Action**: Report the issue and block main commit if submodule commit/push fails
-- **Process**:
-  1. Report the specific submodule operation failure
-  2. Provide detailed error information
-  3. Suggest resolution steps (e.g., check submodule remote, authentication)
-  4. Do not proceed with main commit if submodule changes exist but couldn't be committed/pushed
-  5. If submodule has no changes, skip submodule operations and proceed normally
-
-### Push Failure
-
-- **Action**: Report the issue but do not block commit (commit is already created)
-- **Process**:
-  1. Report the specific push failure
-  2. Provide detailed error information
-  3. Suggest resolution steps (e.g., set upstream branch, check authentication)
-  4. Commit remains successful even if push fails
-
-### Connection Closed During Long Tool (Retry Then Fallback)
-
-- **When**: An MCP tool returns an error whose message or code indicates "Connection closed" or "ClosedResourceError" (e.g. the client disconnected or timed out while the tool was still running or had just completed on the server).
-- **Action**: (1) **Retry the tool once.** (2) If it fails again with the same class of error (or with "tool not found" / similar after a connection closed error), perform the documented fallback for that step and record "MCP connection closed; fallback used" so the pipeline can proceed. Do not block the pipeline on "tool not found" after a disconnect—use the documented fallback.
-- **Fallbacks** (documented): Stop and report.
-- **Rationale**: Long-running tools may complete on the server after the client has closed the connection; "Connection closed" can mean client timeout/disconnect, not necessarily tool failure. Retry once then fallback (or explicit commit block for quality pre-flight) allows the pipeline to behave predictably instead of silently failing.
-- **Note (fix_markdown_lint)**: The server sends per-file progress and a 5 s heartbeat for `fix_markdown_lint`, and runs markdownlint in batches to reduce duration; MCP error -32000 ("Connection closed") can still occur due to client-side timeout. Retry once, then use the documented shell fallback (Step 12.5) and record "MCP connection closed; fallback used".
-- **⚠️ CRITICAL (Step 12.1)**: If connection closes during Step 12.1 (formatting), you MUST retry Step 12.1 specifically (format fix then check). **DO NOT skip Step 12.1** - it is MANDATORY even if Step 1 passed earlier. New files created during Steps 4-11 may not have been formatted. If retry fails, use shell script fallbacks: Run the language-specific formatting scripts from `.cortex/synapse/scripts/{language}/fix_formatting.{ext}` then `.cortex/synapse/scripts/{language}/check_formatting.{ext}`. Both must exit with code 0 before proceeding to Step 12.2. **Phase A results are NOT sufficient** - Step 12.1 must be executed in Step 12.
-- **⚠️ CRITICAL (Step 12.6)**: If connection closes during Step 12, you MUST retry Step 12.6 specifically (file sizes and function lengths checks). **DO NOT skip Step 12.6** - it is MANDATORY even if Phase A passed earlier. If retry fails, use shell script fallbacks: Run the language-specific quality check scripts from `.cortex/synapse/scripts/{language}/check_file_sizes.{ext}` and `.cortex/synapse/scripts/{language}/check_function_lengths.{ext}`. Both must exit with code 0 before proceeding to commit. **Phase A results are NOT sufficient** - Step 12.6 must be executed in Step 12.
-
-### MCP Tool Failure (CRITICAL)
-
-- **Action**: **STOP IMMEDIATELY** - Do not continue with commit pipeline
-- **Exceptions**:
-  1. **Connection closed errors**: For errors indicating "Connection closed" or "ClosedResourceError", see "Connection Closed During Long Tool (Retry Then Fallback)" above (retry once, then use documented fallback and record "MCP connection closed; fallback used").
-  2. **Step 15 (Analyze) failures**: Step 15 is analysis-only (Compound step) and failures are **non-blocking**. If Step 15 fails after retry, report the error but do not stop the pipeline; commit success (Steps 0-14) is not invalidated by analysis failures.
-- **Protocol Enforcement**: **AUTOMATIC AND MANDATORY** - The MCP tool failure protocol is automatically enforced by the `mcp_tool_wrapper` decorator. Agents cannot bypass this protocol.
-- **Process**:
-  1. **STOP**: Current commit process MUST stop immediately when Cortex MCP tool crashes, disconnects, or exhibits unexpected behavior
-  2. **DO NOT** attempt to retry or use fallback methods - the tool failure must be investigated first
-  3. **Automatic Protocol Enforcement**: The MCP tool failure protocol is automatically enforced:
-     - `mcp_tool_wrapper` decorator detects tool failures automatically
-     - `MCPToolFailureHandler` creates investigation plans automatically
-     - Investigation plans are added to roadmap automatically
-     - User is notified automatically with failure summary
-     - **Protocol violations are automatically blocked** - agents cannot continue with workarounds
-  4. **Validation Required**: After each MCP tool call, validation is performed automatically:
-     - Response structure is validated (must be dict, not JSON string)
-     - Error status is checked (status="error" indicates tool failure)
-     - Response format is verified (must match expected structure)
-     - If validation fails, protocol is enforced automatically
-     - **No manual validation needed** - validation happens automatically in the wrapper
-  5. **Provide summary to user** (automatically generated):
-     - **Description**: What tool failed and how (crash, disconnect, unexpected behavior)
-     - **Impact**: Commit procedure was blocked at [step name]
-     - **Fix Recommendation**: Mark as **FIX-ASAP** priority - tool must be fixed before commit can proceed
-     - **Plan Location**: Path to created investigation plan
-     - **Next Steps**: User should review the plan and prioritize fixing the tool issue
-  6. **DO NOT** proceed with commit until the MCP tool issue is resolved
-- **Affected Tools**: This applies to all Cortex MCP tools used in commit procedure:
-  - `execute_pre_commit_checks()` (fix_errors, format, synapse_format, synapse_lint, type_check, quality, tests)
-  - `fix_markdown_lint()` (markdown linting)
-  - `manage_file()` (memory bank operations)
-  - `validate()` (timestamp validation); Step 10 uses `manage_file()` for roadmap/activeContext state only
-  - Any other Cortex MCP tools used during commit
-- **Automatic Enforcement**: Protocol violations are automatically detected and blocked:
-  - Attempts to use workarounds are prevented
-  - Fallback methods are blocked when tool fails
-  - Commit procedure stops immediately on tool failure
-  - Investigation plans are created automatically
-
-### Step 10 (Roadmap/activeContext state)
-
-- **Action**: Read roadmap.md and activeContext.md; if completed-work bullets appear in roadmap, move their summary to activeContext and remove them from roadmap. Then proceed to Step 11. No codebase scan or `validate(check_type="roadmap_sync")` in this step.
-
-### Other Step Failures
-
-- **Action**: **PRIMARY FOCUS** - Fix ALL failures immediately, then assess context to continue or summarize
-- **⚠️ MANDATORY: Load Context Before Fixing**: Before applying fixes, you MUST load context and rules:
-  - Call `load_context(task_description="Fixing step failures", token_budget=15000)` (15k for fix/debug path)
-  - If rules are enabled, call `rules(operation="get_relevant", task_description="Fixing step failures")`; if disabled, read key coding standards from rules directory
-  - Only after context and rules are loaded, proceed with fixes following project rules
-- **Process**:
-  1. **LOAD CONTEXT FIRST**: Load context and rules as specified above
-  2. **IMMEDIATE FIX**: Report the specific failure
-  3. Provide detailed error information
-  4. **FIX ALL**: Fix ALL underlying issues
-  5. **CRITICAL**: Continue fixing until ALL issues are resolved - do not stop after fixing some
-  6. **NEVER ask for permission** - just fix them all automatically
-  7. **CONTEXT ASSESSMENT**: After fixing ALL issues, assess if sufficient free context remains:
-     - If YES: Continue with commit pipeline (re-run step, verify, proceed to next step)
-     - If NO: Provide comprehensive changes summary and advise re-running commit pipeline
-  8. Do not proceed with commit until all issues are fixed and validated
-  9. **No Partial Fixes**: Fix ALL issues before proceeding or stopping - never stop with issues remaining
-
-### General Rules
-
-- **Problem resolution first**: When any step fails, the pipeline must focus on resolving the problem (fix, re-validate) in the same run. Do not stop and report to the user without attempting resolution first. Only after fixes and re-validation may you report and stop (e.g. validation still fails or context insufficient).
-- **Fixes without explicit request**: All fixes (type, lint, format, quality, tests, roadmap sync, timestamps, etc.) are applied automatically when a step fails. The user does not need to request fixes explicitly; switch to the fix flow as soon as a failure is detected.
-- **Error/Violation Priority**: When any error or violation is detected, **PRIMARY FOCUS** is to fix ALL of them immediately
-- **Fix ALL Issues Automatically**:
-  - **NEVER ask for permission** to fix issues - just fix them all
-  - **NEVER ask "should I continue?"** - continue fixing until ALL issues are resolved
-  - **NEVER stop after fixing some** - fix ALL of them, no matter how many
-  - **NEVER report and stop without attempting fixes first** - always apply fixes, then re-validate; only then report if still failing or context insufficient
-  - **It's OK to stop the commit procedure** if context is insufficient after fixing, but ALL issues must still be fixed first
-- **Execution Continuity**: Once this command starts, you MUST continue the pipeline until you either (a) complete Step 14 (push), or (b) hit a hard blocker (Cortex MCP tool failure, missing dependency, or explicit ZERO ERRORS violation). Do **not** stop mid-pipeline for planning-only reasons.
-- **Context Management**: Keep narrative output between tool calls extremely concise (1–3 short sentences). Never restate this prompt or paste large tool outputs verbatim; summarize them to avoid exhausting context and causing premature termination.
-- **Context-Aware Continuation**: After fixing ALL errors/violations:
-  - If sufficient free context remains: Continue automatically with commit pipeline
-  - If free context is insufficient: Provide comprehensive changes summary and advise re-running commit pipeline
-- **No Partial Commits**: All steps must pass before commit creation
-- **No Partial Fixes**: Fix ALL issues before proceeding or stopping - never stop with issues remaining
-- **Validation Required**: All critical steps MUST include explicit validation that confirms success (parsing output, checking exit codes, verifying counts)
-- **Block on Validation Failure**: If any validation step fails, **BLOCK COMMIT** and do not proceed until ALL issues are fixed
-- **Fix Issues First**: Resolve ALL issues before attempting commit again
-- **Automatic Execution**: Once this command is explicitly invoked by the user, execute all steps automatically without asking for additional permission
-- **Comprehensive Summary Format**: When advising re-run due to context limits (AFTER fixing ALL issues), provide:
-  - List of ALL fixes applied (errors fixed, violations resolved)
-  - Files modified with brief description of changes
-  - Current status (which step completed, which step to run next)
-  - Clear instruction to re-run commit pipeline
-- **Command Execution**: When referencing other Cursor commands, AI MUST immediately read those command files and execute ALL their steps without any user interaction
-- **MCP Tools**: Use structured MCP tools instead of reading prompt files:
-  - Step 0 (Fix Errors) MUST use `execute_pre_commit_checks(checks=["fix_errors"])` MCP tool
-  - Step 4 (Testing) MUST use `execute_pre_commit_checks(checks=["tests"])` MCP tool
-  - Step 4 (Memory Bank) MUST use `manage_file()` MCP tool for memory bank operations
-  - Step 9 (Memory Bank Timestamp Validation) MUST use `validate(check_type="timestamps")` MCP tool
-  - Step 10 (Roadmap/activeContext state) MUST use `manage_file()` to read roadmap.md and activeContext.md and ensure completed work is only in activeContext, future work only in roadmap (no `validate(check_type="roadmap_sync")`)
-  - If optional command files don't exist, skip those steps gracefully without searching for alternatives
-  - This ensures consistency, maintainability, type safety, and single source of truth
-- **Real-Time Checklist Updates**: AI MUST update the todo checklist immediately as each step completes:
-  - Use `todo_write` tool to mark steps as `completed` right after they finish
-  - Mark steps as `in_progress` when starting them
-  - Update status in real-time, not at the end
-  - This provides transparency and progress tracking during execution
-- **Output Parsing**: For all validation steps, parse command output to extract exact counts, percentages, and status:
-  - Parse type checker output to count type errors (must be 0, skip if not applicable)
-  - Parse linter output to count linting errors (must be 0)
-  - Parse formatter check output to count formatting violations (must be 0)
-  - Parse test output to count failures (must be 0), calculate pass rate (must be 100%), extract coverage (must be ≥ 90% if applicable)
-  - Parse code quality check output to count violations (must be 0)
-  - Do not rely on exit codes alone - verify actual results from output
-- **Avoid Unnecessary Searches**:
-  - Do not perform codebase searches for command files that are referenced but don't exist
-  - Check file existence directly using file system tools (read_file, list_dir) before attempting to read
-  - If a referenced command file doesn't exist, skip that step gracefully without searching for alternatives
-  - Do not search codebase for "how to update memory bank" or similar - if command file doesn't exist, skip the step
+- **Phase A fails**: Delegate to individual agents to fix, then re-run Phase A
+- **Phase B fails**: Use `/cortex/fix` with `target=docs` to fix sync issues
+- **Step 12 fails**: Fix within final-gate-validator (state machine fix loop); block commit if unresolvable
+- **MCP disconnects**: Retry once (automatic via wrapper). To reconnect Cortex MCP, re-establish connection; then re-run the commit command from last checkpoint. See docs/guides/troubleshooting.md (mcp-disconnect-runbook-commit). MCP connection closed; fallback used when running checks via execute_pre_commit_checks. For markdown lint fallback when fix_markdown_lint unavailable: `npx markdownlint-cli2 --fix '**/*.md' '**/*.mdc'` (or markdownlint-cli2 from shell).
+- **Step 12 fix loop**: If Step 12.2 (type) or 12.3 (quality/lint) fails after an edit, re-run Step 12.3 (and 12.1 if format changed). Verify `results.quality.success` and zero errors before proceeding. Do NOT proceed to Step 12.4 until Step 12.3 has been run again. Type or lint fixes can introduce new lint (e.g. E402).
+- **Plan Status**: When delegating to plan-archiver, verify plan Status: VALUE (not **VALUE**); MD036 applies. For tests with side-effect imports use _ = module (or suppress reportUnusedImport) so linter is satisfied.
+- **Intermediate Validation During Refactoring**: Run type+quality after each refactor; do not batch all changes then validate at end.
+- **Duplicate Detection Before Creating Helpers**: Before creating helper functions, search for existing functions with similar names.
+- **Context insufficient**: Provide comprehensive summary, advise re-running pipeline
 
 ## Success Criteria
 
-**⚠️ ZERO ERRORS TOLERANCE**: ALL checks below MUST show ZERO errors - NO EXCEPTIONS, even for pre-existing errors or errors in files you didn't modify.
-
-- ✅ All compiler errors and warnings fixed (fix-errors step passes)
-- ✅ **VALIDATION**: Zero errors AND zero warnings confirmed via type checker (if applicable) and linter re-checks after fix-errors
-- ✅ **ZERO ERRORS TOLERANCE**: Error counts explicitly parsed and verified = 0 for ALL checks (formatting, types, linting, quality, tests)
-- ✅ All type errors and warnings resolved (if applicable)
-- ✅ **VALIDATION**: Type checker reports zero type errors AND zero warnings (parsed from output, skip if not applicable)
-- ✅ All formatting issues fixed
-- ✅ Project formatter + import sorting (if applicable) formatting passes without errors
-- ✅ **CRITICAL**: Formatter check MUST pass after formatting (verifies CI will pass)
-- ✅ **VALIDATION**: Formatter check output confirms zero formatting violations
-- ✅ Markdown lint errors fixed (ALL markdown files properly formatted, matching CI behavior)
-- ✅ **VALIDATION**: Markdown lint fix tool executed on git-modified/untracked files
-- ✅ **VALIDATION**: Zero errors confirmed in linted markdown files
-- ✅ Real-time checklist updates completed for all steps
-- ✅ **QUALITY CHECK SUCCESS**: `results.quality.success` = true (PRIMARY validation)
-- ✅ File size check passes (all files ≤ 400 lines)
-- ✅ **VALIDATION**: `len(results.quality.file_size_violations)` = 0 (array MUST be empty)
-- ✅ Function length check passes (all functions ≤ 30 lines)
-- ✅ **VALIDATION**: `len(results.quality.function_length_violations)` = 0 (array MUST be empty)
-- ✅ **NO EXCEPTIONS**: Pre-existing violations do NOT bypass this check - CI will fail regardless
-- ✅ All executable tests pass (100% pass rate) - verified via test execution
-- ✅ **VALIDATION**: Test output parsed to confirm zero failures, 100% pass rate (from MCP tool response)
-- ✅ All executable tests pass (100% pass rate) - verified via test execution
-- ✅ Test coverage meets threshold (90%+) - verified via test execution
-- ✅ **VALIDATION**: Coverage percentage parsed from MCP tool response (`results.tests.coverage`) and confirmed ≥ 90.0% (MANDATORY)
-- ✅ **COVERAGE ENFORCEMENT**: Coverage threshold validation is absolute - no exceptions allowed
-- ✅ All integration tests pass - explicitly verified from test output
-- ✅ Memory bank updated with current information
-- ✅ Roadmap.md updated with completed items and current progress
-- ✅ Completed build plans archived to the plans archive directory (path from `get_structure_info()`)
-- ✅ Plan archive locations validated (no violations)
-- ✅ Memory bank timestamps validated (all use YYYY-MM-DD format, no time components)
-- ✅ Roadmap and activeContext reflect actual state (roadmap = future work only, activeContext = completed work only)
-- ✅ Synapse submodule changes committed and pushed (if any changes exist)
-- ✅ Parent repository's submodule reference updated (if submodule was committed)
-- ✅ Commit created with descriptive message
-- ✅ All changes committed successfully
-- ✅ Branch pushed to remote repository successfully
-- ✅ **Analyze prompt executed** - Analyze (End of Session) prompt (`analyze.md`) run to complete context effectiveness and session optimization analysis
-
-## Usage
-
-This command executes the complete commit procedure with all required pre-commit checks, ensuring code quality, documentation completeness, test coverage, and project consistency before creating a commit.
-
-**EXPLICIT INVOCATION REQUIRED**: This command is ONLY executed when explicitly invoked by the user (e.g., `/commit`). Invoking this command IS an explicit commit request per `no-auto-commit.mdc` rule.
-
-**NO ADDITIONAL PROMPTS**: Once explicitly invoked, execute all steps automatically without asking for additional permission
-
-**CURSOR COMMAND EXECUTION**: When this command references other Cursor commands (like `run-tests`), AI MUST immediately read that command file and execute ALL its steps without any user interaction
+- All steps 0-12 completed and passed
+- Final gate validator returned `status: "passed"`
+- Commit created with content-descriptive message
+- Push completed (or non-blocking push failure documented)
+- Analyze executed (or non-blocking analysis failure documented)
+- Pipeline state checkpoint cleared
