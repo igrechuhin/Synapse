@@ -1,122 +1,51 @@
 # Analyze (End of Session)
 
-**AI EXECUTION COMMAND**: Run end-of-session analysis. Check all: (1) context effectiveness, (2) session optimization. Execute automatically; do not ask for permission.
+**CRITICAL**: Execute ALL steps below AUTOMATICALLY. Do NOT pause, summarize, or ask for confirmation. Start with Step 1 immediately.
 
-## Conventions
+## START HERE — Pre-Analysis Checklist and First Tool Calls
 
-Per `shared-conventions.md`. Severity: GATE/CHECK/PREFER. Memory bank writes: per `memory-bank-contract.md`.
+**Step 1**: Call `check_mcp_connection_health()`. If unhealthy after retry, continue with available steps (partial analysis is better than none).
 
-This analysis is the **Compound** step of the Plan -> Work -> Review -> Compound loop; use it to make the next session easier.
+**Step 2**: Call `load_context(task_description="End-of-session analysis: context effectiveness, session optimization", token_budget=4000)`.
 
-**GATE**: This is the single entry point for end-of-session analysis. Run all steps in order.
+**Step 3**: Call `manage_file(file_name="activeContext.md", operation="read")` and `manage_file(file_name="progress.md", operation="read")` to load session context.
 
-**END-TO-END EXECUTION**: Run this analysis from start to finish without stopping to announce the plan or ask for permission. Begin with the Pre-Analysis Checklist (memory bank, rules, structure path), then delegate to agents and assemble the report. Only stop if a tool fails or user input is explicitly required.
+After Step 3, continue to analysis steps below.
 
-**CONNECTION ERROR HANDLING**: If any MCP tool call fails with "Connection closed" (MCP error -32000) or similar connection errors:
+---
 
-- The `mcp_tool_wrapper` decorator automatically retries connection errors once.
-- If a tool fails after retry, skip that analysis step and continue with remaining steps.
-- For `analyze(target="context")`: If it fails after retry, note "Context effectiveness analysis unavailable due to connection error" in the report and proceed with session optimization analysis.
-- Complete as much of the analysis as possible; partial analysis is better than no analysis.
+## Step 4: Context Effectiveness
 
-**Tooling**: Use Cortex MCP tools for memory bank, rules, and paths. Path resolution and tooling per `shared-conventions.md`. **manage_file contract**: Every `manage_file` call MUST include `file_name` and `operation`; never call `manage_file({})` or omit required parameters -- this causes validation errors. **Memory bank write discipline:** per `memory-bank-contract.md`.
+Call `analyze(target="context")`.
 
-**Agent Delegation**: This prompt orchestrates end-of-session analysis and delegates specialized tasks to dedicated agents in the Synapse agents directory:
+If the tool returns data, record: sessions analyzed, calls analyzed, token utilization, precision/recall, role recommendations, zero-budget warnings.
 
-- **common-checklist** -- Pre-analysis: Loads structure, memory bank, rules, and detects primary language
-- **pipeline-state-tracker** -- State: Pipeline state checkpointing (analyze)
-- **context-effectiveness-analyzer** -- Step 1: Context effectiveness evaluation
-- **session-optimization-analyzer** -- Step 2: Session optimization and tool anomalies
-- **tools-optimizer** -- Step 3: Tool set optimization audit
-- **session-compactor** -- Step 4: Memory bank compaction + markdown lint
-- **improvements-planner** -- Step 6: Conditional improvements plan creation
+If `no_data` or connection error: note "Context effectiveness analysis unavailable" and continue.
 
-**Inter-agent communication**: All agents return structured results per `shared-handoff-schema.md`. The orchestrator validates required fields before assembling the report. Pipeline state is persisted after each step via `pipeline-state-tracker` to prevent state loss.
+## Step 5: Session Optimization
 
-**Subagent execution: STRICTLY SEQUENTIAL.** Run each agent one at a time. Do not proceed to the next until the previous reports completion.
+Call `analyze(target="usage_patterns")`.
 
-## Purpose
+Record: mistake patterns, root causes, optimization recommendations, tool anomalies.
 
-At end of session, run a single "check all" analysis: (1) evaluate `load_context` effectiveness and update statistics; (2) identify mistake patterns, root causes, and Synapse optimization recommendations, then save a report. Running this analysis is the **Compound** step of the loop: it captures mistake patterns, root causes, and recommendations so the next session can avoid repeating them; the session optimization report and memory bank updates are the primary compound artifacts.
+If connection error: note "Session optimization analysis unavailable" and continue.
 
-## Pre-Analysis Checklist — Delegate to `common-checklist`
+## Step 6: Tools Optimization
 
-Execute standard pre-flight protocol (see `shared-conventions.md`) with all agents from the "Agent Delegation" list.
+Call `analyze(target="tools")` if available.
 
-**Additional pre-analysis steps** (orchestrator, after pre-flight completes):
+Record: tool budget (registered count vs target of 40), dead tools, duplicates, consolidation candidates. If tool count exceeds 40 target, flag as CRITICAL.
 
-1. **Context-effectiveness recall** (for manual fallback if needed):
-   - Recall `load_context` calls this session: task descriptions, files selected, relevance scores, token budget and utilization, agent roles.
-   - Identify what context was actually used vs provided vs missing vs unused.
+If unavailable: skip and note "Tools optimization skipped (no usage data)".
 
-2. **Session scope**: Confirm reviews path is available from common-checklist result (`structure_info.paths.reviews`).
+## Step 7: Report Assembly
 
-3. **Optional sequential thinking**: For complex sessions, use the `think` MCP tool in full mode to break down root causes before delegating.
+1. Call `get_structure_info()` to get `structure_info.paths.reviews`.
+2. Generate timestamp: run `date +%Y-%m-%dT%H-%M`.
+3. Assemble report combining Steps 4-6 findings using the format below.
+4. Write report to `{reviews_path}/session-optimization-{timestamp}.md`.
 
-After this checklist is satisfied, **continue directly to Step 1 without pausing for user confirmation.**
-
-## Execution Order
-
-### Step 1: Context Effectiveness -- Delegate to `context-effectiveness-analyzer`
-
-- **Agent**: Use the `context-effectiveness-analyzer` agent for evaluating load_context effectiveness, token utilization, and role-aware statistics
-- **CRITICAL**: Must complete before Step 2
-- **Input**: Memory bank files, rules, reviews path (all loaded in Pre-Analysis Checklist)
-- **Output needed**: sessions_analyzed, calls_analyzed, key_metrics, role_recommendations, zero_budget_warnings, status
-- **If no_data**: Expected for analysis-only sessions; agent handles gracefully
-- After agent completes, delegate to `pipeline-state-tracker` (checkpoint_write, step_name="step_1_context_effectiveness")
-
-### Step 2: Session Optimization -- Delegate to `session-optimization-analyzer`
-
-- **Agent**: Use the `session-optimization-analyzer` agent for identifying mistake patterns, root causes, and generating Synapse optimization recommendations
-- **CRITICAL**: Must complete before Step 3
-- **Input**: Memory bank files, rules, session data (tool outputs, diffs, commit results)
-- **Output needed**: mistake_patterns, root_causes, recommendations, tool_anomalies
-- After agent completes, delegate to `pipeline-state-tracker` (checkpoint_write, step_name="step_2_session_optimization")
-
-### Step 3: Tools Optimization -- Delegate to `tools-optimizer`
-
-- **Agent**: Use the `tools-optimizer` agent for auditing tool set budget compliance and optimization opportunities
-- **CRITICAL**: If tool count exceeds 40 target, flag as CRITICAL in report
-- **Input**: Memory bank context, reviews path
-- **Output needed**: tool_budget, dead_tools, duplicates, incomplete_consolidations, consolidation_candidates, total_reduction_potential, actionable_recommendation, report_subsection, status
-- **Skip if**: Agent reports `status="unavailable"` (query_usage data not available)
-- After agent completes, delegate to `pipeline-state-tracker` (checkpoint_write, step_name="step_3_tools_optimization")
-
-### Report Assembly (orchestrator)
-
-After Steps 1-3 complete:
-
-1. Delegate to `pipeline-state-tracker` (checkpoint_read) to recall all agent results from Steps 1-3.
-2. Call `get_structure_info()` and use `structure_info.paths.reviews`.
-3. Generate timestamp via shell `date +%Y-%m-%dT%H-%M`. **Use real time only.** Do not invent values.
-4. Assemble report using Output Format below with outputs from all agents.
-5. **Filename**: `session-optimization-YYYY-MM-DDTHH-MM.md`.
-6. Write the **full** report to `{reviews_path}/session-optimization-YYYY-MM-DDTHH-MM.md` (no truncation).
-7. **MD024 (Duplicate Heading)**: If appending to an existing review file, suffix headings to avoid duplicates.
-
-### Step 4: Maintenance -- Delegate to `session-compactor`
-
-- **Agent**: Use the `session-compactor` agent for memory bank compaction and markdown lint enforcement
-- **Input**: Session summary (from Step 2 findings), report file path (from Report Assembly)
-- **Output needed**: compaction_status, session_id, token_savings, snapshot_paths, lint_status
-- **Note**: Runs AFTER report is written so the report file is included in lint
-
-### Step 5 (Optional): Health / Session Scripts
-
-If project scope includes health check or session-scripts analysis, call relevant tools and include a short subsection in the report. Otherwise omit.
-
-### Step 6: Improvements Plan -- Delegate to `improvements-planner`
-
-- **Agent**: Use the `improvements-planner` agent for creating improvement plans from analysis findings
-- **CRITICAL**: Only runs when recommendations exist from Steps 1-3
-- **Input**: Full assembled report content, report file location, tools optimization findings, optimization recommendations, context effectiveness recommendations
-- **Output needed**: status, plan_file, roadmap_updated
-- **Skip if**: No improvement recommendations exist across all analysis steps
-
-## Output Format
-
-Produce a **single combined report** with clear sections:
+### Output Format
 
 ```markdown
 # End-of-Session Analysis
@@ -125,55 +54,49 @@ Produce a **single combined report** with clear sections:
 [Brief combined overview]
 
 ## Context Effectiveness Analysis
-
 **Sessions Analyzed**: X new, Y total (or "No session logs found.")
-**Calls Analyzed**: Z (if any)
-
-### Key Metrics (or Manual Summary)
-- Avg Token Utilization / Precision-Recall / Feedback type
-- Task patterns and recommendations
+**Calls Analyzed**: Z
+### Key Metrics
+- Token utilization, precision/recall, feedback types
 
 ## Session Optimization Analysis
-
 ### Mistake Patterns Identified
-...
-
 ### Root Cause Analysis
-...
-
 ### Optimization Recommendations
-...
-
-### Tools optimization (MANDATORY when usage data available)
-[tools-optimizer agent output: tool budget, dead tools, duplicates,
-incomplete consolidations, consolidation candidates, total reduction potential]
-
-### Tool use anomalies (optional)
-[session-optimization-analyzer tool_anomalies output, if available]
+### Tools Optimization
+[Tool budget, dead tools, duplicates, consolidation candidates]
 
 ### Report Location
-Saved to: {reviews_path}/session-optimization-YYYY-MM-DDTHH-MM.md
-
-### Session Compaction
-- Compaction executed: token savings, handoff written
-- Session ID: {session_id}
-- Rollback snapshots: {snapshot_paths}
-
-### Improvements Plan (if recommendations existed)
-- Plan prompt executed with analysis findings as input
-- Plan file: {plans_path}/{plan-filename}.md
-- Roadmap updated with new plan entry
+Saved to: {reviews_path}/session-optimization-{timestamp}.md
 ```
+
+## Step 8: Memory Bank Compaction
+
+Call `session(operation="compact")` to compact memory bank. Record token savings and snapshot paths.
+
+Run `fix_markdown_lint()` on the report file to ensure markdown quality.
+
+## Step 9: Improvements Plan (conditional)
+
+If Steps 4-6 produced improvement recommendations:
+1. Call `plan(operation="create", plan_title="Session improvements from {timestamp}", description="...")`.
+2. Call `plan(operation="register", ...)` to add to roadmap.
+
+If no recommendations: skip this step.
+
+---
+
+## Connection Error Handling
+
+If any MCP tool fails with "Connection closed" (MCP error -32000):
+- The `mcp_tool_wrapper` automatically retries once
+- If retry fails, skip that analysis step and continue
+- Complete as much analysis as possible
 
 ## Success Criteria
 
-- Pre-analysis checklist completed.
-- Step 1 (context effectiveness) executed via `context-effectiveness-analyzer` agent; tool called and/or manual fallback applied when no_data.
-- Step 2 (session optimization) executed via `session-optimization-analyzer` agent; findings collected.
-- Step 3 (tools optimization) executed via `tools-optimizer` agent when usage data available; five problem classes checked; Tools optimization subsection added with per-tool call counts and specific actions. If tool count exceeds 40 target, flagged as CRITICAL.
-- Report assembled and saved to reviews directory using path from `get_structure_info()`.
-- Step 4 (maintenance) executed via `session-compactor` agent; `session(operation="compact")` called, handoff written, token savings reported, markdown lint enforced.
-- Step 6: If findings contain improvement recommendations (including tools optimization), `improvements-planner` agent executed; improvements plan created and registered in roadmap. If no recommendations, step skipped.
-- No hardcoded `.cortex/` paths; all paths from MCP or `get_structure_info()`.
-- Single report produced with both Context Effectiveness and Session Optimization sections.
-- Pipeline state cleared via `pipeline-state-tracker` (checkpoint_clear) after Step 6 completes.
+- Steps 4-6 executed (or gracefully skipped on connection errors)
+- Report assembled and saved to reviews directory
+- Memory bank compaction executed
+- Improvements plan created if recommendations exist
+- All paths from `get_structure_info()` (no hardcoded `.cortex/` paths)

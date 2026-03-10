@@ -56,9 +56,22 @@ After pre-flight passes, continue directly to execution steps without pausing fo
 
 All fix loops and retry mechanisms must have explicit bounds:
 
-- **Fix loops** (fix -> re-run -> verify): Maximum **3 iterations**. After 3 failed attempts, STOP and report unresolvable issues.
+- **Fix loops** (fix -> re-run -> verify): Maximum **3 iterations**. After 3 failed attempts, STOP and report unresolvable issues. **Convergence check**: If iteration 2 violation count >= iteration 1 count, abort early — the loop is oscillating and will not converge.
 - **MCP connection retries**: Maximum **2 retries** (automatic wrapper handles first retry; manual retry is the second). After exhaustion, use fallback or STOP.
 - **Test retries**: No retries. Tests either pass or the pipeline stops.
+
+## Circuit-Breaker Pattern
+
+When **3 consecutive MCP tool calls fail** (across any steps in the current pipeline):
+
+1. **Persist pipeline state** via `checkpoint_write` with `status: "circuit_breaker_tripped"` and `last_successful_step`.
+2. **Report to user**: "MCP circuit-breaker tripped after 3 consecutive failures. Pipeline state saved. To resume: re-run the pipeline — it will pick up from step {last_successful_step + 1}."
+3. **Do NOT** continue executing remaining steps.
+4. **Do NOT** attempt to roll back completed steps (they are already checkpointed).
+
+**Counter reset**: The failure counter resets to 0 after any successful MCP tool call.
+
+**Staleness guard**: Pipeline state files include a `started_at` timestamp. Ignore state files older than 1 hour when resuming.
 
 ## Memory Bank Contract
 

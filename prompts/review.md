@@ -1,167 +1,109 @@
 # Review Code
 
-**AI EXECUTION COMMAND**: Comprehensive code review to find bugs, inconsistencies, and incomplete implementations.
+**CRITICAL**: Execute ALL steps below AUTOMATICALLY. Do NOT pause, summarize, or ask for confirmation. Start with Step 1 immediately.
 
-**CRITICAL**: Execute all steps AUTOMATICALLY. DO NOT ask the user for permission or confirmation.
+## START HERE — Execute These Tool Calls Now
 
-## Conventions
+**Step 1**: Call `check_mcp_connection_health()`. If unhealthy, STOP.
 
-Per `shared-conventions.md`. Severity: GATE/CHECK/PREFER.
+**Step 2**: Call `load_context(task_description="Code review: bugs, consistency, completeness, security, performance", token_budget=4000)`.
 
-## Architecture
+**Step 3**: Call `rules(operation="get_relevant", task_description="Code review, coding standards")`. If `disabled`, read rules via `get_structure_info()`.
 
-### Prompts = Orchestration | Agents = Implementation
+**Step 4**: Determine **review scope** — identify module, directory, or files to review. Check `git diff --name-only` for recently changed files.
 
-This prompt orchestrates code review and delegates specialized analysis to agents. Output format is defined in `review-output-schema.md`.
+After Step 4, continue to the analysis steps below.
 
-## Agents Used
+---
 
-| Step | Agent | Purpose |
-|---|---|---|
-| Pre-Step | common-checklist | Load structure, memory bank, rules, language |
-| State | pipeline-state-tracker | Pipeline state checkpointing (review) |
-| 1 | static-analyzer | Static analysis (linting) |
-| 2 | bug-detector | Bug detection (language-aware) |
-| 3 | consistency-checker | Cross-file consistency |
-| 4 | rules-compliance-checker | Rules compliance |
-| 5 | completeness-verifier | Incomplete implementations |
-| 6 | test-coverage-reviewer | Test coverage review |
-| 7 | security-assessor | Security assessment |
-| 8 | performance-reviewer | Performance review |
-| — | review-output-schema | Output format reference |
+## Step 5: Static Analysis
 
-**Inter-agent communication**: All agents return structured results per `shared-handoff-schema.md`. Validate required fields before assembling the report. Pipeline state is persisted after each step via `pipeline-state-tracker` to prevent state loss during long reviews.
+Call `execute_pre_commit_checks(checks=["type_check"])` and `execute_pre_commit_checks(checks=["quality"])`.
 
-**When executing steps**: Agent availability is verified by the pre-flight health check. READ the agent file, EXECUTE its steps, VERIFY success.
+Record: compiler warnings, deprecated API usage, unused imports/variables, type errors.
 
-**Language-Aware Review**: The `common-checklist` agent detects the project's primary language from `techContext.md`. Pass `primary_language` to all sub-agents so they filter checklists to relevant patterns.
+## Step 6: Bug Detection
 
-## Pre-Action Checklist
-
-Execute standard pre-flight protocol (see `shared-conventions.md`) with all agents from the "Agents Used" table.
-
-After checklist, determine **review scope**:
-
-- Identify module, directory, or files to review
-- Understand context and purpose of the code
-- Check for previous reviews of the same scope
-
-**GATE**: Do not proceed without running common-checklist.
-
-## Execution Steps
-
-### Step 1: Static analysis — Delegate to `static-analyzer`
-
-- **Agent**: static-analyzer (Synapse agents directory)
-- Uses `execute_pre_commit_checks(checks=["type_check"])` and `execute_pre_commit_checks(checks=["quality"])`
-- **CHECK**: Compiler warnings, deprecated API usage, unused imports/variables
-- After agent completes, delegate to `pipeline-state-tracker` (checkpoint_write, step_name="step_1_static_analysis")
-
-### Step 2: Bug detection — Delegate to `bug-detector`
-
-- **Agent**: bug-detector (Synapse agents directory)
-- **CHECK**: Pass `primary_language` from common-checklist result
-- Language-specific checks (Python: None access, mutable defaults, async misuse; all: race conditions, off-by-one)
-- After agent completes, delegate to `pipeline-state-tracker` (checkpoint_write, step_name="step_2_bug_detection")
-
-### Step 3: Consistency check — Delegate to `consistency-checker`
-
-- **Agent**: consistency-checker (Synapse agents directory)
-- **CHECK**: Naming conventions, file organization, code style, error handling patterns, API design
-- After agent completes, delegate to `pipeline-state-tracker` (checkpoint_write, step_name="step_3_consistency")
-
-### Step 4: Rules compliance — Delegate to `rules-compliance-checker`
-
-- **Agent**: rules-compliance-checker (Synapse agents directory)
-- **CHECK**: SOLID/DRY/YAGNI, file limits (400 lines), function limits (30 lines), testing standards, DI
-- After agent completes, delegate to `pipeline-state-tracker` (checkpoint_write, step_name="step_4_rules_compliance")
-
-### Step 5: Completeness — Delegate to `completeness-verifier`
-
-- **Agent**: completeness-verifier (Synapse agents directory)
-- **CHECK**: TODO/FIXME in production code, placeholder implementations, missing error handling, missing tests
-- After agent completes, delegate to `pipeline-state-tracker` (checkpoint_write, step_name="step_5_completeness")
-
-### Step 6: Test coverage — Delegate to `test-coverage-reviewer`
-
-- **Agent**: test-coverage-reviewer (Synapse agents directory)
-- **CHECK**: Public API coverage, edge cases, AAA pattern, Pydantic v2 for JSON testing
-- After agent completes, delegate to `pipeline-state-tracker` (checkpoint_write, step_name="step_6_test_coverage")
-
-### Step 7: Security — Delegate to `security-assessor`
-
-- **Agent**: security-assessor (Synapse agents directory)
-- **CHECK**: Hardcoded secrets, input validation, secure logging, auth/authz
-- After agent completes, delegate to `pipeline-state-tracker` (checkpoint_write, step_name="step_7_security")
-
-### Step 8: Performance — Delegate to `performance-reviewer`
-
-- **Agent**: performance-reviewer (Synapse agents directory)
-- **CHECK**: O(n^2) algorithms, unnecessary allocations, blocking I/O, memory leaks
-- After agent completes, delegate to `pipeline-state-tracker` (checkpoint_write, step_name="step_8_performance")
-
-## Review Criteria
-
-### Bugs (filtered by `primary_language`)
-
+Review code in scope for language-specific bugs:
 - **Python**: Unguarded `None`, mutable default args, bare `except:`, async/await misuse, unclosed resources
-- **Swift**: Force unwraps, retain cycles, unclosed resources
 - **All**: Race conditions, logic errors, memory leaks, incorrect error handling, off-by-one
 
-### Inconsistencies
+Use `Read` and `Grep` to inspect suspicious patterns.
 
-- Naming patterns, coding styles, error handling approaches, DI bypasses, API design
+## Step 7: Consistency Check
 
-### Incomplete Implementations
+Review code for:
+- Naming conventions, coding styles, error handling patterns
+- DI bypasses, API design inconsistencies
+- File organization and code style across related files
 
-- TODO/FIXME in production, placeholder implementations, missing error handling, missing tests, missing docs
+## Step 8: Rules Compliance
+
+Check against loaded rules:
+- SOLID/DRY/YAGNI principles
+- File limits (400 lines), function limits (30 lines)
+- Testing standards, dependency injection patterns
+
+## Step 9: Completeness
+
+Search for incomplete implementations:
+- `Grep` for `TODO`, `FIXME`, `HACK` in production code
+- Placeholder implementations, missing error handling
+- Missing tests for public APIs
+
+## Step 10: Test Coverage
+
+Review test quality:
+- Public API coverage, edge cases
+- AAA pattern (Arrange, Act, Assert)
+- Pydantic v2 for JSON testing
+
+## Step 11: Security Assessment
+
+Check for:
+- Hardcoded secrets, input validation gaps
+- Secure logging (no sensitive data in logs)
+- Auth/authz issues
+
+## Step 12: Performance Review
+
+Check for:
+- O(n^2) algorithms, unnecessary allocations
+- Blocking I/O in async contexts
+- Memory leaks, resource cleanup
+
+---
 
 ## Report Assembly
 
-Before assembling the report, delegate to `pipeline-state-tracker` (checkpoint_read) to recall all agent results from Steps 1-8. Use the persisted state to populate the report even if early step results have been compressed from context.
+1. Call `get_structure_info()` to get `structure_info.paths.reviews`.
+2. Generate timestamp: run `date +%Y-%m-%dT%H-%M`.
+3. Write report to `{reviews_path}/code-review-report-{timestamp}.md`.
 
-## Output Format
+### Report Format
 
-**Format per `review-output-schema.md`** in the Synapse agents directory. This schema defines:
+Score all 9 metrics (0-10): Architecture, Test Coverage, Documentation, Code Style, Error Handling, Performance, Security, Maintainability, Rules Compliance. Overall = average.
 
-- Report structure (Quality Assessment, Metrics, Issues, Violations, Improvements)
-- Issue templates (all fields required for plan-ready output)
-- Violation templates
-- Completeness templates
-- Improvement templates
-
-### Report File Location
-
-- **Path**: `{reviews_path}/code-review-report-YYYY-MM-DDTHH-mm.md`
-- **GATE**: Use `get_structure_info()` -> `structure_info.paths.reviews` for path. Never hardcode.
-- **GATE**: Timestamp from real time (`date +%Y-%m-%dT%H-%M`). Never use invented time.
-
-### Detailed Metrics (MANDATORY — all 9 scored 0-10)
-
-Architecture, Test Coverage, Documentation, Code Style, Error Handling, Performance, Security, Maintainability, Rules Compliance. Overall score = average. See `review-output-schema.md` for full definitions.
-
-**PREFER**: Use `think` tool in full mode for large or complex reviews.
+For each issue found, include:
+- Severity (Critical / High / Medium / Low)
+- Location (file:line)
+- Description and suggestion
 
 ## MCP Tool Usage
 
-- **manage_file**: Read memory bank files for project context (`manage_file(file_name="...", operation="read")`)
-- **rules**: Load rules for review (`rules(operation="get_relevant", task_description="Code review, coding standards")`)
-- **get_structure_info**: Get reviews path, plans path dynamically
+- `manage_file(file_name="...", operation="read")` — read memory bank for project context
+- `rules(operation="get_relevant", ...)` — load review rules
+- `get_structure_info()` — get reviews path dynamically
+- `execute_pre_commit_checks(checks=[...])` — run automated checks
 
 ## Failure Handling
 
-- Critical bugs found -> create todo items to fix immediately
-- Inconsistencies found -> standardize the codebase
-- Rules violations found -> fix immediately
-- Incomplete implementations -> complete or add proper TODOs with context
-- Continue until all issues identified and addressed
+- Critical bugs found → create todo items to fix immediately
+- Rules violations found → fix immediately
+- Consecutive MCP failures → follow circuit-breaker pattern per `shared-conventions.md`
 
 ## Success Criteria
 
-- Comprehensive review completed with all 8 analysis steps
-- All 9 metrics scored (0-10) with reasoning
-- All issues include plan-ready structure (per `review-output-schema.md`)
-- Report saved to reviews directory (path from `get_structure_info()`)
-- Report structure optimized for `create-plan.md` consumption
-
-After report is saved, delegate to `pipeline-state-tracker` (checkpoint_clear) to clean up session state.
+- All 8 analysis steps (5-12) completed
+- All 9 metrics scored with reasoning
+- Report saved to reviews directory

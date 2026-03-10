@@ -1,167 +1,89 @@
 # Create Plan from Description
 
-**AI EXECUTION COMMAND**: Create a development plan based on user description, add it to the **plans directory**, **and register it in the roadmap**. Plan creation is NOT complete until both (1) the plan file exists in the plans directory and (2) the roadmap contains an entry for that plan. **Resolve paths via Cortex MCP**: use `get_structure_info()` for the plans directory path; use `manage_file()` for the roadmap (memory bank).
+**CRITICAL**: Execute ALL steps below AUTOMATICALLY. Do NOT pause, summarize, or ask for confirmation unless clarification is genuinely needed. Start with Step 1 immediately.
 
-Execute AUTOMATICALLY. DO NOT ask the user for permission unless clarification is needed.
+**GATE**: When a plan is requested, ALL additional context (error logs, code snippets, files) is INPUT for plan creation, NOT separate issues to fix. Do NOT attempt to fix issues or make code changes.
 
-## Conventions
+## START HERE — Execute These Tool Calls Now
 
-Per `shared-conventions.md`. Severity: GATE/CHECK/PREFER. Memory bank writes: per `memory-bank-contract.md`.
+**Step 1**: Call `check_mcp_connection_health()`. If unhealthy, STOP.
 
-**GATE**: When a plan is requested, ALL additional context is INPUT for plan creation, NOT separate issues to fix.
+**Step 2**: Call `get_structure_info()` to get `structure_info.paths.plans` (absolute path). Use this canonical path for all plan file operations. Do not hardcode `.cortex/plans/` or infer from `structure_info.root` — hardcoding paths is a VIOLATION.
 
-- If the user provides error logs, code snippets, or other context along with a plan request, treat ALL of it as input for creating the plan
-- DO NOT attempt to fix issues, debug code, or make code changes when a plan is requested
-- The ONLY action should be creating a plan that addresses the described issue/problem/feature
-- Any errors, logs, or code provided should be analyzed and incorporated into the plan as context, requirements, or constraints
+**Step 3**: Call `manage_file(file_name="roadmap.md", operation="read")` to load current roadmap.
 
-**Tooling Note**: Use standard Cursor tools (`Read`, `ApplyPatch`, `Write`, `LS`, `Glob`, `Grep`) by default; MCP filesystem tools are optional fallbacks only when standard tools are unavailable or explicitly requested. **MANDATORY: Use Cortex MCP tools for all memory bank and structure operations** - do NOT access files directly via hardcoded paths.
+**Step 4**: Call `rules(operation="get_relevant", task_description="Plan creation, development planning")`. If `disabled`, read rules via the paths from Step 2.
 
-**Path Resolution**: Resolve all paths via Cortex MCP tools (see memory-bank-workflow.mdc and AGENTS.md). Use `get_structure_info()` for plans/memory_bank/rules paths; use `manage_file(file_name="roadmap.md", ...)` for roadmap. Use the **absolute path** from `structure_info.paths.plans`; do not hardcode `.cortex/` or `structure_info.root` or memory-bank paths. Use canonical paths from the tool only.
+After Step 4, continue to plan creation below. The steps below define the **implementation sequence**; execute them in order.
 
-**Sequential Thinking**: If the `think` tool from Cortex MCP is available, use it in full mode (thought_number, total_thoughts, next_thought_needed) to ensure best results when creating the plan.
+---
 
-**Agent Delegation**: This prompt orchestrates plan creation and delegates specialized tasks to dedicated agents in the Synapse agents directory:
+## Step 5: Check for Existing Related Plans
 
-- **common-checklist** - Loads project structure, memory bank, rules, and detects primary language
-- **plan-creator** - Creates the development plan from description
-- **memory-bank-updater** - Updates roadmap.md with new plan entry
+1. List existing plans: use `Glob` on `{plans_path}/*.md` (excluding archive/).
+2. For each existing plan with YAML frontmatter, compute similarity score:
+   - Same `component` value: +2
+   - Same `work_type` value: +1
+   - Title keyword overlap (>50% shared words): +1
+3. **Decision**:
+   - Score >= 3: **enrich** the existing plan (do not create a duplicate)
+   - Score 1-2: ask user whether to enrich or create new
+   - Score 0: create new plan
+4. Check if roadmap references a Phase with status PLANNED but no corresponding plan file — if so, create the plan file now.
 
-**Inter-agent communication**: All agents return structured results per `shared-handoff-schema.md`. The orchestrator validates required fields before passing data downstream.
+## Step 6: Analyze All Provided Context
 
-**Existing Plan Reuse (CRITICAL)**: Before creating a brand-new plan, you MUST check whether a same/similar plan already exists.
+1. Parse the user's plan description/request.
+2. Analyze ALL attached files, code selections, error logs as INPUT for the plan.
+3. Extract requirements, constraints, dependencies, success criteria.
+4. If clarification is needed, ask the user specific questions before proceeding.
 
-- If a similar plan already exists, you MUST **enrich and reprioritize the existing plan**, not create a duplicate.
-- Only create a new plan when there is no clearly-related existing plan.
+Use `think` tool for complex plans to scope the approach.
 
-When executing steps, delegate to the appropriate agent for specialized work, then continue with orchestration.
+## Step 7: Create or Enrich the Plan
 
-## Pre-Action Checklist
+**If creating new**: Prefer `plan(operation="create", plan_title="...", description="...", component="...", work_type="...", priority="...", steps=[...])`.
 
-Execute standard pre-flight protocol (see `shared-conventions.md`) with agents: `plan-creator.md`, `memory-bank-updater.md`.
+Fallback if `plan(operation="create")` is unavailable: write the plan file using `Write` to `{plans_path}/{slug}.md` with this structure:
+- YAML frontmatter (title, component, work_type, status: PENDING, priority, created, depends_on)
+- Goal, Context, Implementation Steps
+- Verification Checklist per step: What to search for | Search scope | Files to re-read
+- Dependencies, Success Criteria
+- Testing Strategy (95% coverage target)
 
-**GATE**: Executing this command without running pre-flight first is a violation that blocks proper plan creation.
+**If enriching existing**: Read the existing plan, merge new requirements, update steps and priorities. Write back using `Write` or `Edit`.
 
-## EXECUTION STEPS
+## Step 8: Register Plan in Roadmap
 
-The steps below define the **implementation sequence**; execute them in order.
+Registering the plan in the roadmap is **REQUIRED** — every new or enriched plan MUST be registered.
 
-**Phases**: (1) Common checklist (via `common-checklist` agent). (2) Existing-plan check — reuse vs new. (3) Create/enrich plan — `plan-creator` agent; **prefer `plan(operation="create", ...)`**. (4) Register in roadmap — `memory-bank-updater` agent; **use `plan(operation="register", ...)`** only. (5) Verify completion.
+Call `plan(operation="register", plan_title="...", description="...", status="PENDING", section="...")`.
 
-### Step 1: Check for Existing Related Plans (Phase 2: Reuse vs New)
+**GATE**: If `plan(operation="register")` fails, STOP and report. **PROHIBITED**: StrReplace or direct Write on roadmap.md — this causes corruption and is a VIOLATION. Use MCP tools only.
 
-1. **Discover existing plans**:
-   - Use `get_structure_info()` paths (`structure_info.paths.plans`) to locate the plans directory.
-   - Use standard tools (`LS`, `Read`, `Grep`) to inspect existing plan files and their titles.
-   - Cross-check `roadmap.md` entries (via `manage_file(read)`) for plan titles and short descriptions.
-2. **Check for roadmap references to non-existent plans**:
-   - **GATE**: If the roadmap references a Phase with status PLANNED but no corresponding plan file exists in the plans directory, you MUST create the plan file now.
-   - At minimum, create a plan stub in the plans directory to prevent `roadmap_sync` invalid references.
-3. **Check for similar existing plans**:
-   - For each existing plan, answer two questions:
-     - Does it target the **same component, module, or subsystem**?
-     - Does it address the **same type of work** (both fix, both refactor, both add feature, both optimize)?
-   - If YES to both questions for any plan, that plan is similar — **enrich it** instead of creating a new one.
-   - If multiple plans match, pick the most recently modified one.
-   - If uncertain whether a plan is similar, **ask the user**.
-   - If no plan matches, proceed with creating a **new** plan.
-4. **Record decision**:
-   - `similarity_decision`: `"enrich_existing"` | `"create_new"`
-   - `target_plan_path`: (if enriching) Path to the chosen plan; `null` if creating new
-   - `decision_rationale`: One-sentence explanation
-   - **CHECK**: Include the `similarity_decision` in the final `PlanCreatorResult` output.
+Fallback for enriched plans: call `update_memory_bank(operation="roadmap_add", section="...", entry_text="...")`. When using fallback `manage_file(write)`, content must be full, unabridged roadmap (pre-write check: content length must be at least as long as the roadmap as read). Never truncate, never pass shortened or summarized roadmap content.
 
-### Step 2: Analyze All Provided Context
+## Step 9: Verify Completion
 
-**Use the `think` tool (if available) to scope the plan before analyzing.**
+1. Verify plan file exists in plans directory: `Read` the file and re-read to confirm.
+2. Verify roadmap was updated: call `manage_file(file_name="roadmap.md", operation="read")` and confirm the entry is present.
+3. Report: plan file path, plan title, roadmap update status.
 
-1. **Analyze the user's plan description AND all additional context**:
-   - Parse the explicit plan description/request
-   - **Analyze ALL attached files, code selections, error logs, etc. as INPUT for the plan**
-   - Extract requirements, constraints, and context from error messages, logs, code snippets
-   - Identify ambiguities or unclear requirements
-   - Note missing information (scope, timeline, dependencies, success criteria)
-   - Identify potential conflicts with existing plans or priorities
-   - Extract technical constraints or preferences from provided context
-   - **CRITICAL**: Treat errors/logs as requirements to address in the plan, NOT as issues to fix immediately
+---
 
-2. **If clarification is needed**, ask the user specific questions:
-   - What is the primary goal of this plan?
-   - What are the success criteria?
-   - Are there any dependencies on other work?
-   - What is the estimated timeline or priority?
-   - Are there any technical constraints or preferences?
-   - Who are the stakeholders or users affected?
+## Path Resolution
 
-3. **Wait for user responses** before proceeding to plan creation
-4. **If no clarification is needed**, proceed directly to plan creation
+All paths via `get_structure_info()` and `manage_file()`. Use the absolute path from `structure_info.paths.plans`. Never hardcode `.cortex/` paths.
 
-### Step 3: Create or Enrich the Plan (Phase 3) — Delegate to `plan-creator` agent
+## Error Handling
 
-- **Agent**: plan-creator (Synapse agents directory)
-- **Input**: User description, clarifications (if any), all provided context (error logs, code, files), reuse-vs-new decision from Step 1, project context from memory bank
-- **GATE**: Plan must include all required sections (see plan-creator agent for full structure)
-- **GATE**: Testing strategy with 95% coverage target is mandatory
-- **CHECK**: If enriching, merge into existing plan file in-place (no new file)
-- **CHECK**: If creating, prefer `plan(operation=”create”, ...)` MCP tool; fallback to `Write` with path from `get_structure_info()`
-- **Output**: Plan file path, plan title, plan content validated
+- **MCP tool crash/disconnect**: STOP, report with FIX-ASAP priority
+- **3 consecutive MCP failures**: Circuit-breaker per `shared-conventions.md`
+- **Plan file creation errors**: Check permissions, directory existence
+- **Roadmap update errors**: Check format, report specific error
 
-### Step 4: Register Plan in Roadmap (Phase 4) — Delegate to `memory-bank-updater` agent
+## Success Criteria
 
-- **Agent**: memory-bank-updater (Synapse agents directory)
-- **GATE**: Registering the new plan in the roadmap is **REQUIRED**; every new or enriched plan MUST be registered. Do not skip. **PROHIBITED** for roadmap: **StrReplace** or direct Write on roadmap.md — use MCP tools only. **VIOLATION**: StrReplace or direct Write for roadmap causes corruption.
-- **For new plans**: Use `plan(operation=”register”, plan_title=..., description=..., status=”PENDING”, section=...)`. This is the sole API — do NOT fall back to `manage_file(write)`.
-- **For enriched plans**: Use `update_memory_bank(operation=”roadmap_add”, ...)` to update the existing entry.
-- **GATE**: If `plan(operation=”register”)` fails, STOP and report. No fallback.
-- **CHECK**: Never truncate roadmap content; new content must be at least as long as (or as long as) the original; never pass shortened or summarized roadmap content. Pre-write check: when using fallback manage_file write, content must be full, unabridged roadmap (length >= roadmap as read).
-
-### Step 5: Verify Completion (Phase 5)
-
-1. **Verify plan file exists**:
-   - Check that plan file was created in the plans directory
-   - Verify file content is complete and accurate
-
-2. **Verify roadmap was updated**:
-   - Re-read roadmap via `manage_file(file_name=”roadmap.md”, operation=”read”)`
-   - Confirm the new or updated plan entry is present and correct
-   - Check that roadmap entry is properly formatted and linked
-
-3. **Provide summary** using **PlanCreatorResult** schema (see `shared-handoff-schema.md`):
-   - Report plan creation status
-   - Provide plan file path
-   - Confirm roadmap update
-   - Note any issues or warnings
-
-## GUIDELINES
-
-- **Plan quality**: Completeness, clarity, actionability, measurability, realism — see `plan-creator` agent for full structure
-- **Testing**: 95% coverage target, unit/integration/edge case tests — see `plan-creator` agent Phase 3
-- **Roadmap integration**: Blockers in Blockers section; normal plans at end of Pending plans; follow existing format
-- **Path resolution**: All paths via `get_structure_info()` and `manage_file()`. Never hardcode. See memory-bank-workflow.mdc.
-
-## ERROR HANDLING
-
-- **Path resolution errors**: Check if project initialized; suggest `setup_project_structure`
-- **MCP tool crash/disconnect**: STOP, document failure, create investigation plan under Blockers (ASAP Priority), report to user with FIX-ASAP priority
-- **Plan file creation errors**: Check permissions, directory existence, filename conflicts
-- **Roadmap update errors**: Check format, writability; report specific error
-
-## Verification Checklist
-
-**What to search for**: Plan file in plans directory; roadmap entry. **Search scope**: Full plans directory and roadmap.md. **Files to re-read**: Plan file and roadmap after write. No StrReplace or direct Write for roadmap.
-
-## SUCCESS CRITERIA
-
-- ✅ Plan file created with all required sections (see `plan-creator` agent)
-- ✅ Testing strategy with 95% coverage target included
-- ✅ Plan registered in roadmap
-- ✅ Roadmap entry formatted and linked
-- ✅ All paths obtained dynamically
-
-## OUTPUT FORMAT
-
-Report using **PlanCreatorResult** schema (see `shared-handoff-schema.md`):
-
-- Plan creation status, file path, title
-- Roadmap update confirmation
-- Issues encountered (path, memory bank, creation, roadmap)
+- Plan file created with all required sections (frontmatter, goal, steps, Verification Checklist, testing strategy with 95% coverage target)
+- Plan registered in roadmap
+- All paths obtained dynamically via MCP tools

@@ -1,119 +1,101 @@
 # Implement Next Roadmap Step
 
-**AI EXECUTION COMMAND**: Read the roadmap, identify the next pending step, and implement it completely.
+**CRITICAL**: Execute ALL steps below AUTOMATICALLY. Do NOT pause, summarize, or ask for confirmation. Start with Step 1 immediately.
 
-Execute all steps AUTOMATICALLY. DO NOT ask the user for permission or confirmation.
+This is part of the **compound-engineering loop** (Plan → Work → Review → Compound). Memory bank updates in the Finalize section are the Compound step.
 
-## Conventions
+## START HERE — Execute These Tool Calls Now
 
-Per `shared-conventions.md`. Severity: GATE/CHECK/PREFER. Memory bank writes: per `memory-bank-contract.md`.
+**Step 1**: Call `check_mcp_connection_health()`. If unhealthy, STOP.
 
-This step is part of the **compound-engineering loop** (Plan -> Work -> Review -> Compound).
+**Step 2**: Call `manage_file(file_name="roadmap.md", operation="read")` to read the roadmap.
 
-**CURSOR COMMAND**: This is a Cursor command from the Synapse prompts directory, NOT a terminal command.
+**Step 3**: Identify the next pending step from the roadmap. Priority order: Blockers (ASAP) first, then Active Work, then Pending plans. If no pending steps: report "Roadmap complete" and STOP.
 
-**IMPORTANT**: This prompt focuses on **orchestration** (order, dependencies, workflow coordination). For **implementation details** (MCP tool calls, validation logic, specific checks), see the referenced agent files in the Synapse agents directory.
+**Step 4**: Call `load_context(task_description="Implementing: {step_description}", token_budget=15000)`.
 
-**Agent Delegation**: This prompt orchestrates roadmap implementation and delegates specialized tasks to dedicated agents:
+**Step 5**: Call `rules(operation="get_relevant", task_description="Implementation, coding standards, testing, quality")`. If `disabled`, read rules via `get_structure_info()`.
 
-- **common-checklist** — Pre-action: Loads structure, memory bank, rules, and detects primary language
-- **roadmap-implementer** — Step 1: MCP health check, roadmap reading, step selection, context & rules loading
-- **implement-executor** — Step 2: Planning, coding, testing, quality gate
-- **implement-finalizer** — Step 3: Memory bank updates, completion verification, plan archiving
-- **plan-archiver** — Invoked by implement-finalizer for plan archiving
-- **memory-bank-updater** — Reference for memory bank access patterns and safe update tools
+After Step 5, continue to Implementation below.
 
-**Inter-agent communication**: All agents return structured results per `shared-handoff-schema.md`. The orchestrator validates required fields before passing data downstream.
+---
 
-**Subagent execution: STRICTLY SEQUENTIAL.** Run each agent one at a time. Do not proceed to the next until the previous reports completion.
+## Implementation
 
-**Memory Bank Access**: All memory bank operations MUST use Cortex MCP tools (`manage_file`, `roadmap`, `append_entry`, etc.); do **not** use Write, StrReplace, or ApplyPatch on memory bank paths. See memory-bank-updater agent for full details.
+### Step 6: Plan
 
-## When Executing Steps
+If a plan file exists for the selected roadmap step (check `.cortex/plans/` via `get_structure_info()`):
+- Read the plan file for implementation details, success criteria, and testing strategy.
 
-Agent availability is verified by the pre-flight health check. For steps that delegate to agents:
+If no plan file: create an implementation plan based on the roadmap step description.
 
-1. **READ** the agent file from the Synapse agents directory (`{agent-name}.md`)
-2. **EXECUTE** all phases/steps from the agent file
-3. **VERIFY** success before proceeding to next step
+Use `think` tool for complex steps to break down the approach.
 
-## MANDATORY VERIFICATION GATES (Phase 78)
+### Step 7: Code
 
-These gates apply throughout all agent delegations. Agents are expected to honor them, but the orchestrator verifies.
+Implement the changes:
+- Follow coding standards from loaded rules (functions <= 30 lines, files <= 400 lines)
+- Use dependency injection for external dependencies
+- Write tests alongside implementation (AAA pattern, >= 95% coverage for new code)
+- **After each file edit**: re-read the file to confirm the edit was applied
+- **Before creating helpers**: search for existing functions with similar names (`Grep`) to avoid duplicates
+- **Incremental validation**: after each refactor, run type check and quality check — do not batch
 
-- **Post-edit verification**: After editing a file, re-read it to confirm the edit was applied
-- **Post-step verification**: After eliminating a pattern, search the full repository to confirm zero matches
-- **Plan-scope verification**: Before marking a plan complete, re-read Success Criteria and provide evidence for each criterion
-- **Duplicate-definition search**: Before modifying a function, search for all definitions of that name across the codebase
+### Step 8: Quality Gate
 
-## EXECUTION STEPS
+Call `execute_pre_commit_checks(phase="A", test_timeout=300, coverage_threshold=0.90, strict_mode=False)`.
 
-### Step 0: Pre-Action Checklist — Delegate to `common-checklist`
+- If `preflight_passed: true`: proceed to Finalize.
+- If `preflight_passed: false`: call `fix_quality_issues()`, then re-run. Max 3 iterations. If not converging (iteration 2 violations >= iteration 1): STOP.
 
-Execute standard pre-flight protocol (see `shared-conventions.md`) with all agents from the "Agent Delegation" list.
+**GATE**: Quality gate must pass before proceeding.
 
-Also verify:
+---
 
-1. You are in the correct project directory
-2. The Synapse agents directory is accessible
-3. Note today's date (for memory bank entries)
+## Finalize
 
-After this checklist is satisfied, **continue directly to Step 1 without pausing for user confirmation.**
+### Step 9: Memory Bank Updates
 
-### Step 1: Select Step and Load Context — Delegate to `roadmap-implementer`
+1. Call `update_memory_bank(operation="progress_append", date_str="YYYY-MM-DD", entry_text="**{step_title}** - COMPLETE. {summary}")` to add progress entry.
+2. Call `update_memory_bank(operation="active_context_append", date_str="YYYY-MM-DD", title="{step_title}", summary="{summary}")` to update activeContext.
+3. Call `update_memory_bank(operation="roadmap_remove", entry_contains="{unique roadmap entry substring}")` to remove the completed step from roadmap.
 
-- **Agent**: Use the `roadmap-implementer` agent for MCP health check, roadmap reading, step selection, and context/rules loading
-- **GATE**: This step MUST complete successfully before proceeding. If MCP is unhealthy, STOP.
-- **Outputs needed for Step 2**: Step description/title, plan file path (if any), loaded context and rules
-- **GATE**: If no pending steps found, report "Roadmap complete" and stop
-- **CHECK**: If task locking detects conflicts, pick an alternative step or report
+Use `manage_file()` only for memory bank writes — never StrReplace/Write/ApplyPatch on memory bank paths.
 
-### Step 2: Implement — Delegate to `implement-executor`
+### Step 10: Plan Archiving
 
-- **Agent**: Use the `implement-executor` agent for planning, coding, testing, and quality gate
-- **Input**: Pass the step description, plan file path, and confirm context/rules are loaded from Step 1
-- **Dependency**: MUST run AFTER Step 1 completes successfully
-- **GATE**: Quality gate (Phase 6 of the agent) MUST pass before proceeding
-- **GATE**: If quality gate fails after **3 fix iterations** (see `shared-conventions.md` Max-Retry Limits), do NOT proceed to Step 3
-- **Outputs needed for Step 3**: Implementation status, files changed, test coverage, quality gate result
+If a plan file was used:
+1. Scan `.cortex/plans/` for the plan file. Verify its Status is COMPLETE.
+2. Move to `.cortex/plans/archive/{category}/` (PhaseX/ for phase plans, Investigations/YYYY-MM-DD/ for investigations).
+3. Verify the plan no longer exists in `.cortex/plans/` root.
 
-### Step 3: Finalize — Delegate to `implement-finalizer`
+### Step 11: Verification
 
-- **Agent**: Use the `implement-finalizer` agent for memory bank updates, verification, and plan archiving
-- **Input**: Pass the step description, plan file path/basename, implementation results from Step 2, today's date
-- **Dependency**: MUST run AFTER Step 2 completes with quality gate passed
-- **GATE**: Roadmap sync validation MUST pass before proceeding
-- **GATE**: If memory bank errors occur, STOP and create investigation plan
-- **Outputs**: Memory bank update status, archive status, roadmap sync result
+1. Call `manage_file(file_name="roadmap.md", operation="read")` — verify the completed step is removed.
+2. Call `manage_file(file_name="progress.md", operation="read")` — verify the completion entry exists.
+3. Confirm no completed plans remain in `.cortex/plans/` root.
 
-## SUCCESS CRITERIA
+---
 
-The roadmap step is considered complete when:
+## Verification Gates
 
-- ✅ All implementation tasks are finished
-- ✅ All code follows coding standards (verified by implement-executor Phase 5)
-- ✅ Quality gate passed (implement-executor Phase 6): zero lint, file-size, function-length, and type_check violations
-- ✅ All tests pass with required coverage threshold
-- ✅ Memory bank is updated (roadmap entry removed, progress added, activeContext updated)
-- ✅ Completed plans archived (no completed plans in `.cortex/plans/` root)
-- ✅ Roadmap sync validation passed (no unlinked plans, no invalid references)
+- **Post-edit**: After editing a file, re-read it to confirm the edit applied
+- **Post-step**: After eliminating a pattern, search the full repository to confirm zero matches
+- **Plan-scope**: Before marking complete, re-read Success Criteria and provide evidence for each
+- **Duplicate-definition search**: Before modifying a function, search for all definitions of that name
 
-## ERROR HANDLING
+## Error Handling
 
-- **MCP unhealthy (Step 1)**: STOP immediately, report to user
-- **No pending steps (Step 1)**: Report "Roadmap complete" and stop
-- **Quality gate fails (Step 2)**: Fix violations and re-run, maximum **3 iterations** (see `shared-conventions.md`); do NOT proceed until passed or iteration limit reached
-- **Memory bank tool crash (Step 3)**: STOP. Create investigation plan via create-plan prompt. Link in roadmap under "Blockers (ASAP Priority)". Report with FIX-ASAP priority.
-- **Connection closed during quality pre-flight**: Retry once. If still fails, continue with quality gate in implement-executor Phase 6.
-- **Quality gate unavailable (doc-only sessions)**: When changes are documentation-only and quality gate fails due to environment issues, record: "Quality gate skipped - environment (doc-only session)."
+- **MCP unhealthy**: STOP immediately
+- **No pending steps**: Report "Roadmap complete" and STOP
+- **Quality gate fails after 3 iterations**: STOP, report unresolvable issues
+- **Memory bank tool crash**: STOP, report with FIX-ASAP priority
+- **Quality gate unavailable (doc-only sessions)**: Record "Quality gate skipped — environment (doc-only session)"
 
-## NOTES
+## Success Criteria
 
-- **CRITICAL PRIORITY**: Blockers in "Blockers (ASAP Priority)" are handled FIRST by the roadmap-implementer agent
-- If a step is too large, break it down into smaller sub-tasks within implement-executor
-- For complex steps, use the `think` MCP tool in full mode for structured reasoning
-- **Incremental validation when refactoring**: Run type check and quality check after each refactor; do not batch all changes then validate at end
-- **Duplicate detection before extracting helpers**: Before creating helper functions, search for existing functions with similar names (e.g. use Grep) to avoid duplicates
-- **MANDATORY PLAN UPDATES**: If work cannot complete in one session, implement-finalizer updates the plan file with current status
-- **MANDATORY PLAN ARCHIVING**: Completed plans MUST be archived immediately via implement-finalizer → plan-archiver
-- **Plan files**: Accessed via standard file tools (not MCP), path from `get_structure_info()` → `structure_info.paths.plans`
+- Implementation complete and all tests pass
+- Quality gate passed (zero lint, file-size, function-length, type_check violations)
+- Coverage >= 90% global, >= 95% for new/modified code
+- Memory bank updated (roadmap entry removed, progress added, activeContext updated)
+- Completed plans archived

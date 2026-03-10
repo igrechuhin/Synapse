@@ -47,6 +47,22 @@ If any of these three files is empty, missing, or contains no headings:
 
 Optional files (systemPatterns.md, techContext.md) failing integrity are added to `memory_bank_warnings` but do not block.
 
+### Phase 2.2: Operational Directory Validation
+
+Verify these paths from `get_structure_info()` exist as directories:
+
+- `structure_info.paths.plans`
+- `structure_info.paths.reviews` (if present)
+- `.cortex/.session/`
+
+For each missing directory:
+
+1. Report: "Missing directory: {path}"
+2. Create it: `mkdir -p {path}`
+3. Log: "Created missing directory: {path}"
+
+**CHECK** (not GATE): Missing directories are auto-created, not pipeline-blocking.
+
 ## Phase 3: Load Rules
 
 1. Call `rules(operation="get_relevant", task_description="[task description from orchestrator]")`.

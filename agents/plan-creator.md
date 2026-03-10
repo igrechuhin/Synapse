@@ -38,6 +38,26 @@ Check if plan templates exist in `{plans_dir}/templates/`. Use the appropriate t
 
 If no templates exist, use the standard structure below.
 
+## Phase 2.5: YAML Frontmatter (GATE)
+
+All plan files MUST begin with YAML frontmatter containing these fields:
+
+```yaml
+---
+title: "Fix TODO Scanner Exclusion Patterns"
+component: "validation/roadmap_sync"
+work_type: "fix"          # fix | refactor | feature | optimize | docs | infrastructure
+status: "PENDING"         # PENDING | IN_PROGRESS | COMPLETED | ARCHIVED
+priority: "Critical"      # Critical | High | Medium | Low
+created: "2026-03-07"
+depends_on: []            # list of plan file names (without .md)
+---
+```
+
+The `**Status**:` markdown headers are kept for backward compatibility but frontmatter is the **source of truth** for similarity scoring and deterministic plan management.
+
+**GATE**: Plans without frontmatter will not be scored correctly during similarity checks. Always emit frontmatter.
+
 ## Phase 3: Plan Structure (MANDATORY sections)
 
 Every plan MUST include ALL of these sections:

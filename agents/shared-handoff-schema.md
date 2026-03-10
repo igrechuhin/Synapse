@@ -472,6 +472,87 @@ This document defines **typed JSON schemas** for structured communication betwee
 
 ---
 
+## CommitPreflightResult
+
+**Produced by**: `commit-preflight` agent
+**Consumed by**: `commit.md` orchestrator (Phase 0 → Phase A gate)
+
+```json
+{
+  "agent": "commit-preflight",
+  "status": "complete | error",
+  "rules_loaded": true,
+  "primary_language": "Python 3.13",
+  "snapshot_ref": "<hash>",
+  "resumed_from_step": null,
+  "error": null
+}
+```
+
+**Required fields**: `agent`, `status`, `rules_loaded`, `primary_language`
+
+---
+
+## CommitPhaseAResult
+
+**Produced by**: `commit-phase-a` agent
+**Consumed by**: `commit.md` orchestrator (Phase A → Phase B gate)
+
+```json
+{
+  "agent": "commit-phase-a",
+  "status": "passed | failed | error",
+  "preflight_passed": true,
+  "coverage": 0.92,
+  "fix_iterations": 0,
+  "error": null
+}
+```
+
+**Required fields**: `agent`, `status`, `coverage`
+
+---
+
+## CommitPhaseBResult
+
+**Produced by**: `commit-phase-b` agent
+**Consumed by**: `commit.md` orchestrator (Phase B → Phase C gate)
+
+```json
+{
+  "agent": "commit-phase-b",
+  "status": "complete | error",
+  "memory_bank_updated": true,
+  "plans_archived": 0,
+  "docs_phase_passed": true,
+  "error": null
+}
+```
+
+**Required fields**: `agent`, `status`, `memory_bank_updated`, `docs_phase_passed`
+
+---
+
+## CommitPhaseCResult
+
+**Produced by**: `commit-phase-c` agent
+**Consumed by**: `commit.md` orchestrator (Phase C → Step 12 gate)
+
+```json
+{
+  "agent": "commit-phase-c",
+  "status": "passed | failed | error",
+  "timestamps_valid": true,
+  "state_consistent": true,
+  "submodule_status": "clean",
+  "error": null
+}
+```
+
+**Required fields**: `agent`, `status`, `submodule_status`
+
+---
+
 ## Validation Rules
 
 Orchestrators MUST check:
@@ -485,3 +566,29 @@ If validation fails, the orchestrator should:
 - Log the missing/invalid fields
 - Re-run the agent if the issue is transient
 - STOP with a clear error message if the issue is persistent
+
+## Required Fields Summary (Machine-Readable)
+
+| Schema | Required Fields |
+|---|---|
+| CommonChecklistResult | agent, status, structure_info, memory_bank_loaded, primary_language |
+| RoadmapImplementerResult | agent, status, step_description |
+| ImplementExecutorResult | agent, status, quality_gate_passed |
+| ImplementFinalizerResult | agent, status, memory_bank_updated, roadmap_sync_passed |
+| ContextEffectivenessResult | agent, status |
+| SessionOptimizationResult | agent, status |
+| ToolsOptimizerResult | agent, status, tool_budget |
+| SessionCompactorResult | agent, status, session_id |
+| ImprovementsPlannerResult | agent, status |
+| PlanCreatorResult | agent, status, plan_file_path, similarity_decision |
+| MemoryBankUpdaterResult | agent, status |
+| BugDetectorResult | agent, status, bugs, counts |
+| SubmoduleHandlerResult | agent, status |
+| FinalGateValidatorResult | agent, status, phases_executed, phases_passed, coverage |
+| CommitStateTrackerResult | agent, status, operation |
+| AgentHealthCheckerResult | agent, status, pipeline_name, agents_checked, missing_agents |
+| PipelineStateTrackerResult | agent, status, operation, pipeline_name |
+| CommitPreflightResult | agent, status, rules_loaded, primary_language |
+| CommitPhaseAResult | agent, status, coverage |
+| CommitPhaseBResult | agent, status, memory_bank_updated, docs_phase_passed |
+| CommitPhaseCResult | agent, status, submodule_status |
