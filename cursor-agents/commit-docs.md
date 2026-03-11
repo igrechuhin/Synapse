@@ -22,7 +22,7 @@ You are the documentation and state management specialist. You update the memory
 
 1. Call `get_structure_info()` to get `structure_info.paths.plans`.
 2. Use `Glob` to scan `{plans_path}/*.md` for files with `Status: COMPLETE` or similar markers.
-3. For each completed plan: move to `{plans_path}/archive/{category}/` (PhaseX/ for phase plans, Investigations/YYYY-MM-DD/ for investigations).
+3. For each completed plan: move to `{plans_path}/archive/{category}/`. Use `get_structure_info()` to determine archive categories if the project defines them; otherwise use `archive/YYYY-MM-DD/` as a universal fallback.
 4. Verify plan Status format uses `Status: VALUE` (not `**VALUE**`; MD036 applies).
 5. Report count of archived plans (even if 0).
 

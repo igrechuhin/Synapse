@@ -91,7 +91,7 @@ Call `analyze(target="context")` then `analyze(target="usage_patterns")`. Non-bl
 - **Phase B fails**: Advise `/cortex/fix` with `target=docs`
 - **Phase C submodule fails**: STOP, block commit
 - **Step 12 fails after 3 iterations**: Block commit
-- **MCP disconnects**: The start+poll pattern (Phases A and Step 12) makes disconnects non-fatal — each poll call is short. On disconnect during Phase B/C, retry once. Markdown lint fallback: `uv run rumdl check --fix .`
+- **MCP disconnects**: The start+poll pattern (Phases A and Step 12) makes disconnects non-fatal — each poll call is short. On disconnect during Phase B/C, retry once. Markdown lint fallback: use the fallback command from project rules.
 - **3 consecutive MCP failures**: Circuit-breaker per `shared-conventions.md`. Persist state and stop.
 - **On any pipeline failure**: Report phase and error. Offer rollback: `git checkout -- .` or `git stash apply <snapshot_ref>`. Do NOT auto-rollback.
 

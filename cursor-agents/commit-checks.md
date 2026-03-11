@@ -42,7 +42,7 @@ You are the pre-commit checks specialist. You run all code quality checks and fi
 ## Fix Guidelines
 
 - After type/quality fixes, always re-run format check before quality check
-- Functions must be <= 30 lines, files <= 400 lines
+- Follow coding standards per loaded rules — see `shared-defaults.md` for Synapse defaults
 - Before creating helper functions, search for existing functions with similar names
 - Run type+quality check after each refactor — do not batch changes
 
