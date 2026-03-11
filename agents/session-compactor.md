@@ -42,7 +42,7 @@ Run markdown lint to ensure modified/new markdown files (including the new revie
    - Describe the affected files and rules in output
    - Re-run `fix_markdown_lint` after applying fixes until the summary shows `Summary: 0 error(s)`.
 3. **Do not skip this step**: markdownlint errors must be fixed before the session is considered complete so the CI quality gate will pass on push.
-4. **Full-repo check** (optional): For comprehensive CI parity, run `node_modules/.bin/markdownlint-cli2 --fix` from the shell.
+4. **Full-repo check** (optional): For comprehensive CI parity, run `uv run rumdl check --fix .` from the shell.
 
 ## Completion
 

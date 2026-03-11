@@ -1,6 +1,6 @@
 # Implement Next Roadmap Step
 
-**CRITICAL**: Execute ALL steps below AUTOMATICALLY. Do NOT pause, summarize, or ask for confirmation. Start with Step 1 immediately.
+**CRITICAL**: Execute the workflow below AUTOMATICALLY. Do NOT pause, summarize, or ask for confirmation. Start with Step 1 immediately. When a roadmap item is too large to finish in one session, make concrete, high-impact partial progress and update plans/status accordingly instead of stopping with no changes.
 
 This is part of the **compound-engineering loop** (Plan → Work → Review → Compound). Memory bank updates in the Finalize section are the Compound step.
 
@@ -26,10 +26,11 @@ After Step 5, continue to Implementation below.
 
 If a plan file exists for the selected roadmap step (check `.cortex/plans/` via `get_structure_info()`):
 - Read the plan file for implementation details, success criteria, and testing strategy.
+- If the step is too large to complete in this session, identify a **smallest meaningful subtask** (e.g., adding a new helper, exposing a tool, or updating one prompt) that moves the plan forward and can be finished end-to-end (including tests/quality) now.
 
-If no plan file: create an implementation plan based on the roadmap step description.
+If no plan file: create an implementation plan based on the roadmap step description, and still choose a smallest meaningful subtask for this session when the scope is large.
 
-Use `think` tool for complex steps to break down the approach.
+Use `think` tool for complex steps to break down the approach into 1–3 concrete subtasks for the current session plus follow-ups for later.
 
 ### Step 7: Code
 
@@ -56,18 +57,31 @@ Call `execute_pre_commit_checks(phase="A", test_timeout=300, coverage_threshold=
 
 ### Step 9: Memory Bank Updates
 
+If the selected roadmap step is fully completed in this session:
+
 1. Call `update_memory_bank(operation="progress_append", date_str="YYYY-MM-DD", entry_text="**{step_title}** - COMPLETE. {summary}")` to add progress entry.
 2. Call `update_memory_bank(operation="active_context_append", date_str="YYYY-MM-DD", title="{step_title}", summary="{summary}")` to update activeContext.
 3. Call `update_memory_bank(operation="roadmap_remove", entry_contains="{unique roadmap entry substring}")` to remove the completed step from roadmap.
+
+If only part of the roadmap step was completed (e.g., new tools/helpers added, tests written, or prompts updated), **do not remove the roadmap entry yet**. Instead:
+
+1. Call `update_memory_bank(operation="progress_append", date_str="YYYY-MM-DD", entry_text="**{step_title}** - PARTIAL. {summary of concrete changes and remaining work}.")`.
+2. Optionally call `update_memory_bank(operation="active_context_append", date_str="YYYY-MM-DD", title="{step_title} (PARTIAL)", summary="{summary}")` when the partial work materially affects active behavior.
 
 Use `manage_file()` only for memory bank writes — never StrReplace/Write/ApplyPatch on memory bank paths.
 
 ### Step 10: Plan Archiving
 
 If a plan file was used:
-1. Scan `.cortex/plans/` for the plan file. Verify its Status is COMPLETE.
-2. Move to `.cortex/plans/archive/{category}/` (PhaseX/ for phase plans, Investigations/YYYY-MM-DD/ for investigations).
-3. Verify the plan no longer exists in `.cortex/plans/` root.
+
+- When the roadmap step is fully complete:
+  1. Scan `.cortex/plans/` for the plan file. Verify its Status is COMPLETE.
+  2. Move to `.cortex/plans/archive/{category}/` (PhaseX/ for phase plans, Investigations/YYYY-MM-DD/ for investigations).
+  3. Verify the plan no longer exists in `.cortex/plans/` root.
+
+- When only part of the step is complete:
+  1. Update the plan `status` to `IN_PROGRESS` (or keep as `IN_PROGRESS`), and briefly note which implementation steps are done vs. remaining.
+  2. Do **not** archive the plan yet; it should remain discoverable for the next session.
 
 ### Step 11: Verification
 

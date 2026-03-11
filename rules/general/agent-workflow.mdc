@@ -283,7 +283,7 @@ When using Cortex MCP tools inside Cursor, follow these rules to avoid "missing 
   - **CRITICAL**: All Cortex MCP tools resolve project root internally; do NOT pass `project_root` as a parameter.
 - **Markdown lint**:
   - `fix_markdown_lint(include_untracked_markdown=True)` — scopes to git-modified + untracked files
-  - **Full-repo lint** (matching CI): `node_modules/.bin/markdownlint-cli2 --fix` from the shell
+  - **Full-repo lint** (matching CI): `uv run rumdl check --fix .` from the shell
   - **Zero errors tolerance**: ANY markdown lint error MUST block commit - NO EXCEPTIONS
 
 ### If MCP calls become unstable

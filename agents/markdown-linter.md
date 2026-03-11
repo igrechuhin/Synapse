@@ -13,7 +13,7 @@ When invoked:
 2. Run check-only mode to identify non-auto-fixable errors
 3. Report files fixed and errors remaining
 4. Block commit if ANY errors remain (ZERO ERRORS TOLERANCE)
-5. For full-repo lint (matching CI): `node_modules/.bin/markdownlint-cli2 --fix` from the shell
+5. For full-repo lint (matching CI): `uv run rumdl check --fix .` from the shell
 
 Key practices:
 
@@ -30,6 +30,6 @@ For each markdown lint operation:
 - Parse output to extract error codes and file paths
 - Fix ALL errors (auto-fixable and manual fixes for non-auto-fixable)
 - Verify zero errors remain before proceeding
-- For full-repo check: `node_modules/.bin/markdownlint-cli2 --fix` from the shell
+- For full-repo check: `uv run rumdl check --fix .` from the shell
 
-CRITICAL: markdownlint-cli2 is a REQUIRED dependency. If not installed, block commit and report error.
+CRITICAL: `rumdl` is a REQUIRED dependency. If not installed, block commit and report error (advise running `uv sync --extra dev` or `bash scripts/bootstrap.sh` to install it into `.venv`).

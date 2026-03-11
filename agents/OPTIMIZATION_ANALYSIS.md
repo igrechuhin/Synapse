@@ -123,7 +123,7 @@
 - **Issue**: Could be part of `code-formatter`
 - **Current**: Separate agent (Step 1.5 in commit)
 - **Recommendation**: Keep separate because:
-  - Different tool (markdownlint-cli2 vs code formatter)
+  - Different tool (markdown linter vs code formatter)
   - Different file types (markdown vs code)
   - Different validation requirements (critical errors in memory bank files)
 

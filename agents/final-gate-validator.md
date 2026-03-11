@@ -98,7 +98,7 @@ When any sub-step finds errors and you fix them, you MUST re-run dependent steps
 1. Run `fix_markdown_lint(include_untracked_markdown=True)`
 2. **CHECK**: Verify zero errors in all markdown files
 3. **GATE**: Block if ANY markdown lint errors remain
-4. **Fallback**: If MCP unavailable: `npx markdownlint-cli2 --fix '**/*.md' '**/*.mdc'`
+4. **Fallback**: If MCP unavailable: `uv run rumdl check --fix .`
 
 ### Phase 7: Quality Re-check (12.6)
 
