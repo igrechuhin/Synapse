@@ -15,6 +15,8 @@ This document defines the output format for code review reports. The `review.md`
 
 ## Report Structure
 
+Each metric must include both a numeric **score** and an **evidence** string explaining the concrete basis for that score (tool outputs, code references, or docs). Scores without evidence are invalid.
+
 ```markdown
 # Code Review Report
 
@@ -27,15 +29,33 @@ This document defines the output format for code review reports. The `review.md`
 
 ## Detailed Metrics (MANDATORY — all 9 scored)
 
-- **Architecture (X/10)**: Separation of concerns, design patterns, DI, SOLID
-- **Test Coverage (X/10)**: Coverage %, quality, edge cases, AAA compliance
-- **Documentation (X/10)**: Completeness, quality, clarity, examples
-- **Code Style (X/10)**: Consistency, naming, formatting, best practices
-- **Error Handling (X/10)**: Propagation, typed errors, proper messages
-- **Performance (X/10)**: Algorithm complexity, memory efficiency, bottlenecks
-- **Security (X/10)**: Input validation, no secrets, secure logging
-- **Maintainability (X/10)**: Organization, file structure, function length, readability
-- **Rules Compliance (X/10)**: File size, function length, one-type-per-file adherence
+- **Architecture**
+  - **Score**: X/10 — Separation of concerns, design patterns, DI, SOLID
+  - **Evidence**: Concrete code locations, module boundaries, and patterns used
+- **Test Coverage**
+  - **Score**: X/10 — Coverage %, quality, edge cases, AAA compliance
+  - **Evidence**: `pytest --cov` or other coverage output plus key test names
+- **Documentation**
+  - **Score**: X/10 — Completeness, quality, clarity, examples
+  - **Evidence**: Links/paths to docs, docstrings, and examples
+- **Code Style**
+  - **Score**: X/10 — Consistency, naming, formatting, best practices
+  - **Evidence**: Linter/formatter output and representative code samples
+- **Error Handling**
+  - **Score**: X/10 — Propagation, typed errors, proper messages
+  - **Evidence**: Specific error handling code paths and message examples
+- **Performance**
+  - **Score**: X/10 — Algorithm complexity, memory efficiency, bottlenecks
+  - **Evidence**: Profiling traces, benchmarks, or code examples of hot paths
+- **Security**
+  - **Score**: X/10 — Input validation, no secrets, secure logging
+  - **Evidence**: Validation code, secret management configuration, logging samples
+- **Maintainability**
+  - **Score**: X/10 — Organization, file structure, function length, readability
+  - **Evidence**: File structure examples, function sizes, and dependency layout
+- **Rules Compliance**
+  - **Score**: X/10 — File size, function length, one-type-per-file adherence
+  - **Evidence**: Outputs from `execute_pre_commit_checks` and specific compliant/violating files
 
 ## Critical Issues (Must-Fix)
 
@@ -146,3 +166,38 @@ The review report is structured for `create-plan.md` to extract:
 - **Success criteria** from measurable outcomes
 - **Risk assessment** from risk fields
 - **Technical design** from implementation approaches
+
+## Structured Metric Schema
+
+Each of the 9 metrics in the report MUST be represented as a structured object with both a numeric score and an evidence string. Downstream tools should assume the following shape:
+
+```text
+metrics:
+  architecture:
+    score: int        # 0-10
+    evidence: str     # concrete evidence cited for the score
+  test_coverage:
+    score: int
+    evidence: str
+  documentation:
+    score: int
+    evidence: str
+  code_style:
+    score: int
+    evidence: str
+  error_handling:
+    score: int
+    evidence: str
+  performance:
+    score: int
+    evidence: str
+  security:
+    score: int
+    evidence: str
+  maintainability:
+    score: int
+    evidence: str
+  rules_compliance:
+    score: int
+    evidence: str
+```
