@@ -24,6 +24,12 @@ Use the `commit-checks` subagent to run all pre-commit quality checks via the jo
 
 **GATE**: Must return `status: "passed"` before proceeding to Phase B.
 
+**Validation rules for Phase A**:
+
+- Treat the structured status returned by the `commit-checks` subagent (and its underlying quality job) as the **single source of truth** for Phase A.
+- **Never** infer that Phase A passed from log snippets, banners (including any `"✅ All quality checks passed!"` messages), or previous runs.
+- If the quality result reports any **failed** or **skipped** critical checks, Phase A is considered **failed** and the commit pipeline must **stop without creating a commit**.
+
 ---
 
 ## Phase B: Documentation and State — use the `commit-docs` subagent
@@ -47,6 +53,11 @@ Use the `commit-validate` subagent to handle timestamps, state consistency, and 
 Use the `commit-final-gate` subagent to re-run all quality checks after phases B and C may have modified files. The subagent uses the job-based API (start + poll) and checks for a fresh cached Phase A result before starting a new run.
 
 **GATE**: Must return `status: "passed"` before proceeding to Step 13.
+
+**Validation rules for Step 12**:
+
+- Again, rely on the structured status and per-check outcomes from the quality job, **not** on log snippets or success banners.
+- If any critical check fails or is skipped in this final run, Step 12 is **failed** and you must **block commit creation**.
 
 ---
 
