@@ -47,6 +47,7 @@ Use `think` tool for complex plans to scope the approach.
 **If creating new**: Prefer `plan(operation="create", plan_title="...", description="...", component="...", work_type="...", priority="...", steps=[...])`.
 
 Fallback if `plan(operation="create")` is unavailable: write the plan file using `Write` to `{plans_path}/{slug}.md` with this structure:
+
 - YAML frontmatter (title, component, work_type, status: PENDING, priority, created, depends_on)
 - Goal, Context, Implementation Steps
 - Verification Checklist per step: What to search for | Search scope | Files to re-read
@@ -61,7 +62,7 @@ Registering the plan in the roadmap is **REQUIRED** — every new or enriched pl
 
 Call `plan(operation="register", plan_title="...", description="...", status="PENDING", section="...")`.
 
-**GATE**: If `plan(operation="register")` fails, STOP and report. **PROHIBITED**: using string-replace or direct file-write tools on roadmap.md — this causes corruption and is a VIOLATION. Use MCP tools only.
+**GATE**: If `plan(operation="register")` fails, STOP and report. **PROHIBITED**: using StrReplace, direct Write, string-replace, or direct file-write tools on roadmap.md — this causes corruption and is a VIOLATION. Use MCP tools only.
 
 Fallback for enriched plans: call `update_memory_bank(operation="roadmap_add", section="...", entry_text="...")`. When using fallback `manage_file(write)`, content must be full, unabridged roadmap (pre-write check: content length must be at least as long as the roadmap as read). Never truncate, never pass shortened or summarized roadmap content.
 

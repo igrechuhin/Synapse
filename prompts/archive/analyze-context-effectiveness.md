@@ -196,6 +196,7 @@ If the tool returns `"status": "no_data"` and you do not perform manual analysis
 **No session logs found.**
 
 To generate data:
+
 1. Use `load_context()` at the start of tasks
 2. Complete several sessions
 3. Run this analysis again

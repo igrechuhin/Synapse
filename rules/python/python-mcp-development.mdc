@@ -107,7 +107,7 @@ from cortex.server import mcp
 @mcp_tool_wrapper(timeout=MCP_TOOL_TIMEOUT_FAST)
 async def get_stats() -> str:
     """Read-only tool that retrieves statistics.
-    
+
     Note: Project root is resolved internally via @ensure_usage_context decorator.
     Tools should NEVER accept project_root as a parameter.
     """
@@ -199,7 +199,7 @@ from typing import Literal
 class OptimizeContextRequest(BaseModel):
     """Request model for context optimization."""
     model_config = ConfigDict(str_strip_whitespace=True)
-    
+
     memory_bank_root: str = Field(min_length=1, description="Path to memory bank")
     max_tokens: int = Field(gt=0, description="Maximum tokens to include")
     strategy: Literal["relevance", "recency", "hybrid"] = "relevance"

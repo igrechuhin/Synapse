@@ -9,8 +9,22 @@ This prompt accepts a `target` parameter:
 - **quality** -- Fix type errors, formatting, linting (formerly fix-quality.md)
 - **tests** -- Diagnose and fix failing tests (formerly fix-tests.md)
 - **docs** -- Synchronize documentation and memory bank (formerly docs-sync.md)
+- **all** -- Run all three targets concurrently in parallel (see Parallel Execution below)
 
 **GATE**: A valid `target` must be specified. If missing, ask the user which target they need.
+
+## Parallel Execution (`all` target)
+
+When `target=all`, launch **three independent subagents simultaneously** — one per target — rather than running them sequentially. Each subagent executes this same prompt with its specific target.
+
+**MANDATORY**: All three agents must start at the same time. Do NOT wait for one to finish before starting another.
+
+Steps:
+
+1. Launch Agent 1: `fix quality` — runs the quality target workflow below.
+2. Launch Agent 2: `fix tests` — runs the tests target workflow below.
+3. Launch Agent 3: `fix docs` — runs the docs target workflow below.
+4. Collect and merge all three results. Report a combined summary: which targets passed, which had remaining issues, and any cross-target interactions (e.g. quality fixes that affect test outcomes).
 
 ## Conventions
 
@@ -26,17 +40,18 @@ Per `shared-conventions.md`. Severity: GATE/CHECK/PREFER. Memory bank writes: pe
 
 | Target | Goal |
 |--------|------|
-| quality | Drive codebase toward zero type errors and clean formatting/linting |
+| quality | Drive codebase toward zero type errors, clean formatting/linting, and zero markdown lint errors |
 | tests | Identify and fix failing tests; maintain or improve coverage |
-| docs | Fix discrepancies between roadmap, activeContext, progress, and plans |
+| docs | Fix discrepancies between roadmap, activeContext, progress, and plans (does NOT cover markdown lint — use `quality` for that) |
 
 ## Tooling Requirements (MANDATORY)
 
 ### quality
 
-- `execute_pre_commit_checks(checks=["fix_quality"], include_untracked_markdown=True)` for automated fixes.
-- `execute_pre_commit_checks(checks=["type_check", "quality", "format"], test_timeout=300, coverage_threshold=0.90, strict_mode=False)` for verification.
+- `execute_pre_commit_checks(checks=["fix_quality"], include_untracked_markdown=True)` for automated fixes (includes rumdl auto-fix for markdown).
+- `execute_pre_commit_checks(checks=["type_check", "quality", "format", "markdown"], test_timeout=300, coverage_threshold=0.90, strict_mode=False)` for verification.
 - **Do NOT** run `black`, `ruff`, `isort`, or other formatters/linters directly.
+- For remaining non-autofixable markdown issues (`[MD057]` broken links, `[MD046]` unclosed code blocks, `[MD051]` missing fragments): use `Grep`/`Read`/`Edit` tools to locate and fix each issue manually.
 
 ### tests
 
@@ -78,10 +93,15 @@ Once the checklist is satisfied, **proceed directly through execution steps with
 
 ### quality Target
 
-1. **Run automatic quality fixes**: Call `execute_pre_commit_checks(checks=["fix_quality"], include_untracked_markdown=True)`. Note which files were modified and any remaining issues.
-2. **Address remaining issues manually**: For remaining type errors or lint violations, open affected files and apply precise, minimal fixes (respect strict typing, no `Any`, proper DI). For markdown issues, use `manage_file()` or standard tools.
-3. **Re-run targeted quality checks**: `execute_pre_commit_checks(checks=["type_check", "quality", "format"], test_timeout=300, coverage_threshold=0.90, strict_mode=False)`. Verify zero errors.
-4. **Summarize results**: List main classes of issues fixed. Note any remaining non-blocking warnings.
+1. **Run automatic quality fixes**: Call `execute_pre_commit_checks(checks=["fix_quality"], include_untracked_markdown=True)`. This runs rumdl auto-fix for markdown alongside Python formatter/linter fixes. Note which files were modified and any remaining issues.
+2. **Address remaining Python issues manually**: For remaining type errors or lint violations, open affected files and apply precise, minimal fixes (respect strict typing, no `Any`, proper DI).
+3. **Address remaining markdown issues manually**: Run `execute_pre_commit_checks(checks=["markdown"])` to get the current rumdl output. For each remaining non-autofixable issue:
+   - `[MD057]` broken relative links — use `Grep`/`Read` to verify whether the target file exists; if the link is stale (file was moved/deleted), update the link to the correct path or remove it. History files (`.cortex/history/`) may be excluded from fixes since they are read-only archives.
+   - `[MD046]` unclosed code blocks — open the file, find the mismatched fence, and close it correctly.
+   - `[MD051]` missing link fragments — either correct the fragment anchor or remove the anchor from the link.
+   - Other non-autofixable rules — apply the minimal targeted edit to bring the file into compliance.
+4. **Re-run targeted quality checks**: `execute_pre_commit_checks(checks=["type_check", "quality", "format", "markdown"], test_timeout=300, coverage_threshold=0.90, strict_mode=False)`. Verify zero errors.
+5. **Summarize results**: List main classes of issues fixed. Note any remaining non-blocking warnings.
 
 ### tests Target
 
@@ -111,6 +131,6 @@ For all targets: If issues cannot be fully resolved within this command:
 
 | Target | Criteria |
 |--------|----------|
-| quality | Zero type errors, clean formatting/linting |
+| quality | Zero type errors, clean formatting/linting, zero rumdl markdown errors |
 | tests | All tests passing, coverage >= threshold |
 | docs | `docs_phase_passed: true`, all sync issues resolved |

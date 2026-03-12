@@ -2,6 +2,7 @@
 globs: "**/tools/**/*.py"
 alwaysApply: false
 ---
+
 # MCP Tools Subpackage Organization (MANDATORY for new/further development)
 
 **ENFORCEMENT**: All new MCP tool code and tool-related modules MUST follow the project's domain subpackage structure. CI and review must block violations.

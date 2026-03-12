@@ -51,22 +51,32 @@ If unavailable: skip and note "Tools optimization skipped (no usage data)".
 # End-of-Session Analysis
 
 ## Summary
+
 [Brief combined overview]
 
 ## Context Effectiveness Analysis
+
 **Sessions Analyzed**: X new, Y total (or "No session logs found.")
 **Calls Analyzed**: Z
+
 ### Key Metrics
+
 - Token utilization, precision/recall, feedback types
 
 ## Session Optimization Analysis
+
 ### Mistake Patterns Identified
+
 ### Root Cause Analysis
+
 ### Optimization Recommendations
+
 ### Tools Optimization
+
 [Tool budget, dead tools, duplicates, consolidation candidates]
 
 ### Report Location
+
 Saved to: {reviews_path}/session-optimization-{timestamp}.md
 ```
 
@@ -79,6 +89,7 @@ Run `fix_markdown_lint()` on the report file to ensure markdown quality.
 ## Step 9: Improvements Plan (conditional)
 
 If Steps 4-6 produced improvement recommendations:
+
 1. Call `plan(operation="create", plan_title="Session improvements from {timestamp}", description="...")`.
 2. Call `plan(operation="register", ...)` to add to roadmap.
 
@@ -89,6 +100,7 @@ If no recommendations: skip this step.
 ## Connection Error Handling
 
 If any MCP tool fails with "Connection closed" (MCP error -32000):
+
 - The `mcp_tool_wrapper` automatically retries once
 - If retry fails, skip that analysis step and continue
 - Complete as much analysis as possible

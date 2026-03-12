@@ -1,4 +1,5 @@
 ---
+
 name: static-analyzer
 
 # Static Analyzer Agent

@@ -1,6 +1,7 @@
 ---
 alwaysApply: true
 ---
+
 # Coding Standards (MANDATORY)
 
 **ENFORCEMENT**: CI and review must block violations. Apply alongside Python-specific rules.

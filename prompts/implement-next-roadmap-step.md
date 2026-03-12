@@ -25,6 +25,7 @@ Use the `implement-select` subagent to read the roadmap, identify the next pendi
 Use the `implement-code` subagent to scope the smallest meaningful subtask, implement it with tests, and run the quality gate via the job-based API (start + poll). The subagent uses `start_pre_commit_job(phase="A")` and polls `get_pre_commit_job_status` so each MCP call is short-lived.
 
 Pass to the subagent:
+
 - Selected step title and description (from Selection)
 - Plan file contents (from Selection)
 - Rules loaded (from Selection)
@@ -38,6 +39,7 @@ Pass to the subagent:
 Use the `implement-finalize` subagent to update the memory bank (activeContext.md, progress.md, roadmap.md) and handle the plan file (archive if complete, mark IN_PROGRESS if partial).
 
 Pass to the subagent:
+
 - Step fully complete: yes | no (from Implementation)
 - Subtask description, files changed, coverage (from Implementation)
 - Plan file path and selected step title (from Selection)

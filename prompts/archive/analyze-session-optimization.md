@@ -102,22 +102,26 @@
    # Session Optimization Analysis
 
    ## Summary
+
    [Brief overview of analysis findings]
 
    ## Mistake Patterns Identified
 
    ### Pattern 1: [Name]
+
    - **Description**: [What mistake occurred]
    - **Examples**: [Specific examples from session]
    - **Frequency**: [How often it occurred]
    - **Impact**: [Severity of the mistake]
 
    ### Pattern 2: [Name]
+
    ...
 
    ## Root Cause Analysis
 
    ### Cause 1: [Name]
+
    - **Description**: [Why this mistake occurred]
    - **Contributing factors**: [What made it more likely]
    - **Prevention opportunity**: [How Synapse could prevent this]
@@ -127,6 +131,7 @@
    ## Optimization Recommendations
 
    ### Recommendation 1: [Title]
+
    - **Priority**: [Critical/High/Medium/Low]
    - **Target**: [Which prompt/rule file]
    - **Change**: [Specific change needed]

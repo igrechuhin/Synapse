@@ -1,4 +1,5 @@
 ---
+
 name: consistency-checker
 
 # Consistency Checker Agent

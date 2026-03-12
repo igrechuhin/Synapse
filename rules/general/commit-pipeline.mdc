@@ -1,6 +1,7 @@
 ---
 alwaysApply: false
 ---
+
 # Commit Pipeline (Phase-Based)
 
 **Reference**: AGENTS.md "Commit pipeline (phase-based)" and `docs/design/commit-pipeline-phases.md` for full flow and helper commands.

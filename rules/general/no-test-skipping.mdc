@@ -2,6 +2,7 @@
 globs: tests/**/*.py
 alwaysApply: false
 ---
+
 # No Test Skipping (MANDATORY)
 
 **ENFORCEMENT**: Skips are tightly controlled; CI blocks violations.

@@ -2,6 +2,7 @@
 globs: *.md,*.mdc
 alwaysApply: false
 ---
+
 # Markdown Formatting Rules (MANDATORY)
 
 **ENFORCEMENT**: CI MUST fail on violations. Markdown formatting rules are STRICTLY enforced. NO exceptions.
@@ -61,7 +62,7 @@ alwaysApply: false
 
   ```markdown
   **Effort**: Low
-  
+
   - Add blank line before code fences
   - Add blank line after code fences
   ```
@@ -78,7 +79,7 @@ alwaysApply: false
 
   ```markdown
   **Strengths**:
-  
+
   - Item 1
   - Item 2
   ```
@@ -158,13 +159,13 @@ alwaysApply: false
 
   ```markdown
   ### Must-Fix (High Priority)
-  
+
   1. Item 1
   2. Item 2
-  
+
   ### Should-Fix (Medium Priority)
-  
-  1. Item 1  // Correct: Starts at 1 for new section
+
+  1. Item 1 // Correct: Starts at 1 for new section
   2. Item 2
   ```
 
@@ -214,19 +215,19 @@ Some descriptive text here.
 ### ❌ PROHIBITED - Trailing spaces
 
 ```markdown
-Some text with trailing space 
-More text  // BLOCKED: Single trailing space (1 space)
+Some text with trailing space
+More text // BLOCKED: Single trailing space (1 space)
 ```
 
 ### ✅ REQUIRED - No trailing spaces or exactly two
 
 ```markdown
 Some text
-More text  // Correct: No trailing spaces
+More text // Correct: No trailing spaces
 
 Or with intentional line break:
 Some text  
-More text  // Correct: Exactly 2 trailing spaces for hard break
+More text // Correct: Exactly 2 trailing spaces for hard break
 ```
 
 ### ❌ PROHIBITED - Missing blank line before fenced code block
@@ -237,7 +238,8 @@ Text immediately followed by code block without blank line:
 
 ```markdown
 ### Section Title
-- List item 1  // BLOCKED: Missing blank line
+
+- List item 1 // BLOCKED: Missing blank line
 - List item 2
 ```
 
@@ -246,7 +248,8 @@ Text immediately followed by code block without blank line:
 ```markdown
 - List item 1
 - List item 2
-### Next Section  // BLOCKED: Missing blank line
+
+### Next Section // BLOCKED: Missing blank line
 ```
 
 ### ❌ PROHIBITED - Missing blank line between adjacent lists
@@ -254,14 +257,15 @@ Text immediately followed by code block without blank line:
 ```markdown
 - List item 1
 - List item 2
-- Another list item  // BLOCKED: Missing blank line between lists
+- Another list item // BLOCKED: Missing blank line between lists
 - Yet another item
 ```
 
 ### ❌ PROHIBITED - Emphasis used as heading
 
 ```markdown
-**Section Title**  // BLOCKED: Should use ### Section Title
+**Section Title** // BLOCKED: Should use ### Section Title
+
 - List item
 ```
 
@@ -276,7 +280,7 @@ Text immediately followed by code block without blank line:
 ### ❌ PROHIBITED - Emphasis used for scores/metrics
 
 ```markdown
-**Overall Code Quality Score: 8.3/10**  // BLOCKED: Should use heading
+**Overall Code Quality Score: 8.3/10** // BLOCKED: Should use heading
 ```
 
 ### ✅ REQUIRED - Proper heading for scores/metrics
@@ -288,7 +292,7 @@ Text immediately followed by code block without blank line:
 ### ❌ PROHIBITED - Bold statement at line start
 
 ```markdown
-**None identified**  // BLOCKED: Should be regular text or proper heading
+**None identified** // BLOCKED: Should be regular text or proper heading
 ```
 
 ### ✅ REQUIRED - Regular text for statements
@@ -301,11 +305,13 @@ No vulnerabilities identified.
 
 ```markdown
 ### Section 1
+
 1. First item
 2. Second item
 
 ### Section 2
-3. Third item  // BLOCKED: Should start at 1
+
+3. Third item // BLOCKED: Should start at 1
 4. Fourth item
 ```
 
@@ -313,11 +319,13 @@ No vulnerabilities identified.
 
 ```markdown
 ### Section 1
+
 1. First item
 2. Second item
 
 ### Section 2
-1. Third item  // Correct: Starts at 1 for new section
+
+1. Third item // Correct: Starts at 1 for new section
 2. Fourth item
 ```
 
@@ -328,7 +336,7 @@ No vulnerabilities identified.
 
 - Item 1
 
-## Success Criteria  // BLOCKED: Duplicate heading text (even though different level)
+## Success Criteria // BLOCKED: Duplicate heading text (even though different level)
 
 - Item 2
 ```
@@ -340,7 +348,7 @@ No vulnerabilities identified.
 
 - Item 1
 
-## Command Success Criteria  // Correct: Unique heading text
+## Command Success Criteria // Correct: Unique heading text
 
 - Item 2
 ```
@@ -350,8 +358,7 @@ No vulnerabilities identified.
 ```markdown
 ### Section Title
 
-
-- List item 1  // BLOCKED: Two blank lines instead of one
+- List item 1 // BLOCKED: Two blank lines instead of one
 - List item 2
 ```
 
@@ -360,7 +367,7 @@ No vulnerabilities identified.
 ```markdown
 ### Section Title
 
-- List item 1  // Correct: Exactly one blank line
+- List item 1 // Correct: Exactly one blank line
 - List item 2
 ```
 
@@ -371,8 +378,7 @@ No vulnerabilities identified.
 
 - Item 1
 
-
-### Section 2  // BLOCKED: Multiple blank lines between sections
+### Section 2 // BLOCKED: Multiple blank lines between sections
 ```
 
 ### ✅ REQUIRED - Exactly one blank line between sections
@@ -382,7 +388,7 @@ No vulnerabilities identified.
 
 - Item 1
 
-### Section 2  // Correct: Exactly one blank line between sections
+### Section 2 // Correct: Exactly one blank line between sections
 ```
 
 ## Validation (ENFORCED)

@@ -64,6 +64,7 @@ Use the `commit-final-gate` subagent to re-run all quality checks after phases B
 ## Step 13: Commit Creation
 
 **Preconditions** (verify ALL):
+
 1. Step 12 passed
 2. Submodule status is non-blocking
 3. All phases completed

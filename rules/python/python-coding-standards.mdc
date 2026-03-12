@@ -54,7 +54,6 @@ alwaysApply: false
 - **Built-in Generics**: Use `list[str]`, `dict[str, int]` (Python 3.13+) - NOT `typing.List`, `typing.Dict`
 - **Optional Types**: Use `T | None` (NOT `Optional[T]` or `Union[T, None]`)
 - See "Type Narrowing with assert" section for handling Optional types with control flow guarantees.
-
 - **Self Type**: Use `typing.Self` for methods returning class instances
 - **TypedDict**: Use `typing.Required`/`typing.NotRequired` for optional fields
 - **Callable**: Use `Callable[[ArgTypes], ReturnType]` for function parameters
@@ -172,7 +171,7 @@ if PreCommitCheck.FIX_ERRORS in checks_to_perform:
 ```python
 def _to_timeout_value(value: JsonValue | None) -> float | None:
     """Convert JsonValue to a valid timeout value.
-    
+
     Ensures we only accept float-compatible values and ignore invalid ones.
     """
     if value is None:
@@ -199,7 +198,7 @@ async def with_mcp_stability[T](
     # Normalize JsonValue to concrete types at the top
     stability_timeout_value = _to_timeout_value(stability_timeout)  # float | None
     timeout_value = _to_timeout_value(timeout)  # float | None
-    
+
     # Now use concrete types in business logic
     effective_timeout = (
         stability_timeout_value or timeout_value or float(MCP_TOOL_TIMEOUT_SECONDS)
@@ -296,10 +295,10 @@ def process(data: "SomeModel") -> "ResultModel":
    ```python
    # ✅ REQUIRED - Define Protocol in the dependent module
    from typing import Protocol
-   
+
    class DataProvider(Protocol):
        def get_data(self) -> list[str]: ...
-   
+
    def process(provider: DataProvider) -> None:
        data = provider.get_data()
    ```

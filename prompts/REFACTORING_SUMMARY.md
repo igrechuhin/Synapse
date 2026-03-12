@@ -22,11 +22,12 @@ Each step follows this pattern:
 
 ```markdown
 X. **Step Name** - **Delegate to `agent-name` agent**:
-   - **Agent**: Use the agent-name agent (Synapse agents directory)
-   - **Dependency**: Must run AFTER Step Y (or BEFORE Step Z)
-   - **GATE**: Success criteria that blocks workflow
-   - **CHECK**: Conditions that require verification
-   - **Output**: Structured result per shared-handoff-schema.md
+
+- **Agent**: Use the agent-name agent (Synapse agents directory)
+- **Dependency**: Must run AFTER Step Y (or BEFORE Step Z)
+- **GATE**: Success criteria that blocks workflow
+- **CHECK**: Conditions that require verification
+- **Output**: Structured result per shared-handoff-schema.md
 ```
 
 ## Shared Infrastructure

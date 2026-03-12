@@ -1,6 +1,7 @@
 ---
 alwaysApply: true
 ---
+
 # Maintainability & Architecture Rules (MANDATORY)
 
 **ENFORCEMENT**: CI MUST fail on violations. All rules are MANDATORY. NO exceptions.
@@ -184,7 +185,7 @@ When completing any plan, the following checklist MUST be followed in order:
 ## See Also
 
 - [coding-standards.mdc](coding-standards.mdc) - Core coding standards and file organization requirements
-- [one-public-type-per-file.mdc](one-public-type-per-file.mdc) - One public type per file requirement
+- one-public-type-per-file - One public type per file requirement (see coding-standards.mdc)
 - [testing-standards.mdc](testing-standards.mdc) - Testing requirements for public APIs
 - [memory-bank-workflow.mdc](memory-bank-workflow.mdc) - Memory bank maintenance procedures
 

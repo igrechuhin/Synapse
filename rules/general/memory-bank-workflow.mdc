@@ -1,6 +1,7 @@
 ---
 alwaysApply: true
 ---
+
 # Memory Bank Workflow & Link Validation (MANDATORY)
 
 **ENFORCEMENT**: CI MUST fail on violations. All rules are MANDATORY. NO exceptions.
@@ -82,12 +83,12 @@ When adding new content to `techContext.md` or `systemPatterns.md`:
 
    ```markdown
    ## Technologies Used
-   
+
    - **Python 3.13** - Modern Python
    - **FastMCP** - MCP server framework
-   
+
    ### New Technology Category
-   
+
    - **New Tool** - Description
    ```
 
@@ -95,12 +96,12 @@ When adding new content to `techContext.md` or `systemPatterns.md`:
 
    ```markdown
    ## Design Patterns in Use
-   
+
    - **Dependency Injection** - All dependencies injected
    - **Manager Pattern** - Centralized service management
-   
+
    ### New Pattern Category
-   
+
    - **New Pattern** - Description
    ```
 

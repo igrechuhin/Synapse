@@ -1,4 +1,5 @@
 ---
+
 name: memory-bank-updater
 
 # Memory Bank Updater Agent

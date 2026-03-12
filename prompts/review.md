@@ -25,6 +25,7 @@ Record: compiler warnings, deprecated API usage, unused imports/variables, type 
 ## Step 6: Bug Detection
 
 Review code in scope for language-specific bugs:
+
 - **Python**: Unguarded `None`, mutable default args, bare `except:`, async/await misuse, unclosed resources
 - **All**: Race conditions, logic errors, memory leaks, incorrect error handling, off-by-one
 
@@ -33,6 +34,7 @@ Use `Read` and `Grep` to inspect suspicious patterns.
 ## Step 7: Consistency Check
 
 Review code for:
+
 - Naming conventions, coding styles, error handling patterns
 - DI bypasses, API design inconsistencies
 - File organization and code style across related files
@@ -40,6 +42,7 @@ Review code for:
 ## Step 8: Rules Compliance
 
 Check against loaded rules:
+
 - SOLID/DRY/YAGNI principles
 - File limits (400 lines), function limits (30 lines)
 - Testing standards, dependency injection patterns
@@ -47,6 +50,7 @@ Check against loaded rules:
 ## Step 9: Completeness
 
 Search for incomplete implementations:
+
 - `Grep` for `TODO`, `FIXME`, `HACK` in production code
 - Placeholder implementations, missing error handling
 - Missing tests for public APIs
@@ -54,6 +58,7 @@ Search for incomplete implementations:
 ## Step 10: Test Coverage
 
 Review test quality:
+
 - Public API coverage, edge cases
 - AAA pattern (Arrange, Act, Assert)
 - Pydantic v2 for JSON testing
@@ -61,6 +66,7 @@ Review test quality:
 ## Step 11: Security Assessment
 
 Check for:
+
 - Hardcoded secrets, input validation gaps
 - Secure logging (no sensitive data in logs)
 - Auth/authz issues
@@ -68,6 +74,7 @@ Check for:
 ## Step 12: Performance Review
 
 Check for:
+
 - O(n^2) algorithms, unnecessary allocations
 - Blocking I/O in async contexts
 - Memory leaks, resource cleanup
@@ -87,6 +94,7 @@ Score all 9 metrics (0-10): Architecture, Test Coverage, Documentation, Code Sty
 Each metric score **MUST** cite specific tool output or concrete code evidence. Scores without evidence are invalid. Example: `Test Coverage: 7 — pytest shows 85% coverage, edge cases in test_parser_edge_cases.py`.
 
 #### Architecture Calibration
+
 | Score | Meaning | Evidence Required |
 |---|---|---|
 | 0-2 | Ad-hoc structure, no clear separation of concerns | Code examples showing god objects, tight coupling, or mixed responsibilities |
@@ -96,6 +104,7 @@ Each metric score **MUST** cite specific tool output or concrete code evidence. 
 | 9-10 | Exemplary architecture with strong patterns and extensibility | Concrete examples of patterns (e.g., ports/adapters), clear module contracts, and low coupling |
 
 #### Test Coverage Calibration
+
 | Score | Meaning | Evidence Required |
 |---|---|---|
 | 0-2 | No tests or < 30% coverage | `pytest --cov` output showing < 30% |
@@ -105,6 +114,7 @@ Each metric score **MUST** cite specific tool output or concrete code evidence. 
 | 9-10 | Exhaustive 95%+, mutation testing or property tests | Coverage report + mutation/property test evidence |
 
 #### Documentation Calibration
+
 | Score | Meaning | Evidence Required |
 |---|---|---|
 | 0-2 | Little or no documentation | Missing or empty `README`/docs paths, undocumented public APIs |
@@ -114,6 +124,7 @@ Each metric score **MUST** cite specific tool output or concrete code evidence. 
 | 9-10 | Exceptional docs with tutorials, diagrams, and change history | Evidence of end-to-end guides, architecture diagrams, and maintained changelogs |
 
 #### Code Style Calibration
+
 | Score | Meaning | Evidence Required |
 |---|---|---|
 | 0-2 | Style is chaotic and inconsistent | Examples of mixed naming, indentation, or formatter not applied |
@@ -123,6 +134,7 @@ Each metric score **MUST** cite specific tool output or concrete code evidence. 
 | 9-10 | Near-perfect adherence to standards | Clean linter output and clear alignment with documented style guides |
 
 #### Error Handling Calibration
+
 | Score | Meaning | Evidence Required |
 |---|---|---|
 | 0-2 | Errors ignored or swallowed, no structure | Code showing bare `except`, silent failures, or missing checks |
@@ -132,6 +144,7 @@ Each metric score **MUST** cite specific tool output or concrete code evidence. 
 | 9-10 | Robust error model with domain-specific errors and recovery | Evidence of rich error types, recovery strategies, and clear error contracts |
 
 #### Performance Calibration
+
 | Score | Meaning | Evidence Required |
 |---|---|---|
 | 0-2 | Known bottlenecks or obviously inefficient code | Profiling output or code examples of O(n²+) hot paths without justification |
@@ -141,6 +154,7 @@ Each metric score **MUST** cite specific tool output or concrete code evidence. 
 | 9-10 | Highly optimized with evidence-driven tuning | Benchmark/profiling evidence plus documented optimization decisions |
 
 #### Security Calibration
+
 | Score | Meaning | Evidence Required |
 |---|---|---|
 | 0-2 | Obvious security issues or missing basics | Examples of hardcoded secrets, missing validation, or insecure defaults |
@@ -150,6 +164,7 @@ Each metric score **MUST** cite specific tool output or concrete code evidence. 
 | 9-10 | Exceptional security with defense-in-depth | Concrete examples of threat modeling, layered defenses, and audits |
 
 #### Maintainability Calibration
+
 | Score | Meaning | Evidence Required |
 |---|---|---|
 | 0-2 | Sprawling files, unclear structure, hard to change | Examples of very large files/functions or tangled dependencies |
@@ -159,6 +174,7 @@ Each metric score **MUST** cite specific tool output or concrete code evidence. 
 | 9-10 | Highly maintainable with clear ownership and patterns | Evidence of consistent patterns, clear ownership docs, and low churn cost |
 
 #### Rules Compliance Calibration
+
 | Score | Meaning | Evidence Required |
 |---|---|---|
 | 0-2 | Frequent, severe rule violations | Concrete examples of file/function size violations or missing tests |
@@ -168,6 +184,7 @@ Each metric score **MUST** cite specific tool output or concrete code evidence. 
 | 9-10 | Full compliance with documented standards | Clean check outputs and code examples showing consistent rule adherence |
 
 For each issue found, include:
+
 - Severity (Critical / High / Medium / Low)
 - Location (file:line)
 - Description and suggestion

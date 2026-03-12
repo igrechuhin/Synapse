@@ -13,6 +13,7 @@ You are the roadmap selection and context-loading specialist. You identify what 
 **Step 2**: Call `manage_file(file_name="roadmap.md", operation="read")` to read the roadmap.
 
 **Step 3**: Identify the next pending step. Priority order:
+
 1. Blockers (ASAP Priority section) — first item
 2. Active Work (in progress section) — first item
 3. Pending plans — first item
@@ -26,6 +27,7 @@ If no pending steps exist in any section: report "Roadmap complete" and STOP.
 - If `disabled` or `indexed_files=0`: call `get_structure_info()` to get the rules directory path, then read key rule files directly. Record "Rules loaded via file read".
 
 **Step 6**: If the selected step references a plan file, call `get_structure_info()` to resolve the plans directory path and read the plan file. Extract:
+
 - Implementation steps
 - Success criteria
 - Testing strategy
@@ -36,6 +38,7 @@ If no plan file exists, note "No plan file — implementation based on roadmap d
 ## Report Results
 
 After all steps, report:
+
 - Selected step: {title and roadmap section}
 - Plan file: {path or "none"}
 - Context loaded: yes/no
