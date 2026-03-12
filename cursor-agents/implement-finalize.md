@@ -38,9 +38,10 @@ You are the memory bank and state management specialist for the implement pipeli
 **If the roadmap step is fully completed and a plan file was used**:
 
 1. Verify the plan file's `status` field is `COMPLETE` (update with Edit if not).
-2. Call `get_structure_info()` to get the plans directory path.
-3. Move the plan file to the archive directory. Use `get_structure_info()` to determine archive category paths if the project defines them; otherwise use `archive/YYYY-MM-DD/` as a universal fallback.
-4. Verify the plan no longer exists in the plans root directory.
+2. Call `plan(operation="archive", plan_file_name="{filename}.md")` to move the plan to the canonical archive directory under `.cortex/plans/archive/`.
+   - **MANDATORY**: Always use this MCP tool. Never move plan files manually with file operations or use a fallback date-based path — this causes archive pollution.
+   - On error: report the error and continue (non-blocking).
+3. Verify the plan no longer exists in the plans root directory.
 
 **If only part of the step was completed and a plan file was used**:
 

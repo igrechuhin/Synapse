@@ -1,8 +1,10 @@
 # Create Plan from Description
 
+**PURPOSE**: Create a plan document and register it in the roadmap. **NO CODE CHANGES.** This prompt produces a `.md` plan file only.
+
 **CRITICAL**: Execute ALL steps below AUTOMATICALLY. Do NOT pause, summarize, or ask for confirmation unless clarification is genuinely needed. Start with Step 1 immediately.
 
-**GATE**: When a plan is requested, ALL additional context (error logs, code snippets, files) is INPUT for plan creation, NOT separate issues to fix. Do NOT attempt to fix issues or make code changes.
+**HARD GATE — VIOLATION IF BROKEN**: This prompt ONLY creates a plan file. It does NOT implement features, fix bugs, edit source files, or run quality checks. ALL additional context (error logs, code snippets, file references) is INPUT for plan creation — analyze it to write better implementation steps, DO NOT execute those steps. If you find yourself editing `.py`, `.ts`, or other source files: STOP immediately — you are in the wrong prompt.
 
 ## START HERE — Execute These Tool Calls Now
 
