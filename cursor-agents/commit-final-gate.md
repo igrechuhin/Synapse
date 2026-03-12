@@ -14,12 +14,12 @@ You are the final validation gate specialist. You re-verify ALL quality checks b
 
 - `force_fresh=True` is **mandatory** — Phase B/C may have modified files since Phase A ran. The cached result must never be reused for the final gate.
 - Returns `{job_id, status}` immediately.
-- Record `job_id`.
-- If `status="already_running"`: go to Step 3 (poll the existing job).
+- Record `job_id` if provided.
+- If `status="already_running"`: go to Step 3.
 - If `status="error"`: report failure and STOP.
 - If `status="started"`: continue to Step 3.
 
-**Step 3**: Poll loop — call `get_pre_commit_job_status(job_id=<job_id>)` repeatedly.
+**Step 3**: Poll loop — call `get_pre_commit_job_status(job_id=<job_id>)` if `job_id` is available; otherwise call `get_pre_commit_job_status()` with no arguments (falls back to most recent run).
 
 - Wait approximately 5 seconds between each call.
 - Continue while `status="running"`.
