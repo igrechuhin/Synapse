@@ -61,7 +61,7 @@ Registering the plan in the roadmap is **REQUIRED** — every new or enriched pl
 
 Call `plan(operation="register", plan_title="...", description="...", status="PENDING", section="...")`.
 
-**GATE**: If `plan(operation="register")` fails, STOP and report. **PROHIBITED**: StrReplace or direct Write on roadmap.md — this causes corruption and is a VIOLATION. Use MCP tools only.
+**GATE**: If `plan(operation="register")` fails, STOP and report. **PROHIBITED**: using string-replace or direct file-write tools on roadmap.md — this causes corruption and is a VIOLATION. Use MCP tools only.
 
 Fallback for enriched plans: call `update_memory_bank(operation="roadmap_add", section="...", entry_text="...")`. When using fallback `manage_file(write)`, content must be full, unabridged roadmap (pre-write check: content length must be at least as long as the roadmap as read). Never truncate, never pass shortened or summarized roadmap content.
 

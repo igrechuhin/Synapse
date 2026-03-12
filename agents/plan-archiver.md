@@ -23,7 +23,7 @@ You are a plan archiving specialist ensuring completed plans are properly organi
 - Scan `.cortex/plans/` directory (excluding `.cortex/plans/archive/`) for plan files with completed status
 - **Use `Glob` tool to find plan files**: `Glob(pattern="*.md", path=".cortex/plans")` (excludes archive automatically)
 - **Use `Grep` tool to search for status markers**: `Grep(pattern="Status.*COMPLETE|Status.*COMPLETED|Status.*Complete|✅ COMPLETE|🟢 COMPLETE|\\*\\*Status:\\*\\*.*COMPLETE|^## Status:.*COMPLETED", path=".cortex/plans", files=["*.md"])`
-- **NEVER use shell `find` or `grep`**: Use standard tools (`Glob`, `Grep`, `Read`, `LS`) instead
+- **NEVER use shell `find` or `grep`**: Use standard tools (`Glob`, `Grep`, `Read`) instead
 - **Exclude archive directory**: Ensure `Glob` pattern excludes `.cortex/plans/archive/` (use `path=".cortex/plans"` and filter results)
 - **Exclude non-plan files**: Ignore non-plan files like `README.md`, `QUICK_START.md` when processing results
 - List all matching plan files (must exclude any files in `.cortex/plans/archive/`)
@@ -82,7 +82,7 @@ For each completed plan found:
 
 ## Key Practices
 
-- **Tool usage**: **NEVER use shell `find` or `grep` for file operations. Use standard tools (`Glob`, `Grep`, `Read`, `LS`) instead.**
+- **Tool usage**: **NEVER use shell `find` or `grep` for file operations. Use standard tools (`Glob`, `Grep`, `Read`) instead.**
 - **Detection patterns**: Use multiple patterns to find completed plans (plain text, markdown-formatted, emoji indicators)
 - **Phase extraction**: Extract phase number from filename consistently
 - **Archive structure**: Always create appropriate subdirectories (PhaseX/, Investigations/YYYY-MM-DD/, SessionOptimization/), never place plans directly in archive root

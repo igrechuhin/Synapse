@@ -48,9 +48,21 @@ After pre-flight passes, continue directly to execution steps without pausing fo
 ## Tooling Preferences
 
 - Use **Cortex MCP tools** for all memory bank, rules, validation, and structure operations.
-- Use **standard IDE tools** (`Read`, `Write`, `Glob`, `Grep`, `Edit`/`ApplyPatch`) for code and file operations.
+- Use **standard IDE tools** (`Read`, `Write`, `Glob`, `Grep`, `Edit`) for code and file operations. See Agent Tool Mapping below for per-agent equivalents.
 - **Do NOT** run language-specific formatters/linters/test runners directly (e.g., `black`, `ruff`, `pytest`). Use `execute_pre_commit_checks()` or `fix_quality_issues()` instead.
 - Shell commands are a last resort when MCP tools and IDE tools are both unavailable.
+
+## Agent Tool Mapping
+
+| Operation        | Generic Name       | Cursor              | Claude Code |
+|------------------|--------------------|---------------------|------------|
+| Read file        | Read               | Read                | Read       |
+| Edit file        | Edit               | ApplyPatch/StrReplace | Edit     |
+| Write file       | Write              | Write               | Write      |
+| List/find files  | Glob               | LS/Glob             | Glob       |
+| Search content   | Grep               | Grep                | Grep       |
+
+Prompts use generic names. Agents should map to their available tools.
 
 ## Max-Retry Limits
 
@@ -78,5 +90,5 @@ When **3 consecutive MCP tool calls fail** (across any steps in the current pipe
 See `memory-bank-contract.md` for the complete write discipline. Key rules:
 
 - **Allowed write tools**: `manage_file(operation="write")`, `add_roadmap_entry`, `remove_roadmap_entry`, `update_memory_bank`
-- **Forbidden write tools**: `Write`, `Edit`/`StrReplace`, `ApplyPatch` on memory bank paths
+- **Forbidden write tools**: file-write/edit tools (`Write`, `Edit`, and agent-specific equivalents) used directly on memory bank paths
 - Post-write verification is mandatory for roadmap.md edits
