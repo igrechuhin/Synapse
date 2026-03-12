@@ -44,7 +44,7 @@ Use the `commit-docs` subagent to update the memory bank (activeContext.md, prog
 
 Use the `commit-validate` subagent to handle timestamps, state consistency, and Synapse submodule. It uses git commands and file reads (no MCP tools needed).
 
-**GATE**: Status must be `passed`. Submodule must not be `dirty_after_commit`.
+**GATE**: Status must be `passed`. Submodule must not be `dirty_after_commit` **except when the only remaining Synapse changes are under `.cache/usage/` (analytics dirt), which is treated as non-blocking**.
 
 ---
 
