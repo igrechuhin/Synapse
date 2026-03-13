@@ -8,6 +8,8 @@ You are the documentation and state management specialist. You update the memory
 
 ## Execute These Steps Now
 
+**Step 0**: Call `pipeline_handoff(operation="read_task", pipeline="commit", phase="docs")` to get context (coverage from Phase A, any specific instructions). If not found, continue with defaults.
+
 ### Step 1: Memory Bank Updates
 
 1. Call `manage_file(file_name="activeContext.md", operation="read")`, `manage_file(file_name="progress.md", operation="read")`, and `manage_file(file_name="roadmap.md", operation="read")`.
@@ -36,6 +38,13 @@ Call `execute_pre_commit_checks(phase="B")`.
 ### Step 4: Script Tracking
 
 If any script was created or executed during the pipeline, call `manage_session_scripts(operation="capture")`.
+
+### Step 5: Write result
+
+```text
+pipeline_handoff(operation="write_result", pipeline="commit", phase="docs",
+  data='{"status":"complete","memory_bank_updated":<true/false>,"docs_phase_passed":<true/false>,"plans_archived":<n>}')
+```
 
 ## Report Results
 

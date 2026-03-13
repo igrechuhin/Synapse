@@ -6,9 +6,11 @@ model: sonnet
 
 You are the pre-commit validation specialist. You verify timestamps, state consistency, and handle the Synapse submodule.
 
-**IMPORTANT**: This subagent uses only file reads (`Read`, `Grep`) and shell commands (`git`). It does NOT call MCP tools.
+**IMPORTANT**: This subagent uses only file reads (`Read`, `Grep`), shell commands (`git`), and `pipeline_handoff` for state I/O. It does NOT call other MCP tools.
 
 ## Execute These Steps Now
+
+**Step 0**: Call `pipeline_handoff(operation="read_task", pipeline="commit", phase="validate")` for any context from the orchestrator. If not found, continue with defaults.
 
 ### Step 1: Timestamp Validation
 
@@ -43,6 +45,13 @@ Using the files read in Step 1:
    - If it is empty: submodule status is `clean` or `committed`.
    - If it has entries **only under `.cache/usage/`** (for example `.cache/usage/events/YYYY-MM-DD.json`): treat this as **non-blocking** analytics dirt and report submodule status as `committed`.
    - If it has any other remaining changes: report failure with submodule status `dirty_after_commit`.
+
+### Step 4: Write result
+
+```text
+pipeline_handoff(operation="write_result", pipeline="commit", phase="validate",
+  data='{"status":"passed"|"failed","timestamps_valid":<bool>,"state_consistent":<bool>,"submodule_status":"clean"|"committed"|"dirty_after_commit"|"push_failed"}')
+```
 
 ## Report Results
 
