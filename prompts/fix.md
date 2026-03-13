@@ -4,14 +4,14 @@
 
 ## Target Parameter
 
-This prompt accepts a `target` parameter:
+This prompt accepts an optional `target` parameter:
 
 - **quality** -- Fix type errors, formatting, linting (formerly fix-quality.md)
 - **tests** -- Diagnose and fix failing tests (formerly fix-tests.md)
 - **docs** -- Synchronize documentation and memory bank (formerly docs-sync.md)
 - **all** -- Run all three targets concurrently in parallel (see Parallel Execution below)
 
-**GATE**: A valid `target` must be specified. If missing, ask the user which target they need.
+**GATE**: If `target` is **omitted**, you MUST behave as if `target=all` and run all three targets concurrently in parallel. Do **not** ask the user which target they need when the command is invoked without parameters.
 
 ## Parallel Execution (`all` target)
 

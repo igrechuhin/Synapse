@@ -14,9 +14,13 @@ Each phase must complete before the next begins:
 
 ## Selection — use the `implement-select` subagent
 
-Use the `implement-select` subagent to read the roadmap, identify the next pending step by priority (Blockers first, then Active Work, then Pending plans), load implementation context and rules, and read the plan file if one exists.
+Use the `implement-select` subagent to:
 
-**GATE**: Must return `status: "complete"` before proceeding. If `status: "roadmap_complete"`: report "Roadmap complete" and STOP.
+- Honor any explicit plan reference when `/user-cortex/implement` is invoked with a targeted plan (for example, `/user-cortex/implement @.cortex/plans/<slug>.md`), by passing an `explicit_plan_path` (or equivalent hint) into the subagent and preferring that plan **when it exists and is eligible**.
+- When an explicit plan is missing, archived/COMPLETE, or otherwise ineligible, record a short note or error and fall back to normal roadmap priority selection.
+- When no explicit plan hint is provided, read the roadmap, identify the next pending step by priority (Blockers first, then Active Work, then Pending plans), load implementation context and rules, and read the plan file if one exists.
+
+**GATE**: Must return `status: "complete"` before proceeding. If `status: "roadmap_complete"`: report "Roadmap complete" and STOP. When an explicit plan hint was provided, the report MUST clearly indicate whether the explicit plan was selected, or why it was rejected and roadmap priority was used instead.
 
 ---
 
