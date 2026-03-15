@@ -13,7 +13,8 @@ Each phase must complete before the next begins:
 ## Pipeline Initialization
 
 Before invoking Preflight, call:
-```
+
+```text
 pipeline_handoff(operation="init", pipeline="commit")
 ```
 
@@ -24,7 +25,8 @@ This creates `.cortex/.session/{session_id}/commit/` where all phase inputs and 
 ## Preflight — use the `commit-preflight` subagent
 
 Before invoking:
-```
+
+```text
 pipeline_handoff(operation="write_task", pipeline="commit", phase="preflight",
   data='{}')
 ```
@@ -38,7 +40,8 @@ Use the `commit-preflight` subagent to verify MCP health, load context and rules
 ## Phase A: Pre-Commit Checks — use the `commit-checks` subagent
 
 Before invoking, extract `snapshot_ref` from pipeline state and pass it:
-```
+
+```text
 pipeline_handoff(operation="write_task", pipeline="commit", phase="checks",
   data='{"coverage_threshold": 0.9, "snapshot_ref": "<value from preflight>"}')
 ```
@@ -52,13 +55,15 @@ Use the `commit-checks` subagent to run all pre-commit quality checks via the jo
 - Treat the structured status in `phases.checks` as the **single source of truth** for Phase A.
 - **Never** infer that Phase A passed from log snippets, banners (including any `"✅ All quality checks passed!"` messages), or previous runs.
 - If the quality result reports any **failed** or **skipped** critical checks, Phase A is considered **failed** and the commit pipeline must **stop without creating a commit**.
+- **Markdown lint failure**: The commit-checks subagent MUST capture rumdl errors (file, line, rule code) from the job output and fix them. It runs `fix_quality_issues()` (which includes markdown auto-fix); if markdown errors remain, the subagent MUST apply manual fixes per the **fix.md** quality target (e.g. `[MD076]` in memory-bank files via `manage_file`, `[MD040]`/`[MD031]` via rumdl fmt or targeted edits). Do not treat markdown lint as "non-blocking" or skip it; zero markdown errors are required before Phase A can pass.
 
 ---
 
 ## Phase B: Documentation and State — use the `commit-docs` subagent
 
 Before invoking:
-```
+
+```text
 pipeline_handoff(operation="write_task", pipeline="commit", phase="docs",
   data='{"phase_a_coverage": <value from phases.checks.coverage>}')
 ```
@@ -72,7 +77,8 @@ Use the `commit-docs` subagent to update the memory bank (activeContext.md, prog
 ## Phase C: Validation — use the `commit-validate` subagent
 
 Before invoking:
-```
+
+```text
 pipeline_handoff(operation="write_task", pipeline="commit", phase="validate", data='{}')
 ```
 
@@ -85,7 +91,8 @@ Use the `commit-validate` subagent to handle timestamps, state consistency, and 
 ## Step 12: Final Gate — use the `commit-final-gate` subagent
 
 Before invoking, extract phase_a coverage for comparison:
-```
+
+```text
 pipeline_handoff(operation="write_task", pipeline="commit", phase="final-gate",
   data='{"phase_a_coverage": <value>, "snapshot_ref": "<value from preflight>"}')
 ```
@@ -128,7 +135,8 @@ Push current branch (including `main`) without extra confirmation. Push failures
 Call `analyze(target="context")` then `analyze(target="usage_patterns")`. Non-blocking on connection errors.
 
 Then clean up the pipeline state:
-```
+
+```text
 pipeline_handoff(operation="clear", pipeline="commit")
 ```
 
@@ -145,6 +153,7 @@ pipeline_handoff(operation="clear", pipeline="commit")
 - **Preflight fails (MCP unhealthy)**: STOP — MCP required for all phases
 - **Preflight fails (no changes)**: STOP — nothing to commit
 - **Phase A fails after 3 fix iterations**: STOP, report unresolvable issues
+- **Phase A fails due to markdown lint**: Ensure the commit-checks subagent (a) ran `fix_quality_issues()` with markdown included and, if needed, `uv run rumdl fmt .` for full-repo scope, and (b) captured remaining rumdl issues and applied manual fixes per **fix.md** (e.g. MD076 in activeContext via `manage_file`, MD040/MD031 via code-block edits). Only after zero markdown errors may Phase A pass.
 - **Phase B fails**: Advise `/cortex/fix` with `target=docs`
 - **Phase C submodule fails**: STOP, block commit
 - **Step 12 fails after 3 iterations**: Block commit
@@ -155,9 +164,11 @@ pipeline_handoff(operation="clear", pipeline="commit")
 ## Resuming After Context Compression
 
 If context is lost mid-pipeline, call:
-```
+
+```text
 pipeline_handoff(operation="read_state", pipeline="commit")
 ```
+
 This restores the full record of completed phases, coverage values, snapshot_ref, and submodule status — continue from the first phase not yet in `phases`.
 
 ## Success Criteria

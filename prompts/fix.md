@@ -9,22 +9,20 @@ This prompt accepts an optional `target` parameter:
 - **quality** -- Fix type errors, formatting, linting (formerly fix-quality.md)
 - **tests** -- Diagnose and fix failing tests (formerly fix-tests.md)
 - **docs** -- Synchronize documentation and memory bank (formerly docs-sync.md)
-- **all** -- Run all three targets concurrently in parallel (see Parallel Execution below)
+- **all** -- Run all three targets sequentially (see Sequential Execution below)
 
-**GATE**: If `target` is **omitted**, you MUST behave as if `target=all` and run all three targets concurrently in parallel. Do **not** ask the user which target they need when the command is invoked without parameters.
+**GATE**: If `target` is **omitted**, you MUST behave as if `target=all` and run all three targets sequentially. Do **not** ask the user which target they need when the command is invoked without parameters.
 
-## Parallel Execution (`all` target)
+## Sequential Execution (`all` target)
 
-When `target=all`, launch **three independent subagents simultaneously** — one per target — rather than running them sequentially. Each subagent executes this same prompt with its specific target.
-
-**MANDATORY**: All three agents must start at the same time. Do NOT wait for one to finish before starting another.
+When `target=all`, run targets **one at a time in order**: quality → tests → docs. Do NOT launch concurrent subagents — the MCP connection cannot sustain parallel tool calls from multiple agents and will be killed by the client.
 
 Steps:
 
-1. Launch Agent 1: `fix quality` — runs the quality target workflow below.
-2. Launch Agent 2: `fix tests` — runs the tests target workflow below.
-3. Launch Agent 3: `fix docs` — runs the docs target workflow below.
-4. Collect and merge all three results. Report a combined summary: which targets passed, which had remaining issues, and any cross-target interactions (e.g. quality fixes that affect test outcomes).
+1. Run `fix quality` — complete the full quality workflow below before proceeding.
+2. Run `fix tests` — complete the full tests workflow below before proceeding.
+3. Run `fix docs` — complete the full docs workflow below.
+4. Report a combined summary: which targets passed, which had remaining issues, and any cross-target interactions (e.g. quality fixes that affect test outcomes).
 
 ## Conventions
 
@@ -48,10 +46,16 @@ Per `shared-conventions.md`. Severity: GATE/CHECK/PREFER. Memory bank writes: pe
 
 ### quality
 
-- `execute_pre_commit_checks(checks=["fix_quality"], include_untracked_markdown=True)` for automated fixes (includes rumdl auto-fix for markdown).
+- **Capture markdown errors**: When quality fails (e.g. from CI logs, Phase A output, or `execute_pre_commit_checks(checks=["markdown"])`), parse the rumdl output to extract rule codes, file paths, and line numbers. Treat markdown lint failure as a blocking issue that must be fixed before reporting success.
+- `execute_pre_commit_checks(checks=["fix_quality"], include_untracked_markdown=True)` for automated fixes (includes rumdl auto-fix for markdown). Also run `uv run rumdl fmt .` when full-repo scope is needed (CI parity).
 - `execute_pre_commit_checks(checks=["type_check", "quality", "format", "markdown"], test_timeout=300, coverage_threshold=0.90, strict_mode=False)` for verification.
 - **Do NOT** run `black`, `ruff`, `isort`, or other formatters/linters directly.
-- For remaining non-autofixable markdown issues (`[MD057]` broken links, `[MD046]` unclosed code blocks, `[MD051]` missing fragments): use `Grep`/`Read`/`Edit` tools to locate and fix each issue manually.
+- For remaining non-autofixable markdown issues, fix each manually:
+  - `[MD057]` broken relative links — use `Grep`/`Read` to verify target exists; update or remove the link. History/archive paths may be excluded.
+  - `[MD046]` unclosed code blocks — open the file, find the mismatched fence, close it correctly.
+  - `[MD051]` missing link fragments — correct the fragment anchor or remove it.
+  - `[MD076]` unexpected blank line between list items — remove the blank line so list items are consecutive. For `.cortex/memory-bank/*.md` use `manage_file(file_name="...", operation="write", content=...)`; for other files use `StrReplace`/`Read`+`Write`.
+  - `[MD022]` / `[MD047]` — add the required blank line below heading or ensure file ends with a single newline.
 
 ### tests
 
@@ -95,10 +99,12 @@ Once the checklist is satisfied, **proceed directly through execution steps with
 
 1. **Run automatic quality fixes**: Call `execute_pre_commit_checks(checks=["fix_quality"], include_untracked_markdown=True)`. This runs rumdl auto-fix for markdown alongside Python formatter/linter fixes. Note which files were modified and any remaining issues.
 2. **Address remaining Python issues manually**: For remaining type errors or lint violations, open affected files and apply precise, minimal fixes (respect strict typing, no `Any`, proper DI).
-3. **Address remaining markdown issues manually**: Run `execute_pre_commit_checks(checks=["markdown"])` to get the current rumdl output. For each remaining non-autofixable issue:
+3. **Address remaining markdown issues manually**: Run `execute_pre_commit_checks(checks=["markdown"])` (or `uv run rumdl check .` and parse stderr) to get the current rumdl output. **Capture** each reported issue (file, line, rule code). For each remaining non-autofixable issue:
    - `[MD057]` broken relative links — use `Grep`/`Read` to verify whether the target file exists; if the link is stale (file was moved/deleted), update the link to the correct path or remove it. History files (`.cortex/history/`) may be excluded from fixes since they are read-only archives.
    - `[MD046]` unclosed code blocks — open the file, find the mismatched fence, and close it correctly.
    - `[MD051]` missing link fragments — either correct the fragment anchor or remove the anchor from the link.
+   - `[MD076]` unexpected blank line between list items — remove the blank line between consecutive list items. For files under `.cortex/memory-bank/` use `manage_file(file_name="<name>.md", operation="read")` then `manage_file(..., operation="write", content=...)` with the blank line removed; for other paths use `StrReplace` or `Read`/`Write`.
+   - `[MD022]` / `[MD047]` — add one blank line below the heading or ensure the file ends with a single newline.
    - Other non-autofixable rules — apply the minimal targeted edit to bring the file into compliance.
 4. **Re-run targeted quality checks**: `execute_pre_commit_checks(checks=["type_check", "quality", "format", "markdown"], test_timeout=300, coverage_threshold=0.90, strict_mode=False)`. Verify zero errors.
 5. **Summarize results**: List main classes of issues fixed. Note any remaining non-blocking warnings.

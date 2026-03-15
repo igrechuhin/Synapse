@@ -15,7 +15,8 @@ Each phase must complete before the next begins:
 ## Pipeline Initialization
 
 Before invoking Selection, call:
-```
+
+```text
 pipeline_handoff(operation="init", pipeline="implement")
 ```
 
@@ -26,7 +27,8 @@ This creates `.cortex/.session/{session_id}/implement/` where all phase inputs a
 ## Selection — use the `implement-select` subagent
 
 Before invoking, write the task (include any explicit plan hint if the user provided one):
-```
+
+```text
 pipeline_handoff(operation="write_task", pipeline="implement", phase="select",
   data='{"explicit_plan_path": "<slug or null>"}')
 ```
@@ -44,7 +46,8 @@ Use the `implement-select` subagent to:
 ## Implementation — use the `implement-code` subagent
 
 Before invoking, read the state and forward what `implement-code` needs:
-```
+
+```text
 pipeline_handoff(operation="write_task", pipeline="implement", phase="code",
   data='{"selected_step": "<from phases.select.selected_step>",
          "plan_file": "<from phases.select.plan_file>",
@@ -60,7 +63,8 @@ Use the `implement-code` subagent to scope the smallest meaningful subtask, impl
 ## Finalize — use the `implement-finalize` subagent
 
 Before invoking, forward the implementation result:
-```
+
+```text
 pipeline_handoff(operation="write_task", pipeline="implement", phase="finalize",
   data='{"step_fully_complete": <bool from phases.code.step_fully_complete>,
          "subtask": "<from phases.code.subtask>",
@@ -79,7 +83,8 @@ Use the `implement-finalize` subagent to update the memory bank (activeContext.m
 ## Verify — use the `implement-verify` subagent
 
 Before invoking:
-```
+
+```text
 pipeline_handoff(operation="write_task", pipeline="implement", phase="verify",
   data='{"selected_step": "<from phases.select.selected_step>",
          "step_fully_complete": <bool from phases.code.step_fully_complete>}')
@@ -94,16 +99,19 @@ Use the `implement-verify` subagent to confirm the roadmap and progress entries 
 ## Cleanup
 
 After successful Verify:
-```
+
+```text
 pipeline_handoff(operation="clear", pipeline="implement")
 ```
 
 ## Resuming After Context Compression
 
 If context is lost mid-pipeline, call:
-```
+
+```text
 pipeline_handoff(operation="read_state", pipeline="implement")
 ```
+
 This restores the full record of completed phases — continue from the first phase not yet present in `phases`.
 
 ## Error Handling
