@@ -4,21 +4,19 @@
 
 ## START HERE — Execute These Tool Calls Now
 
-**Step 1**: Call `check_mcp_connection_health()`. If unhealthy, STOP.
+**Step 1**: Call `session()` to verify MCP health and get orientation.
 
-**Step 2**: Call `load_context(task_description="Code review: bugs, consistency, completeness, security, performance", token_budget=4000)`.
+**Step 2**: Determine **review scope** — identify module, directory, or files to review. Check `git diff --name-only` for recently changed files.
 
-**Step 3**: Call `rules(operation="get_relevant", task_description="Code review, coding standards")`. If `disabled`, read rules via `get_structure_info()`.
+**Step 3**: Run `run_quality_gate()` — zero-arg tool that runs all Phase A checks (type, format, lint, tests, markdown). Record the full result.
 
-**Step 4**: Determine **review scope** — identify module, directory, or files to review. Check `git diff --name-only` for recently changed files.
-
-After Step 4, continue to the analysis steps below.
+After Step 3, continue to the analysis steps below.
 
 ---
 
 ## Step 5: Static Analysis
 
-Call `execute_pre_commit_checks(checks=["type_check"])` and `execute_pre_commit_checks(checks=["quality"])`.
+Parse `run_quality_gate()` results from Step 3 for type_check and quality output.
 
 Record: compiler warnings, deprecated API usage, unused imports/variables, type errors.
 
@@ -26,10 +24,10 @@ Record: compiler warnings, deprecated API usage, unused imports/variables, type 
 
 Review code in scope for language-specific bugs:
 
-- **Python**: Unguarded `None`, mutable default args, bare `except:`, async/await misuse, unclosed resources
+- **Python**: Unguarded `None`, mutable default args, bare `except:`, async/await misuse, unclosed resources. **Narrow exception handling**: avoid `except Exception` or bare `except` unless intentional (e.g. top-level fallback with logging); catch specific exceptions (e.g. `json.JSONDecodeError`, `OSError`, `ValidationError`) so bugs and validation failures are not hidden.
 - **All**: Race conditions, logic errors, memory leaks, incorrect error handling, off-by-one
 
-Use `Read` and `Grep` to inspect suspicious patterns.
+Use `Read` and `Grep` to inspect suspicious patterns (e.g. `except Exception`, `except:`).
 
 ## Step 7: Consistency Check
 
@@ -38,6 +36,7 @@ Review code for:
 - Naming conventions, coding styles, error handling patterns
 - DI bypasses, API design inconsistencies
 - File organization and code style across related files
+- **Data modeling**: Prefer Pydantic for internal structures per project rules; flag uses of plain `dict` or `dataclass` where Pydantic would improve consistency, validation, or alignment with project standards
 
 ## Step 8: Rules Compliance
 
@@ -70,6 +69,7 @@ Check for:
 - Hardcoded secrets, input validation gaps
 - Secure logging (no sensitive data in logs)
 - Auth/authz issues
+- **Path and filename safety**: Any string from user input, tool names, or external data that is used in file paths or filenames must be sanitized—no path components (e.g. `../`), no unsafe characters. When code builds paths from variables (e.g. `f"{base}/{tool_name}.md"`), recommend sanitization (e.g. replace non-alphanumeric with a safe delimiter, strip path components) so files cannot be written outside the intended directory
 
 ## Step 12: Performance Review
 
@@ -83,9 +83,8 @@ Check for:
 
 ## Report Assembly
 
-1. Call `get_structure_info()` to get `structure_info.paths.reviews`.
-2. Generate timestamp: run `date +%Y-%m-%dT%H-%M`.
-3. Write report to `{reviews_path}/code-review-report-{timestamp}.md`.
+1. Generate timestamp: run `date +%Y-%m-%dT%H-%M`.
+2. Write report to `.cortex/reviews/code-review-report-{timestamp}.md`.
 
 ### Report Format
 
@@ -138,8 +137,8 @@ Each metric score **MUST** cite specific tool output or concrete code evidence. 
 | Score | Meaning | Evidence Required |
 |---|---|---|
 | 0-2 | Errors ignored or swallowed, no structure | Code showing bare `except`, silent failures, or missing checks |
-| 3-4 | Some error handling, many gaps | Examples of unhandled failure paths or generic error handling |
-| 5-6 | Reasonable handling with a few weak spots | Specific locations with structured errors but some missing propagation or context |
+| 3-4 | Some error handling, many gaps | Examples of unhandled failure paths, generic or overly broad exception handling (e.g. `except Exception` hiding `ValidationError`) |
+| 5-6 | Reasonable handling with a few weak spots | Specific locations with structured errors but some missing propagation, context, or overly broad catches |
 | 7-8 | Consistent, typed, and contextual error handling | Code showing structured errors, clear messages, and consistent propagation |
 | 9-10 | Robust error model with domain-specific errors and recovery | Evidence of rich error types, recovery strategies, and clear error contracts |
 
@@ -160,8 +159,8 @@ Each metric score **MUST** cite specific tool output or concrete code evidence. 
 | 0-2 | Obvious security issues or missing basics | Examples of hardcoded secrets, missing validation, or insecure defaults |
 | 3-4 | Some security measures, many gaps | Specific missing checks, unsafe patterns, or unclear trust boundaries |
 | 5-6 | Reasonable baseline security with a few issues | References to validation, secret handling, and logging with some gaps |
-| 7-8 | Strong security posture following best practices | Evidence of thorough validation, secret management, and safe logging |
-| 9-10 | Exceptional security with defense-in-depth | Concrete examples of threat modeling, layered defenses, and audits |
+| 7-8 | Strong security posture following best practices | Evidence of thorough validation, path/filename sanitization when building paths from variables, secret management, and safe logging |
+| 9-10 | Exceptional security with defense-in-depth | Concrete examples of threat modeling, path safety, layered defenses, and audits |
 
 #### Maintainability Calibration
 
@@ -180,7 +179,7 @@ Each metric score **MUST** cite specific tool output or concrete code evidence. 
 | 0-2 | Frequent, severe rule violations | Concrete examples of file/function size violations or missing tests |
 | 3-4 | Multiple medium-level violations | References to several rules not followed across the codebase |
 | 5-6 | Mostly compliant with some exceptions | Specific, limited rule violations with locations |
-| 7-8 | Strong compliance with minor edge cases | Evidence from checks (e.g., `execute_pre_commit_checks`) plus a few minor issues |
+| 7-8 | Strong compliance with minor edge cases | Evidence from checks (e.g., `run_quality_gate`) plus a few minor issues |
 | 9-10 | Full compliance with documented standards | Clean check outputs and code examples showing consistent rule adherence |
 
 For each issue found, include:
@@ -189,12 +188,21 @@ For each issue found, include:
 - Location (file:line)
 - Description and suggestion
 
+#### Improvement Suggestions
+
+For non-blocking improvements, add a dedicated **Improvement suggestions** section with:
+
+- **Specific, actionable recommendation** and, where helpful, a brief before/after code example
+- **Effort**: Low / Medium / High
+- **Impact**: Low / Medium / High
+- List suggestions in **priority order** (by impact and effort)
+
 ## MCP Tool Usage
 
-- `manage_file(file_name="...", operation="read")` — read memory bank for project context
-- `rules(operation="get_relevant", ...)` — load review rules
-- `get_structure_info()` — get reviews path dynamically
-- `execute_pre_commit_checks(checks=[...])` — run automated checks
+- `session()` — verify health, get orientation
+- `run_quality_gate()` — Phase A quality checks (type, lint, tests, markdown)
+- `manage_file()` — read memory bank files (zero-arg reads activeContext.md)
+- `plan(operation="archive_completed")` — archive completed plans
 
 ## Failure Handling
 

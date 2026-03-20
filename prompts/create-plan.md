@@ -8,21 +8,21 @@
 
 ## START HERE — Execute These Tool Calls Now
 
-**Step 1**: Call `check_mcp_connection_health()`. If unhealthy, STOP.
+**Step 1**: Call `session()` to verify MCP health. If unhealthy, STOP.
 
-**Step 2**: Call `get_structure_info()` to get `structure_info.paths.plans` (absolute path). Use this canonical path for all plan file operations. Do not hardcode `.cortex/plans/` or infer from `structure_info.root` — hardcoding paths is a VIOLATION.
+**Step 2**: Call `manage_file()` (zero-arg reads activeContext.md for orientation). Then read the roadmap: `manage_file(file_name="roadmap.md", operation="read")`. If Cursor strips args and returns activeContext instead, use `Glob` on `.cortex/memory-bank/roadmap.md` and `Read` it directly.
 
-**Step 3**: Call `manage_file(file_name="roadmap.md", operation="read")` to load current roadmap.
+**Step 3**: Read the `cortex://rules` resource for coding standards (zero-arg, reads task from session config). Non-blocking if unavailable.
 
-**Step 4**: Call `rules(operation="get_relevant", task_description="Plan creation, development planning")`. If `disabled`, read rules via the paths from Step 2.
+After Step 3, continue to plan creation below. The steps below define the **implementation sequence**; execute them in order.
 
-After Step 4, continue to plan creation below. The steps below define the **implementation sequence**; execute them in order.
+Plans directory: `.cortex/plans/`. Use `Glob` on `.cortex/plans/*.md` for listing.
 
 ---
 
 ## Step 5: Check for Existing Related Plans
 
-1. List existing plans: use `Glob` on `{plans_path}/*.md` (excluding archive/).
+1. List existing plans: use `Glob` on `.cortex/plans/*.md` (excluding archive/).
 2. For each existing plan with YAML frontmatter, compute similarity score:
    - Same `component` value: +2
    - Same `work_type` value: +1
@@ -44,9 +44,9 @@ Use `think` tool for complex plans to scope the approach.
 
 ## Step 7: Create or Enrich the Plan
 
-**If creating new**: Prefer `plan(operation="create", plan_title="...", description="...", component="...", work_type="...", priority="...", steps=[...])`.
+**If creating new**: Prefer `plan(operation="create", title="...", content="...")`.
 
-Fallback if `plan(operation="create")` is unavailable: write the plan file using `Write` to `{plans_path}/{slug}.md` with this structure:
+Fallback if `plan(operation="create")` fails (Cursor may strip args): write the plan file using `Write` to `.cortex/plans/{slug}.md` with this structure:
 
 - YAML frontmatter (title, component, work_type, status: PENDING, priority, created, depends_on)
 - Goal, Context, Implementation Steps
@@ -69,14 +69,14 @@ Fallback for enriched plans: call `update_memory_bank(operation="roadmap_add", s
 ## Step 9: Verify Completion
 
 1. Verify plan file exists in plans directory: `Read` the file and re-read to confirm.
-2. Verify roadmap was updated: call `manage_file(file_name="roadmap.md", operation="read")` and confirm the entry is present.
+2. Verify roadmap was updated: read `.cortex/memory-bank/roadmap.md` and confirm the entry is present.
 3. Report: plan file path, plan title, roadmap update status.
 
 ---
 
 ## Path Resolution
 
-All paths via `get_structure_info()` and `manage_file()`. Use the absolute path from `structure_info.paths.plans`. Never hardcode `.cortex/` paths.
+Plans: `.cortex/plans/`. Memory bank: `.cortex/memory-bank/`. Use `manage_file()` for memory bank reads/writes, `Read`/`Write` for plan files.
 
 ## Error Handling
 

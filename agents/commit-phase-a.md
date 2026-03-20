@@ -50,7 +50,7 @@ Execute these steps sequentially. Each step must pass before the next:
 6. **Step 3: Code quality** — Delegate to `quality-checker`. **GATE**: Zero file size violations AND zero function length violations.
    - **Steps 3.5-3.6** (PREFER): Run type+quality after each refactor. Before creating helpers, search for existing functions with similar names.
 7. **Step 4: Tests** — Delegate to `test-executor`. **GATE**: 100% pass rate AND coverage >= 90%. For brownfield bootstrapping, check if `progress.md` or `techContext.md` contains a `coverage_threshold` override.
-   - **PREFER**: Call `check_mcp_connection_health()` before if pipeline has been running long.
+   - **PREFER**: Call `health_check()` before if pipeline has been running long.
 
 After all steps pass, delegate to `commit-state-tracker` (`checkpoint_write`) to record Phase A results.
 

@@ -4,19 +4,17 @@
 
 ## START HERE — Pre-Analysis Checklist and First Tool Calls
 
-**Step 1**: Call `check_mcp_connection_health()`. If unhealthy after retry, continue with available steps (partial analysis is better than none).
+**Step 1**: Call `session()` to verify MCP health. If unhealthy after retry, continue with available steps (partial analysis is better than none).
 
-**Step 2**: Call `load_context(task_description="End-of-session analysis: context effectiveness, session optimization", token_budget=4000)`.
+**Step 2**: Call `manage_file()` (zero-arg reads activeContext.md) to load session context.
 
-**Step 3**: Call `manage_file(file_name="activeContext.md", operation="read")` and `manage_file(file_name="progress.md", operation="read")` to load session context.
-
-After Step 3, continue to analysis steps below.
+After Step 2, continue to analysis steps below.
 
 ---
 
 ## Step 4: Context Effectiveness
 
-Call `analyze(target="context")`.
+Read the `cortex://analysis` resource (defaults to context analysis). Or if resource access fails, note "Context effectiveness analysis unavailable" and continue.
 
 If the tool returns data, record: sessions analyzed, calls analyzed, token utilization, precision/recall, role recommendations, zero-budget warnings.
 
@@ -24,7 +22,7 @@ If `no_data` or connection error: note "Context effectiveness analysis unavailab
 
 ## Step 5: Session Optimization
 
-Call `analyze(target="usage_patterns")`.
+Run usage pattern analysis (set `analysis_target` in session config to "usage_patterns", then read `cortex://analysis` resource).
 
 Record: mistake patterns, root causes, optimization recommendations, tool anomalies.
 
@@ -32,7 +30,7 @@ If connection error: note "Session optimization analysis unavailable" and contin
 
 ## Step 6: Tools Optimization
 
-Call `analyze(target="tools")` if available.
+Run tools analysis (set `analysis_target` in session config to "tools", then read `cortex://analysis` resource) if available.
 
 Record: tool budget (registered count vs target of 40), dead tools, duplicates, consolidation candidates. If tool count exceeds 40 target, flag as CRITICAL.
 
@@ -40,10 +38,9 @@ If unavailable: skip and note "Tools optimization skipped (no usage data)".
 
 ## Step 7: Report Assembly
 
-1. Call `get_structure_info()` to get `structure_info.paths.reviews`.
-2. Generate timestamp: run `date +%Y-%m-%dT%H-%M`.
-3. Assemble report combining Steps 4-6 findings using the format below.
-4. Write report to `{reviews_path}/session-optimization-{timestamp}.md`.
+1. Generate timestamp: run `date +%Y-%m-%dT%H-%M`.
+2. Assemble report combining Steps 4-6 findings using the format below.
+3. Write report to `.cortex/reviews/session-optimization-{timestamp}.md`.
 
 ### Output Format
 
@@ -84,7 +81,7 @@ Saved to: {reviews_path}/session-optimization-{timestamp}.md
 
 Call `session(operation="compact")` to compact memory bank. Record token savings and snapshot paths.
 
-Run `fix_markdown_lint()` on the report file to ensure markdown quality.
+Call `fix_quality_issues()` to ensure markdown quality on any modified files.
 
 ## Step 9: Improvements Plan (conditional)
 
@@ -111,4 +108,4 @@ If any MCP tool fails with "Connection closed" (MCP error -32000):
 - Report assembled and saved to reviews directory
 - Memory bank compaction executed
 - Improvements plan created if recommendations exist
-- All paths from `get_structure_info()` (no hardcoded `.cortex/` paths)
+- Report saved to `.cortex/reviews/`

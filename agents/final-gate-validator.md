@@ -41,7 +41,7 @@ When any sub-step finds errors and you fix them, you MUST re-run dependent steps
 
 ### Phase 0: Connection Health
 
-1. Call `check_mcp_connection_health()`
+1. Call `health_check()`
 2. **GATE**: If `health.healthy` is false, wait 2-5 seconds, retry once. If still unhealthy, report failure and STOP.
 
 ### Phase 1: Markdown Re-validation (12.0)
@@ -111,7 +111,7 @@ When any sub-step finds errors and you fix them, you MUST re-run dependent steps
 
 **Ordering**: Tests run LAST because the test suite can take minutes and cause MCP staleness.
 
-1. **Pre-test health check**: Call `check_mcp_connection_health()`. **GATE**: If unhealthy after retry, block commit.
+1. **Pre-test health check**: Call `health_check()`. **GATE**: If unhealthy after retry, block commit.
 2. Run `execute_pre_commit_checks(checks=["tests"], test_timeout=600, coverage_threshold=0.90, strict_mode=False, skip_if_clean=True)`
 3. **CHECK**: Verify `results.tests.success` = true, `results.tests.tests_failed` = 0, `results.tests.pass_rate` = 100.0, `results.tests.coverage` >= 0.90
 4. **GATE**: Block if tests fail OR coverage < 90%

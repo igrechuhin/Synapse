@@ -86,6 +86,20 @@ Clear the checkpoint after successful commit or pipeline abort.
   },
   "files_changed": [],
   "source_files_dirty_since_phase_a": false,
+  "dirty_checks": {
+    "formatting": false,
+    "type_check": false,
+    "quality": false,
+    "tests": false,
+    "markdown_lint": false
+  },
+  "last_clean_results": {
+    "formatting": {"passed": true, "phase": "A", "timestamp": "..."},
+    "type_check": {"passed": true, "phase": "A", "timestamp": "..."},
+    "quality": {"passed": true, "phase": "A", "timestamp": "..."},
+    "tests": {"passed": true, "phase": "A", "timestamp": "..."},
+    "markdown_lint": {"passed": true, "phase": "A", "timestamp": "..."}
+  },
   "errors_encountered": [],
   "fallbacks_used": []
 }
@@ -100,7 +114,9 @@ Clear the checkpoint after successful commit or pipeline abort.
 | `phase_a.coverage` | Coverage from Phase A | Reference for Step 12 |
 | `coverage.step_12_value` | Coverage from final gate | Step 13 precondition |
 | `final_gate.all_passed` | Step 12 aggregate result | Step 13 precondition |
-| `source_files_dirty_since_phase_a` | Whether skip_if_clean applies | Step 12 optimization |
+| `source_files_dirty_since_phase_a` | Whether any source files changed since Phase A | Step 12 dirty-state check |
+| `dirty_checks.*` | Per-check dirty flags (set when fixes modify files) | Step 12 skip decisions |
+| `last_clean_results.*` | Last clean result per check (phase, timestamp) | Step 12 skip decisions |
 | `steps_completed.*` | Per-step outcomes | Step 13 precondition verification |
 
 ## Checkpoint File Location

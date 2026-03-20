@@ -8,91 +8,128 @@ This is part of the **compound-engineering loop** (Plan → Work → Review → 
 
 Each phase must complete before the next begins:
 
-1. **Selection** → 2. **Implementation** → 3. **Finalize** → 4. **Verify**
+1. **Selection** (inline) → 2. **Implementation** (subagent) → 3. **Finalize** (inline) → 4. **Verify** (inline)
 
 ---
 
 ## Pipeline Initialization
 
-Before invoking Selection, call:
+Before starting, call:
 
 ```text
 pipeline_handoff(operation="init", pipeline="implement")
 ```
 
-This creates `.cortex/.session/{session_id}/implement/` where all phase inputs and outputs are stored for the lifetime of this run.
-
 ---
 
-## Selection — use the `implement-select` subagent
+## Selection — run inline (no subagent)
 
-Before invoking, write the task (include any explicit plan hint if the user provided one):
+**IMPORTANT**: Run Selection inline in the orchestrator — do NOT use the `implement-select` subagent. Subagents in Cursor may not have reliable MCP access.
 
+Steps to run inline:
+
+1. Call `session()` to verify MCP health. If unhealthy, STOP.
+2. Read the roadmap: `manage_file(file_name="roadmap.md", operation="read")`. If Cursor strips args, read `.cortex/memory-bank/roadmap.md` directly.
+3. If the user provided an explicit plan hint (e.g. `/cortex/implement @.cortex/plans/<slug>.md`):
+   - Read the referenced plan file directly.
+   - Verify the plan exists and is not archived/COMPLETE.
+   - If eligible, use it as the selected step.
+   - If ineligible, fall back to roadmap priority selection below.
+4. When no eligible explicit plan: identify the next pending step by priority:
+   - Blockers (ASAP Priority) — first item
+   - Active Work (in progress) — first item
+   - Pending plans — first item
+   - If no pending steps exist: report "Roadmap complete" and STOP.
+5. Read the `cortex://context` resource for implementation context (zero-arg, reads task from session config). Non-blocking if unavailable.
+6. Read the `cortex://rules` resource for coding standards. Non-blocking if unavailable.
+7. If the selected step references a plan file, read it directly. Extract implementation steps, success criteria, testing strategy, and which steps are already done.
+8. Write result:
 ```text
-pipeline_handoff(operation="write_task", pipeline="implement", phase="select",
-  data='{"explicit_plan_path": "<slug or null>"}')
+pipeline_handoff(operation="write", pipeline="implement", phase="select",
+  data='{"status":"complete","selected_step":"<title>","plan_file":"<path or null>","selection_source":"explicit_plan"|"roadmap_priority","roadmap_section":"<section>"}')
 ```
 
-Use the `implement-select` subagent to:
-
-- Honor any explicit plan reference when `/user-cortex/implement` is invoked with a targeted plan (for example, `/user-cortex/implement @.cortex/plans/<slug>.md`), by reading `explicit_plan_path` from its task and preferring that plan **when it exists and is eligible**.
-- When an explicit plan is missing, archived/COMPLETE, or otherwise ineligible, record a short note or error and fall back to normal roadmap priority selection.
-- When no explicit plan hint is provided, read the roadmap, identify the next pending step by priority (Blockers first, then Active Work, then Pending plans), load implementation context and rules, and read the plan file if one exists.
-
-**GATE**: Read `pipeline_handoff(operation="read_state", pipeline="implement")` and verify `phases.select.status == "complete"` before proceeding. If `phases.select.status == "roadmap_complete"`: report "Roadmap complete" and STOP.
+**GATE**: Read `pipeline_handoff(operation="read", pipeline="implement")` and verify `phases.select.status == "complete"`. If `phases.select.status == "roadmap_complete"`: report "Roadmap complete" and STOP.
 
 ---
 
 ## Implementation — use the `implement-code` subagent
 
-Before invoking, read the state and forward what `implement-code` needs:
+This is the only phase that uses a subagent (for context isolation during heavy coding work).
+
+Before invoking, write the task:
 
 ```text
-pipeline_handoff(operation="write_task", pipeline="implement", phase="code",
-  data='{"selected_step": "<from phases.select.selected_step>",
-         "plan_file": "<from phases.select.plan_file>",
-         "roadmap_section": "<from phases.select.roadmap_section>"}')
+pipeline_handoff(operation="write", pipeline="implement", phase="code",
+  data='{"selected_step": "<from select>", "plan_file": "<from select>", "roadmap_section": "<from select>"}')
 ```
 
-Use the `implement-code` subagent to scope the smallest meaningful subtask, implement it with tests, and run the quality gate via the job-based API (start + poll).
+Use the `implement-code` subagent to scope the smallest meaningful subtask, implement it with tests, and run the quality gate.
 
 **GATE**: Read state and verify `phases.code.status == "passed"` before proceeding to Finalize.
 
 ---
 
-## Finalize — use the `implement-finalize` subagent
+## Finalize — run inline (no subagent)
 
-Before invoking, forward the implementation result:
+**IMPORTANT**: Run Finalize inline in the orchestrator.
+
+Read the implementation result from pipeline state:
 
 ```text
-pipeline_handoff(operation="write_task", pipeline="implement", phase="finalize",
-  data='{"step_fully_complete": <bool from phases.code.step_fully_complete>,
-         "subtask": "<from phases.code.subtask>",
-         "files_changed": <from phases.code.files_changed>,
-         "coverage": <from phases.code.coverage>,
-         "plan_file": "<from phases.select.plan_file>",
-         "selected_step": "<from phases.select.selected_step>"}')
+pipeline_handoff(operation="read", pipeline="implement")
 ```
 
-Use the `implement-finalize` subagent to update the memory bank (activeContext.md, progress.md, roadmap.md) and handle the plan file (archive if complete, mark IN_PROGRESS if partial).
+Extract: `phases.code.step_fully_complete`, `phases.code.subtask`, `phases.code.files_changed`, `phases.code.coverage`, `phases.select.plan_file`, `phases.select.selected_step`.
 
-**GATE**: Read state and verify `phases.finalize.status == "complete"` before proceeding to Verify.
+**If the roadmap step is fully completed**:
+
+Call `plan(operation="complete", plan_title="{exact roadmap title}", summary="{summary}", plan_file_name="{filename}.md", progress_entry="**{step_title}** - COMPLETE. {summary}", completion_date="YYYY-MM-DD")`.
+
+This single call atomically:
+- Removes the roadmap entry
+- Appends to activeContext under Completed Work
+- Appends to progress.md
+- Moves the plan file to `.cortex/plans/archive/`
+
+**Rule**: Never call `update_memory_bank` for roadmap/activeContext/progress when completing a step — `plan(complete)` handles all of it.
+
+**If only part of the step was completed**:
+
+1. Call `update_memory_bank(operation="progress_append", date_str="YYYY-MM-DD", entry_text="**{step_title}** - PARTIAL. {summary}")`.
+2. Call `update_memory_bank(operation="active_context_append", date_str="YYYY-MM-DD", title="{step_title} (PARTIAL)", summary="{summary}")` only if the partial work materially affects active behavior.
+3. Do NOT remove the roadmap entry.
+4. If a plan file was used: update its status to `IN_PROGRESS` with notes on what's done vs. remaining.
+
+Write result:
+
+```text
+pipeline_handoff(operation="write", pipeline="implement", phase="finalize",
+  data='{"status":"complete","memory_bank_updated":true,"roadmap_entry":"removed"|"kept","plan_file":"archived"|"updated"|"none"}')
+```
+
+**GATE**: Verify `phases.finalize.status == "complete"` before Verify.
 
 ---
 
-## Verify — use the `implement-verify` subagent
+## Verify — run inline (no subagent)
 
-Before invoking:
+**IMPORTANT**: Run Verify inline. Read-only checks only.
+
+1. Read `.cortex/memory-bank/roadmap.md`.
+   - If fully completed: verify the step's entry is absent.
+   - If partial: verify the entry is still present.
+2. Read `.cortex/memory-bank/progress.md`.
+   - Verify a new entry for today exists.
+3. Call `plan(operation="archive_completed")` to archive any remaining plans with `status: COMPLETE`.
+4. Write result:
 
 ```text
-pipeline_handoff(operation="write_task", pipeline="implement", phase="verify",
-  data='{"selected_step": "<from phases.select.selected_step>",
-         "step_fully_complete": <bool from phases.code.step_fully_complete>}')
+pipeline_handoff(operation="write", pipeline="implement", phase="verify",
+  data='{"status":"passed","roadmap_check":"passed","progress_check":"passed","stray_complete_plans":[]}')
 ```
 
-Use the `implement-verify` subagent to confirm the roadmap and progress entries are correct and no stray COMPLETE plans remain in the plans root. Read-only.
-
-**GATE**: Read state and verify `phases.verify.status == "passed"`. If stray COMPLETE plans are reported: archive them before declaring the pipeline complete.
+**GATE**: Verify `phases.verify.status == "passed"`.
 
 ---
 
@@ -109,10 +146,10 @@ pipeline_handoff(operation="clear", pipeline="implement")
 If context is lost mid-pipeline, call:
 
 ```text
-pipeline_handoff(operation="read_state", pipeline="implement")
+pipeline_handoff(operation="read", pipeline="implement")
 ```
 
-This restores the full record of completed phases — continue from the first phase not yet present in `phases`.
+This restores the full record of completed phases — continue from the first phase not yet present.
 
 ## Error Handling
 
@@ -120,7 +157,7 @@ This restores the full record of completed phases — continue from the first ph
 - **Selection returns roadmap_complete**: Report "Roadmap complete" and STOP
 - **Quality gate fails after 3 iterations**: STOP, report unresolvable issues
 - **Finalize fails (memory bank crash)**: STOP, report with FIX-ASAP priority
-- **Quality gate unavailable (doc-only sessions)**: Record "Quality gate skipped — doc-only session" and proceed to Finalize
+- **Quality gate unavailable (doc-only sessions)**: Record "Quality gate skipped" and proceed to Finalize
 
 ## Success Criteria
 

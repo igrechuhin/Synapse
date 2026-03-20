@@ -2,6 +2,8 @@
 
 **CRITICAL**: Execute ALL phases below AUTOMATICALLY. Do NOT pause, summarize, or ask for confirmation between phases. Start with Preflight immediately.
 
+Phase B (Documentation) is the **compound** step of the engineering loop — it updates the memory bank so the next session can build on this work.
+
 ## Sequential Execution Order
 
 Each phase must complete before the next begins:
@@ -22,89 +24,124 @@ This creates `.cortex/.session/{session_id}/commit/` where all phase inputs and 
 
 ---
 
-## Preflight — use the `commit-preflight` subagent
+## Preflight — run inline (no subagent)
 
-Before invoking:
+**IMPORTANT**: Run Preflight inline in the orchestrator — do NOT use the `commit-preflight` subagent.
 
+Steps to run inline:
+
+1. Call `session()` to verify MCP health. If unhealthy, STOP.
+2. Read `cortex://rules` resource for coding standards. Non-blocking if unavailable.
+3. Run `git status` to confirm changes exist. If no changes, STOP.
+4. Run `git stash create`. If a hash is returned, run `git stash store -m "cortex-commit-pipeline-snapshot" <hash>` and record it as `snapshot_ref`. If empty (clean tree), record `snapshot_ref = "HEAD"`.
+5. Write result:
 ```text
-pipeline_handoff(operation="write_task", pipeline="commit", phase="preflight",
-  data='{}')
+pipeline_handoff(operation="write", pipeline="commit", phase="preflight",
+  data='{"status":"complete","snapshot_ref":"<value>","changes_detected":true}')
 ```
 
-Use the `commit-preflight` subagent to verify MCP health, load context and rules, confirm changes exist, and create a rollback snapshot.
-
-**GATE**: Read `pipeline_handoff(operation="read_state", pipeline="commit")` and verify `phases.preflight.status == "complete"` before proceeding to Phase A. The subagent writes its result; never infer pass/fail from text output.
+**GATE**: Verify `phases.preflight.status == "complete"` before proceeding to Phase A.
 
 ---
 
-## Phase A: Pre-Commit Checks — use the `commit-checks` subagent
+## Phase A: Pre-Commit Checks — run inline (no subagent)
 
-Before invoking, extract `snapshot_ref` from pipeline state and pass it:
+**IMPORTANT**: Run Phase A inline in the orchestrator — do NOT use the `commit-checks` subagent. Subagents run in isolated contexts and may not have access to Cortex MCP tools.
 
+Steps to run inline:
+
+1. Call `run_quality_gate()` — zero-arg MCP tool that runs Phase A end-to-end and returns full results. Do NOT use `start_quality_job` + `get_quality_job_status`; in Cursor's MCP bridge those calls receive empty `{}` args.
+2. Parse the result: check `preflight_passed` (bool) and `coverage` (float).
+3. If `preflight_passed: false`: call `fix_quality_issues()`, then call `run_quality_gate()` again. Repeat up to 3 times.
+4. Write result to pipeline state:
 ```text
-pipeline_handoff(operation="write_task", pipeline="commit", phase="checks",
-  data='{"coverage_threshold": 0.9, "snapshot_ref": "<value from preflight>"}')
+pipeline_handoff(operation="write", pipeline="commit", phase="checks",
+  data='{"status":"passed"|"failed","coverage":<value>,"fix_iterations":<n>,"preflight_passed":<bool>,"dirty_checks":{},"last_clean_results":{}}')
 ```
 
-Use the `commit-checks` subagent to run all pre-commit quality checks via the job-based API (start + poll). The subagent starts a detached worker and polls for completion — each individual MCP call is short-lived, avoiding connection timeouts.
-
-**GATE**: Read state and verify `phases.checks.status == "passed"` before proceeding to Phase B.
+**GATE**: Verify `phases.checks.status == "passed"` before proceeding to Phase B.
 
 **Validation rules for Phase A**:
 
 - Treat the structured status in `phases.checks` as the **single source of truth** for Phase A.
 - **Never** infer that Phase A passed from log snippets, banners (including any `"✅ All quality checks passed!"` messages), or previous runs.
 - If the quality result reports any **failed** or **skipped** critical checks, Phase A is considered **failed** and the commit pipeline must **stop without creating a commit**.
-- **Markdown lint failure**: The commit-checks subagent MUST capture rumdl errors (file, line, rule code) from the job output and fix them. It runs `fix_quality_issues()` (which includes markdown auto-fix); if markdown errors remain, the subagent MUST apply manual fixes per the **fix.md** quality target (e.g. `[MD076]` in memory-bank files via `manage_file`, `[MD040]`/`[MD031]` via rumdl fmt or targeted edits). Do not treat markdown lint as "non-blocking" or skip it; zero markdown errors are required before Phase A can pass.
+- **Markdown lint failure**: Call `fix_quality_issues()` (which includes markdown auto-fix); if markdown errors remain, apply manual fixes per **fix.md** (e.g. `[MD076]` in memory-bank files via `manage_file`). Zero markdown errors required before Phase A can pass.
 
 ---
 
-## Phase B: Documentation and State — use the `commit-docs` subagent
+## Phase B: Documentation and State — run inline (no subagent)
 
-Before invoking:
+**IMPORTANT**: Run Phase B inline in the orchestrator — do NOT use the `commit-docs` subagent.
 
+Steps to run inline:
+
+1. Read memory bank files: `manage_file(file_name="activeContext.md", operation="read")`, `manage_file(file_name="progress.md", operation="read")`, `manage_file(file_name="roadmap.md", operation="read")`.
+2. Update files to reflect current changes. Write via `manage_file(file_name="...", operation="write", content="...", change_description="...")`.
+3. Archive completed plans: `plan(operation="archive_completed")` — scans `.cortex/plans/` for `status: COMPLETE`, moves to archive, removes roadmap entries.
+4. Call `run_docs_gate()` — zero-arg MCP tool for Phase B docs/memory-bank validation.
+5. Parse the response. If `docs_phase_passed: false`:
+   - Check `timestamps_result.valid`. If `false`: timestamps have format errors — fix them via `manage_file()` and retry `run_docs_gate()`.
+   - Check `roadmap_sync_result.valid`. If `false`: inspect `roadmap_sync_result` for specific issues. Fix any simple structural issues (stale plan refs, missing entries) via `manage_file()` and retry once. If roadmap_sync still fails after one retry **and timestamps are valid**, treat it as a **non-blocking warning** — record it and proceed to Phase C without blocking the commit.
+6. Write result:
 ```text
-pipeline_handoff(operation="write_task", pipeline="commit", phase="docs",
-  data='{"phase_a_coverage": <value from phases.checks.coverage>}')
+pipeline_handoff(operation="write", pipeline="commit", phase="docs",
+  data='{"status":"complete","memory_bank_updated":true,"docs_phase_passed":<bool>,"plans_archived":<n>,"roadmap_sync_warning":<bool>}')
 ```
 
-Use the `commit-docs` subagent to update the memory bank (activeContext.md, progress.md, roadmap.md), archive completed plans, and validate documentation. This is the **compound** step of the Plan → Work → Review → Compound loop.
-
-**GATE**: Read state and verify `phases.docs.docs_phase_passed == true` before proceeding to Phase C.
+**GATE**: Verify `phases.docs.status == "complete"` before proceeding to Phase C. `docs_phase_passed: false` caused by roadmap_sync only (with timestamps passing) is **non-blocking** — note it and continue.
 
 ---
 
-## Phase C: Validation — use the `commit-validate` subagent
+## Phase C: Validation & Synapse Submodule — run inline (no subagent)
 
-Before invoking:
+**IMPORTANT**: Run Phase C inline in the orchestrator — do NOT use the `commit-validate` subagent.
 
+Steps to run inline:
+
+1. Call `validate(check_type="timestamps")` to check timestamp formats.
+2. Call `validate(check_type="roadmap_sync")` to verify roadmap consistency.
+3. **Synapse submodule handling** — run `cd .cortex/synapse && git status --short`:
+   - **Clean**: `submodule_status = "clean"`. No action needed.
+   - **Dirty** (any changes — analytics, prompts, agents, rules, scripts, etc.):
+     a. Review the diff: `cd .cortex/synapse && git diff --stat` — verify changes are intentional (match current session work or are routine analytics updates).
+     b. Stage all changes: `cd .cortex/synapse && git add -A`.
+     c. Commit inside the submodule: `cd .cortex/synapse && git commit -m "<message>"`. Use conventional commit format describing the Synapse changes (e.g. `chore: update prompts for zero-arg tools, remove inlined cursor-agents`). For analytics-only changes, use `chore: update usage analytics`.
+     d. Record `submodule_status = "committed"` and `synapse_commit_sha` in pipeline state.
+     e. After the submodule commit, the superproject sees a new gitlink — this will be staged in Step 13.
+4. Write result:
 ```text
-pipeline_handoff(operation="write_task", pipeline="commit", phase="validate", data='{}')
+pipeline_handoff(operation="write", pipeline="commit", phase="validate",
+  data='{"status":"passed","timestamps_valid":<bool>,"roadmap_sync_valid":<bool>,"submodule_status":"<clean|committed>","synapse_commit_sha":"<sha or null>"}')
 ```
 
-Use the `commit-validate` subagent to handle timestamps, state consistency, and Synapse submodule. It uses git commands and file reads.
-
-**GATE**: Read state and verify `phases.validate.status == "passed"`. Submodule must not be `dirty_after_commit` **except when the only remaining Synapse changes are under `.cache/usage/` (analytics dirt), which is treated as non-blocking**.
+**GATE**: Verify `phases.validate.status == "passed"`.
 
 ---
 
-## Step 12: Final Gate — use the `commit-final-gate` subagent
+## Step 12: Final Gate — run inline (no subagent)
 
-Before invoking, extract phase_a coverage for comparison:
+**IMPORTANT**: Run Step 12 inline in the orchestrator — do NOT use the `commit-final-gate` subagent.
 
+Steps to run inline:
+
+1. Determine `source_files_dirty_since_phase_a`: `true` if Phase B or C modified any file under `src/` or `tests/`. Phase B typically only modifies `.cortex/memory-bank/` — if so, source is clean.
+2. If `source_files_dirty_since_phase_a == false` AND Phase A passed with all checks clean: skip re-run, write success with `skipped_checks` list.
+3. Otherwise: call `run_quality_gate_fresh()` — zero-arg tool that clears cache and runs Phase A fresh. Do NOT use `start_quality_job(force_fresh=True)`; the bridge zero-args that call.
+4. If any check fails: call `fix_quality_issues()` and retry `run_quality_gate_fresh()` (max 3 iterations).
+5. Write result:
 ```text
-pipeline_handoff(operation="write_task", pipeline="commit", phase="final-gate",
-  data='{"phase_a_coverage": <value>, "snapshot_ref": "<value from preflight>"}')
+pipeline_handoff(operation="write", pipeline="commit", phase="final-gate",
+  data='{"status":"passed"|"failed","coverage":<value>,"fix_loops_executed":<n>,"skipped_checks":[...]}')
 ```
 
-Use the `commit-final-gate` subagent to re-run all quality checks after phases B and C may have modified files. The subagent uses the job-based API (start + poll) and always forces a fresh run.
-
-**GATE**: Read state and verify `phases.final-gate.status == "passed"` before proceeding to Step 13.
+**GATE**: Verify `phases.final-gate.status == "passed"` before proceeding to Step 13.
 
 **Validation rules for Step 12**:
 
 - Rely on `phases.final-gate` structured status, **not** on log snippets or success banners.
 - If any critical check fails or is skipped in this final run, Step 12 is **failed** and you must **block commit creation**.
+- Skipped-clean checks are NOT failures — they are optimizations where a check is trusted from Phase A.
 
 ---
 
@@ -113,10 +150,11 @@ Use the `commit-final-gate` subagent to re-run all quality checks after phases B
 **Preconditions** (verify ALL by reading pipeline state):
 
 1. `phases.final-gate.status == "passed"`
-2. `phases.validate.submodule_status` is non-blocking
-3. All phases present in state
+2. All phases present in state
 
 **Staging**: `git add <path>` for each related file. Never `git add -A`. Never stage `.env*`, credentials, keys, sensitive files.
+
+If `phases.validate.submodule_status == "committed"`: stage the submodule pointer — `git add .cortex/synapse`. This records the new Synapse commit in the superproject.
 
 **Commit message**: Content-descriptive, not process-descriptive. Use conventional commits (`feat:`, `fix:`, `docs:`, `chore:`). Describe WHAT changed. Anti-pattern: "Run full Cortex commit pipeline." Good: "feat: add structured quality config, update activeContext."
 
@@ -126,7 +164,9 @@ Use the `commit-final-gate` subagent to re-run all quality checks after phases B
 
 ## Step 14: Push Branch
 
-Push current branch (including `main`) without extra confirmation. Push failures are non-blocking. SSL errors: retry up to 2 times.
+If `phases.validate.submodule_status == "committed"`: push the Synapse submodule first — `cd .cortex/synapse && git push`. Push the submodule before the superproject so the superproject's gitlink points to a commit that exists on the remote.
+
+Then push the superproject branch (including `main`) without extra confirmation. Push failures are non-blocking. SSL errors: retry up to 2 times.
 
 ---
 
@@ -153,12 +193,13 @@ pipeline_handoff(operation="clear", pipeline="commit")
 - **Preflight fails (MCP unhealthy)**: STOP — MCP required for all phases
 - **Preflight fails (no changes)**: STOP — nothing to commit
 - **Phase A fails after 3 fix iterations**: STOP, report unresolvable issues
-- **Phase A fails due to markdown lint**: Ensure the commit-checks subagent (a) ran `fix_quality_issues()` with markdown included and, if needed, `uv run rumdl fmt .` for full-repo scope, and (b) captured remaining rumdl issues and applied manual fixes per **fix.md** (e.g. MD076 in activeContext via `manage_file`, MD040/MD031 via code-block edits). Only after zero markdown errors may Phase A pass.
-- **Phase B fails**: Advise `/cortex/fix` with `target=docs`
-- **Phase C submodule fails**: STOP, block commit
+- **Phase A fails due to markdown lint**: Call `fix_quality_issues()` (includes markdown auto-fix). If markdown errors remain, apply manual fixes per **fix.md** (e.g. MD076 in memory-bank files via `manage_file`, MD040/MD031 via targeted edits). Zero markdown errors required before Phase A can pass.
+- **Phase B timestamps fail**: Fix timestamp format errors via `manage_file()`, retry `run_docs_gate()`. Timestamps failure IS blocking.
+- **Phase B roadmap_sync fails only**: Non-blocking warning — record it, proceed to Phase C.
+- **Phase C Synapse commit fails** (e.g. merge conflict inside submodule): STOP, block commit, report the submodule error
 - **Step 12 fails after 3 iterations**: Block commit
-- **MCP disconnects**: The start+poll pattern (Phases A and Step 12) makes disconnects non-fatal — each poll call is short. On disconnect during Phase B/C, retry once. Markdown lint fallback: use the fallback command from project rules.
-- **3 consecutive MCP failures**: Circuit-breaker per `shared-conventions.md`. Call `pipeline_handoff(operation="read_state", pipeline="commit")` to restore context after reconnect.
+- **MCP disconnects**: All phase checks use blocking zero-arg tools (`run_quality_gate`, `run_quality_gate_fresh`, `run_docs_gate`) that run end-to-end in a single call. On disconnect, simply retry the tool call.
+- **3 consecutive MCP failures**: Circuit-breaker per `shared-conventions.md`. Call `pipeline_handoff(operation="read", pipeline="commit")` to restore context after reconnect.
 - **On any pipeline failure**: Report phase and error. Offer rollback using `snapshot_ref` from `phases.preflight`. Do NOT auto-rollback.
 
 ## Resuming After Context Compression
@@ -166,7 +207,7 @@ pipeline_handoff(operation="clear", pipeline="commit")
 If context is lost mid-pipeline, call:
 
 ```text
-pipeline_handoff(operation="read_state", pipeline="commit")
+pipeline_handoff(operation="read", pipeline="commit")
 ```
 
 This restores the full record of completed phases, coverage values, snapshot_ref, and submodule status — continue from the first phase not yet in `phases`.

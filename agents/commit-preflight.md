@@ -34,7 +34,7 @@ Per `shared-conventions.md`:
 
 ### Step 3: MCP Health and Rules
 
-1. **GATE**: Call `check_mcp_connection_health()`. If unhealthy, STOP.
+1. **GATE**: Call `health_check()`. If unhealthy, STOP.
 2. **GATE**: Call `rules(operation="get_relevant", task_description="Commit pipeline, test coverage, type fixes, and visibility rules")`. Pipeline MUST NOT proceed without rules. When `rules()` returns `disabled` or `indexed_files=0`, read rule files from the rules directory (path from `get_structure_info()`) and record "Rules loaded: Yes (via file read)".
 3. **CHECK**: Confirm changes exist to commit (`git status`). If no changes, STOP — nothing to commit.
 4. **PREFER**: Use `think` tool to plan which checks apply to current changes.

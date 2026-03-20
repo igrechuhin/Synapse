@@ -355,6 +355,13 @@ def validate_data(data: dict) -> None:
 - **Descriptive Names**: Use `verb_noun` format - MANDATORY
 - **Docstrings**: All public functions MUST have docstrings (Google/NumPy style) - MANDATORY
 - **Parameter Defaults**: Use `None` as default for mutable arguments - MANDATORY
+- **Mutually Exclusive Branches**: When categorizing into exactly one bucket, use `if/elif` (not independent `if` chains) to enforce mutual exclusivity - MANDATORY
+
+## File Operations (ENFORCED)
+
+- **Ensure destination directories exist before copying**: Always call `path.mkdir(parents=True, exist_ok=True)` on the target directory before `shutil.copy2()` or similar copy operations - MANDATORY
+- **Rationale**: `shutil.copy2()` does not create parent directories; relying on upstream code to pre-create them is fragile and causes `FileNotFoundError` at runtime
+- **Pattern**: Place the `mkdir` call as close to the copy as practical (same function, before the loop or before the single copy call)
 
 ## Class Design (ENFORCED)
 
