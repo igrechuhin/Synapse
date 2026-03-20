@@ -44,6 +44,7 @@ Steps to run inline:
 6. Read the `cortex://rules` resource for coding standards. Non-blocking if unavailable.
 7. If the selected step references a plan file, read it directly. Extract implementation steps, success criteria, testing strategy, and which steps are already done.
 8. Write result:
+
 ```text
 pipeline_handoff(operation="write", pipeline="implement", phase="select",
   data='{"status":"complete","selected_step":"<title>","plan_file":"<path or null>","selection_source":"explicit_plan"|"roadmap_priority","roadmap_section":"<section>"}')
@@ -87,6 +88,7 @@ Extract: `phases.code.step_fully_complete`, `phases.code.subtask`, `phases.code.
 Call `plan(operation="complete", plan_title="{exact roadmap title}", summary="{summary}", plan_file_name="{filename}.md", progress_entry="**{step_title}** - COMPLETE. {summary}", completion_date="YYYY-MM-DD")`.
 
 This single call atomically:
+
 - Removes the roadmap entry
 - Appends to activeContext under Completed Work
 - Appends to progress.md

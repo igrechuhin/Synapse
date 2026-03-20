@@ -35,6 +35,7 @@ Steps to run inline:
 3. Run `git status` to confirm changes exist. If no changes, STOP.
 4. Run `git stash create`. If a hash is returned, run `git stash store -m "cortex-commit-pipeline-snapshot" <hash>` and record it as `snapshot_ref`. If empty (clean tree), record `snapshot_ref = "HEAD"`.
 5. Write result:
+
 ```text
 pipeline_handoff(operation="write", pipeline="commit", phase="preflight",
   data='{"status":"complete","snapshot_ref":"<value>","changes_detected":true}')
@@ -54,6 +55,7 @@ Steps to run inline:
 2. Parse the result: check `preflight_passed` (bool) and `coverage` (float).
 3. If `preflight_passed: false`: call `fix_quality_issues()`, then call `run_quality_gate()` again. Repeat up to 3 times.
 4. Write result to pipeline state:
+
 ```text
 pipeline_handoff(operation="write", pipeline="commit", phase="checks",
   data='{"status":"passed"|"failed","coverage":<value>,"fix_iterations":<n>,"preflight_passed":<bool>,"dirty_checks":{},"last_clean_results":{}}')
@@ -79,11 +81,13 @@ Steps to run inline:
 1. Read memory bank files: `manage_file(file_name="activeContext.md", operation="read")`, `manage_file(file_name="progress.md", operation="read")`, `manage_file(file_name="roadmap.md", operation="read")`.
 2. Update files to reflect current changes. Write via `manage_file(file_name="...", operation="write", content="...", change_description="...")`.
 3. Archive completed plans: `plan(operation="archive_completed")` — scans `.cortex/plans/` for `status: COMPLETE`, moves to archive, removes roadmap entries.
-4. Call `run_docs_gate()` — zero-arg MCP tool for Phase B docs/memory-bank validation.
-5. Parse the response. If `docs_phase_passed: false`:
+4. Call `fix_quality_issues()` to auto-fix markdown lint issues in files modified by steps 2-3 (trailing spaces, blank lines, duplicate headings). This prevents Phase B writes from introducing CI-blocking markdown violations.
+5. Call `run_docs_gate()` — zero-arg MCP tool for Phase B docs/memory-bank validation.
+6. Parse the response. If `docs_phase_passed: false`:
    - Check `timestamps_result.valid`. If `false`: timestamps have format errors — fix them via `manage_file()` and retry `run_docs_gate()`.
    - Check `roadmap_sync_result.valid`. If `false`: inspect `roadmap_sync_result` for specific issues. Fix any simple structural issues (stale plan refs, missing entries) via `manage_file()` and retry once. If roadmap_sync still fails after one retry **and timestamps are valid**, treat it as a **non-blocking warning** — record it and proceed to Phase C without blocking the commit.
-6. Write result:
+7. Write result:
+
 ```text
 pipeline_handoff(operation="write", pipeline="commit", phase="docs",
   data='{"status":"complete","memory_bank_updated":true,"docs_phase_passed":<bool>,"plans_archived":<n>,"roadmap_sync_warning":<bool>}')
@@ -110,6 +114,7 @@ Steps to run inline:
      d. Record `submodule_status = "committed"` and `synapse_commit_sha` in pipeline state.
      e. After the submodule commit, the superproject sees a new gitlink — this will be staged in Step 13.
 4. Write result:
+
 ```text
 pipeline_handoff(operation="write", pipeline="commit", phase="validate",
   data='{"status":"passed","timestamps_valid":<bool>,"roadmap_sync_valid":<bool>,"submodule_status":"<clean|committed>","synapse_commit_sha":"<sha or null>"}')
@@ -125,11 +130,12 @@ pipeline_handoff(operation="write", pipeline="commit", phase="validate",
 
 Steps to run inline:
 
-1. Determine `source_files_dirty_since_phase_a`: `true` if Phase B or C modified any file under `src/` or `tests/`. Phase B typically only modifies `.cortex/memory-bank/` — if so, source is clean.
-2. If `source_files_dirty_since_phase_a == false` AND Phase A passed with all checks clean: skip re-run, write success with `skipped_checks` list.
+1. Determine `files_dirty_since_phase_a`: `true` if Phase B or C modified any file that CI validates. This includes `src/`, `tests/`, `.cortex/memory-bank/`, `.cortex/plans/`, `AGENTS.md`, `CLAUDE.md`, and `.cortex/synapse/` (all are markdown-linted in CI). Phase B writes to `.cortex/memory-bank/` — this counts as dirty because CI runs markdown lint on those files.
+2. If `files_dirty_since_phase_a == false` AND Phase A passed with all checks clean: skip re-run, write success with `skipped_checks` list.
 3. Otherwise: call `run_quality_gate_fresh()` — zero-arg tool that clears cache and runs Phase A fresh. Do NOT use `start_quality_job(force_fresh=True)`; the bridge zero-args that call.
 4. If any check fails: call `fix_quality_issues()` and retry `run_quality_gate_fresh()` (max 3 iterations).
 5. Write result:
+
 ```text
 pipeline_handoff(operation="write", pipeline="commit", phase="final-gate",
   data='{"status":"passed"|"failed","coverage":<value>,"fix_loops_executed":<n>,"skipped_checks":[...]}')
