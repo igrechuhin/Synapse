@@ -8,7 +8,7 @@ This is part of the **compound-engineering loop** (Plan → Work → Review → 
 
 Each phase must complete before the next begins:
 
-1. **Selection** (inline) → 2. **Implementation** (subagent) → 3. **Finalize** (inline) → 4. **Verify** (inline)
+1. **Selection** (inline) → 2. **Implementation** (subagent) → 3. **Finalize** (inline) → 4. **Verify** (inline) → 5. **Fix** (inline)
 
 ---
 
@@ -135,9 +135,28 @@ pipeline_handoff(operation="write", pipeline="implement", phase="verify",
 
 ---
 
+## Fix — run inline (no subagent)
+
+**IMPORTANT**: Run Fix inline. This ensures all quality, test, and docs issues are resolved before the session ends. Follow the **fix.md** prompt logic (`target=all`):
+
+1. **Quality**: call `fix_quality_issues()`, then `run_quality_gate()`. If issues remain, fix inline and retry (max 3 iterations).
+2. **Tests**: if `run_quality_gate()` reports test failures, diagnose and fix them (max 3 iterations).
+3. **Docs**: call `run_docs_gate()`. If timestamps or roadmap_sync fail, fix via `manage_file()` and retry (max 3 iterations).
+
+Write result:
+
+```text
+pipeline_handoff(operation="write", pipeline="implement", phase="fix",
+  data='{"status":"passed"|"failed","quality_passed":<bool>,"tests_passed":<bool>,"docs_passed":<bool>,"fix_iterations":<n>}')
+```
+
+**GATE**: `phases.fix.status == "passed"` is recommended but non-blocking — if fix fails after 3 iterations per target, log remaining issues and proceed to Cleanup. The subsequent `/cortex/commit` pipeline will catch any remaining problems.
+
+---
+
 ## Cleanup
 
-After successful Verify:
+After successful Verify and Fix:
 
 ```text
 pipeline_handoff(operation="clear", pipeline="implement")
@@ -168,4 +187,5 @@ This restores the full record of completed phases — continue from the first ph
 - Coverage >= 90% global, >= 95% for new/modified code
 - Memory bank updated (roadmap entry removed or retained correctly, progress added, activeContext updated)
 - Completed plans archived; partial plans marked IN_PROGRESS
+- Fix phase executed (quality + tests + docs all green, or remaining issues logged)
 - Pipeline state cleared
