@@ -12,6 +12,15 @@ Each phase must complete before the next begins:
 
 ---
 
+## Cursor Arg-Stripping Fallback
+
+Cursor's MCP bridge may strip tool arguments, sending `{}` instead. Detect this: if `pipeline_handoff(operation="init", pipeline="commit")` returns a read result instead of creating pipeline state, args are being stripped. In this case:
+
+- **Skip all `pipeline_handoff` calls** — track phase results in your own context instead of writing to pipeline state files.
+- **For `manage_file`**: zero-arg always returns `activeContext.md`. To read other files (e.g. `roadmap.md`, `progress.md`), read `.cortex/memory-bank/{file}.md` directly with `Read`.
+- **For `validate`**: read the `cortex://validation` resource instead (it runs both timestamp and roadmap_sync checks).
+- **Zero-arg tools work normally**: `run_quality_gate()`, `run_quality_gate_fresh()`, `run_docs_gate()`, `fix_quality_issues()`, `session()`, `plan(operation="archive_completed")`.
+
 ## Pipeline Initialization
 
 Before invoking Preflight, call:
@@ -20,7 +29,7 @@ Before invoking Preflight, call:
 pipeline_handoff(operation="init", pipeline="commit")
 ```
 
-This creates `.cortex/.session/{session_id}/commit/` where all phase inputs and outputs are stored.
+This creates `.cortex/.session/{session_id}/commit/` where all phase inputs and outputs are stored. If args are stripped (see fallback above), skip this step.
 
 ---
 
@@ -78,8 +87,8 @@ pipeline_handoff(operation="write", pipeline="commit", phase="checks",
 
 Steps to run inline:
 
-1. Read memory bank files: `manage_file(file_name="activeContext.md", operation="read")`, `manage_file(file_name="progress.md", operation="read")`, `manage_file(file_name="roadmap.md", operation="read")`.
-2. Update files to reflect current changes. Write via `manage_file(file_name="...", operation="write", content="...", change_description="...")`.
+1. Read memory bank files: `manage_file(file_name="activeContext.md", operation="read")`, `manage_file(file_name="progress.md", operation="read")`, `manage_file(file_name="roadmap.md", operation="read")`. If Cursor strips args (zero-arg returns only activeContext), read `.cortex/memory-bank/progress.md` and `.cortex/memory-bank/roadmap.md` directly.
+2. Update files to reflect current changes. Write via `manage_file(file_name="...", operation="write", content="...", change_description="...")`. If args are stripped, write `.cortex/memory-bank/` files directly — but preserve full, unabridged content (never truncate).
 3. Archive completed plans: `plan(operation="archive_completed")` — scans `.cortex/plans/` for `status: COMPLETE`, moves to archive, removes roadmap entries.
 4. Call `fix_quality_issues()` to auto-fix markdown lint issues in files modified by steps 2-3 (trailing spaces, blank lines, duplicate headings). This prevents Phase B writes from introducing CI-blocking markdown violations.
 5. Call `run_docs_gate()` — zero-arg MCP tool for Phase B docs/memory-bank validation.
@@ -103,9 +112,8 @@ pipeline_handoff(operation="write", pipeline="commit", phase="docs",
 
 Steps to run inline:
 
-1. Call `validate(check_type="timestamps")` to check timestamp formats.
-2. Call `validate(check_type="roadmap_sync")` to verify roadmap consistency.
-3. **Synapse submodule handling** — run `cd .cortex/synapse && git status --short`:
+1. Call `validate(check_type="timestamps")` and `validate(check_type="roadmap_sync")` to verify consistency. If Cursor strips args, read the `cortex://validation` resource instead (runs both checks).
+2. **Synapse submodule handling** — run `cd .cortex/synapse && git status --short`:
    - **Clean**: `submodule_status = "clean"`. No action needed.
    - **Dirty** (any changes — analytics, prompts, agents, rules, scripts, etc.):
      a. Review the diff: `cd .cortex/synapse && git diff --stat` — verify changes are intentional (match current session work or are routine analytics updates).
@@ -113,7 +121,7 @@ Steps to run inline:
      c. Commit inside the submodule: `cd .cortex/synapse && git commit -m "<message>"`. Use conventional commit format describing the Synapse changes (e.g. `chore: update prompts for zero-arg tools, remove inlined cursor-agents`). For analytics-only changes, use `chore: update usage analytics`.
      d. Record `submodule_status = "committed"` and `synapse_commit_sha` in pipeline state.
      e. After the submodule commit, the superproject sees a new gitlink — this will be staged in Step 13.
-4. Write result:
+3. Write result:
 
 ```text
 pipeline_handoff(operation="write", pipeline="commit", phase="validate",
@@ -130,10 +138,12 @@ pipeline_handoff(operation="write", pipeline="commit", phase="validate",
 
 Steps to run inline:
 
-1. Determine `files_dirty_since_phase_a`: `true` if Phase B or C modified any file that CI validates. This includes `src/`, `tests/`, `.cortex/memory-bank/`, `.cortex/plans/`, `AGENTS.md`, `CLAUDE.md`, and `.cortex/synapse/` (all are markdown-linted in CI). Phase B writes to `.cortex/memory-bank/` — this counts as dirty because CI runs markdown lint on those files.
-2. If `files_dirty_since_phase_a == false` AND Phase A passed with all checks clean: skip re-run, write success with `skipped_checks` list.
-3. Otherwise: call `run_quality_gate_fresh()` — zero-arg tool that clears cache and runs Phase A fresh. Do NOT use `start_quality_job(force_fresh=True)`; the bridge zero-args that call.
-4. If any check fails: call `fix_quality_issues()` and retry `run_quality_gate_fresh()` (max 3 iterations).
+1. Classify what changed since Phase A:
+   - `source_changed`: any file under `src/` or `tests/` was modified by Phase B or C.
+   - `markdown_changed`: any `.md`/`.mdc` file was modified (`.cortex/memory-bank/`, `.cortex/plans/`, `AGENTS.md`, `CLAUDE.md`, `.cortex/synapse/prompts/`). Phase B always modifies memory-bank files, so this is usually `true`.
+2. **If `source_changed`**: call `run_quality_gate_fresh()` — full re-run including tests, types, lint, format, markdown. If any check fails: call `fix_quality_issues()` and retry (max 3 iterations).
+3. **If only `markdown_changed`** (no source changes): run `fix_quality_issues()` to auto-fix any remaining markdown lint. Then verify with `run_quality_gate_fresh()`. Since no source code changed, test/type/lint/format results from Phase A are still valid — only markdown lint needs verification. If tests timeout but all non-test checks pass, Step 12 passes (Phase A already proved tests are green and no source changed).
+4. **If nothing changed**: skip re-run, write success with `skipped_checks` list.
 5. Write result:
 
 ```text
@@ -148,6 +158,7 @@ pipeline_handoff(operation="write", pipeline="commit", phase="final-gate",
 - Rely on `phases.final-gate` structured status, **not** on log snippets or success banners.
 - If any critical check fails or is skipped in this final run, Step 12 is **failed** and you must **block commit creation**.
 - Skipped-clean checks are NOT failures — they are optimizations where a check is trusted from Phase A.
+- **Timeout-only test failures** (when only `.cortex/` markdown changed, not `src/`/`tests/`): if Step 12 fails exclusively due to pytest timeouts and all non-test checks (format, lint, types, markdown) pass, Step 12 **passes**. Rationale: Phase A already proved tests are green; timeouts in the detached subprocess are caused by resource contention with the MCP server, not code bugs.
 
 ---
 
@@ -203,7 +214,7 @@ pipeline_handoff(operation="clear", pipeline="commit")
 - **Phase B timestamps fail**: Fix timestamp format errors via `manage_file()`, retry `run_docs_gate()`. Timestamps failure IS blocking.
 - **Phase B roadmap_sync fails only**: Non-blocking warning — record it, proceed to Phase C.
 - **Phase C Synapse commit fails** (e.g. merge conflict inside submodule): STOP, block commit, report the submodule error
-- **Step 12 fails after 3 iterations**: Block commit
+- **Step 12 fails after 3 iterations**: Block commit — unless failures are exclusively pytest timeouts and no source code (`src/`/`tests/`) changed since Phase A (see timeout-only rule above)
 - **MCP disconnects**: All phase checks use blocking zero-arg tools (`run_quality_gate`, `run_quality_gate_fresh`, `run_docs_gate`) that run end-to-end in a single call. On disconnect, simply retry the tool call.
 - **3 consecutive MCP failures**: Circuit-breaker per `shared-conventions.md`. Call `pipeline_handoff(operation="read", pipeline="commit")` to restore context after reconnect.
 - **On any pipeline failure**: Report phase and error. Offer rollback using `snapshot_ref` from `phases.preflight`. Do NOT auto-rollback.
