@@ -8,9 +8,20 @@
 
 **Step 2**: Determine **review scope** — identify module, directory, or files to review. Check `git diff --name-only` for recently changed files.
 
+**Telemetry-only diffs**: If `git diff --name-only` lists *only* paths under `.cortex/.session/`, `.cortex/synapse/.cache/`, or other telemetry/metadata-only locations (no `src/`, `tests/`, or other product code), **expand scope** to: (a) every file and location referenced by **OPEN** issues in the **Issue Tracker** from the **most recent** `.cortex/reviews/code-review-report-*.md` (use the report with the greatest lexicographic `code-review-report-*` suffix if unsure), and (b) all files that appear in the last five commits: `git log --oneline -5 --name-only` (union of paths). Review that expanded set—not only the telemetry diff.
+
 **Step 3**: Run `run_quality_gate()` — zero-arg tool that runs all Phase A checks (type, format, lint, tests, markdown). Record the full result.
 
-After Step 3, continue to the analysis steps below.
+After Step 3, run **Step 4**, then continue to the remaining analysis steps.
+
+---
+
+## Step 4: Regression Check
+
+Load the **most recent prior** `.cortex/reviews/code-review-report-*.md` (the newest file strictly before the report you are about to write).
+
+- **Issue regressions**: If an issue was **RESOLVED** (or **WONTFIX**) in that report but the same defect clearly appears again in the current scope, flag it as a **regression** and cite the prior **Issue Tracker** ID. **Regressions are at least High severity.**
+- **Score regressions**: If any of the 9 metric scores **decreased** versus that report, explain the drop with concrete evidence; an unexplained decrease is a **High** severity process gap.
 
 ---
 
@@ -88,9 +99,22 @@ Check for:
 
 ### Report Format
 
+**Before scoring**: Load the most recent `.cortex/reviews/code-review-report-*.md` (same “latest lexicographic suffix” rule as Step 2). From its **Issue Tracker**, **carry forward every OPEN row** into the new report (update Location/Description if the code moved or changed). Mark items **RESOLVED** only when verified fixed in this review, or **WONTFIX** with a one-line rationale. Assign new issues IDs `REV-{YYYY-MM-DD}-{N}` (e.g. `REV-2026-03-21-1`); **N** starts at 1 for each report date and increments per new issue. Allowed statuses: **OPEN**, **RESOLVED**, **WONTFIX**.
+
 Score all 9 metrics (0-10): Architecture, Test Coverage, Documentation, Code Style, Error Handling, Performance, Security, Maintainability, Rules Compliance. Overall = average.
 
+**Score deltas**: After each metric name, show the prior score (from the previous report) and the delta, e.g. `Architecture: 8 (was 8, +0)` or `Error Handling: 7 (was 6, +1)`. If the previous report lacks a metric, write ` (no prior)`. If any metric’s **numeric score is unchanged for 3 or more consecutive reports** (including this one—use prior reports on disk), append **`STALE — requires targeted action plan`** and one sentence naming the stuck area.
+
 Each metric score **MUST** cite specific tool output or concrete code evidence. Scores without evidence are invalid. Example: `Test Coverage: 7 — pytest shows 85% coverage, edge cases in test_parser_edge_cases.py`.
+
+#### Issue Tracker (required in every report)
+
+Include a section titled exactly `## Issue Tracker` with a table:
+
+| ID | First Found | Status | Location | Description |
+
+- **First Found**: report date `YYYY-MM-DD` when the issue was first logged (carry forward unchanged for existing IDs).
+- Rows must cover all carried-forward OPEN issues plus any new findings.
 
 #### Architecture Calibration
 
@@ -190,12 +214,18 @@ For each issue found, include:
 
 #### Improvement Suggestions
 
-For non-blocking improvements, add a dedicated **Improvement suggestions** section with:
+For non-blocking improvements, add a dedicated **Improvement suggestions** section. **Each suggestion is INVALID unless it includes all of:**
 
-- **Specific, actionable recommendation** and, where helpful, a brief before/after code example
-- **Effort**: Low / Medium / High
-- **Impact**: Low / Medium / High
-- List suggestions in **priority order** (by impact and effort)
+1. **Exact `file:line`** for the change (or the anchor location if multi-line).
+2. **Concrete before code** and **concrete after code** (minimal excerpt, enough to apply).
+3. **Single-commit scope**: name at most **3 files** touched for that suggestion; if more are needed, split into separate suggestions.
+
+Also include **Effort** (Low / Medium / High), **Impact** (Low / Medium / High), and list suggestions in **priority order** (by impact and effort).
+
+**Anti-patterns**:
+
+- **BAD**: “Narrow exception handlers across the codebase” (no location, no before/after).
+- **GOOD**: “In `src/cortex/validation/validation_config.py:92`, replace `except Exception` with `except (OSError, json.JSONDecodeError, ValidationError)` — before: `except Exception:` / after: `except (OSError, json.JSONDecodeError, ValidationError):`”
 
 ## MCP Tool Usage
 
@@ -212,6 +242,9 @@ For non-blocking improvements, add a dedicated **Improvement suggestions** secti
 
 ## Success Criteria
 
-- All 8 analysis steps (5-12) completed
-- All 9 metrics scored with reasoning
+- Steps 4–12 completed (regression check, then static analysis through performance)
+- Previous report loaded for issue carry-forward, score deltas, and regression detection
+- All 9 metrics scored with reasoning and deltas (or `no prior` where applicable)
+- **Issue Tracker** section present and complete
+- **Improvement suggestions** meet file:line + before/after + ≤3 files each
 - Report saved to reviews directory
