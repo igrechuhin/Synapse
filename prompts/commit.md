@@ -181,7 +181,7 @@ If `phases.validate.submodule_status == "committed"`: stage the submodule pointe
 
 ## Step 14: Push Branch
 
-If `phases.validate.submodule_status == "committed"`: push the Synapse submodule first — `cd .cortex/synapse && git push`. Push the submodule before the superproject so the superproject's gitlink points to a commit that exists on the remote.
+**Always check Synapse first** — run `cd .cortex/synapse && git log --oneline origin/main..HEAD` to detect unpushed Synapse commits. Do NOT rely solely on `phases.validate.submodule_status` (it may be absent when args are stripped). If there are unpushed Synapse commits, push the submodule first — `cd .cortex/synapse && git push`. Push the submodule before the superproject so the superproject's gitlink points to a commit that exists on the remote.
 
 Then push the superproject branch (including `main`) without extra confirmation. Push failures are non-blocking. SSL errors: retry up to 2 times.
 
