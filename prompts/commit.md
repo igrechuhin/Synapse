@@ -77,7 +77,7 @@ pipeline_handoff(operation="write", pipeline="commit", phase="checks",
 - Treat the structured status in `phases.checks` as the **single source of truth** for Phase A.
 - **Never** infer that Phase A passed from log snippets, banners (including any `"✅ All quality checks passed!"` messages), or previous runs.
 - If the quality result reports any **failed** or **skipped** critical checks, Phase A is considered **failed** and the commit pipeline must **stop without creating a commit**.
-- **Markdown lint failure**: Call `fix_quality_issues()` (which includes markdown auto-fix); if markdown errors remain, apply manual fixes per **fix.md** (e.g. `[MD076]` in memory-bank files via `manage_file`). Zero markdown errors required before Phase A can pass.
+- **Markdown lint failure**: Check `markdown_result.output` in the quality gate response for the exact violations (file:line and rule code). Call `fix_quality_issues()` (which includes markdown auto-fix for fixable rules); if markdown errors remain (e.g. MD036 is not auto-fixable), apply manual fixes per **fix.md** and the violation details. Zero markdown errors required before Phase A can pass.
 
 ---
 
@@ -210,7 +210,7 @@ pipeline_handoff(operation="clear", pipeline="commit")
 - **Preflight fails (MCP unhealthy)**: STOP — MCP required for all phases
 - **Preflight fails (no changes)**: STOP — nothing to commit
 - **Phase A fails after 3 fix iterations**: STOP, report unresolvable issues
-- **Phase A fails due to markdown lint**: Call `fix_quality_issues()` (includes markdown auto-fix). If markdown errors remain, apply manual fixes per **fix.md** (e.g. MD076 in memory-bank files via `manage_file`, MD040/MD031 via targeted edits). Zero markdown errors required before Phase A can pass.
+- **Phase A fails due to markdown lint**: Read `markdown_result.output` for exact violations (file:line, rule code). Call `fix_quality_issues()` (includes markdown auto-fix for fixable rules). If errors remain (e.g. MD036 is not auto-fixable), apply manual fixes using the violation details. Zero markdown errors required before Phase A can pass.
 - **Phase B timestamps fail**: Fix timestamp format errors via `manage_file()`, retry `run_docs_gate()`. Timestamps failure IS blocking.
 - **Phase B roadmap_sync fails only**: Non-blocking warning — record it, proceed to Phase C.
 - **Phase C Synapse commit fails** (e.g. merge conflict inside submodule): STOP, block commit, report the submodule error
