@@ -103,7 +103,7 @@ Check for:
 
 Score all 9 metrics (0-10): Architecture, Test Coverage, Documentation, Code Style, Error Handling, Performance, Security, Maintainability, Rules Compliance. Overall = average.
 
-**Score deltas**: After each metric name, show the prior score (from the previous report) and the delta, e.g. `Architecture: 8 (was 8, +0)` or `Error Handling: 7 (was 6, +1)`. If the previous report lacks a metric, write ` (no prior)`. If any metric’s **numeric score is unchanged for 3 or more consecutive reports** (including this one—use prior reports on disk), append **`STALE — requires targeted action plan`** and one sentence naming the stuck area.
+**Score deltas**: After each metric name, show the prior score (from the previous report) and the delta, e.g. `Architecture: 8 (was 8, +0)` or `Error Handling: 7 (was 6, +1)`. If the previous report lacks a metric, write the literal *(no prior)* (not a score). If any metric’s **numeric score is unchanged for 3 or more consecutive reports** (including this one—use prior reports on disk), append **`STALE — requires targeted action plan`** and one sentence naming the stuck area.
 
 Each metric score **MUST** cite specific tool output or concrete code evidence. Scores without evidence are invalid. Example: `Test Coverage: 7 — pytest shows 85% coverage, edge cases in test_parser_edge_cases.py`.
 
