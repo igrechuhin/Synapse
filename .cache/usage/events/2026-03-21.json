@@ -119818,5 +119818,50 @@
     "param_validation_failure": null,
     "result_used": null,
     "response_tokens": 399
+  },
+  {
+    "id": "6e0a47ea-7383-4735-a1bf-230481459e9b",
+    "tool_name": "pipeline_handoff",
+    "timestamp": "2026-03-21T08:11:13.839438+00:00",
+    "duration_ms": 1.115125,
+    "success": true,
+    "error_type": null,
+    "params_hash": null,
+    "handler_kind": "tool",
+    "result_summary": null,
+    "retry_count": 0,
+    "param_validation_failure": null,
+    "result_used": null,
+    "response_tokens": 52
+  },
+  {
+    "id": "78b2eb91-fe7c-489d-b520-8a3b3526793e",
+    "tool_name": "fix_quality_issues",
+    "timestamp": "2026-03-21T08:11:18.193419+00:00",
+    "duration_ms": 1752.266334,
+    "success": true,
+    "error_type": null,
+    "params_hash": null,
+    "handler_kind": "tool",
+    "result_summary": null,
+    "retry_count": 0,
+    "param_validation_failure": null,
+    "result_used": null,
+    "response_tokens": 61
+  },
+  {
+    "id": "a26ff7ce-aa78-4b32-af75-f007df4023a6",
+    "tool_name": "run_quality_gate_fresh",
+    "timestamp": "2026-03-21T08:11:18.495644+00:00",
+    "duration_ms": 2006.37675,
+    "success": true,
+    "error_type": null,
+    "params_hash": null,
+    "handler_kind": "tool",
+    "result_summary": null,
+    "retry_count": 0,
+    "param_validation_failure": null,
+    "result_used": null,
+    "response_tokens": 263
   }
 ]
