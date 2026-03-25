@@ -42,7 +42,7 @@ Steps to run inline:
 1. Call `session()` to verify MCP health. If unhealthy, STOP.
 2. Read `cortex://rules` resource for coding standards. Non-blocking if unavailable.
 3. Run `git status` to confirm changes exist. If no changes, STOP.
-4. Run `git stash create`. If a hash is returned, run `git stash store -m "cortex-commit-pipeline-snapshot" <hash>` and record it as `snapshot_ref`. If empty (clean tree), record `snapshot_ref = "HEAD"`. **Symlink fallback**: if `git stash create` fails with "beyond a symbolic link" (common when `.cursor/memory-bank` or `.cursor/plans` are symlinks to `.cortex/`), record `snapshot_ref = "HEAD"` and continue — this is non-blocking.
+4. Run `git stash create`. If a hash is returned, run `git stash store -m "cortex-commit-pipeline-snapshot" <hash>` and record it as `snapshot_ref`. If empty (clean tree), record `snapshot_ref = "HEAD"`. **Symlink fallback**: if `git stash create` fails with "beyond a symbolic link" (common when `.cortex/memory-bank` or `.cortex/plans` are symlinked in local workflows), record `snapshot_ref = "HEAD"` and continue — this is non-blocking.
 5. **Synapse pre-stage (required before Phase A)**: Run `git -C .cortex/synapse status --short` (or `git submodule status`). If the synapse submodule shows `+` (OUT_OF_SYNC / pointer mismatch) or any dirty state:
    a. Run `git -C .cortex/synapse status --porcelain -- :/ :(exclude).cache` to check for real uncommitted changes.
    b. If dirty (excluding `.cache`): commit inside — `git -C .cortex/synapse add -A -- :/ :(exclude).cache && git -C .cortex/synapse commit -m "chore: update usage analytics"`.
@@ -215,7 +215,7 @@ pipeline_handoff(operation="clear", pipeline="commit")
 
 - **Preflight fails (MCP unhealthy)**: STOP — MCP required for all phases
 - **Preflight fails (no changes)**: STOP — nothing to commit
-- **Preflight `git stash create` fails with "beyond a symbolic link"**: Non-blocking — use `snapshot_ref = "HEAD"` and continue. This is expected in TradeWing because `.cursor/memory-bank` and `.cursor/plans` are symlinks to `.cortex/`.
+- **Preflight `git stash create` fails with "beyond a symbolic link"**: Non-blocking — use `snapshot_ref = "HEAD"` and continue. This is expected in TradeWing because `.cortex/memory-bank` and `.cortex/plans` may be symlinked in local workflows.
 - **Phase A fails after 3 fix iterations**: STOP, report unresolvable issues
 - **Phase A fails due to markdown lint**: Read `markdown_result.output` for exact violations (file:line, rule code). Call `fix_quality_issues()` (includes markdown auto-fix for fixable rules). If errors remain (e.g. MD036 is not auto-fixable), apply manual fixes using the violation details. Zero markdown errors required before Phase A can pass.
 - **Phase B timestamps fail**: Fix timestamp format errors via `manage_file()`, retry `run_docs_gate()`. Timestamps failure IS blocking.
