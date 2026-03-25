@@ -42,8 +42,13 @@ Steps to run inline:
 1. Call `session()` to verify MCP health. If unhealthy, STOP.
 2. Read `cortex://rules` resource for coding standards. Non-blocking if unavailable.
 3. Run `git status` to confirm changes exist. If no changes, STOP.
-4. Run `git stash create`. If a hash is returned, run `git stash store -m "cortex-commit-pipeline-snapshot" <hash>` and record it as `snapshot_ref`. If empty (clean tree), record `snapshot_ref = "HEAD"`.
-5. Write result:
+4. Run `git stash create`. If a hash is returned, run `git stash store -m "cortex-commit-pipeline-snapshot" <hash>` and record it as `snapshot_ref`. If empty (clean tree), record `snapshot_ref = "HEAD"`. **Symlink fallback**: if `git stash create` fails with "beyond a symbolic link" (common when `.cursor/memory-bank` or `.cursor/plans` are symlinks to `.cortex/`), record `snapshot_ref = "HEAD"` and continue — this is non-blocking.
+5. **Synapse pre-stage (required before Phase A)**: Run `git -C .cortex/synapse status --short` (or `git submodule status`). If the synapse submodule shows `+` (OUT_OF_SYNC / pointer mismatch) or any dirty state:
+   a. Run `git -C .cortex/synapse status --porcelain -- :/ :(exclude).cache` to check for real uncommitted changes.
+   b. If dirty (excluding `.cache`): commit inside — `git -C .cortex/synapse add -A -- :/ :(exclude).cache && git -C .cortex/synapse commit -m "chore: update usage analytics"`.
+   c. Stage the updated gitlink in the superproject: `git add .cortex/synapse`.
+   This ensures Phase A's submodule hygiene check sees a clean, in-sync submodule.
+6. Write result:
 
 ```text
 pipeline_handoff(operation="write", pipeline="commit", phase="preflight",
@@ -77,7 +82,8 @@ pipeline_handoff(operation="write", pipeline="commit", phase="checks",
 - Treat the structured status in `phases.checks` as the **single source of truth** for Phase A.
 - **Never** infer that Phase A passed from log snippets, banners (including any `"✅ All quality checks passed!"` messages), or previous runs.
 - If the quality result reports any **failed** or **skipped** critical checks, Phase A is considered **failed** and the commit pipeline must **stop without creating a commit**.
-- **Markdown lint failure**: Check `markdown_result.output` in the quality gate response for the exact violations (file:line and rule code). Call `fix_quality_issues()` (which includes markdown auto-fix for fixable rules); if markdown errors remain (e.g. MD036 is not auto-fixable), apply manual fixes per **fix.md** and the violation details. Zero markdown errors required before Phase A can pass.
+- **Markdown lint failure**: Check `markdown_result.output` in the quality gate response for the exact violations (file:line and rule code). Call `fix_quality_issues()` (which includes markdown auto-fix for fixable rules); if markdown errors remain (e.g. MD036 is not auto-fixable), apply manual fixes per **fix.md** and the violation details. Zero markdown errors required before Phase A can pass. **SwiftPM note**: if violations are in `.build/checkouts/**` (external Swift package dependency docs), these are suppressed by the Cortex quality gate's `.build` exclude — if they still appear, the Cortex server is outdated; update it.
+- **Submodule hygiene failure**: If Phase A fails with `submodule_hygiene`, Preflight step 5 (synapse pre-stage) was not executed or did not complete. Go back and run Preflight step 5 now: commit any changes inside `.cortex/synapse` (excluding `.cache`), then `git add .cortex/synapse` in the superproject. Then retry `run_quality_gate()`.
 
 ---
 
@@ -209,6 +215,7 @@ pipeline_handoff(operation="clear", pipeline="commit")
 
 - **Preflight fails (MCP unhealthy)**: STOP — MCP required for all phases
 - **Preflight fails (no changes)**: STOP — nothing to commit
+- **Preflight `git stash create` fails with "beyond a symbolic link"**: Non-blocking — use `snapshot_ref = "HEAD"` and continue. This is expected in TradeWing because `.cursor/memory-bank` and `.cursor/plans` are symlinks to `.cortex/`.
 - **Phase A fails after 3 fix iterations**: STOP, report unresolvable issues
 - **Phase A fails due to markdown lint**: Read `markdown_result.output` for exact violations (file:line, rule code). Call `fix_quality_issues()` (includes markdown auto-fix for fixable rules). If errors remain (e.g. MD036 is not auto-fixable), apply manual fixes using the violation details. Zero markdown errors required before Phase A can pass.
 - **Phase B timestamps fail**: Fix timestamp format errors via `manage_file()`, retry `run_docs_gate()`. Timestamps failure IS blocking.
