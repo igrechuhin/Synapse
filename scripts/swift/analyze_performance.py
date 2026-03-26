@@ -128,7 +128,7 @@ def main() -> None:
         if not findings:
             continue
         print(f"\n{icons[severity]} {severity} ({len(findings)} finding(s)):")
-        for sev, label, lineno, rel in findings:
+        for _sev, label, lineno, rel in findings:
             print(f"  {rel}:{lineno}: {label}")
 
     print(f"\nTotal findings: {total}")

@@ -99,8 +99,7 @@ def main() -> None:
 
     if all_violations:
         print(
-            "❌ Force-unwrap (!) detected in production code "
-            "(use guard/if let instead):",
+            "❌ Force-unwrap (!) detected in production code (use guard/if let instead):",
             file=sys.stderr,
         )
         print(file=sys.stderr)

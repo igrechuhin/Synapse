@@ -89,7 +89,7 @@ def main() -> None:
     targets_obj = pkg.get("targets")
     targets: list[dict[str, object]] = []
     if isinstance(targets_obj, list):
-        for item in targets_obj:
+        for item in cast(list[object], targets_obj):
             if isinstance(item, dict):
                 targets.append(cast(dict[str, object], item))
     violations: list[str] = []

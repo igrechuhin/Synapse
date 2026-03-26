@@ -60,8 +60,7 @@ def main() -> None:
 
     if modified:
         print(
-            "❌ Manually modified .pb.swift files detected "
-            "(edit .proto files and regenerate instead):",
+            "❌ Manually modified .pb.swift files detected (edit .proto files and regenerate instead):",
             file=sys.stderr,
         )
         print(file=sys.stderr)

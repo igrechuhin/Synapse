@@ -27,15 +27,23 @@ MAX_COMPLEXITY = get_config_int("MAX_COMPLEXITY", 10)
 _GENERATED_SUFFIXES = (".pb.swift", ".generated.swift")
 
 _FUNC_START_RE = re.compile(
-    r"^\s*(?:(?:public|internal|private|fileprivate|open|override|"
-    r"mutating|static|class|final|async|throws)\s+)*"
-    r"(?:func|init)\b"
+    "".join(
+        [
+            r"^\s*(?:(?:public|internal|private|fileprivate|open|override|",
+            r"mutating|static|class|final|async|throws)\s+)*",
+            r"(?:func|init)\b",
+        ]
+    )
 )
 
 _COMPLEXITY_RE = re.compile(
-    r"\b(?:if|guard|for|while|switch|catch)\b"
-    r"|(?:case\s+\w)"
-    r"|&&|\|\||\?\?|\bwhere\b"
+    "".join(
+        [
+            r"\b(?:if|guard|for|while|switch|catch)\b",
+            r"|(?:case\s+\w)",
+            r"|&&|\|\||\?\?|\bwhere\b",
+        ]
+    )
 )
 
 
@@ -102,8 +110,7 @@ def check_file(path: Path, project_root: Path) -> list[str]:
             complexity = 1 + sum(len(_COMPLEXITY_RE.findall(ln)) for ln in body)
             if complexity > MAX_COMPLEXITY:
                 violations.append(
-                    f"  {rel}:{func_line}: {func_name}() — "
-                    f"complexity {complexity} (max: {MAX_COMPLEXITY})"
+                    f"  {rel}:{func_line}: {func_name}() — complexity {complexity} (max: {MAX_COMPLEXITY})"
                 )
             i += len(body)
         else:

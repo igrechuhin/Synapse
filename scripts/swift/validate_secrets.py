@@ -109,8 +109,7 @@ def main() -> None:
     if total_violations > 0:
         print(file=sys.stderr)
         print(
-            f"Secret scan found {total_violations} violation(s). "
-            "Use environment variables instead of hardcoded values.",
+            f"Secret scan found {total_violations} violation(s). Use environment variables instead of hardcoded values.",
             file=sys.stderr,
         )
         sys.exit(1)

@@ -47,8 +47,7 @@ def main() -> None:
 
     if len(factory_files) > 1:
         print(
-            f"❌ Multiple *Factory*.swift files in {indicators_dir} "
-            f"(must be exactly one):",
+            f"❌ Multiple *Factory*.swift files in {indicators_dir} (must be exactly one):",
             file=sys.stderr,
         )
         for f in factory_files:

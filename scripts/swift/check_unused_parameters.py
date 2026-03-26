@@ -95,8 +95,7 @@ def main() -> None:
             print(f"  {w}", file=sys.stderr)
         print(file=sys.stderr)
         print(
-            f"Found {len(warnings)} unused parameter warning(s). "
-            "Fix all before committing.",
+            f"Found {len(warnings)} unused parameter warning(s). Fix all before committing.",
             file=sys.stderr,
         )
         sys.exit(1)

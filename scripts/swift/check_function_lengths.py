@@ -27,9 +27,13 @@ MAX_FUNCTION_LINES = get_config_int("MAX_FUNCTION_LINES", 30)
 _GENERATED_SUFFIXES = (".pb.swift", ".generated.swift")
 
 _FUNC_START_RE = re.compile(
-    r"^\s*(?:(?:public|internal|private|fileprivate|open|override|"
-    r"mutating|static|class|final|async|throws)\s+)*"
-    r"(?:func|init|subscript)\b"
+    "".join(
+        [
+            r"^\s*(?:(?:public|internal|private|fileprivate|open|override|",
+            r"mutating|static|class|final|async|throws)\s+)*",
+            r"(?:func|init|subscript)\b",
+        ]
+    )
 )
 
 
@@ -108,8 +112,7 @@ def check_file(path: Path, project_root: Path) -> list[str]:
             if logical > MAX_FUNCTION_LINES:
                 excess = logical - MAX_FUNCTION_LINES
                 violations.append(
-                    f"  {rel}:{func_line}: {func_name}() — "
-                    f"{logical} lines (max: {MAX_FUNCTION_LINES}, excess: {excess})"
+                    f"  {rel}:{func_line}: {func_name}() — {logical} lines (max: {MAX_FUNCTION_LINES}, excess: {excess})"
                 )
             i = body_start + 1
         else:

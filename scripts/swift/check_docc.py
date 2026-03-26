@@ -30,12 +30,20 @@ STRICT = get_config_int("STRICT", 0)
 _GENERATED_SUFFIXES = (".pb.swift", ".generated.swift")
 
 _PUBLIC_TYPE_RE = re.compile(
-    r"^\s*(?:public|open)\s+(?:final\s+)?"
-    r"(?:struct|class|enum|actor|protocol)\s+(\w+)"
+    "".join(
+        [
+            r"^\s*(?:public|open)\s+(?:final\s+)?",
+            r"(?:struct|class|enum|actor|protocol)\s+(\w+)",
+        ]
+    )
 )
 _PUBLIC_FUNC_RE = re.compile(
-    r"^\s*(?:public|open)\s+(?:override\s+)?(?:static\s+)?(?:final\s+)?"
-    r"(?:mutating\s+)?(?:async\s+)?func\s+(\w+)"
+    "".join(
+        [
+            r"^\s*(?:public|open)\s+(?:override\s+)?(?:static\s+)?(?:final\s+)?",
+            r"(?:mutating\s+)?(?:async\s+)?func\s+(\w+)",
+        ]
+    )
 )
 _DOC_COMMENT_RE = re.compile(r"^\s*///")
 
@@ -126,15 +134,13 @@ def main() -> None:
 
     if len(all_gaps) > DOC_GAP_THRESHOLD:
         print(
-            f"\n❌ {len(all_gaps)} doc gap(s) exceed threshold of {DOC_GAP_THRESHOLD}. "
-            "Record as finding and fix before commit.",
+            f"\n❌ {len(all_gaps)} doc gap(s) exceed threshold of {DOC_GAP_THRESHOLD}. Record as finding and fix before commit.",
             file=sys.stderr,
         )
         sys.exit(1)
 
     print(
-        f"\nNote: {len(all_gaps)} doc gap(s) found (below threshold {DOC_GAP_THRESHOLD}). "
-        "Consider recording as a finding."
+        f"\nNote: {len(all_gaps)} doc gap(s) found (below threshold {DOC_GAP_THRESHOLD}). Consider recording as a finding."
     )
     sys.exit(0)
 

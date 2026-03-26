@@ -25,8 +25,12 @@ except ImportError:
 _GENERATED_SUFFIXES = (".pb.swift", ".generated.swift")
 
 _PUBLIC_TYPE_RE = re.compile(
-    r"^\s*(?:public|open|internal)\s+(?:final\s+)?"
-    r"(?:struct|class|enum|actor|protocol)\s+(\w+)"
+    "".join(
+        [
+            r"^\s*(?:public|open|internal)\s+(?:final\s+)?",
+            r"(?:struct|class|enum|actor|protocol)\s+(\w+)",
+        ]
+    )
 )
 
 

@@ -108,8 +108,7 @@ def main() -> None:
         print("⚠️  File size warnings (approaching limit):", file=sys.stderr)
         for path, lines in sorted(warnings_list, key=lambda x: -x[1]):
             print(
-                f"  {rel(path)}: {lines} lines "
-                f"(warn >{WARN_FILE_LINES}, max {MAX_FILE_LINES})",
+                f"  {rel(path)}: {lines} lines (warn >{WARN_FILE_LINES}, max {MAX_FILE_LINES})",
                 file=sys.stderr,
             )
         print(file=sys.stderr)

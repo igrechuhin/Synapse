@@ -62,8 +62,7 @@ def check_file(path: Path, project_root: Path) -> list[str]:
             func_name = m.group(1)
             if not _VALID_NAME_RE.match(func_name):
                 violations.append(
-                    f"  {rel}:{i}: '{func_name}' — "
-                    "expected test_behaviorDescription_whenCondition"
+                    f"  {rel}:{i}: '{func_name}' — expected test_behaviorDescription_whenCondition"
                 )
     return violations
 
@@ -98,8 +97,7 @@ def main() -> None:
             print(v, file=sys.stderr)
         print(file=sys.stderr)
         print(
-            f"Found {len(all_violations)} naming violation(s). "
-            "Follow: test_behaviorDescription_whenCondition",
+            f"Found {len(all_violations)} naming violation(s). Follow: test_behaviorDescription_whenCondition",
             file=sys.stderr,
         )
         sys.exit(1)

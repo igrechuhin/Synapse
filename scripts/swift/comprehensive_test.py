@@ -151,11 +151,13 @@ def main() -> None:
             failed += 1
 
     elapsed = (datetime.datetime.now() - start).seconds
-    summary = (
-        f"\n---\n## Summary\n\n"
-        f"- Passed: {passed}\n"
-        f"- Failed: {failed}\n"
-        f"- Duration: {elapsed}s\n"
+    summary = "".join(
+        [
+            "\n---\n## Summary\n\n",
+            f"- Passed: {passed}\n",
+            f"- Failed: {failed}\n",
+            f"- Duration: {elapsed}s\n",
+        ]
     )
     log_lines.append(summary)
 
