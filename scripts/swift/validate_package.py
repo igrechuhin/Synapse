@@ -16,8 +16,8 @@ from __future__ import annotations
 import json
 import subprocess
 import sys
-import tempfile
 from pathlib import Path
+from typing import cast
 
 try:
     from _utils import get_config_int, get_project_root
@@ -29,7 +29,7 @@ except ImportError:
 BUILD_TIMEOUT = get_config_int("BUILD_TIMEOUT", 120)
 
 
-def describe_package(project_root: Path) -> dict | None:
+def describe_package(project_root: Path) -> dict[str, object] | None:
     """Run `swift package describe --type json` and return parsed output.
 
     Args:
@@ -50,9 +50,18 @@ def describe_package(project_root: Path) -> dict | None:
         if result.returncode != 0:
             print(result.stderr, file=sys.stderr)
             return None
-        return json.loads(result.stdout)
+        raw = json.loads(result.stdout)
+        if not isinstance(raw, dict):
+            print(
+                "❌ swift package describe returned non-object JSON.", file=sys.stderr
+            )
+            return None
+        return cast(dict[str, object], raw)
     except subprocess.TimeoutExpired:
-        print(f"❌ swift package describe timed out after {BUILD_TIMEOUT}s.", file=sys.stderr)
+        print(
+            f"❌ swift package describe timed out after {BUILD_TIMEOUT}s.",
+            file=sys.stderr,
+        )
         return None
     except json.JSONDecodeError as e:
         print(f"❌ Failed to parse swift package describe output: {e}", file=sys.stderr)
@@ -77,11 +86,20 @@ def main() -> None:
         sys.exit(1)
     print("Package.swift parsed successfully")
 
-    targets = pkg.get("targets", [])
+    targets_obj = pkg.get("targets")
+    targets: list[dict[str, object]] = []
+    if isinstance(targets_obj, list):
+        for item in targets_obj:
+            if isinstance(item, dict):
+                targets.append(cast(dict[str, object], item))
     violations: list[str] = []
 
     # Check for duplicate names
-    names = [t["name"] for t in targets]
+    names: list[str] = []
+    for t in targets:
+        name_obj = t.get("name")
+        if isinstance(name_obj, str):
+            names.append(name_obj)
     seen: set[str] = set()
     for name in names:
         if name in seen:
@@ -90,8 +108,13 @@ def main() -> None:
 
     # Check directories exist
     for target in targets:
-        name = target["name"]
-        ttype = target.get("type", "regular")
+        name_obj = target.get("name")
+        if not isinstance(name_obj, str):
+            continue
+        name = name_obj
+
+        ttype_obj = target.get("type")
+        ttype = ttype_obj if isinstance(ttype_obj, str) else "regular"
 
         if ttype == "test":
             std_dir = project_root / "Tests" / name
@@ -101,8 +124,7 @@ def main() -> None:
                 alt2 = project_root / "Sources" / name
                 if not alt.exists() and not alt2.exists():
                     violations.append(
-                        f"  Test target '{name}': no directory at "
-                        f"Tests/{name}, Sources/*/Tests/, or Sources/{name}"
+                        f"  Test target '{name}': no directory at Tests/{name}, Sources/*/Tests/, or Sources/{name}"
                     )
         else:
             src_dir = project_root / "Sources" / name

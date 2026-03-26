@@ -91,7 +91,9 @@ def main() -> None:
         sys.exit(1)
     except FileNotFoundError:
         print(f"❌ swift not found: {swift}", file=sys.stderr)
-        print("Install Xcode command-line tools: xcode-select --install", file=sys.stderr)
+        print(
+            "Install Xcode command-line tools: xcode-select --install", file=sys.stderr
+        )
         sys.exit(1)
     except Exception as e:
         print(f"❌ Error running build: {e}", file=sys.stderr)

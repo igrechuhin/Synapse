@@ -60,7 +60,11 @@ def check_macos() -> tuple[str, str, str]:
     major, minor = int(parts[0]), int(parts[1]) if len(parts) > 1 else 0
     if (major, minor) >= _MIN_MACOS:
         return "macOS version", "pass", version_str
-    return "macOS version", "fail", f"{version_str} (MLX requires macOS {_MIN_MACOS[0]}.{_MIN_MACOS[1]}+)"
+    return (
+        "macOS version",
+        "fail",
+        f"{version_str} (MLX requires macOS {_MIN_MACOS[0]}.{_MIN_MACOS[1]}+)",
+    )
 
 
 def check_metal() -> tuple[str, str, str]:
@@ -111,7 +115,11 @@ def check_swift() -> tuple[str, str, str]:
         return "Swift version", "pass", version_str
     if (major, minor) >= _MIN_SWIFT:
         return "Swift version", "warn", f"{version_str} (Swift 6+ preferred)"
-    return "Swift version", "fail", f"{version_str} (Swift {_MIN_SWIFT[0]}.{_MIN_SWIFT[1]}+ required)"
+    return (
+        "Swift version",
+        "fail",
+        f"{version_str} (Swift {_MIN_SWIFT[0]}.{_MIN_SWIFT[1]}+ required)",
+    )
 
 
 def check_mlx_dependency(project_root: Path) -> tuple[str, str, str]:

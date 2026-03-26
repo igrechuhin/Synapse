@@ -34,7 +34,9 @@ _PATTERNS: list[tuple[str, str, re.Pattern[str]]] = [
     (
         "HIGH",
         "FileManager I/O — avoid on main thread",
-        re.compile(r"FileManager\.default\.(?:contents|createFile|copyItem|moveItem|removeItem)\("),
+        re.compile(
+            r"FileManager\.default\.(?:contents|createFile|copyItem|moveItem|removeItem)\("
+        ),
     ),
     (
         "MEDIUM",
@@ -54,9 +56,7 @@ _PATTERNS: list[tuple[str, str, re.Pattern[str]]] = [
 ]
 
 
-def scan_file(
-    path: Path, project_root: Path
-) -> list[tuple[str, str, int, str]]:
+def scan_file(path: Path, project_root: Path) -> list[tuple[str, str, int, str]]:
     """Scan a single file for performance anti-patterns.
 
     Args:

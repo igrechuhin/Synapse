@@ -25,12 +25,18 @@ except ImportError:
 _GENERATED_SUFFIXES = (".pb.swift", ".generated.swift")
 
 _SECRET_PATTERNS: list[tuple[str, re.Pattern[str]]] = [
-    ("api_key / apiKey literal", re.compile(r'(?:api_?key|apiKey)\s*=\s*"[A-Za-z0-9_\-]{8,}"', re.I)),
+    (
+        "api_key / apiKey literal",
+        re.compile(r'(?:api_?key|apiKey)\s*=\s*"[A-Za-z0-9_\-]{8,}"', re.I),
+    ),
     ("password literal", re.compile(r'password\s*=\s*"[^"]+"', re.I)),
     ("secret literal", re.compile(r'\bsecret\s*=\s*"[^"]+"', re.I)),
     ("access_token literal", re.compile(r'access_?token\s*=\s*"[^"]+"', re.I)),
     ("private_key literal", re.compile(r'private_?key\s*=\s*"[^"]+"', re.I)),
-    ("PEM private key block", re.compile(r"-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----")),
+    (
+        "PEM private key block",
+        re.compile(r"-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----"),
+    ),
     ("bearer token literal", re.compile(r'"bearer\s+[A-Za-z0-9_\-\.]{20,}"', re.I)),
 ]
 

@@ -68,7 +68,9 @@ def build_format_cmd(swiftformat: str, target: str, project_root: Path) -> list[
     cmd = [swiftformat, target]
     config_path = get_config_path("SWIFTFORMAT_CONFIG")
     if config_path is not None:
-        resolved = config_path if config_path.is_absolute() else project_root / config_path
+        resolved = (
+            config_path if config_path.is_absolute() else project_root / config_path
+        )
         if resolved.exists():
             cmd.extend(["--config", str(resolved)])
     return cmd

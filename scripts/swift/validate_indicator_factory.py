@@ -33,7 +33,8 @@ def main() -> None:
         sys.exit(0)
 
     factory_files = [
-        f for f in indicators_dir.iterdir()
+        f
+        for f in indicators_dir.iterdir()
         if f.is_file() and "Factory" in f.name and f.suffix == ".swift"
     ]
 
