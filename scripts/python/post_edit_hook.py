@@ -49,7 +49,10 @@ def main() -> int:
 
     cmd_base = _pytest_cmd(project_root)
     if cmd_base is None:
-        print("Post-edit hook: pytest not found (tried .venv, uv, PATH).", file=sys.stderr)
+        print(
+            "Post-edit hook: pytest not found (tried .venv, uv, PATH).",
+            file=sys.stderr,
+        )
         return 0
 
     cmd = cmd_base + ["tests/", "--timeout=30", "-x", "-q"]
