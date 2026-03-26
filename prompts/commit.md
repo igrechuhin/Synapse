@@ -144,9 +144,11 @@ pipeline_handoff(operation="write", pipeline="commit", phase="validate",
 
 Steps to run inline:
 
-1. Classify what changed since Phase A:
-   - `source_changed`: any file under `src/` or `tests/` was modified by Phase B or C.
-   - `markdown_changed`: any `.md`/`.mdc` file was modified (`.cortex/memory-bank/`, `.cortex/plans/`, `AGENTS.md`, `CLAUDE.md`, `.cortex/synapse/prompts/`). Phase B always modifies memory-bank files, so this is usually `true`.
+1. Classify what changed since Phase A — **use your knowledge of what Phase B and C actually wrote**, not `git diff HEAD` or `git status` (those show the full working tree including pre-existing uncommitted files unrelated to this commit, which is expected and not a problem):
+   - `source_changed`: any file under `src/` or `tests/` was **written by Phase B or C steps** in this pipeline run.
+   - `markdown_changed`: any `.md`/`.mdc` file was **written by Phase B or C steps** (`.cortex/memory-bank/`, `.cortex/plans/`, `AGENTS.md`, `CLAUDE.md`, `.cortex/synapse/prompts/`). Phase B always modifies memory-bank files, so this is usually `true`.
+   - **Do not flag pre-existing working-tree changes** (files modified before the pipeline started) as unexpected. Those are the user's in-progress work and are unrelated to `fix_quality_issues()` behavior.
+   - **`fix_quality_issues()` `files_modified` field** lists only rumdl-fixed markdown files — seeing it non-empty (e.g. `.cortex/memory-bank/*.md`) is normal and expected, not a sign of unexpected scope expansion.
 2. **If `source_changed`**: call `run_quality_gate_fresh()` — full re-run including tests, types, lint, format, markdown. If any check fails: call `fix_quality_issues()` and retry (max 3 iterations).
 3. **If only `markdown_changed`** (no source changes): run `fix_quality_issues()` to auto-fix any remaining markdown lint. Then verify with `run_quality_gate_fresh()`. Since no source code changed, test/type/lint/format results from Phase A are still valid — only markdown lint needs verification. If tests timeout but all non-test checks pass, Step 12 passes (Phase A already proved tests are green and no source changed).
 4. **If nothing changed**: skip re-run, write success with `skipped_checks` list.
