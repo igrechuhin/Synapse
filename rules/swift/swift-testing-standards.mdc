@@ -1,0 +1,112 @@
+---
+globs: "*.swift"
+alwaysApply: false
+---
+# Swift Testing Standards (MANDATORY - ZERO TOLERANCE)
+
+**ENFORCEMENT**: CI MUST fail on violations. All public APIs MUST have tests. NO exceptions.
+
+## Test Requirements (ENFORCED)
+
+### Coverage Requirements (MANDATORY)
+
+- **ALL public APIs** MUST have unit tests — NO exceptions
+- **ALL new/updated functionality** MUST have comprehensive tests
+- **Critical paths** MUST have extensive test coverage
+- **Test files exempt** from file size limits
+
+### Test Structure (ENFORCED)
+
+- **AAA pattern** — Arrange-Act-Assert structure in every test (MANDATORY)
+- **Descriptive names** — `test_behaviorDescription_whenCondition` format (MANDATORY)
+- **Test both aligned and unaligned timestamps** for time-sensitive code (MANDATORY)
+- **Test edge cases** thoroughly (MANDATORY)
+
+### Test Logger Requirements (ENFORCED)
+
+- **MUST use TestLogger in all tests** — use `TestLogger()` instead of `Logger()` — MANDATORY
+- **TestLogger captures log messages** for verification and prevents unexpected log pollution
+- **TestLogger is thread-safe** and designed specifically for test environments
+- **TestLogger filters expected patterns** to avoid false positives in test pipelines
+
+### Test Performance Requirements (ENFORCED)
+
+- **Individual test duration** — each test MUST complete in less than 10 seconds (MANDATORY)
+- **Performance optimization** — tests exceeding 10 seconds MUST be optimized or refactored
+- **CI enforcement** — CI MUST fail if any test exceeds 10 seconds
+
+## Test Framework Preference (MANDATORY)
+
+### Framework Selection (ENFORCED)
+
+- **Swift Testing framework is PREFERRED** for new tests — use `@Suite` and `@Test` annotations
+- **XCTest framework** is acceptable for existing tests or when Swift Testing is not suitable
+- **Mixed frameworks** MUST be in separate test targets to prevent discovery conflicts
+- **ModelTraining module** uses split targets:
+  - `ModelTrainingTests` — XCTest tests (in `Sources/ModelTraining/Tests/`)
+  - `ModelTrainingSwiftTests` — Swift Testing tests (in `Sources/ModelTraining/SwiftTests/`)
+
+### Swift Testing Guidelines (PREFERRED)
+
+- Use `@Suite("Suite Name")` to group related tests
+- Use `@Test("Test description")` to mark test functions
+- Use `#expect()` macro for assertions
+- Struct-based test organization (no class inheritance needed)
+- Native async/await support (no `XCTestExpectation` needed)
+- Parallel execution by default (better performance)
+
+### XCTest Guidelines (ACCEPTABLE)
+
+- Use `XCTestCase` subclass for test organization
+- Use `XCTAssert*` functions for assertions
+- Use `setUp()` / `tearDown()` for test lifecycle
+- Sequential execution by default
+
+## Test File Location (MANDATORY)
+
+- **Tests in top-level `Tests/` directory** — organized by target name
+- **One test target per source target** — each source target MUST have a corresponding test target
+- **Target-specific subfolders** — e.g., `Tests/ModelTrainingTests/`, `Tests/SharedTests/`
+- **Test files are exempt** from file size limits
+
+### Directory Structure (REQUIRED)
+
+```text
+Tests/
+├── TargetNameTests/
+│   ├── ComponentATests.swift
+│   └── ComponentBTests.swift
+└── AnotherTargetTests/
+    └── SubComponentTests.swift
+```
+
+## No Test Skipping (ZERO TOLERANCE)
+
+- **NEVER skip or disable tests** without explicit user instruction
+- **Fix failing tests** rather than skipping them
+- **Exception**: Metal GPU availability tests for MLX (document explicitly)
+- **No silent xfail** — any skip must include reason and removal condition
+
+## Test Quality (MANDATORY)
+
+- **Use candle factories** from `BaseIndicatorComputerTests` for indicator tests
+- **Prefer `getMultiValue`** from `IndicatorSnapshot` instead of raw `multiValues` access
+- **DRY principle** — reuse test utilities; avoid duplicated setup
+- **Inject time/random** — use `DateProvider`/RNG injections for deterministic tests
+
+## Violations (BLOCKED)
+
+- ❌ Public APIs without tests
+- ❌ Test files in wrong location
+- ❌ Skipped or disabled tests
+- ❌ Tests without AAA structure
+- ❌ Vague test names not following `test_behaviorDescription_whenCondition` format
+- ❌ Tests exceeding 10 seconds execution time
+- ❌ Tests using `Logger()` instead of `TestLogger()`
+
+## Enforcement (MANDATORY)
+
+- **Pre-commit hooks**: Verify test coverage, location, and performance
+- **CI Integration**: Automated checks fail builds on violations
+- **Code review**: Reject PRs with missing tests, violations, or slow tests
+- **No exceptions**: All violations must be fixed before merge

@@ -4,7 +4,7 @@ alwaysApply: true
 
 # Coding Standards (MANDATORY)
 
-**ENFORCEMENT**: CI and review must block violations. Apply alongside Python-specific rules.
+**ENFORCEMENT**: CI and review must block violations. For language-specific details, see the language rules (`swift/swift-coding-standards.mdc`, `python/python-coding-standards.mdc`).
 
 ## Core Principles
 
@@ -12,47 +12,54 @@ alwaysApply: true
 - **DRY (Don't Repeat Yourself)**: Keep all logic DRY; no repeated logic across codebase.
 - **Small units**: Keep functions ≤30 logical lines; files ≤400 lines (production code).
 - **Single responsibility**: One public type per file; helpers colocated with their owner.
-- **Explicit typing**: Full type hints for functions, methods, and public attributes.
+- **Explicit typing**: Full type hints/annotations for functions, methods, and public APIs.
 - **Fail loudly**: Validate inputs; avoid silent failure paths.
 - **Simple structures**: Prefer simple, readable structures over complex abstractions.
+- **SOLID Principles**: Single Responsibility, Open/Closed, Liskov Substitution, Interface Segregation, Dependency Inversion.
+- **YAGNI**: Implement only what is required today; avoid speculative generality.
 
-## Formatting & Imports
+## Formatting
 
-- **Black**: Use `black` (88 columns) as the single source of formatting truth.
-- **isort**: Sort imports with black profile; stdlib → third-party → local.
-- **No manual tweaks**: Never hand-format to fight Black/isort output.
+- Use the canonical formatter for the language (SwiftFormat for Swift, Black for Python).
+- No manual tweaks that fight the formatter output.
+- Sorted imports; no duplicate imports.
+- US English for all identifiers, comments, documentation, and user-facing text.
 
 ## Error Handling & Logging
 
-- **Granular exceptions**: Raise domain-specific errors; avoid bare `except`.
+- **Granular exceptions/errors**: Raise domain-specific error types; avoid generic catches.
 - **Context-rich logs**: Log actionable context without leaking secrets.
-- **Preserve tracebacks**: Use `raise ... from e` where appropriate.
+- **No fatal errors in production**: Use typed error propagation instead.
+- **Preserve error chains**: Wrap/chain errors to preserve root cause.
 
 ## Async & Performance
 
-- **Async correctness**: Use async for I/O; avoid blocking the event loop. Offload CPU/file I/O with executors or `asyncio.to_thread`.
-- **Structured concurrency**: Prefer `asyncio.TaskGroup`/`gather` with bounds; enforce timeouts.
-- **Efficiency**: Choose appropriate data structures; avoid accidental O(n²); use generators for large streams.
+- **Async for I/O**: Use the language's structured concurrency model; avoid blocking.
+- **Bounded concurrency**: Enforce limits on parallel tasks; prevent oversubscription.
+- **Efficiency**: Choose appropriate data structures; avoid accidental O(n²); use streams for large data.
 
 ## Security & Validation
 
 - **Input validation**: Validate and normalize all external inputs (paths, URIs, user data).
 - **No secrets in code**: Never hardcode credentials; keep secrets out of logs.
-- **Safe file/URI handling**: Block traversal, control chars, and encoded slashes; enforce containment for cache/FS paths.
+- **Safe file/URI handling**: Block traversal attacks; control chars; enforce path containment.
 
 ## Testing & Quality Gates
 
-- **pytest + AAA**: Tests use Arrange-Act-Assert with descriptive names (`test_behavior_when_condition`).
-- **Coverage**: Add tests for new behaviors and public APIs; avoid happy-path-only coverage. **Always cover all edge cases** (boundary conditions, error handling, invalid inputs, empty states) for any project/language/code.
-- **Zero warnings**: Treat warnings as errors in tests; keep suites fast and deterministic.
+- **AAA pattern**: Tests use Arrange-Act-Assert with descriptive names.
+- **Coverage**: Add tests for new behaviors and public APIs; avoid happy-path-only coverage.
+- **Always cover all edge cases** (boundary conditions, error handling, invalid inputs, empty states).
+- **Zero warnings**: Treat warnings as errors in CI; keep suites fast and deterministic.
+- **100% pass rate**: Zero test failures before any commit.
 
 ## Documentation & Memory Bank
 
 - **Docs sync**: Update memory bank and roadmap after significant changes or on request.
 - **Markdown rules**: Follow markdown formatting standards (blank lines, fenced languages, no trailing spaces).
-- **Path resolution**: Use semantic names (e.g. "plans directory", "memory bank") and Cortex MCP tools (`get_structure_info()` for structure paths, `manage_file()` for memory bank files, `rules()` for rules). Do not hardcode `.cortex/` or `.cursor/` paths in prompts or procedures.
+- **Path resolution**: Use semantic names and Cortex MCP tools. Do NOT hardcode `.cortex/` or `.cursor/` paths.
 
 ## Tooling Requirements
 
-- **Pre-commit**: Black, isort, flake8/Pyright (where configured) must pass before merging.
-- **No manual reformat**: Run the tools instead of hand edits; include generated changes in commits.
+- **Pre-commit**: Language formatter, linter, and type checker must pass before merging.
+- **No manual reformat**: Run the tools instead of hand edits.
+- **No sed/awk for code changes**: Use editor tools for precise, controlled edits.

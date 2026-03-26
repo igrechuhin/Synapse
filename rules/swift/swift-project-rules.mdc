@@ -1,0 +1,73 @@
+---
+alwaysApply: true
+---
+# TradeWing Swift Project Rules (MANDATORY)
+
+**ENFORCEMENT**: CI MUST fail on violations. All project rules are MANDATORY. NO exceptions.
+
+## Project Identity (INFORMATIONAL)
+
+TradeWing is a **Swift 6.1** production trading bot:
+
+- **Platform**: macOS 15.5+
+- **Build system**: Swift Package Manager (SwiftPM)
+- **ML framework**: MLX (Apple Silicon, Metal GPU)
+- **Database**: GRDB / SQLite
+- **Network**: gRPC Swift 2
+- **Signal delivery**: Telegram (<30s latency)
+- **Language**: Swift ONLY — not Python
+
+## Package.swift Integrity (ENFORCED)
+
+- **Correct targets** — source targets in `Sources/<TargetName>/` — MANDATORY
+- **Correct test targets** — test targets in `Tests/<TargetName>Tests/` or co-located `SwiftTests/` — MANDATORY
+- **Platform consistency** — all targets declare `.macOS(.v15_5)` — MANDATORY
+- **No duplicate target names** — MANDATORY
+- **Dependencies pinned** — all external dependencies must specify version or exact revision — MANDATORY
+- **No unused dependencies** — remove packages that are no longer referenced — MANDATORY
+
+## Swift Version (ENFORCED)
+
+- **Swift 6.1** — all code must compile under Swift 6.1 strict concurrency — MANDATORY
+- **Concurrency model** — structured concurrency; `Swift6` language mode — MANDATORY
+- **No SE-deprecated patterns** — update deprecated APIs promptly — MANDATORY
+
+## Protobuf / Generated Code (ENFORCED)
+
+- **NEVER modify `*.pb.swift` files** — edit `.proto` files and regenerate — MANDATORY
+- **Protobuf plugin** — use the configured `ProtobufGenerator` plugin — MANDATORY
+- **Generated files excluded** — `*.pb.swift` and `*.generated.swift` excluded from SwiftFormat and lint — MANDATORY
+
+## MLX / Metal (ENFORCED)
+
+- **Metal GPU preferred** — configure `MLX_DISABLE_METAL=0` in production — MANDATORY
+- **CPU fallback** — graceful fallback when Metal unavailable — MANDATORY
+- **macOS 13+ for MLX** — validate at startup and exit with clear error if unsupported — MANDATORY
+
+## Memory Bank (ENFORCED)
+
+- **Update after significant changes** — use Cortex MCP `manage_file()` tool — MANDATORY
+- **No hardcoded paths** — use semantic names via Cortex MCP — MANDATORY
+- **Timestamp format** — `YY-MM-DD-HH-MM` (reverse chronological) — MANDATORY
+- **ActiveContext = completed work only** — MANDATORY
+- **Roadmap = future work only** — MANDATORY
+
+## Sanity Checks on Plans (ENFORCED)
+
+- **Plans in Cortex plans directory** — not in `.cursor/plans/` — MANDATORY
+- **Archive completed plans** — move to archive via `plan()` MCP tool — MANDATORY
+- **Link validation** — run `validate_links()` after any file operation — MANDATORY
+
+## Violations (BLOCKED)
+
+- ❌ Package.swift with duplicate or missing targets
+- ❌ `*.pb.swift` manual modifications
+- ❌ Code that does not compile under Swift 6.1
+- ❌ Plans stored outside Cortex plans directory
+- ❌ Memory bank updates without timestamp
+
+## Enforcement (MANDATORY)
+
+- **CI Integration**: Package validation, build checks, and Swift version enforcement
+- **Code review**: Reject PRs with project rule violations
+- **No exceptions**: All violations must be fixed before merge

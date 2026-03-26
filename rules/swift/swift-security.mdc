@@ -1,0 +1,60 @@
+---
+alwaysApply: true
+---
+# Swift Security Rules (ZERO TOLERANCE - IMMEDIATE REJECTION)
+
+**ENFORCEMENT**: IMMEDIATE REJECTION of any security violations. CI blocks merge. NO exceptions. Security violations are CRITICAL.
+
+## Secrets Management (ENFORCED - ZERO TOLERANCE)
+
+- **NEVER commit secrets** — automatic scan and rejection — MANDATORY
+- **Environment variables only** — load from `ProcessInfo.processInfo.environment` or secure stores — MANDATORY
+- **Local `.env` gitignored** — provide template, ignore actual files — MANDATORY
+- **Least privilege** — minimum required scopes/permissions only — MANDATORY
+- **No tokens in String literals** — all credentials via environment injection — MANDATORY
+
+## Input Security (ENFORCED - ZERO TOLERANCE)
+
+- **Validate ALL inputs** — untrusted data from network/files/user — MANDATORY
+- **Sanitize paths** — prevent traversal attacks; NO untrusted symlinks — MANDATORY
+- **Certificate validation** — required for all TLS connections — MANDATORY
+- **Injection prevention** — parameterized queries (GRDB); escaped outputs — MANDATORY
+- **gRPC TLS** — all gRPC connections must use TLS in production — MANDATORY
+
+## Logging Security (ENFORCED - ZERO TOLERANCE)
+
+- **NEVER log secrets** — credentials, tokens, PII forbidden — MANDATORY
+- **Redact at boundary** — sanitize before logging — MANDATORY
+- **Correlation IDs** — for tracing without exposing sensitive data — MANDATORY
+- **Audit trail** — security events MUST be logged — MANDATORY
+
+## Swift-Specific (ENFORCED)
+
+- **No `@discardableResult` on security-critical functions** — callers must handle results — MANDATORY
+- **No `try!` or `try?` on security operations** — handle errors explicitly — MANDATORY
+- **Keychain for persistent secrets** — never store secrets in UserDefaults or files — MANDATORY
+- **Data wiping** — sensitive in-memory buffers should be zeroed after use — MANDATORY
+
+## Dependencies (ENFORCED - ZERO TOLERANCE)
+
+- **CVE scanning** — automated dependency vulnerability checks — MANDATORY
+- **Remove unused** — eliminate unnecessary attack surface — MANDATORY
+- **Update cycle** — security patches within 48 hours — MANDATORY
+- **Vendor review** — approve new dependencies for security — MANDATORY
+
+## Violations (BLOCKED - IMMEDIATE REJECTION)
+
+- ❌ Committed secrets (credentials, tokens, API keys)
+- ❌ Unvalidated inputs from untrusted sources
+- ❌ Secrets in log messages
+- ❌ Vulnerable dependencies
+- ❌ Missing certificate validation
+- ❌ Path traversal vulnerabilities
+- ❌ `try!` on security-critical operations
+
+## Enforcement (MANDATORY)
+
+- **Pre-commit hooks**: Scan for secrets; reject commits with violations
+- **CI Integration**: Automated security scans fail builds on violations
+- **Code review**: Security violations block merge immediately
+- **No exceptions**: Security violations are NEVER acceptable

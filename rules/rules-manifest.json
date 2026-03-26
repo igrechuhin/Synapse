@@ -123,6 +123,77 @@
           "description": "Markdown formatting rules enforced by CI"
         }
       ]
+    },
+    "swift": {
+      "description": "Swift 6.1 coding rules for TradeWing (macOS, SwiftPM, MLX, GRDB, gRPC)",
+      "rules": [
+        {
+          "file": "swift-coding-standards.mdc",
+          "priority": 90,
+          "keywords": ["swift", "coding-standards", "SOLID", "DRY", "formatting", "swiftformat", "file-organization"],
+          "description": "Swift coding standards: SOLID, DRY, SwiftFormat, 400/30-line limits, one-type-per-file"
+        },
+        {
+          "file": "swift-concurrency.mdc",
+          "priority": 88,
+          "keywords": ["swift", "concurrency", "async", "await", "actor", "sendable", "taskgroup", "swift6"],
+          "description": "Swift 6 structured concurrency: actors, Sendable, cancellation, bounded parallelism"
+        },
+        {
+          "file": "swift-reliability.mdc",
+          "priority": 85,
+          "keywords": ["swift", "reliability", "errors", "timeouts", "retries", "circuit-breaker", "grdb"],
+          "description": "Swift reliability: typed errors, timeouts, retries, circuit breaker, resource safety"
+        },
+        {
+          "file": "swift-performance.mdc",
+          "priority": 85,
+          "keywords": ["swift", "performance", "complexity", "allocations", "slices", "collection", "mlx", "accelerate"],
+          "description": "Swift performance: O(n) algorithms, slice over copy, no main-thread blocking"
+        },
+        {
+          "file": "swift-testing-standards.mdc",
+          "priority": 85,
+          "keywords": ["swift", "testing", "xctest", "swift-testing", "AAA", "testlogger", "coverage"],
+          "description": "Swift testing: Swift Testing preferred, XCTest acceptable, AAA, TestLogger, <10s tests"
+        },
+        {
+          "file": "swift-observability.mdc",
+          "priority": 80,
+          "keywords": ["swift", "logging", "sharedlogger", "observability", "emoji", "context", "metrics"],
+          "description": "Swift observability: SharedLogger only, no print(), auto-emoji, structured context"
+        },
+        {
+          "file": "swift-security.mdc",
+          "priority": 90,
+          "keywords": ["swift", "security", "secrets", "tls", "grpc", "keychain", "input-validation"],
+          "description": "Swift security: zero-tolerance secrets, TLS, input validation, no try! on security ops"
+        },
+        {
+          "file": "swift-style.mdc",
+          "priority": 75,
+          "keywords": ["swift", "style", "self", "internal", "semicolons", "underscore", "type-inference", "parameters"],
+          "description": "Swift style: no explicit internal, no redundant self, no semicolons, parameter ordering"
+        },
+        {
+          "file": "swift-architecture.mdc",
+          "priority": 80,
+          "keywords": ["swift", "architecture", "modules", "layering", "dependency-injection", "protocols", "spm"],
+          "description": "Swift architecture: module layering, DI, protocol abstractions, SPM Package.swift"
+        },
+        {
+          "file": "swift-commit-procedure.mdc",
+          "priority": 80,
+          "keywords": ["swift", "commit", "swiftformat", "docc", "no-auto-commit", "pre-commit"],
+          "description": "Swift commit procedure: SwiftFormat, unused params, DocC, tests, memory bank"
+        },
+        {
+          "file": "swift-project-rules.mdc",
+          "priority": 85,
+          "keywords": ["swift", "tradewing", "package", "protobuf", "mlx", "grdb", "memory-bank", "plans"],
+          "description": "TradeWing project rules: Package.swift integrity, protobuf, MLX/Metal, memory bank"
+        }
+      ]
     }
   }
 }

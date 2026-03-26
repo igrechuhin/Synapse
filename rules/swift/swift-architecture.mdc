@@ -1,0 +1,84 @@
+---
+globs: "*.swift"
+alwaysApply: false
+---
+# Swift Architecture Rules (MANDATORY)
+
+**ENFORCEMENT**: CI MUST fail on violations. All architecture rules are MANDATORY. NO exceptions.
+
+## Module Layering (ENFORCED)
+
+Clear module boundaries (dependencies flow inward):
+
+```text
+ModelTraining / DataFetcher (CLI executables)
+    ↓
+ModelTrainingCore / DataFetcherCore (domain logic)
+    ↓
+IndicatorsService / LSTMTraining / FIGIRankingService
+    ↓
+Shared / Logger / TInvestAPI
+```
+
+- **Cross-layer calls** MUST go through defined protocol interfaces — MANDATORY
+- **No circular dependencies** between modules — MANDATORY
+- **Inbound-only dependencies** — lower layers must not import upper layers — MANDATORY
+
+## Dependency Injection (ENFORCED)
+
+- **All external dependencies MUST be injected** via initialisers or protocol conformances — MANDATORY
+- **NO global state or singletons** in production code — MANDATORY
+- **Constructor injection preferred** — property injection only when circular dependencies make it impossible — MANDATORY
+- **Protocol abstractions** — depend on protocols, not concretions — MANDATORY
+
+## File / Type Organization (ENFORCED)
+
+- **One public type per file** — filename MUST match the type name — MANDATORY
+- **Private constants at file end** — after type definition, not inside it — MANDATORY
+- **Pure helpers at file scope** — not as static methods inside types — MANDATORY
+- **Extensions for conformances** — keep protocol conformances in `+Protocol.swift` extensions — MANDATORY
+
+## Architecture Patterns (ENFORCED)
+
+- **Protocol-based abstractions** — favour composition over inheritance — MANDATORY
+- **Tagged types** — use typed wrappers (`Tagged<Tag, T>`) over raw primitives for domain concepts — MANDATORY
+- **Value types preferred** — use `struct` for data; `class` only for reference semantics — MANDATORY
+- **Explicit dependencies** — no hidden dependencies via environment globals — MANDATORY
+
+## SPM Package Integrity (ENFORCED)
+
+- **Package.swift integrity** — correct targets, dependencies, test configuration — MANDATORY
+- **Target structure** — source targets in `Sources/<TargetName>/`; test targets in `Tests/<TargetName>Tests/` — MANDATORY
+- **No test code in production targets** — test utilities must live in test targets — MANDATORY
+- **Consistent platform declarations** — all targets use `.macOS(.v15_5)` — MANDATORY
+- **Generated code excluded** — `*.pb.swift` excluded from SwiftFormat/lint — MANDATORY
+
+## Public Surface Control (ENFORCED)
+
+- **Minimize public APIs** — review `public`/`open` during code review — MANDATORY
+- **Deprecation policy** — add `@available(..., deprecated:)` before removing public APIs — MANDATORY
+- **Remove deprecated APIs** after at least one minor release — MANDATORY
+
+## Architectural Boundaries for TradeWing (ENFORCED)
+
+- **<30s signal latency** — production signal pipeline must complete within 30 seconds — MANDATORY
+- **GRDB process pools** — use `GRDBProcessCoordinatedDatabasePool` for all database access — MANDATORY
+- **TInvestAPI isolation** — all Tinkoff Invest API calls through `TInvestAPI` module only — MANDATORY
+- **Telegram delivery** — all user-facing messages through `TelegramBot` module only — MANDATORY
+- **Shared time provider** — inject `DateProvider`; never call `Date()` directly in business logic — MANDATORY
+
+## Violations (BLOCKED)
+
+- ❌ Circular module dependencies
+- ❌ Upper layers imported by lower layers
+- ❌ Singletons or global state in production
+- ❌ Multiple public types per file
+- ❌ Private constants inside type definitions
+- ❌ Direct `Date()` calls in business logic
+- ❌ Skipping protocol abstraction for external dependencies
+
+## Enforcement (MANDATORY)
+
+- **Code review**: Reject PRs with architecture violations
+- **CI Integration**: Package validation and build checks
+- **No exceptions**: All violations must be fixed before merge

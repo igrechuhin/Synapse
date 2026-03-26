@@ -1,0 +1,74 @@
+---
+globs: "*.swift"
+alwaysApply: false
+---
+# Swift Performance Rules (MANDATORY - ZERO TOLERANCE)
+
+**ENFORCEMENT**: CI MUST fail on violations. Benchmarks required for exceptions. NO exceptions without documented performance justification.
+
+## Algorithmic Complexity (ENFORCED)
+
+- **O(n) required** — NO O(n²) algorithms on collections >1000 elements — MANDATORY
+- **Use Set/Dictionary** for membership/grouping instead of Array scans — MANDATORY
+- **Single-pass operations** — combine `map`/`filter`/`reduce`; avoid multiple iterations — MANDATORY
+- **Bounded concurrency** — limit task creation; use semaphores for large inputs — MANDATORY
+
+## Memory Management (ENFORCED)
+
+- **Slices over copies** — NO `Array(collection.suffix(n))` unless mutable buffer required — MANDATORY
+- **Use Collection generics** — accept `Collection`/`RandomAccessCollection` in helpers to allow `ArraySlice` without copying — MANDATORY
+- **Preallocate collections** — use `reserveCapacity` when final size is known — MANDATORY
+- **Avoid transient intermediates** — compute on-the-fly in hot paths instead of materializing temporary arrays — MANDATORY
+- **Reuse storage** — use `withContiguousStorageIfAvailable` for in-place operations — MANDATORY
+- **Stream large data** — never load entire files/payloads into memory — MANDATORY
+- **String views** — minimize index traversals; reuse `Substring` views — MANDATORY
+- **Pre-sort once** — never sort inside inner loops — MANDATORY
+
+## Threading (ENFORCED)
+
+- **NEVER block main thread** — all I/O and CPU work on background — MANDATORY
+- **Structured concurrency** — use `async/await`, `TaskGroup`, bounded parallelism — MANDATORY
+- **Injectable caches** — via protocols, with clear invalidation/bounds — MANDATORY
+
+## MLX / Accelerate (ENFORCED)
+
+- **Leverage Accelerate** — use vectorized operations when they reduce allocations/copies — MANDATORY
+- **Measure first** — benchmarks required before using `@inlinable`/unsafe — MANDATORY
+- **Tests required** — all optimizations MUST have test coverage — MANDATORY
+- **Profile-guided** — only optimize proven hot paths — MANDATORY
+
+## Examples
+
+### ❌ PROHIBITED — Unnecessary allocations
+
+```swift
+let slice = Array(collection.suffix(n))  // WRONG: unnecessary copy
+let array = Array(collection.prefix(n))  // WRONG: unnecessary copy
+```
+
+### ✅ REQUIRED — Slices and generics
+
+```swift
+let slice = closes.suffix(20)
+let mean = slice.mean  // Helper accepts Collection
+
+func computeMean<T: Collection>(_ values: T) -> Double where T.Element == Double {
+    // Accepts ArraySlice without copying
+}
+```
+
+## Common Violations (BLOCKED)
+
+- ❌ `Array(collection.suffix(n))` when helper accepts `Collection`
+- ❌ `Array(collection.prefix(n))` when helper accepts `Collection`
+- ❌ Sorting inside loops
+- ❌ Materializing temporary arrays in hot paths
+- ❌ Loading entire files into memory
+- ❌ O(n²) algorithms on large collections
+
+## Enforcement (MANDATORY)
+
+- **Code review**: Reject PRs with unnecessary `Array(...)` wrapping of slices
+- **CI Integration**: Performance analysis tools flag violations
+- **No exceptions**: All violations must be fixed before merge
+- **Benchmarks required**: If performance concerns arise, add micro-benchmarks before replacing helpers

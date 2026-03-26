@@ -1,0 +1,94 @@
+---
+globs: "*.swift"
+alwaysApply: false
+---
+# Swift Style Rules (MANDATORY - ENFORCED via SwiftFormat)
+
+**ENFORCEMENT**: SwiftFormat runs automatically. CI MUST fail on violations. NO exceptions.
+
+## Access Modifiers (ENFORCED)
+
+- **Do NOT explicitly add `internal`** — it is the default access modifier — MANDATORY
+- **Minimize public surface** — review `public`/`open` declarations for necessity — MANDATORY
+- **`private` and `fileprivate`** — use for implementation details — MANDATORY
+- **`open`** — only when subclassing/overriding is explicitly required — MANDATORY
+
+## Self Reference (ENFORCED)
+
+- **Avoid explicit `self.`** unless required by the compiler (closures, init parameter shadowing) — MANDATORY
+- **Do NOT use `self.` in regular method bodies** where disambiguation is not needed — MANDATORY
+
+## Type Declarations (ENFORCED)
+
+- **Prefer type inference** — omit obvious types for local variables and constants — MANDATORY
+- **Require explicit types** for public API signatures and when inference would be ambiguous — MANDATORY
+- **Use `some`/`any` protocols** where appropriate (Swift 5.7+) — MANDATORY
+- **No explicit `Void` return types** — omit when function returns nothing — MANDATORY
+
+## Semicolons and Multi-Statements (ENFORCED)
+
+- **NO semicolons** — never use `;` to terminate statements — MANDATORY
+- **One statement per line** — never put multiple statements on a single line — MANDATORY
+- **No empty statement semicolons** — e.g., `for i in 0..<n { ; }` is PROHIBITED — MANDATORY
+
+## Naming Conventions (ENFORCED)
+
+- **NO underscore-prefixed names** — avoid C-style `_privateVar` — MANDATORY
+- **Use descriptive domain-relevant names** — `minimumThreshold` not `_min` — MANDATORY
+- **lowerCamelCase** for functions, variables, properties — MANDATORY
+- **UpperCamelCase** for types, protocols, enums — MANDATORY
+- **UPPER_SNAKE_CASE** for static constants in enums — OPTIONAL (prefer lowerCamelCase)
+
+## Loop Extraction (ENFORCED)
+
+- **NO nested loops** — extract inner loop body to a private helper function — MANDATORY
+- **Loop bodies > 10 lines** — extract to a named private helper — MANDATORY
+- **Cyclomatic complexity ≤ 10** per function — MANDATORY
+- **Single-responsibility loops** — one clear purpose per loop — MANDATORY
+
+## No type(of:) Usage (ENFORCED)
+
+- **Avoid `type(of:)`** for property access or type discrimination — MANDATORY
+- **Add explicit properties to protocols** instead of runtime type checks — MANDATORY
+- **Use protocol conformance** over runtime type checking — MANDATORY
+
+## Parameter Injection (ENFORCED)
+
+- **NO hardcoded configuration** — inject all parameters via function parameters or initialisers — MANDATORY
+- **Extract shared constants** to file-level `private` constants — MANDATORY
+- **DateProvider injection** — never use `Date()` directly; inject via `DateProvider` protocol — MANDATORY
+- **RNG injection** — inject random number generators for deterministic testing — MANDATORY
+
+## Parameter Ordering (ENFORCED)
+
+Consistent initialiser parameter ordering by category:
+
+1. **Domain dependencies** — primary business-logic dependencies (e.g., services, repositories)
+2. **Providers** — injected value providers (e.g., `DateProvider`, `RNGProvider`)
+3. **Configuration** — value types and structs configuring behaviour
+4. **Environment** — cross-cutting environment parameters (e.g., `logger`)
+5. **Cross-cutting** — other infrastructure (e.g., metrics, tracing)
+
+## No .pb.swift Modification (ENFORCED)
+
+- **NEVER modify `*.pb.swift` files** — they are generated from `.proto` definitions — MANDATORY
+- **Edit `.proto` files** and regenerate — MANDATORY
+- **CI validates** that no `.pb.swift` files are manually modified — MANDATORY
+
+## Violations (BLOCKED)
+
+- ❌ Explicit `internal` access modifier
+- ❌ Redundant `self.` in non-capturing contexts
+- ❌ Semicolons or multi-statements per line
+- ❌ Underscore-prefixed names
+- ❌ `type(of:)` for property access
+- ❌ Nested loops
+- ❌ Hardcoded configuration values
+- ❌ Manual `.pb.swift` edits
+
+## Enforcement (MANDATORY)
+
+- **SwiftFormat**: Runs automatically; violations block commit
+- **CI Integration**: Automated checks fail builds on violations
+- **Code review**: Reject PRs with style violations
+- **No exceptions**: All violations must be fixed before merge

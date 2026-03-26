@@ -1,11 +1,13 @@
 ---
-globs: tests/**
-alwaysApply: false
+alwaysApply: true
 ---
 
 # Testing Standards (MANDATORY)
 
-**ENFORCEMENT**: CI MUST fail on violations. Applies to all test files and to any project/language/code. For language-specific details (e.g. pytest, fixtures, async), see the language-specific testing rules (e.g. Python: `python-testing-standards.mdc`).
+**ENFORCEMENT**: CI MUST fail on violations. Applies to all test files and to any project/language/code. For language-specific details, see:
+
+- Swift: `swift/swift-testing-standards.mdc`
+- Python: `python/python-testing-standards.mdc`
 
 ## Core Principles
 

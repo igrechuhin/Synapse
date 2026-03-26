@@ -1,0 +1,99 @@
+---
+globs: "*.swift"
+alwaysApply: false
+---
+# Swift Observability & Logging Rules (MANDATORY)
+
+**ENFORCEMENT**: CI MUST fail on violations. All observability rules are MANDATORY. NO exceptions.
+
+## Logging Requirements (ENFORCED)
+
+- **SharedLogger only** — NO `print()` in production code — MANDATORY
+- **Structured context** — include operation, resource, IDs, and correlation IDs for cross-system tracing — MANDATORY
+- **Redaction** — sensitive fields MUST be redacted at the logging boundary — MANDATORY
+- **Error reporting** — log errors with domain/type, message, and minimal context; include stable error code when available — MANDATORY
+- **Performance instrumentation** — use OSLog signposts or equivalent around hot operations and critical sections — MANDATORY
+- **Sampling** — apply sampling for high-volume debug logs — MANDATORY
+- **Logger injection** — always inject `Logger` as a dependency (NO global state) — MANDATORY
+
+## Automatic Emoji Handling (MANDATORY)
+
+- **NEVER add emojis manually in log messages** — loggers add emojis automatically based on log level — MANDATORY
+- **Prevent emoji doubling** — manual emojis cause double emojis when using `CompositeLogger` — MANDATORY
+- **Message content only** — log messages contain descriptive text without emoji prefixes — MANDATORY
+
+### Automatic Emoji Mapping by Log Level
+
+| Level | Emoji | Usage |
+|-------|-------|-------|
+| `.debug` | 🐛 | Detailed debugging information |
+| `.info` | 💡 | General information and progress |
+| `.warning` | ⚠️ | Non-critical issues |
+| `.error` | ❌ | Failures requiring attention |
+
+## Message Structure (ENFORCED)
+
+```text
+[Operation]: [Specific details with metrics/context]
+```
+
+### Examples
+
+```swift
+// ✅ REQUIRED — Clear, structured logging without manual emojis
+logger.log(.info, "Starting LSTM training data preparation")
+logger.log(.info, "Loaded 1,234 feature snapshots in 45.67s")
+logger.log(.error, "Failed to load configuration: invalid format")
+
+// ❌ PROHIBITED — Manual emoji (causes doubling)
+logger.log(.info, "🚀 Starting operation")
+
+// ❌ PROHIBITED — Vague without context
+logger.log(.info, "Processing training data")
+```
+
+## Context and Metrics (ENFORCED)
+
+Required context elements — MANDATORY:
+
+- **Operation identifiers**: What operation is being performed
+- **Quantities**: Number of items processed, rates, percentages
+- **Timing**: Duration in appropriate units (seconds, milliseconds)
+- **Resources**: Memory usage, file sizes when relevant
+- **Success rates**: Completion percentages, error counts
+
+## Progress Reporting (ENFORCED)
+
+```swift
+// Throttled progress for loops > 1000 iterations
+if processedCount % 1000 == 0 {
+    logger.log(.info, "Loaded \(processedCount) feature snapshots...")
+}
+
+// Phase transitions
+logger.log(.info, "Phase 1/3: Loading raw data")
+logger.log(.info, "Phase 2/3: Processing features")
+logger.log(.info, "Phase 3/3: Saving results")
+```
+
+## CompositeLogger Usage (ENFORCED)
+
+- **Use CompositeLogger** for CLI commands that need multiple output channels — MANDATORY
+- **Silent loggers** for testing and benchmarking — MANDATORY
+- **TelegramLogger** for production signal delivery (log level controls Telegram forwarding) — MANDATORY
+
+## Violations (BLOCKED)
+
+- ❌ Using `print()` instead of `SharedLogger`
+- ❌ Manual emojis in log messages
+- ❌ Missing structured context in logs
+- ❌ Logging sensitive fields without redaction
+- ❌ Missing error codes in error logs
+- ❌ Missing performance instrumentation in hot paths
+- ❌ Vague messages without quantitative context
+
+## Enforcement (MANDATORY)
+
+- **Code review**: Reject PRs with observability violations
+- **CI Integration**: Automated checks fail builds on violations
+- **No exceptions**: All violations must be fixed before merge

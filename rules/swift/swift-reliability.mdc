@@ -1,0 +1,40 @@
+---
+globs: "*.swift"
+alwaysApply: false
+---
+# Swift Reliability Rules (MANDATORY)
+
+**ENFORCEMENT**: CI MUST fail on violations. All reliability rules are MANDATORY. NO exceptions.
+
+## Requirements (ENFORCED)
+
+- **Typed errors**: Use domain-specific `Error` types — MANDATORY. Never use `fatalError` in production logic — MANDATORY
+- **Timeouts and deadlines**: All network and filesystem operations must specify timeouts — MANDATORY. Prefer request-scoped deadlines over infinite waits — MANDATORY
+- **Retries**: Retry only idempotent operations using exponential backoff with jitter (default: 3 attempts) — MANDATORY. Classify errors; do not retry on validation or auth failures — MANDATORY
+- **Circuit breaker**: For flaky dependencies, implement a circuit breaker with half-open probing — MANDATORY. Log state transitions — MANDATORY
+- **Idempotency**: Design mutating endpoints/operations to be idempotent, or require idempotency keys — MANDATORY
+- **Input validation**: Validate external inputs at boundaries — MANDATORY. Return clear validation errors; do not proceed with partial/invalid state — MANDATORY
+- **Resource safety**: Use `defer` to release resources — MANDATORY. Avoid leaks; prefer `with*` scoped APIs to guarantee cleanup — MANDATORY
+- **Determinism**: Inject time (`DateProvider`), randomness, and environment for testability — MANDATORY
+- **Graceful degradation**: Provide sensible fallbacks where possible; surface actionable errors to callers — MANDATORY
+
+## GRDB / Database (ENFORCED)
+
+- **GRDBProcessCoordinatedDatabasePool**: Use for all database access — MANDATORY
+- **No raw SQL without parameterization**: Use GRDB query builders — MANDATORY
+- **Migrations versioned**: All schema changes via numbered migrations — MANDATORY
+
+## Violations (BLOCKED)
+
+- ❌ `fatalError` in production logic
+- ❌ Network/filesystem operations without timeouts
+- ❌ Retrying non-idempotent operations
+- ❌ Missing input validation
+- ❌ Resource leaks
+- ❌ Hardcoded timeouts (inject via configuration)
+
+## Enforcement (MANDATORY)
+
+- **Code review**: Reject PRs with reliability violations
+- **CI Integration**: Automated checks fail builds on violations
+- **No exceptions**: All violations must be fixed before merge

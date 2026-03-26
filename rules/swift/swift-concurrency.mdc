@@ -1,0 +1,41 @@
+---
+globs: "*.swift"
+alwaysApply: false
+---
+# Swift Concurrency Rules (MANDATORY)
+
+**ENFORCEMENT**: CI MUST fail on violations. All concurrency rules are MANDATORY. NO exceptions.
+
+## Requirements (ENFORCED)
+
+- **Structured concurrency first**: Prefer `async/await`, `TaskGroup`, and `AsyncSequence` — MANDATORY. Avoid manual thread management and `DetachedTask` unless isolation is strictly required — MANDATORY
+- **Actors and isolation**: Use `actor` (or `@MainActor`) to protect shared mutable state — MANDATORY. Use `nonisolated` for pure helpers — MANDATORY
+- **Sendable**: Ensure cross-task types are `Sendable` — MANDATORY. Avoid `@unchecked Sendable` unless invariants are documented and tested — MANDATORY
+- **Cancellation**: Propagate and check `Task.checkCancellation()` in long loops — MANDATORY. Do not ignore cancellation errors silently; map them appropriately — MANDATORY
+- **Bounded parallelism**: Limit concurrency for large inputs using task groups and semaphores/limits to avoid oversubscription — MANDATORY
+- **Bridging legacy code**: Use `withCheckedContinuation`/`withCheckedThrowingContinuation` to bridge callbacks — MANDATORY
+- **Locking**: Prefer actors — MANDATORY. If locking is necessary, use well-reviewed wrappers (e.g., `NSLocking` additions) — MANDATORY. Keep critical sections minimal — MANDATORY
+- **NO DetachedTask** without explicit isolation justification — MANDATORY
+- **NO DispatchQueue** unless bridging legacy code — MANDATORY
+
+## Swift 6 Strict Concurrency (ENFORCED)
+
+- **Compiler-enforced isolation**: All code must compile without concurrency warnings in Swift 6 strict mode — MANDATORY
+- **`Sendable` closures**: All async closures crossing actor boundaries must capture `Sendable` values — MANDATORY
+- **Actor-isolated properties**: Do not access actor-isolated properties from non-isolated contexts — MANDATORY
+
+## Violations (BLOCKED)
+
+- ❌ Manual thread management instead of structured concurrency
+- ❌ Shared mutable state without actor protection
+- ❌ Non-Sendable types in cross-task contexts
+- ❌ Ignoring cancellation errors
+- ❌ Unbounded parallelism
+- ❌ `@unchecked Sendable` without documentation and tests
+- ❌ `DispatchQueue` for new code (except legacy bridging)
+
+## Enforcement (MANDATORY)
+
+- **Code review**: Reject PRs with concurrency violations
+- **CI Integration**: Automated checks fail builds on violations
+- **No exceptions**: All violations must be fixed before merge

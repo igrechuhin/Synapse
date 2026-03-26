@@ -1,0 +1,59 @@
+---
+alwaysApply: true
+---
+# Swift Commit Procedure (MANDATORY - ZERO TOLERANCE)
+
+**TRIGGER**: User says "commit" or "umb & commit"
+**ENFORCEMENT**: ALL steps MUST pass before commit. NO exceptions. Violations block commit.
+
+## Pre-Commit Steps (ENFORCED - AI MUST EXECUTE)
+
+1. **SwiftFormat** — run `swiftformat .` and ensure it passes without errors — MANDATORY
+2. **Unused parameters** — check and remove ALL unused parameters in modified functions — MANDATORY
+3. **DocC documentation** — verify ALL public APIs have complete docs; record findings for significant gaps (>10 APIs) — MANDATORY
+4. **Test coverage** — ensure ALL new/updated functionality has tests — MANDATORY
+5. **Test suite** — run `swift test` and ensure 100% pass rate (zero failures) — MANDATORY
+6. **Memory bank** — update ALL relevant memory bank files via Cortex MCP tools — MANDATORY
+7. **Commit creation** — create commit with descriptive message or user's exact message — MANDATORY
+
+## Cortex MCP Pre-Commit Helpers (PREFERRED)
+
+Use Cortex MCP quality gate tools instead of running scripts directly:
+
+- `run_quality_gate()` — runs SwiftFormat, unused parameters, file/function size checks
+- `run_docs_gate()` — verifies DocC documentation coverage
+- `fix_quality_issues()` — auto-fixes formatting and style violations
+
+## Failure Handling (ENFORCED)
+
+- **TEST step fails** → investigate and fix — MANDATORY
+- **Documentation gaps > 10 APIs** → record findings in plans directory — MANDATORY
+- **ANY OTHER step fails** → STOP immediately; surface issue — MANDATORY
+- **NO partial commits** — MANDATORY
+- **Fix issues first** before attempting commit again — MANDATORY
+
+## No Auto-Commit Policy (ENFORCED)
+
+- **NEVER commit or push** without explicit user instruction — MANDATORY
+- **NEVER stage files automatically** — only stage when user confirms — MANDATORY
+- **Follow commit procedure** — all pre-commit steps MUST pass — MANDATORY
+- **No implicit staging** — user must explicitly request commit — MANDATORY
+
+## No sed for Code Changes (ENFORCED)
+
+- **NEVER use sed or awk** to modify Swift source files — MANDATORY
+- **Use editor tools** (search/replace) for precise, controlled edits — MANDATORY
+
+## Violations (BLOCKED)
+
+- ❌ Commits without all pre-commit checks passing
+- ❌ Partial commits when steps fail
+- ❌ Skipping any mandatory step
+- ❌ Committing without explicit user instruction
+- ❌ Using sed/awk to modify source files
+
+## Enforcement (MANDATORY)
+
+- **Pre-commit hooks**: Verify all steps pass before allowing commit
+- **CI Integration**: Automated checks fail builds on violations
+- **No exceptions**: All steps must pass before commit

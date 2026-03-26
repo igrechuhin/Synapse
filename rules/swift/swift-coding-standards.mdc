@@ -1,0 +1,99 @@
+---
+globs: "*.swift"
+alwaysApply: false
+---
+# Swift Coding Standards (MANDATORY - ZERO TOLERANCE)
+
+**ENFORCEMENT**: CI MUST fail on violations. SwiftFormat runs automatically. NO exceptions.
+
+## Core Principles (ENFORCED)
+
+- **SOLID Principles**: Single Responsibility, Open/Closed, Liskov Substitution, Interface Segregation, Dependency Inversion — MANDATORY
+- **DRY**: Eliminate duplication through abstraction and reusable components — MANDATORY
+- **YAGNI**: Implement only what is required today; avoid speculative generality — MANDATORY
+- **Dependency Injection**: NO singletons, NO global state in production — MANDATORY
+- **Error Handling**: NO `fatalError` in production logic (only for unimplemented stubs) — MANDATORY
+- **Type Safety**: Use typed wrappers over primitives for domain concepts — MANDATORY
+
+## Formatting (ENFORCED via SwiftFormat)
+
+- **4-space indentation** (including multi-line strings) — MANDATORY
+- **K&R braces** (`--allman false`) — MANDATORY
+- **100-char line limit** (`--maxwidth 100`) — MANDATORY
+- **Sorted imports** with duplicates removed — MANDATORY
+- **NO file headers** (`--header strip`) — MANDATORY
+- **Compact syntax**: `guard let foo else`, `if let foo` — MANDATORY
+- **NO semicolons** — one statement per line — MANDATORY
+- **NO redundant self** unless required for disambiguation — MANDATORY
+
+## Style (ENFORCED)
+
+- **NO underscore prefixes** — use descriptive names instead — MANDATORY
+- **Type inference preferred** — omit obvious local types — MANDATORY
+- **Named constants** for repeated scalars (e.g., `percentScale = 100.0`) — MANDATORY
+- **US English** in all identifiers and comments — MANDATORY
+- **lowerCamelCase** for functions and variables — MANDATORY
+- **UpperCamelCase** for types — MANDATORY
+
+## File Organization (ENFORCED)
+
+- **One public type per file** — filename MUST match type name exactly — MANDATORY
+- **Max 400 lines per file** (excluding imports/license) — MANDATORY
+- **Max 30 lines per function** (logical lines, excluding docs) — MANDATORY
+- **Final newline** required on all files — MANDATORY
+- **Private helpers** at file scope after type definition (not static methods) — MANDATORY
+- **Private constants** at file end, after type definitions — MANDATORY
+
+## Functional Style (ENFORCED)
+
+- **Immutable by default** — use `let` over `var` unless mutation required — MANDATORY
+- **Higher-order functions** — prefer `map`, `filter`, `reduce`, `compactMap` over manual loops — MANDATORY
+- **Early returns** — minimize nesting with `guard` clauses — MANDATORY
+- **Structs preferred** — classes only for reference semantics — MANDATORY
+- **`final` by default** — prevent inheritance unless needed — MANDATORY
+- **Protocol conformance** over inheritance — MANDATORY
+
+## Error Handling (ENFORCED)
+
+- **NO `fatalError` in production logic** — use proper error types and `throws` — MANDATORY
+- **`fatalError` only for unimplemented stubs** — `fatalError("Not implemented")` — MANDATORY
+- **Typed errors** — use domain-specific `Error` types — MANDATORY
+- **Graceful degradation** — sensible fallbacks where possible — MANDATORY
+- **Fail fast** — validate inputs at boundaries; return clear validation errors — MANDATORY
+- **NO force unwrapping** (`!`) — use `guard`/`if let` — MANDATORY
+- **NO zero fallbacks** — never silently fall back to `0`/`""` unless algorithmically correct — MANDATORY
+
+## Testing (ENFORCED)
+
+- **All public APIs** MUST have unit tests — MANDATORY
+- **AAA pattern** — Arrange-Act-Assert structure — MANDATORY
+- **Descriptive names** — `test_behaviorDescription_whenCondition` format — MANDATORY
+- **TestLogger** required in all tests — use `TestLogger()` not `Logger()` — MANDATORY
+- **Tests < 10 seconds** each — MANDATORY
+- **100% pass rate** — zero failures — MANDATORY
+
+## Language Consistency (ENFORCED)
+
+- **US English** for all identifiers, comments, documentation, and user-facing text — MANDATORY
+- **No sed for code changes** — use editor tools for precise edits — MANDATORY
+
+## Violations (BLOCKED)
+
+- ❌ Semicolons or multi-statements on one line
+- ❌ Redundant `self` usage
+- ❌ Underscore-prefixed names
+- ❌ Force unwrapping (`!`)
+- ❌ Files exceeding 400 lines
+- ❌ Functions exceeding 30 lines
+- ❌ Multiple public types per file
+- ❌ Missing tests for public APIs
+- ❌ Singletons or global state
+- ❌ `fatalError` in production logic
+- ❌ O(n²) algorithms on large collections
+
+## Enforcement (MANDATORY)
+
+- **SwiftFormat**: Runs automatically; violations block commit
+- **CI Integration**: Automated checks fail builds on violations
+- **Code review**: Reject PRs with formatting/style violations
+- **No exceptions**: All violations must be fixed before merge
