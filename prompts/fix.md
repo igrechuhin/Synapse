@@ -2,6 +2,36 @@
 
 **AI EXECUTION COMMAND**: Fix issues in a targeted domain using Cortex MCP tools, outside of the full commit pipeline. This is a unified entry point for quality, test, and documentation fixes.
 
+**CRITICAL**: Execute ALL required gates automatically. Do NOT pause, summarize, or ask for confirmation unless clarification is genuinely needed.
+
+**HARD GATE — VIOLATION IF BROKEN**: You MUST complete **PHASE 0 — Diagnose First** (including documenting hypotheses and selecting one) BEFORE making ANY file edits. Reading/searching the repo and running checks is allowed; editing files is prohibited until the PHASE 0 Diagnosis Note is written.
+
+## PHASE 0 — Diagnose First (MANDATORY — before any file edits)
+
+**GOAL**: Identify the most likely root cause and a minimal, targeted fix plan before touching code.
+
+**GATE**: No file edits are allowed until you produce the **Diagnosis Note** below.
+
+### Diagnose-first checklist
+
+- **Identify affected files**: List the top suspected files/modules based on symptoms and where the failure surfaces.
+- **Trace an execution path / call stack**: Use stack traces, logs, request/CLI flow, or dependency graph reasoning to describe the likely path from input → failing point.
+- **Check related recent changes**: Look for nearby changes in the same area (recent commits, recent edits, or adjacent modules) that could plausibly explain the symptom.
+- **Check related known issues**: If the project has issue tracking or a bug log, quickly scan for similar symptoms to avoid duplicating a known root cause.
+
+### Diagnosis Note (required output before edits)
+
+Produce the following note in your response before making edits:
+
+- **Symptom**: What is failing (error message, failing check, failing behavior).
+- **Observed evidence**: Concrete evidence from the codebase (file paths, quoted snippets, config values) and/or failure output (logs, stack traces).
+- **Top 3 root-cause hypotheses (with evidence)**:
+  1. Hypothesis A — include 1–3 evidence bullets pointing to specific files/snippets or outputs.
+  2. Hypothesis B — include 1–3 evidence bullets.
+  3. Hypothesis C — include 1–3 evidence bullets.
+- **Selected hypothesis**: Pick ONE hypothesis and explain why it is most likely (and why the others are less likely).
+- **Minimal fix plan**: The smallest change(s) that would confirm/falsify the hypothesis and resolve the issue if confirmed.
+
 ## Target Parameter
 
 This prompt accepts an optional `target` parameter:
@@ -21,7 +51,7 @@ All MCP tools work when called with empty `{}` arguments. Use these zero-arg too
 - `run_quality_gate()` — run Phase A quality gate end-to-end (includes tests; may be long-running)
 - `run_docs_gate()` — run Phase B docs/memory-bank validation (fast; does NOT run tests)
 
-**CRITICAL: After calling any fix/gate tool, you MUST apply all remaining fixes inline. Do NOT produce a list of "required fixes" and stop. Just apply them immediately.**
+**CRITICAL**: After calling any fix/gate tool (and after completing PHASE 0), you MUST apply all remaining fixes inline. Do NOT produce a list of "required fixes" and stop. Just apply them immediately.
 
 ## Change-Scope Assessment (MANDATORY — run before any tool call)
 
@@ -55,13 +85,13 @@ Steps:
 
 ## Pre-Action Checklist
 
-Before making changes, load rules and classify the change scope. Then **immediately apply fixes**.
+Before making changes, complete PHASE 0, load rules, and classify the change scope. Then **immediately apply fixes**.
 
 1. **Load rules** (background, no output to user):
    - Read the `cortex://rules` resource (zero-arg, reads task from session config).
    - If resource access fails, proceed without rules — fix based on error output.
 2. **Classify change scope**: Run Change-Scope Assessment above.
-3. **Start fixing immediately**: Do NOT produce a summary. The moment a tool returns errors, start editing files.
+3. **Start fixing immediately (after PHASE 0)**: Do NOT produce a summary. The moment a tool returns errors, start editing files.
 
 ## Execution Steps
 
