@@ -155,8 +155,7 @@ def main() -> None:
             print(v, file=sys.stderr)
         print(file=sys.stderr)
         print(
-            f"Total violations: {len(all_violations)} function(s) exceed "
-            f"{MAX_FUNCTION_LINES} lines",
+            f"Total violations: {len(all_violations)} function(s) exceed {MAX_FUNCTION_LINES} lines",
             file=sys.stderr,
         )
         sys.exit(1)

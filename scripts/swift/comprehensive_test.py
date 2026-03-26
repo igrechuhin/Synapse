@@ -162,8 +162,8 @@ def main() -> None:
     log_lines.append(summary)
 
     log_content = "".join(log_lines)
-    log_file.write_text(log_content, encoding="utf-8")
-    latest_log.write_text(log_content, encoding="utf-8")
+    _ = log_file.write_text(log_content, encoding="utf-8")
+    _ = latest_log.write_text(log_content, encoding="utf-8")
     prune_old_logs(log_dir)
 
     print(f"\nResults: {passed} passed, {failed} failed ({elapsed}s)")
