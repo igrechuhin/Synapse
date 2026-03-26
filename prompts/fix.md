@@ -2,15 +2,22 @@
 
 **AI EXECUTION COMMAND**: Fix issues in a targeted domain using Cortex MCP tools, outside of the full commit pipeline. This is a unified entry point for quality, test, and documentation fixes.
 
+## Status legend (scan-friendly)
+
+- ✅ **Success** (passed / complete)
+- ⚠️ **Warning** (non-blocking; proceed but report)
+- ❌ **Error** (blocking; must fix before proceeding)
+- ⛔ **Hard gate** (rule violation if skipped)
+
 **CRITICAL**: Execute ALL required gates automatically. Do NOT pause, summarize, or ask for confirmation unless clarification is genuinely needed.
 
-**HARD GATE — VIOLATION IF BROKEN**: You MUST complete **PHASE 0 — Diagnose First** (including documenting hypotheses and selecting one) BEFORE making ANY file edits. Reading/searching the repo and running checks is allowed; editing files is prohibited until the PHASE 0 Diagnosis Note is written.
+⛔ **HARD GATE — VIOLATION IF BROKEN**: You MUST complete **PHASE 0 — Diagnose First** (including documenting hypotheses and selecting one) BEFORE making ANY file edits. Reading/searching the repo and running checks is allowed; editing files is prohibited until the PHASE 0 Diagnosis Note is written.
 
 ## PHASE 0 — Diagnose First (MANDATORY — before any file edits)
 
-**GOAL**: Identify the most likely root cause and a minimal, targeted fix plan before touching code.
+🧠 **GOAL**: Identify the most likely root cause and a minimal, targeted fix plan before touching code.
 
-**GATE**: No file edits are allowed until you produce the **Diagnosis Note** below.
+⛔ **GATE**: No file edits are allowed until you produce the **Diagnosis Note** below.
 
 ### Diagnose-first checklist
 
@@ -36,12 +43,12 @@ Produce the following note in your response before making edits:
 
 This prompt accepts an optional `target` parameter:
 
-- **quality** — Fix type errors, formatting, linting
-- **tests** — Diagnose and fix failing tests
-- **docs** — Synchronize documentation and memory bank
-- **all** — Run all three targets sequentially (see Sequential Execution below)
+- 🛠️ **quality** — Fix type errors, formatting, linting
+- 🧪 **tests** — Diagnose and fix failing tests
+- 📝 **docs** — Synchronize documentation and memory bank
+- 🔁 **all** — Run all three targets sequentially (see Sequential Execution below)
 
-**GATE**: If `target` is **omitted**, you MUST behave as if `target=all` and run all three targets sequentially. Do **not** ask the user which target they need when the command is invoked without parameters.
+⛔ **GATE**: If `target` is **omitted**, you MUST behave as if `target=all` and run all three targets sequentially. Do **not** ask the user which target they need when the command is invoked without parameters.
 
 ## Zero-Arg Tools (all tools work with no arguments)
 
@@ -76,7 +83,7 @@ Steps:
 2. Run `fix quality` — complete the full quality workflow below before proceeding.
 3. Run `fix tests` — complete the full tests workflow below before proceeding.
 4. Run `fix docs` — complete the full docs workflow below.
-5. Report a combined summary: which targets passed, which had remaining issues.
+5. Report a combined summary with emoji status: ✅/⚠️/❌ per target (quality/tests/docs), plus the single highest-signal failure snippet if anything is ❌.
 
 ## Goals (All Targets)
 
@@ -95,9 +102,9 @@ Before making changes, complete PHASE 0, load rules, and classify the change sco
 
 ## Execution Steps
 
-**GATE**: Fix loops are limited to **3 iterations** per target. After 3 failed fix-and-verify cycles, STOP and report unresolvable issues.
+⛔ **GATE**: Fix loops are limited to **3 iterations** per target. After 3 failed fix-and-verify cycles, STOP and report unresolvable issues.
 
-### quality Target
+### 🛠️ quality Target
 
 Route based on change scope:
 
@@ -118,7 +125,7 @@ Route based on change scope:
    - **Markdown lint**: fix manually per rule code (MD057, MD046, MD051, MD076, MD022, MD047). For `.cortex/memory-bank/*.md` use `manage_file()`.
 4. Re-verify with `run_quality_gate()`. Repeat from step 3 (max 3 iterations).
 
-### tests Target
+### 🧪 tests Target
 
 Route based on change scope:
 
@@ -133,7 +140,7 @@ Route based on change scope:
    - **Governance tests**: fix the source — never weaken the test.
 4. Re-run `run_quality_gate()` after fixes. Repeat (max 3 iterations).
 
-### docs Target
+### 📝 docs Target
 
 (Fast — never invokes the language build or test runner regardless of scope.)
 
@@ -158,6 +165,6 @@ Only stop after **3 complete fix-and-verify iterations per target** have all fai
 
 | Target | Criteria |
 |--------|----------|
-| quality | Zero type errors, clean formatting/linting, zero markdown errors |
-| tests | All tests passing (skipped when markdown_only) |
-| docs | `docs_phase_passed: true`, all sync issues resolved |
+| 🛠️ quality ✅ | Zero type errors, clean formatting/linting, zero markdown errors |
+| 🧪 tests ✅ | All tests passing (skipped when markdown_only) |
+| 📝 docs ✅ | `docs_phase_passed: true`, all sync issues resolved |
