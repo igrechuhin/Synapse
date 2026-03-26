@@ -2,6 +2,7 @@
 globs: "*.swift"
 alwaysApply: false
 ---
+
 # Swift Performance Rules (MANDATORY - ZERO TOLERANCE)
 
 **ENFORCEMENT**: CI MUST fail on violations. Benchmarks required for exceptions. NO exceptions without documented performance justification.

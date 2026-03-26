@@ -2,6 +2,7 @@
 globs: "*.swift"
 alwaysApply: false
 ---
+
 # Swift Style Rules (MANDATORY - ENFORCED via SwiftFormat)
 
 **ENFORCEMENT**: SwiftFormat runs automatically. CI MUST fail on violations. NO exceptions.

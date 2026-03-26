@@ -2,6 +2,7 @@
 globs: "*.swift"
 alwaysApply: false
 ---
+
 # Swift Concurrency Rules (MANDATORY)
 
 **ENFORCEMENT**: CI MUST fail on violations. All concurrency rules are MANDATORY. NO exceptions.

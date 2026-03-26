@@ -1,6 +1,7 @@
 ---
 alwaysApply: true
 ---
+
 # TradeWing Swift Project Rules (MANDATORY)
 
 **ENFORCEMENT**: CI MUST fail on violations. All project rules are MANDATORY. NO exceptions.

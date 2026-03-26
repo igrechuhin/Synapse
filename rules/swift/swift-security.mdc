@@ -1,6 +1,7 @@
 ---
 alwaysApply: true
 ---
+
 # Swift Security Rules (ZERO TOLERANCE - IMMEDIATE REJECTION)
 
 **ENFORCEMENT**: IMMEDIATE REJECTION of any security violations. CI blocks merge. NO exceptions. Security violations are CRITICAL.

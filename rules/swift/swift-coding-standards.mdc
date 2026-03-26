@@ -2,6 +2,7 @@
 globs: "*.swift"
 alwaysApply: false
 ---
+
 # Swift Coding Standards (MANDATORY - ZERO TOLERANCE)
 
 **ENFORCEMENT**: CI MUST fail on violations. SwiftFormat runs automatically. NO exceptions.

@@ -2,6 +2,7 @@
 globs: "*.swift"
 alwaysApply: false
 ---
+
 # Swift Architecture Rules (MANDATORY)
 
 **ENFORCEMENT**: CI MUST fail on violations. All architecture rules are MANDATORY. NO exceptions.

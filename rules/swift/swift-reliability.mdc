@@ -2,6 +2,7 @@
 globs: "*.swift"
 alwaysApply: false
 ---
+
 # Swift Reliability Rules (MANDATORY)
 
 **ENFORCEMENT**: CI MUST fail on violations. All reliability rules are MANDATORY. NO exceptions.
