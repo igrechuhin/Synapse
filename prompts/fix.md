@@ -13,6 +13,19 @@
 
 ⛔ **HARD GATE — VIOLATION IF BROKEN**: You MUST complete **PHASE 0 — Diagnose First** (including documenting hypotheses and selecting one) BEFORE making ANY file edits. Reading/searching the repo and running checks is allowed; editing files is prohibited until the PHASE 0 Diagnosis Note is written.
 
+## Fix-loop integrity (NO-GO)
+
+⛔ During **any** fix iteration, the following corrupt the tree and cause multi-session repair loops. **Do not** do these to “make the checker happy”:
+
+- **NO-GO — duplicate definitions**: NEVER add duplicate function/class definitions in the same module.
+- **NO-GO — `TYPE_CHECKING` workarounds**: NEVER use `TYPE_CHECKING` conditional imports; they violate project standards — use normal imports or refactor instead.
+- **NO-GO — circular imports**: NEVER paper over import cycles; extract shared types/helpers to a new module instead.
+- **NO-GO — invalid syntax**: NEVER commit syntax-invalid Python.
+
+**Post-fix validation** (before treating the quality target as ✅ for changed Python modules): run `python3 -m py_compile <path/to/file.py>` and `python3 -c "import <module_import_path>"` for each changed module (use the package import path, e.g. `cortex.tools.foo`, not a filesystem path). If either command fails, fix the cause or revert — do not proceed to success.
+
+**Rollback on regressions**: If a fix attempt introduces **new** test failures or **new** quality errors versus the state before that attempt, roll back that attempt and try a different approach. **Max 3 attempts** per target (same limit as the fix loop below).
+
 ## PHASE 0 — Diagnose First (MANDATORY — before any file edits)
 
 🧠 **GOAL**: Identify the most likely root cause and a minimal, targeted fix plan before touching code.
@@ -124,6 +137,7 @@ Route based on change scope:
    - **Function too long** (> 30 lines): extract helper functions.
    - **Markdown lint**: fix manually per rule code (MD057, MD046, MD051, MD076, MD022, MD047). For `.cortex/memory-bank/*.md` use `manage_file()`.
 4. Re-verify with `run_quality_gate()`. Repeat from step 3 (max 3 iterations).
+5. Before declaring the 🛠️ quality target ✅ for Python edits: apply **Post-fix validation** and **Rollback on regressions** from [Fix-loop integrity (NO-GO)](#fix-loop-integrity-no-go) — `py_compile`, import check, and bounded retry with revert on new failures.
 
 ### 🧪 tests Target
 
@@ -160,6 +174,8 @@ Route based on change scope:
 - Docs sync failures → edit memory bank files via `manage_file()`.
 
 Only stop after **3 complete fix-and-verify iterations per target** have all failed.
+
+If an attempt worsens the tree (new failures, duplicate defs, invalid syntax), **roll back that attempt** and retry with a different strategy — see **Rollback on regressions** under [Fix-loop integrity (NO-GO)](#fix-loop-integrity-no-go).
 
 ## Success Criteria
 
