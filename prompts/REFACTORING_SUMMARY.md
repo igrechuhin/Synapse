@@ -1,5 +1,9 @@
 # Prompt Refactoring Summary
 
+## Clean Semantics
+
+In this summary, **clean** means the documented refactoring state is coherent and aligned with the orchestration model. It does not require a git-clean tree.
+
 ## Principle
 
 **Prompts = Orchestration** | **Agents = Implementation**

@@ -2,6 +2,10 @@
 
 # Analyze Session for Synapse Optimization
 
+## Clean Semantics
+
+For this archived analysis prompt, **clean** means optimization analysis is complete, evidence-backed, and actionable. It does not mean git-clean working tree.
+
 **AI EXECUTION COMMAND**: Analyze the current session to identify mistakes, anti-patterns, and optimization opportunities. Generate actionable recommendations to improve Synapse prompts and rules to prevent similar issues in future sessions.
 
 **CRITICAL**: This command analyzes the CURRENT session (not historical sessions) to find patterns of mistakes that could be prevented by improving Synapse prompts and rules. Execute all steps AUTOMATICALLY without asking for permission.

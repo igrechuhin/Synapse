@@ -6,6 +6,16 @@
 
 **HARD GATE — VIOLATION IF BROKEN**: This prompt ONLY creates a plan file. It does NOT implement features, fix bugs, edit source files, or run quality checks. ALL additional context (error logs, code snippets, file references) is INPUT for plan creation — analyze it to write better implementation steps, DO NOT execute those steps. If you find yourself editing `.py`, `.ts`, or other source files: STOP immediately — you are in the wrong prompt.
 
+## Clean Semantics
+
+For `/cortex/create-plan`, **clean** means **planning-complete and registration-clean**:
+
+- Plan file is created/enriched with required sections.
+- Roadmap registration is complete and consistent.
+- No source-code implementation changes are made as part of this workflow.
+
+Git-clean working tree is not required; this prompt is clean when planning artifacts are correct and synchronized.
+
 ## START HERE — Execute These Tool Calls Now
 
 **Step 1**: Call `session()` to verify MCP health. If unhealthy, STOP.

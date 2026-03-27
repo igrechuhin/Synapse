@@ -4,6 +4,14 @@
 
 Phase B (Documentation) is the **compound** step of the engineering loop — it updates the memory bank so the next session can build on this work.
 
+## Clean Semantics
+
+For `/cortex/commit`, **clean** means **git-clean** for the commit scope:
+
+- Superproject and required submodules have no unresolved working-tree drift for files included in the commit path.
+- Submodule pointer (gitlink) is in sync with the intended submodule commit.
+- Local edits are not considered clean until they are either committed (where required) or intentionally discarded/staged per workflow.
+
 ## Sequential Execution Order
 
 Each phase must complete before the next begins:
@@ -176,6 +184,8 @@ pipeline_handoff(operation="write", pipeline="commit", phase="final-gate",
 
 1. `phases.final-gate.status == "passed"`
 2. All phases present in state
+
+**Session scope split-commit hint**: If the staged changes contain multiple unrelated goals (for example, "CI/tooling recovery" plus "feature implementation"), suggest splitting into separate commits aligned to one goal each before creating the commit. If the user explicitly wants one combined commit, proceed but note the scope risk in the summary.
 
 **Staging**: `git add <path>` for each related file. Never `git add -A`. Never stage `.env*`, credentials, keys, sensitive files.
 

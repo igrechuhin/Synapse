@@ -4,6 +4,16 @@
 
 This is part of the **compound-engineering loop** (Plan → Work → Review → Compound). The Finalize phase is the Compound step.
 
+## Clean Semantics
+
+For `/cortex/implement`, **clean** means **step-complete and gate-clean** for the selected roadmap slice:
+
+- The selected subtask is implemented to the intended completion level (full or explicit partial).
+- Required verification/fix phases for that step pass.
+- Roadmap/plan state is synchronized with what was actually completed.
+
+Local code edits may exist during implementation; git-clean working tree is not required by this prompt.
+
 ## Sequential Execution Order
 
 Each phase must complete before the next begins:

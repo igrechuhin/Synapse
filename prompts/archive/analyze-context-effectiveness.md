@@ -2,6 +2,10 @@
 
 # Analyze Context Effectiveness
 
+## Clean Semantics
+
+For this archived analysis prompt, **clean** means analysis output completeness and correctness (required observations captured, recommendations grounded in evidence). It does not mean git-clean working tree.
+
 **AI EXECUTION COMMAND**: Analyze `load_context` effectiveness for the current session.
 
 **CRITICAL**: Execute this automatically. DO NOT ask user for permission.

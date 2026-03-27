@@ -2,6 +2,16 @@
 
 **CRITICAL**: Execute ALL steps below AUTOMATICALLY. Do NOT pause, summarize, or ask for confirmation. Start with Step 1 immediately.
 
+## Clean Semantics
+
+For `/cortex/analyze`, **clean** means **analysis-complete** for this session:
+
+- Required analysis steps have run (or explicit unavailability is recorded).
+- The session optimization report is written with required sections.
+- Compaction/finalization steps are completed when available.
+
+Git cleanliness is not the definition of clean in this prompt.
+
 ## START HERE — Pre-Analysis Checklist and First Tool Calls
 
 **Step 1**: Call `session()` to verify MCP health. If unhealthy after retry, continue with available steps (partial analysis is better than none).
@@ -25,6 +35,8 @@ If `no_data` or connection error: note "Context effectiveness analysis unavailab
 Run usage pattern analysis (set `analysis_target` in session config to "usage_patterns", then read `cortex://analysis` resource).
 
 Record: mistake patterns, root causes, optimization recommendations, tool anomalies.
+
+Session scope risk check: detect multi-goal sessions by scanning for unrelated objective clusters in the same session (for example, infrastructure/tooling fixes mixed with feature implementation or docs rewrites). If detected, add a "Session Scope Risk: multi-goal session" note with one concrete split recommendation for the next session.
 
 If connection error: note "Session optimization analysis unavailable" and continue.
 

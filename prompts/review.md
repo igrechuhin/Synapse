@@ -2,6 +2,16 @@
 
 **CRITICAL**: Execute ALL steps below AUTOMATICALLY. Do NOT pause, summarize, or ask for confirmation. Start with Step 1 immediately.
 
+## Clean Semantics
+
+For `/cortex/review`, **clean** means **review-clean for the scoped code**:
+
+- Required review checks are executed for the selected scope.
+- Findings are either absent or fully documented with severity and evidence.
+- No unresolved hidden blockers remain in the reviewed scope.
+
+Git-clean working tree is not required; review cleanliness is about issue detection and reporting quality.
+
 ## START HERE — Execute These Tool Calls Now
 
 **Step 1**: Call `session()` to verify MCP health and get orientation.

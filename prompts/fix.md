@@ -2,6 +2,10 @@
 
 **AI EXECUTION COMMAND**: Fix issues in a targeted domain using Cortex MCP tools, outside of the full commit pipeline. This is a unified entry point for quality, test, and documentation fixes.
 
+## Clean Semantics
+
+For `/cortex/fix`, **clean** means **issue-clean for the active fix target(s)** (quality/tests/docs), not git-clean working tree. See "Submodule `clean` semantics for `/fix`" below for required submodule behavior.
+
 ## Status legend (scan-friendly)
 
 - ✅ **Success** (passed / complete)
@@ -86,6 +90,24 @@ All MCP tools work when called with empty `{}` arguments. Use these zero-arg too
 
 **Why this matters**: `run_quality_gate()` spawns a full language-specific build + test run (e.g. `swift build` + `swift test`, `pytest`, `go test`). On large projects this takes **5–15+ minutes**. When only markdown files changed, tests are provably irrelevant — running them wastes time and makes the prompt appear to hang.
 
+## Submodule-First Fix Routing (MANDATORY)
+
+⛔ **GATE**: Before root quality/tests/docs gates, check for dirty submodules and treat them as fix targets.
+
+### Submodule "clean" semantics for `/fix`
+
+For this prompt, a submodule is **clean** when there are **no remaining fixable issues** for the active target(s) (quality/tests/docs). A submodule may still contain intentional local edits and still be considered clean for `/fix`.
+
+Do **not** use commit-pipeline cleanliness semantics here. In `/cortex/commit`, "clean" means git-clean working tree (changes committed/discarded); in `/fix`, "clean" means issue-clean for the requested gates.
+
+1. Detect dirty submodules with `git submodule foreach 'git status --short'` (or equivalent).
+2. If a submodule has uncommitted/untracked changes:
+   - Run the same diagnose-first + fix loop inside that submodule first (quality/tests/docs as applicable).
+   - Keep iterating until the submodule is green (or max 3 iterations for that submodule target).
+3. Only after all dirty submodules are green, return to the superproject and continue root `/fix`.
+
+**Interpretation rule**: Uncommitted submodule changes are not automatically "dirty state to reject" — they are work that must be fixed first. `submodule_hygiene` failure at the superproject level should trigger submodule-first remediation, not immediate stop.
+
 ## Sequential Execution (`all` target)
 
 When `target=all`, run targets **one at a time in order**: quality → tests → docs. Do NOT launch concurrent subagents.
@@ -93,10 +115,11 @@ When `target=all`, run targets **one at a time in order**: quality → tests →
 Steps:
 
 1. Perform Change-Scope Assessment (above) once; reuse the result for all targets.
-2. Run `fix quality` — complete the full quality workflow below before proceeding.
-3. Run `fix tests` — complete the full tests workflow below before proceeding.
-4. Run `fix docs` — complete the full docs workflow below.
-5. Report a combined summary with emoji status: ✅/⚠️/❌ per target (quality/tests/docs), plus the single highest-signal failure snippet if anything is ❌.
+2. Run Submodule-First Fix Routing (above) and complete required submodule fixes.
+3. Run `fix quality` — complete the full quality workflow below before proceeding.
+4. Run `fix tests` — complete the full tests workflow below before proceeding.
+5. Run `fix docs` — complete the full docs workflow below.
+6. Report a combined summary with emoji status: ✅/⚠️/❌ per target (quality/tests/docs), plus the single highest-signal failure snippet if anything is ❌.
 
 ## Goals (All Targets)
 

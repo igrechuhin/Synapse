@@ -1,5 +1,9 @@
 # Prompt Refactoring Guide: Orchestration vs Implementation
 
+## Clean Semantics
+
+In this guide, **clean** means terminology and workflow guidance are internally consistent, non-conflicting, and aligned with prompt intent. It does not mean git-clean working tree.
+
 ## Principle
 
 **Prompts = Orchestration** | **Agents = Implementation**
