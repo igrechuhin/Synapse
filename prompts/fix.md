@@ -177,6 +177,8 @@ Route based on change scope:
    - **Governance tests**: fix the source — never weaken the test.
 4. Re-run `run_quality_gate()` after fixes. Repeat (max 3 iterations).
 
+⚠️ **CI parity gap — parallel test execution**: The local `run_quality_gate()` may run tests single-threaded, while CI always runs `pytest -n auto` (parallel xdist workers). Tests that only fail under parallel execution (e.g. asyncio cross-loop bugs, shared module-level state, concurrent resource races) will pass locally but fail CI. If a test failure involves asyncio, concurrency, event loops, or shared global state, **also run** `uv run pytest tests/ -n auto -x -q --no-header -p no:randomly` locally to reproduce the CI failure before declaring the target ✅.
+
 ### 📝 docs Target
 
 (Fast — never invokes the language build or test runner regardless of scope.)
