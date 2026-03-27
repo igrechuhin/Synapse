@@ -6,22 +6,38 @@ Synapse is a git submodule that provides shared development resources across pro
 
 ```text
 .cortex/synapse/
-├── prompts/           # Language-AGNOSTIC workflow definitions
-│   ├── commit.md      # Commit procedure (uses scripts)
-│   ├── review.md      # Code review procedure
-│   └── ...
-├── rules/             # Coding standards and guidelines
-│   ├── general/       # Language-agnostic rules
-│   ├── python/        # Python-specific rules
-│   ├── markdown/      # Markdown formatting rules
-│   └── ...
-└── scripts/           # Language-SPECIFIC implementations
-    └── python/        # Python scripts
-        ├── check_formatting.py
-        ├── check_linting.py
-        ├── check_types.py
-        └── ...
+├── prompts/                    # Language-AGNOSTIC workflow definitions
+│   ├── commit.md               # Commit procedure
+│   ├── review.md               # Code review procedure
+│   ├── fix.md                  # Fix/debug procedure
+│   ├── analyze.md              # Analysis procedure
+│   ├── implement-next-roadmap-step.md
+│   ├── create-plan.md
+│   ├── prompts-manifest.json   # Prompt registry
+│   └── archive/                # Retired prompts
+├── rules/                      # Coding standards and guidelines
+│   ├── general/                # Language-agnostic rules
+│   ├── swift/                  # Swift-specific rules (used by TradeWing)
+│   ├── python/                 # Python-specific rules
+│   ├── markdown/               # Markdown formatting rules
+│   └── rules-manifest.json     # Rules registry
+├── agents/                     # Cursor/Claude agent definitions
+│   ├── agents-manifest.json    # Agent registry
+│   ├── commit-phase-a/b/c.md   # Commit pipeline agents
+│   ├── memory-bank-updater.md
+│   ├── plan-creator.md
+│   ├── roadmap-implementer.md
+│   └── ...                     # 40+ specialized agents
+├── cursor-agents/              # Cursor-specific agent configs
+│   ├── implement-code.md
+│   └── shared-defaults.md
+└── scripts/                    # Language-SPECIFIC quality gate scripts
+    └── python/                 # Python scripts (ruff, black, pyright, pytest)
 ```
+
+**TradeWing note**: TradeWing is Swift, not Python. The `scripts/python/` quality gate
+scripts do NOT apply to TradeWing source. Use `swift build` / `swift test` / `swiftformat`
+directly. The `rules/swift/` rules and all `prompts/` and `agents/` are relevant.
 
 ## Critical Architecture Principle
 
