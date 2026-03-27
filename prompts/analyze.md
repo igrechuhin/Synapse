@@ -36,7 +36,12 @@ Run usage pattern analysis (set `analysis_target` in session config to "usage_pa
 
 Record: mistake patterns, root causes, optimization recommendations, tool anomalies.
 
-Session scope risk check: detect multi-goal sessions by scanning for unrelated objective clusters in the same session (for example, infrastructure/tooling fixes mixed with feature implementation or docs rewrites). If detected, add a "Session Scope Risk: multi-goal session" note with one concrete split recommendation for the next session.
+Session scope risk check: detect multi-goal sessions by scanning for unrelated objective clusters in the same session (for example, infrastructure/tooling fixes mixed with feature implementation or docs rewrites). Treat this as a scope lock violation against the single-goal session pattern.
+
+If detected, add a "Session Scope Risk: multi-goal session" note with:
+
+- one concrete split recommendation (how to split the goals into separate sessions/commits),
+- one sentence explaining why the combined scope increased failure risk.
 
 If connection error: note "Session optimization analysis unavailable" and continue.
 

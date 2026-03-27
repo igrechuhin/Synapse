@@ -185,7 +185,10 @@ pipeline_handoff(operation="write", pipeline="commit", phase="final-gate",
 1. `phases.final-gate.status == "passed"`
 2. All phases present in state
 
-**Session scope split-commit hint**: If the staged changes contain multiple unrelated goals (for example, "CI/tooling recovery" plus "feature implementation"), suggest splitting into separate commits aligned to one goal each before creating the commit. If the user explicitly wants one combined commit, proceed but note the scope risk in the summary.
+**Session scope split-commit hint**: Enforce the single-goal session pattern at commit time. If staged changes contain multiple unrelated goals (for example, "CI/tooling recovery" plus "feature implementation"), suggest splitting into separate commits aligned to one goal each before creating the commit.
+
+- Recommend one commit per goal with explicit scope boundaries.
+- If the user explicitly requests one combined commit, proceed without blocking, but record "Session Scope Risk: multi-goal combined commit" in the summary.
 
 **Staging**: `git add <path>` for each related file. Never `git add -A`. Never stage `.env*`, credentials, keys, sensitive files.
 
