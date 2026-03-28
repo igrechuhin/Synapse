@@ -252,11 +252,44 @@ Also include **Effort** (Low / Medium / High), **Impact** (Low / Medium / High),
 
 ## Final report (required format)
 
-**MANDATORY**: Closing message is **user-facing markdown** per `docs/guides/synapse-final-report-templates.md`.
+**MANDATORY**: Use the **Artifact (review)** report type from `docs/guides/synapse-final-report-templates.md`.
 
-**Review delta**: **Key results** must include a **scores / evidence** table (or equivalent tight matrix) aligning criteria, score, and evidence pointers per the template.
+```markdown
+## Result
 
-Section order: `## Status`, `## Scope` (`/cortex/review` + scope), `## What ran`, `## Key results` (with table), `## Memory bank and roadmap` (**Not updated** if unchanged), `## Blockers and follow-ups`.
+✅/⚠️ Review complete — <n> issues found
+
+## Scores
+
+| Metric | Score | Delta |
+|--------|-------|-------|
+| Architecture | <n> | <+/-n> |
+| Test Coverage | <n> | <+/-n> |
+| Documentation | <n> | <+/-n> |
+| Code Style | <n> | <+/-n> |
+| Error Handling | <n> | <+/-n> ⚠️ |
+| Performance | <n> | <+/-n> |
+| Security | <n> | <+/-n> |
+| Maintainability | <n> | <+/-n> |
+| Rules Compliance | <n> | <+/-n> |
+| **Overall** | **<n>** | **<+/-n>** |
+
+## Issues
+
+| ID | Severity | Location |
+|----|----------|----------|
+| REV-<date>-<n> | Critical/High/Medium/Low | <file:line> — <description> |
+
+## Next
+
+<Fix High/Critical issues OR None>
+```
+
+**Rules**:
+
+- Flag negative deltas with ⚠️
+- Issues table: carried forward from prior reports + new findings
+- ⚠️ in Result if any High/Critical issues
 
 ## Success Criteria
 

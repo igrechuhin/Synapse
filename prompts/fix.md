@@ -204,18 +204,41 @@ If an attempt worsens the tree (new failures, duplicate defs, invalid syntax), *
 
 ## Final report (required format)
 
-**MANDATORY**: Closing summary is **user-facing markdown** per `docs/guides/synapse-final-report-templates.md`.
+**MANDATORY**: Use the **Diagnostic** report type from `docs/guides/synapse-final-report-templates.md`.
 
-**Fix delta**: Under **What ran** or **Key results**, put a **diagnosis pointer** first (file, test name, or failing check) before listing applied fixes — keeps long fix sessions scannable.
+```markdown
+## Result
 
-Required **`##` section order**:
+✅ Fixed <targets> (<n> iterations)
 
-- `## Status` — ✅ / ⚠️ / ❌ and summary per target (quality / tests / docs).
-- `## Scope` — `/cortex/fix` and active target(s).
-- `## What ran` — PHASE 0 diagnosis note, iterations per target, tools used (`fix_quality_issues`, `run_quality_gate`, `run_docs_gate`).
-- `## Key results` — what changed, verification outcomes.
-- `## Memory bank and roadmap` — updates or **Not updated**.
-- `## Blockers and follow-ups` — remaining failures after max iterations or **None**.
+## Diagnosis
+
+**Symptom**: <error message or failing check>
+**Cause**: <root cause from PHASE 0>
+
+## Iterations
+
+| Target | Status | Count |
+|--------|--------|-------|
+| Quality | ✅/❌ | <n> |
+| Tests | ✅/❌/⏭️ | <n OR skipped> |
+| Docs | ✅/❌/⏭️ | <n OR skipped> |
+
+## Changes
+
+- <file:line> — <what changed>
+- ...
+
+## Next
+
+<remaining failures OR None>
+```
+
+**Rules**:
+
+- Diagnosis section promotes PHASE 0 findings to top level
+- ⏭️ for skipped targets (e.g., markdown-only scope)
+- Changes list: file:line format for each edit
 
 ## Success Criteria
 

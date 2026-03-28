@@ -254,18 +254,40 @@ This restores the full record of completed phases, coverage values, snapshot_ref
 
 ## Final report (required format)
 
-**MANDATORY**: The closing narrative after this pipeline is **user-facing markdown** (distinct from MCP tool JSON). Follow the canonical layout in `docs/guides/synapse-final-report-templates.md` (Cortex superproject root).
+**MANDATORY**: Use the **Pipeline** report type from `docs/guides/synapse-final-report-templates.md`.
 
-End the run with these **`##` headings in this exact order** (omit only when truly N/A; otherwise one line such as `Not updated` or `None`):
+```markdown
+## Result
 
-- `## Status` — line 1: ✅ / ⚠️ / ❌ and a one-line outcome summary.
-- `## Scope` — `/cortex/commit` (or equivalent visible label).
-- `## What ran` — list **Preflight**, **Phase A** (quality), **Phase B** (docs), **Phase C**, **Step 12** (`run_quality_gate_fresh`), **Steps 13–15** as executed; each item **pass**, **fail**, or **skipped**.
-- `## Key results` — commit SHA, branch, push outcome, files in commit, notable gate outputs, `snapshot_ref` when used.
-- `## Memory bank and roadmap` — Phase B / compound updates or **Not updated**.
-- `## Blockers and follow-ups` — open items or **None**.
+✅ Committed <sha> to <branch> (<n> files)
 
-**Anti-pattern**: Do not lead with success prose while hiding a failed Phase B or Step 12 — failed phases belong at the top via **Status** and **What ran**.
+## Phases
+
+| Phase | Status | Notes |
+|-------|--------|-------|
+| Preflight | ✅/❌ | snapshot: <ref> |
+| Quality (A) | ✅/❌ | <coverage>% coverage |
+| Docs (B) | ✅/❌ | <roadmap updated OR —> |
+| Validate (C) | ✅/❌ | — |
+| Final gate | ✅/❌ | <n> fix iterations |
+
+## Artifacts
+
+- Commit: `<sha>` on `<branch>`
+- Files: <list>
+- Coverage: <n>%
+- Pushed: ✅/❌ <remote>
+
+## Next
+
+<action items OR None>
+```
+
+**Rules**:
+
+- Memory bank updates go in Docs (B) Notes column only when changed
+- Failed phases: put ❌ in Status column, details in Notes
+- `## Next`: explicit "None" or action items
 
 ## Success Criteria
 

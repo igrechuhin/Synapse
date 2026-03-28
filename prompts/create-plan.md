@@ -97,11 +97,30 @@ Plans: `.cortex/plans/`. Memory bank: `.cortex/memory-bank/`. Use `manage_file()
 
 ## Final report (required format)
 
-**MANDATORY**: Closing message is **user-facing markdown** per `docs/guides/synapse-final-report-templates.md`.
+**MANDATORY**: Use the **Artifact** report type from `docs/guides/synapse-final-report-templates.md`.
 
-**Create-plan delta**: **Key results** must include plan file path; **Memory bank and roadmap** must state roadmap registration outcome (section/bullet) or **Not registered** if intentionally skipped.
+```markdown
+## Result
 
-Section order: `## Status`, `## Scope` (`/cortex/create-plan`), `## What ran`, `## Key results`, `## Memory bank and roadmap`, `## Blockers and follow-ups`.
+✅ Plan created: <filename>.md
+
+## Output
+
+| Field | Value |
+|-------|-------|
+| Path | `.cortex/plans/<filename>.md` |
+| Roadmap | Added to "<section>" |
+| Status | PENDING |
+
+## Next
+
+`/cortex/implement @.cortex/plans/<filename>.md`
+```
+
+**Rules**:
+
+- Roadmap field: section name where registered, or "Not registered" if skipped
+- Next: always include implement command for new plans
 
 ## Success Criteria
 

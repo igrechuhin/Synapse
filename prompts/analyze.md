@@ -121,18 +121,30 @@ If any MCP tool fails with "Connection closed" (MCP error -32000):
 
 ## Final report (required format)
 
-**MANDATORY**: Closing message is **user-facing markdown** per `docs/guides/synapse-final-report-templates.md`.
+**MANDATORY**: Use the **Artifact** report type from `docs/guides/synapse-final-report-templates.md`.
 
-**Analyze delta**: **Key results** must cite the session optimization / analysis artifact path and note whether `session(operation="compact")` ran (or unavailable).
+```markdown
+## Result
 
-Section order:
+✅ Analysis complete
 
-- `## Status`
-- `## Scope` — `/cortex/analyze`
-- `## What ran` — Steps 4–8 (and 9 if any) with pass/skip notes.
-- `## Key results` — report paths, compaction metrics if available.
-- `## Memory bank and roadmap` — compaction / plan creates or **Not updated**.
-- `## Blockers and follow-ups`
+## Output
+
+| Field | Value |
+|-------|-------|
+| Report | `.cortex/reviews/session-optimization-<timestamp>.md` |
+| Compaction | <before> → <after> tokens (<n>% reduction) |
+| Plan created | <path OR —> |
+
+## Next
+
+<action items OR None>
+```
+
+**Rules**:
+
+- Include compaction metrics when `session(compact)` ran
+- Plan created row only if Step 9 produced improvements plan
 
 ## Success Criteria
 

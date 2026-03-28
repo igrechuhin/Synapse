@@ -192,16 +192,39 @@ This restores the full record of completed phases — continue from the first ph
 
 ## Final report (required format)
 
-**MANDATORY**: Closing message is **user-facing markdown** per `docs/guides/synapse-final-report-templates.md` (Cortex superproject).
+**MANDATORY**: Use the **Pipeline** report type from `docs/guides/synapse-final-report-templates.md`.
 
-Use these **`##` headings in this order**:
+```markdown
+## Result
 
-- `## Status` — ✅ / ⚠️ / ❌ plus one-line summary (partial implementations use ⚠️).
-- `## Scope` — `/cortex/implement` and selected roadmap step title.
-- `## What ran` — **Selection**, **Implementation** (implement-code / coding pass), **Finalize**, **Verify**, **Fix** (if run); each **pass**, **fail**, or **skipped**. Note quality-gate iterations when relevant.
-- `## Key results` — files changed, tests/coverage if reported, `plan()` / `update_memory_bank` outcomes, pipeline cleared or not.
-- `## Memory bank and roadmap` — roadmap removed vs kept, progress/activeContext entries, plan archived vs IN_PROGRESS.
-- `## Blockers and follow-ups` — or **None**.
+✅ Implemented "<step title>" (full/partial)
+
+## Phases
+
+| Phase | Status | Notes |
+|-------|--------|-------|
+| Selection | ✅/❌ | <source: roadmap/explicit> |
+| Implementation | ✅/❌ | <n> files, <n> tests, <n>% |
+| Finalize | ✅/❌ | <plan archived OR —> |
+| Verify | ✅/❌ | <roadmap entry status> |
+| Fix | ✅/⏭️ | <n> iterations |
+
+## Artifacts
+
+- Files: <list>
+- Tests added: <n>
+- Coverage: <n>%
+- Plan: <archived/IN_PROGRESS/none>
+
+## Next
+
+<action items OR None>
+```
+
+**Rules**:
+
+- Partial implementations: use ⚠️ in Result
+- Roadmap/plan state changes go in Finalize/Verify Notes
 
 ## Success Criteria
 
