@@ -190,6 +190,19 @@ This restores the full record of completed phases — continue from the first ph
 - **Finalize fails (memory bank crash)**: STOP, report with FIX-ASAP priority
 - **Quality gate unavailable (doc-only sessions)**: Record "Quality gate skipped" and proceed to Finalize
 
+## Final report (required format)
+
+**MANDATORY**: Closing message is **user-facing markdown** per `docs/guides/synapse-final-report-templates.md` (Cortex superproject).
+
+Use these **`##` headings in this order**:
+
+- `## Status` — ✅ / ⚠️ / ❌ plus one-line summary (partial implementations use ⚠️).
+- `## Scope` — `/cortex/implement` and selected roadmap step title.
+- `## What ran` — **Selection**, **Implementation** (implement-code / coding pass), **Finalize**, **Verify**, **Fix** (if run); each **pass**, **fail**, or **skipped**. Note quality-gate iterations when relevant.
+- `## Key results` — files changed, tests/coverage if reported, `plan()` / `update_memory_bank` outcomes, pipeline cleared or not.
+- `## Memory bank and roadmap` — roadmap removed vs kept, progress/activeContext entries, plan archived vs IN_PROGRESS.
+- `## Blockers and follow-ups` — or **None**.
+
 ## Success Criteria
 
 - Implementation complete and all tests pass

@@ -250,6 +250,14 @@ Also include **Effort** (Low / Medium / High), **Impact** (Low / Medium / High),
 - Rules violations found → fix immediately
 - Consecutive MCP failures → follow circuit-breaker pattern per `shared-conventions.md`
 
+## Final report (required format)
+
+**MANDATORY**: Closing message is **user-facing markdown** per `docs/guides/synapse-final-report-templates.md`.
+
+**Review delta**: **Key results** must include a **scores / evidence** table (or equivalent tight matrix) aligning criteria, score, and evidence pointers per the template.
+
+Section order: `## Status`, `## Scope` (`/cortex/review` + scope), `## What ran`, `## Key results` (with table), `## Memory bank and roadmap` (**Not updated** if unchanged), `## Blockers and follow-ups`.
+
 ## Success Criteria
 
 - Steps 4–12 completed (regression check, then static analysis through performance)

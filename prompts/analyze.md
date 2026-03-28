@@ -119,6 +119,21 @@ If any MCP tool fails with "Connection closed" (MCP error -32000):
 - If retry fails, skip that analysis step and continue
 - Complete as much analysis as possible
 
+## Final report (required format)
+
+**MANDATORY**: Closing message is **user-facing markdown** per `docs/guides/synapse-final-report-templates.md`.
+
+**Analyze delta**: **Key results** must cite the session optimization / analysis artifact path and note whether `session(operation="compact")` ran (or unavailable).
+
+Section order:
+
+- `## Status`
+- `## Scope` — `/cortex/analyze`
+- `## What ran` — Steps 4–8 (and 9 if any) with pass/skip notes.
+- `## Key results` — report paths, compaction metrics if available.
+- `## Memory bank and roadmap` — compaction / plan creates or **Not updated**.
+- `## Blockers and follow-ups`
+
 ## Success Criteria
 
 - Steps 4-6 executed (or gracefully skipped on connection errors)

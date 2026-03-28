@@ -252,6 +252,21 @@ pipeline_handoff(operation="read", pipeline="commit")
 
 This restores the full record of completed phases, coverage values, snapshot_ref, and submodule status — continue from the first phase not yet in `phases`.
 
+## Final report (required format)
+
+**MANDATORY**: The closing narrative after this pipeline is **user-facing markdown** (distinct from MCP tool JSON). Follow the canonical layout in `docs/guides/synapse-final-report-templates.md` (Cortex superproject root).
+
+End the run with these **`##` headings in this exact order** (omit only when truly N/A; otherwise one line such as `Not updated` or `None`):
+
+- `## Status` — line 1: ✅ / ⚠️ / ❌ and a one-line outcome summary.
+- `## Scope` — `/cortex/commit` (or equivalent visible label).
+- `## What ran` — list **Preflight**, **Phase A** (quality), **Phase B** (docs), **Phase C**, **Step 12** (`run_quality_gate_fresh`), **Steps 13–15** as executed; each item **pass**, **fail**, or **skipped**.
+- `## Key results` — commit SHA, branch, push outcome, files in commit, notable gate outputs, `snapshot_ref` when used.
+- `## Memory bank and roadmap` — Phase B / compound updates or **Not updated**.
+- `## Blockers and follow-ups` — open items or **None**.
+
+**Anti-pattern**: Do not lead with success prose while hiding a failed Phase B or Step 12 — failed phases belong at the top via **Status** and **What ran**.
+
 ## Success Criteria
 
 - All phases (Preflight, A, B, C) and Step 12 passed

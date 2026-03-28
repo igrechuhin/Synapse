@@ -95,6 +95,14 @@ Plans: `.cortex/plans/`. Memory bank: `.cortex/memory-bank/`. Use `manage_file()
 - **Plan file creation errors**: Check permissions, directory existence
 - **Roadmap update errors**: Check format, report specific error
 
+## Final report (required format)
+
+**MANDATORY**: Closing message is **user-facing markdown** per `docs/guides/synapse-final-report-templates.md`.
+
+**Create-plan delta**: **Key results** must include plan file path; **Memory bank and roadmap** must state roadmap registration outcome (section/bullet) or **Not registered** if intentionally skipped.
+
+Section order: `## Status`, `## Scope` (`/cortex/create-plan`), `## What ran`, `## Key results`, `## Memory bank and roadmap`, `## Blockers and follow-ups`.
+
 ## Success Criteria
 
 - Plan file created with all required sections (frontmatter, goal, steps, Verification Checklist, testing strategy with 95% coverage target)
