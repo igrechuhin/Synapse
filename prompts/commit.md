@@ -12,6 +12,16 @@ For `/cortex/commit`, **clean** means **git-clean** for the commit scope:
 - Submodule pointer (gitlink) is in sync with the intended submodule commit.
 - Local edits are not considered clean until they are either committed (where required) or intentionally discarded/staged per workflow.
 
+## Session Discipline
+
+Use a single-goal session pattern to improve completion reliability (aligned with the superproject `CLAUDE.md` **Session Discipline** section):
+
+- Confirm **one primary goal** early in the session and keep work scoped to that goal.
+- If unrelated issues appear, note them and defer them to a separate follow-up session.
+- If multiple unrelated fixes are already in progress, split execution into separate scoped passes instead of one mixed bundle.
+
+**Step 13** below applies the **session scope split-commit hint** before commit creation: when staged changes mix unrelated goals, suggest splitting into separate commits when practical.
+
 ## Sequential Execution Order
 
 Each phase must complete before the next begins:

@@ -12,6 +12,16 @@ For `/cortex/analyze`, **clean** means **analysis-complete** for this session:
 
 Git cleanliness is not the definition of clean in this prompt.
 
+## Session Discipline
+
+Use a single-goal session pattern to improve completion reliability (aligned with the superproject `CLAUDE.md` **Session Discipline** section):
+
+- Confirm **one primary goal** early in the session and keep work scoped to that goal.
+- If unrelated issues appear, note them and defer them to a separate follow-up session.
+- If multiple unrelated fixes are already in progress, split execution into separate scoped passes instead of one mixed bundle.
+
+**Step 5** below runs the **session scope risk check** during session optimization so multi-goal work is flagged when analysis data is available.
+
 ## START HERE — Pre-Analysis Checklist and First Tool Calls
 
 **Step 1**: Call `session()` to verify MCP health. If unhealthy after retry, continue with available steps (partial analysis is better than none).
