@@ -1,0 +1,14 @@
+---
+alwaysApply: true
+---
+
+# Java Coding Standards (Template)
+
+- Use explicit, descriptive class and method names.
+- Favor immutable data structures where practical.
+- Handle exceptions intentionally; avoid swallowing errors.
+
+## Project-Specific TODOs
+
+- TODO: Define formatting/linting conventions (e.g., Google Java Style).
+- TODO: Add framework guidance (Spring, Micronaut, etc.) if used.

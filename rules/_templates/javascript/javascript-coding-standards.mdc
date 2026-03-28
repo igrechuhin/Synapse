@@ -1,0 +1,14 @@
+---
+alwaysApply: true
+---
+
+# JavaScript Coding Standards (Template)
+
+- Prefer clear module boundaries and small functions.
+- Validate and sanitize untrusted inputs.
+- Use consistent async patterns with proper error handling.
+
+## Project-Specific TODOs
+
+- TODO: Define lint and test commands for this project.
+- TODO: Add framework/runtime-specific guidance (Node, browser, etc.).

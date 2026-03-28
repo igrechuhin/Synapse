@@ -1,0 +1,14 @@
+---
+alwaysApply: true
+---
+
+# Rust Coding Standards (Template)
+
+- Prefer explicit error handling with `Result` and context-rich errors.
+- Keep ownership and borrowing semantics clear and intentional.
+- Favor small, testable units with deterministic behavior.
+
+## Project-Specific TODOs
+
+- TODO: Define clippy and formatting expectations for CI.
+- TODO: Add async/runtime guidance (tokio/async-std) if applicable.

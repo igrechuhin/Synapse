@@ -1,0 +1,14 @@
+---
+alwaysApply: true
+---
+
+# TypeScript Coding Standards (Template)
+
+- Prefer strict typing and avoid `any`; use explicit domain models.
+- Validate external inputs at boundaries before internal use.
+- Keep modules focused and side effects isolated.
+
+## Project-Specific TODOs
+
+- TODO: Define lint/typecheck command set used by this repository.
+- TODO: Add framework-specific guidance (React, Node, etc.) if needed.

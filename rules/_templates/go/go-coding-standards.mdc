@@ -1,0 +1,14 @@
+---
+alwaysApply: true
+---
+
+# Go Coding Standards (Template)
+
+- Keep APIs small and package boundaries clear.
+- Return wrapped errors with actionable context.
+- Avoid hidden concurrency; make goroutine lifecycles explicit.
+
+## Project-Specific TODOs
+
+- TODO: Define `go test` and static analysis checks for this repository.
+- TODO: Add framework/service guidance for your stack.
