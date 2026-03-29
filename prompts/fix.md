@@ -108,6 +108,8 @@ Do **not** use commit-pipeline cleanliness semantics here. In `/cortex/commit`, 
 
 **Interpretation rule**: Uncommitted submodule changes are not automatically "dirty state to reject" — they are work that must be fixed first. `submodule_hygiene` failure at the superproject level should trigger submodule-first remediation, not immediate stop.
 
+**Submodule commit authority**: The Submodule-First routing in this prompt has authority to commit inside a submodule when required. This is not a violation of the "No commit" goal because (a) the superproject is not committed and (b) without the submodule commit the gate cannot proceed at all. See the exception note in **Goals (All Targets)** above.
+
 ## Sequential Execution (`all` target)
 
 When `target=all`, run targets **one at a time in order**: quality → tests → docs. Do NOT launch concurrent subagents.
@@ -125,6 +127,7 @@ Steps:
 
 - Use structured MCP tools instead of ad-hoc shell commands.
 - Do NOT commit or push as part of this command; `/cortex/commit` is responsible for the full pipeline.
+- **Exception — submodule commit**: A commit *inside* `.cortex/synapse` (or another submodule) IS allowed when `submodule_hygiene` blocks `run_quality_gate` and the only alternatives are discarding valid in-progress submodule changes or leaving the gate permanently broken. The *superproject* must NOT be committed. After the submodule commit, stage the updated gitlink (`git add .cortex/synapse`) so the next `run_quality_gate` sees a clean, in-sync submodule.
 
 ## Pre-Action Checklist
 
@@ -197,6 +200,7 @@ Route based on change scope:
 - Markdown lint failures → fix manually per rule code, then re-run `fix_quality_issues()`.
 - Test assertion mismatches → update the assertion (verify new behavior is correct first).
 - Docs sync failures → edit memory bank files via `manage_file()`.
+- **`submodule_hygiene` failure in `run_quality_gate`**: Follow **Submodule-First Fix Routing** above. Commit dirty changes inside the submodule, remove any ephemeral untracked files (e.g. `.cache/`), then `git add <submodule>` in the superproject. Retry `run_quality_gate`. This does NOT violate the "No commit" goal — see exception in **Goals (All Targets)**.
 
 Only stop after **3 complete fix-and-verify iterations per target** have all failed.
 
