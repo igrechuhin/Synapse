@@ -17,7 +17,7 @@ from pathlib import Path
 try:
     from _utils import get_project_root
 except ImportError:
-    sys.path.insert(0, str(Path(__file__).parent))
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "python"))
     from _utils import get_project_root
 
 
