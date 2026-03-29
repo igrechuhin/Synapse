@@ -25,6 +25,7 @@ For `/cortex/fix`, **clean** means **issue-clean for the active fix target(s)** 
 - **NO-GO — `TYPE_CHECKING` workarounds**: NEVER use `TYPE_CHECKING` conditional imports; they violate project standards — use normal imports or refactor instead.
 - **NO-GO — circular imports**: NEVER paper over import cycles; extract shared types/helpers to a new module instead.
 - **NO-GO — invalid syntax**: NEVER commit syntax-invalid Python.
+- **NO-GO — Cursor command stubs**: NEVER create, track, or widen `.gitignore` for `.cursor/commands/*.md` to pass tests or the quality gate. Workflows are **canonical under `.cortex/synapse/prompts/`** (and project `.cortex/prompts/`); duplicating them as Cursor commands **pollutes the user’s command picker** and fights `.gitignore` (`/.cursor/`). If `tests/integration/test_synapse_final_report_prompt_alignment.py` complains about empty `.cursor/commands/`, fix the **test or prompt expectations** (optional skip when no `*.md` is correct) — do **not** add stub command files.
 
 **Post-fix validation** (before treating the quality target as ✅ for changed Python modules): run `python3 -m py_compile <path/to/file.py>` and `python3 -c "import <module_import_path>"` for each changed module (use the package import path, e.g. `cortex.tools.foo`, not a filesystem path). If either command fails, fix the cause or revert — do not proceed to success.
 
@@ -135,7 +136,8 @@ Before making changes, complete PHASE 0, load rules, and classify the change sco
 
 1. **Load rules** (background, no output to user):
    - Read the `cortex://rules` resource (zero-arg, reads task from session config).
-   - If resource access fails, proceed without rules — fix based on error output.
+   - If `cortex://rules` returns `status: "disabled"`: proceed without rules AND record a ⚠️ warning for the final report: "Rules indexing is disabled — set `rules.enabled` to `true` in `.cortex/config/optimization.json` to get rules-aware fixes." Do NOT surface this inline; add it to the "Next" section of the final report only.
+   - If resource access fails for any other reason (connection error, timeout): proceed without rules, no warning needed.
 2. **Classify change scope**: Run Change-Scope Assessment above.
 3. **Start fixing immediately (after PHASE 0)**: Do NOT produce a summary. The moment a tool returns errors, start editing files.
 
@@ -178,6 +180,7 @@ Route based on change scope:
 3. Debug and fix in small, focused steps. Follow AAA pattern:
    - **Assertion count mismatch**: read the implementation, update the assertion.
    - **Governance tests**: fix the source — never weaken the test.
+   - **Final-report alignment / `.cursor/commands`**: If the failure is `expected at least one *.md under .cursor/commands` (or similar), the repository policy is **no tracked Cursor command markdown** — alignment checks **skip** when that folder has no `*.md`. Fix the **integration test** (or restore the skip path), not the working tree with new command stubs. See **NO-GO — Cursor command stubs** above.
 4. Re-run `run_quality_gate()` after fixes. Repeat (max 3 iterations).
 
 ⚠️ **CI parity gap — parallel test execution**: The local `run_quality_gate()` may run tests single-threaded, while CI always runs `pytest -n auto` (parallel xdist workers). Tests that only fail under parallel execution (e.g. asyncio cross-loop bugs, shared module-level state, concurrent resource races) will pass locally but fail CI. If a test failure involves asyncio, concurrency, event loops, or shared global state, **also run** `uv run pytest tests/ -n auto -x -q --no-header -p no:randomly` locally to reproduce the CI failure before declaring the target ✅.
@@ -201,6 +204,7 @@ Route based on change scope:
 - Test assertion mismatches → update the assertion (verify new behavior is correct first).
 - Docs sync failures → edit memory bank files via `manage_file()`.
 - **`submodule_hygiene` failure in `run_quality_gate`**: Follow **Submodule-First Fix Routing** above. Commit dirty changes inside the submodule, remove any ephemeral untracked files (e.g. `.cache/`), then `git add <submodule>` in the superproject. Retry `run_quality_gate`. This does NOT violate the "No commit" goal — see exception in **Goals (All Targets)**.
+- **Empty `.cursor/commands` vs alignment test**: Do **not** add `.cursor/commands/*.md` — see **NO-GO — Cursor command stubs** and the tests-target bullet on final-report alignment.
 
 Only stop after **3 complete fix-and-verify iterations per target** have all failed.
 
@@ -243,6 +247,7 @@ If an attempt worsens the tree (new failures, duplicate defs, invalid syntax), *
 - Diagnosis section promotes PHASE 0 findings to top level
 - ⏭️ for skipped targets (e.g., markdown-only scope)
 - Changes list: file:line format for each edit
+- If a ⚠️ rules-disabled warning was recorded in step 1 of Pre-Action Checklist, include it as the first item under `## Next`
 
 ## Success Criteria
 
