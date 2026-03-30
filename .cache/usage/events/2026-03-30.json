@@ -1,0 +1,32 @@
+[
+  {
+    "id": "8217a94f-3499-4124-9b01-99eb49da8030",
+    "tool_name": "run_quality_gate",
+    "timestamp": "2026-03-30T13:01:45.272965+00:00",
+    "duration_ms": 2006.382625,
+    "success": true,
+    "error_type": null,
+    "params_hash": null,
+    "handler_kind": "tool",
+    "result_summary": null,
+    "retry_count": 0,
+    "param_validation_failure": null,
+    "result_used": null,
+    "response_tokens": 3831
+  },
+  {
+    "id": "9fc645ab-3123-443e-b4ee-5f0f08c9c0de",
+    "tool_name": "run_quality_gate",
+    "timestamp": "2026-03-30T13:02:09.344845+00:00",
+    "duration_ms": 2007.949584,
+    "success": true,
+    "error_type": null,
+    "params_hash": null,
+    "handler_kind": "tool",
+    "result_summary": null,
+    "retry_count": 0,
+    "param_validation_failure": null,
+    "result_used": null,
+    "response_tokens": 3831
+  }
+]
