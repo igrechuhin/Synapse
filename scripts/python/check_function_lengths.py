@@ -12,6 +12,7 @@ Configuration:
 
 import ast
 import sys
+import os
 from pathlib import Path
 
 # Import shared utilities
@@ -151,6 +152,17 @@ def check_function_length(path: Path) -> list[tuple[str, int, int, int]]:
     return visitor.violations
 
 
+def _get_files_from_env() -> list[Path] | None:
+    """Return explicit file list from `FILES` env var, or None if unset/empty."""
+    files_env = os.environ.get("FILES")
+    if files_env is None:
+        return None
+    stripped = files_env.strip()
+    if not stripped:
+        return None
+    return [Path(p) for p in stripped.splitlines() if p]
+
+
 def main():
     """Check all Python files for function length violations."""
     # Get project root and source directory
@@ -168,34 +180,46 @@ def main():
         else:
             src_dir = Path(src_dir)
 
-    if not src_dir.exists():
-        print(f"Error: Source directory {src_dir} does not exist", file=sys.stderr)
-        print(f"Project root: {project_root}", file=sys.stderr)
-        sys.exit(1)
-
     all_violations: list[tuple[Path, str, int, int, int]] = []
-    try:
-        from cortex.core.constants import FUNCTION_LENGTH_EXCLUDED_PATHS
+    files_from_env = _get_files_from_env()
+    if files_from_env is not None:
+        # Dispatcher mode: check exactly these files with ".py" suffix.
+        py_files = [f for f in files_from_env if f.suffix == ".py"]
+        for py_file in py_files:
+            violations = check_function_length(py_file)
+            for func_name, logical_lines, start_line, end_line in violations:
+                all_violations.append(
+                    (py_file, func_name, logical_lines, start_line, end_line)
+                )
+    else:
+        # Fallback scan (keep existing behavior/output formatting).
+        if not src_dir.exists():
+            print(f"Error: Source directory {src_dir} does not exist", file=sys.stderr)
+            print(f"Project root: {project_root}", file=sys.stderr)
+            sys.exit(1)
 
-        excluded: frozenset[str] = frozenset(FUNCTION_LENGTH_EXCLUDED_PATHS)
-    except ImportError:
-        excluded = frozenset[str]()
-
-    for py_file in src_dir.glob("**/*.py"):
-        if "__pycache__" in str(py_file) or py_file.name.startswith("test_"):
-            continue
         try:
-            rel = str(py_file.relative_to(project_root)).replace("\\", "/")
-        except ValueError:
-            rel = str(py_file)
-        if rel in excluded:
-            continue
+            from cortex.core.constants import FUNCTION_LENGTH_EXCLUDED_PATHS
 
-        violations = check_function_length(py_file)
-        for func_name, logical_lines, start_line, end_line in violations:
-            all_violations.append(
-                (py_file, func_name, logical_lines, start_line, end_line)
-            )
+            excluded: frozenset[str] = frozenset(FUNCTION_LENGTH_EXCLUDED_PATHS)
+        except ImportError:
+            excluded = frozenset[str]()
+
+        for py_file in src_dir.glob("**/*.py"):
+            if "__pycache__" in str(py_file) or py_file.name.startswith("test_"):
+                continue
+            try:
+                rel = str(py_file.relative_to(project_root)).replace("\\", "/")
+            except ValueError:
+                rel = str(py_file)
+            if rel in excluded:
+                continue
+
+            violations = check_function_length(py_file)
+            for func_name, logical_lines, start_line, end_line in violations:
+                all_violations.append(
+                    (py_file, func_name, logical_lines, start_line, end_line)
+                )
 
     if all_violations:
         print("❌ Function length violations detected:", file=sys.stderr)
