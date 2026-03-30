@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import re
 import sys
+import os
 from pathlib import Path
 
 try:
@@ -70,6 +71,14 @@ def count_logical_lines_in_body(lines: list[str], body_start: int) -> int:
         i += 1
 
     return logical
+
+
+def _get_files_from_env() -> list[Path] | None:
+    """Return explicit file list from FILES env var, or None if not set."""
+    files_env = os.environ.get("FILES")
+    if not files_env:
+        return None
+    return [Path(p) for p in files_env.strip().splitlines() if p]
 
 
 def check_file(path: Path, project_root: Path) -> list[str]:
@@ -135,17 +144,38 @@ def main() -> None:
     else:
         sources_dir = project_root / "Sources"
 
-    if not sources_dir.exists():
-        print(f"❌ Sources directory not found: {sources_dir}", file=sys.stderr)
-        sys.exit(1)
-
     all_violations: list[str] = []
 
-    for swift_file in sorted(sources_dir.rglob("*.swift")):
-        if any(swift_file.name.endswith(s) for s in _GENERATED_SUFFIXES):
-            continue
-        if "Tests" in swift_file.parts:
-            continue
+    files_from_env = _get_files_from_env()
+    if files_from_env is not None:
+        # Dispatcher mode: check exactly these files
+        swift_files = [
+            f
+            for f in files_from_env
+            if f.suffix == ".swift"
+            and not any(f.name.endswith(s) for s in _GENERATED_SUFFIXES)
+        ]
+    else:
+        # Standalone fallback: scan Sources/ and Tests/
+        if not sources_dir.exists():
+            print(f"❌ Sources directory not found: {sources_dir}", file=sys.stderr)
+            sys.exit(1)
+
+        swift_files = [
+            f
+            for f in sorted(sources_dir.rglob("*.swift"))
+            if not any(f.name.endswith(s) for s in _GENERATED_SUFFIXES)
+        ]
+
+        tests_dir = sources_dir.parent / "Tests"
+        if tests_dir.exists():
+            swift_files += [
+                f
+                for f in sorted(tests_dir.rglob("*.swift"))
+                if not any(f.name.endswith(s) for s in _GENERATED_SUFFIXES)
+            ]
+
+    for swift_file in swift_files:
         all_violations.extend(check_file(swift_file, project_root))
 
     if all_violations:
