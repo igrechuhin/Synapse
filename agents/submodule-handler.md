@@ -25,16 +25,22 @@ git status --porcelain
 ### Phase 2: Check Submodule Working Tree
 
 ```bash
-git -C <synapse_path> status --porcelain
+git -C <synapse_path> status --porcelain -- :/ ":(exclude).cache"
 ```
 
 - **If empty**: Report `status: "pointer_only"` (pointer changed but no local edits) and stop
 - **If non-empty**: Proceed to Phase 3
 
+> **Note**: `.cache/` is excluded from this check. Usage event files under
+> `.cache/usage/events/` are written by Cortex during sessions and are intentionally
+> not committed via this pipeline — they accumulate until a dedicated `bump-synapse`
+> workflow commits them. Treating them as dirty would cause spurious submodule commits
+> that advance the HEAD and create `OUT_OF_SYNC` violations on every subsequent run.
+
 ### Phase 3: Commit and Push in Submodule
 
 ```bash
-git -C <synapse_path> add -A
+git -C <synapse_path> add -- :/ ":(exclude).cache"
 git -C <synapse_path> commit -m "Update Synapse prompts/rules"
 git -C <synapse_path> push
 ```
