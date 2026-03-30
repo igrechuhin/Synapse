@@ -107,7 +107,7 @@ def _get_files_from_env() -> list[Path] | None:
     return [Path(p) for p in stripped.splitlines() if p]
 
 
-def main():
+def main() -> None:
     """Check all Python files for size violations."""
     # Get project root and source directory
     script_path = Path(__file__)
