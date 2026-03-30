@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """Pre-commit hook to enforce Swift file size limits.
 
-Checks all .swift files under Sources/ (excluding generated files and Tests/)
-against the configured line limit. Files between the warn threshold and the
-max are reported as warnings; files over the max cause exit 1.
+Checks Swift files against the configured line limit. Files between the warn
+threshold and the max are reported as warnings; files over the max cause exit
+1.
 
 Configuration:
     MAX_FILE_LINES:  Hard limit — exit 1 if exceeded (default: 400)
@@ -13,6 +13,7 @@ Configuration:
 
 from __future__ import annotations
 
+import os
 import sys
 from pathlib import Path
 
@@ -63,13 +64,22 @@ def is_excluded(path: Path) -> bool:
     """
     if any(path.name.endswith(s) for s in _GENERATED_SUFFIXES):
         return True
-    if "Tests" in path.parts:
-        return True
     return False
 
 
+def _get_files_from_env() -> list[Path] | None:
+    """Return explicit file list from `FILES` env var, or None if unset/empty."""
+    files_env = os.environ.get("FILES")
+    if files_env is None:
+        return None
+    stripped = files_env.strip()
+    if not stripped:
+        return None
+    return [Path(p) for p in stripped.splitlines() if p]
+
+
 def main() -> None:
-    """Check all Swift files for size violations."""
+    """Check Swift files for size violations."""
     project_root = get_project_root(Path(__file__))
 
     sources_dir_override = get_config_path("SOURCES_DIR")
@@ -82,14 +92,34 @@ def main() -> None:
     else:
         sources_dir = project_root / "Sources"
 
-    if not sources_dir.exists():
-        print(f"❌ Sources directory not found: {sources_dir}", file=sys.stderr)
-        sys.exit(1)
+    files_from_env = _get_files_from_env()
+    swift_files: list[Path]
+
+    if files_from_env is not None:
+        # Dispatcher mode: check only explicitly provided files.
+        swift_files = [
+            f for f in files_from_env if f.suffix == ".swift" and not is_excluded(f)
+        ]
+    else:
+        # Standalone/CI fallback: scan Sources/ and include Tests/ if present.
+        if not sources_dir.exists():
+            print(f"❌ Sources directory not found: {sources_dir}", file=sys.stderr)
+            sys.exit(1)
+
+        swift_files = [
+            f for f in sorted(sources_dir.rglob("*.swift")) if not is_excluded(f)
+        ]
+
+        tests_dir = sources_dir.parent / "Tests"
+        if tests_dir.exists():
+            swift_files += [
+                f for f in sorted(tests_dir.rglob("*.swift")) if not is_excluded(f)
+            ]
 
     violations: list[tuple[Path, int]] = []
     warnings_list: list[tuple[Path, int]] = []
 
-    for swift_file in sorted(sources_dir.rglob("*.swift")):
+    for swift_file in swift_files:
         if is_excluded(swift_file):
             continue
         lines = count_logical_lines(swift_file)
