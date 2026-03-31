@@ -108,7 +108,7 @@ Saved to: {reviews_path}/session-optimization-{timestamp}.md
 
 Call `session(operation="compact")` to compact memory bank. Record token savings and snapshot paths.
 
-Call `fix_quality_issues()` to ensure markdown quality on any modified files.
+Call `autofix()` to ensure markdown quality on any modified files.
 
 ## Step 9a: Skill Router (conditional)
 

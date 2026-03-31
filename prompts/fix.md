@@ -72,7 +72,7 @@ This prompt accepts an optional `target` parameter:
 
 All MCP tools work when called with empty `{}` arguments. Use these zero-arg tools:
 
-- `fix_quality_issues()` — auto-fix formatting, linting, type errors, markdown (does NOT run tests)
+- `autofix()` — auto-fix formatting, linting, type errors, markdown (does NOT run tests)
 - `run_quality_gate()` — run Phase A quality gate end-to-end (includes tests; may be long-running)
 - `run_docs_gate()` — run Phase B docs/memory-bank validation (fast; does NOT run tests)
 
@@ -151,13 +151,13 @@ Route based on change scope:
 
 **Path A — markdown_only** (no source files changed):
 
-1. Call `fix_quality_issues()` to auto-fix markdown lint issues.
+1. Call `autofix()` to auto-fix markdown lint issues.
 2. Verify with `run_docs_gate()` (fast; confirms docs are clean without running tests).
-3. If markdown lint errors remain in the quality result, fix them manually per rule code and re-run `fix_quality_issues()`. Repeat (max 3 iterations).
+3. If markdown lint errors remain in the quality result, fix them manually per rule code and re-run `autofix()`. Repeat (max 3 iterations).
 
 **Path B — source_changed or mixed** (source or test files changed):
 
-1. Call `fix_quality_issues()`. This runs format, lint, type, and markdown auto-fix (does NOT run tests).
+1. Call `autofix()`. This runs format, lint, type, and markdown auto-fix (does NOT run tests).
 2. Verify with `run_quality_gate()`. Parse the result for `preflight_passed` and per-check results.
 3. If checks still fail, parse the result — `results.type_check.output` and `results.quality.output` contain full error output. Fix each error:
    - **Type errors**: fix import, type annotation, or cast at the reported line.
@@ -200,7 +200,7 @@ Route based on change scope:
 
 - Type errors → edit the source file at the reported line.
 - File/function too long → extract helpers; split if needed.
-- Markdown lint failures → fix manually per rule code, then re-run `fix_quality_issues()`.
+- Markdown lint failures → fix manually per rule code, then re-run `autofix()`.
 - Test assertion mismatches → update the assertion (verify new behavior is correct first).
 - Docs sync failures → edit memory bank files via `manage_file()`.
 - **`submodule_hygiene` failure in `run_quality_gate`**: Follow **Submodule-First Fix Routing** above. Commit dirty changes inside the submodule, remove any ephemeral untracked files (e.g. `.cache/`), then `git add <submodule>` in the superproject. Retry `run_quality_gate`. This does NOT violate the "No commit" goal — see exception in **Goals (All Targets)**.

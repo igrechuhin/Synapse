@@ -37,7 +37,7 @@ Cursor's MCP bridge may strip tool arguments, sending `{}` instead. Detect this:
 - **Skip all `pipeline_handoff` calls** — track phase results in your own context instead of writing to pipeline state files.
 - **For `manage_file`**: zero-arg always returns `activeContext.md`. To read other files (e.g. `roadmap.md`, `progress.md`), read `.cortex/memory-bank/{file}.md` directly with `Read`.
 - **For `validate`**: read the `cortex://validation` resource instead (it runs both timestamp and roadmap_sync checks).
-- **Zero-arg tools work normally**: `run_quality_gate()`, `run_quality_gate_fresh()`, `run_docs_gate()`, `fix_quality_issues()`, `session()`, `plan(operation="archive_completed")`.
+- **Zero-arg tools work normally**: `run_quality_gate()`, `run_docs_gate()`, `autofix()`, `session()`, `plan(operation="archive_completed")`.
 
 ## Pipeline Initialization
 
@@ -85,7 +85,7 @@ Steps to run inline:
 
 1. Call `run_quality_gate()` — zero-arg MCP tool that runs Phase A end-to-end and returns full results. Do NOT use `start_quality_job` + `get_quality_job_status`; in Cursor's MCP bridge those calls receive empty `{}` args.
 2. Parse the result: check `preflight_passed` (bool) and `coverage` (float).
-3. If `preflight_passed: false`: call `fix_quality_issues()`, then call `run_quality_gate()` again. Repeat up to 3 times.
+3. If `preflight_passed: false`: call `autofix()`, then call `run_quality_gate()` again. Repeat up to 3 times.
 4. Write result to pipeline state:
 
 ```text
@@ -101,7 +101,7 @@ pipeline_handoff(operation="write", pipeline="commit", phase="checks",
 - **Never** infer that Phase A passed from log snippets, banners (including any `"✅ All quality checks passed!"` messages), or previous runs.
 - If the quality result reports any **failed** or **skipped** critical checks, Phase A is considered **failed** and the commit pipeline must **stop without creating a commit**.
 - ⚠️ **CI parity gap — parallel test execution**: The local `run_quality_gate()` may run tests single-threaded, while CI always runs `pytest -n auto` (parallel xdist workers). If any changed code touches asyncio, event loops, concurrency primitives, or shared module-level state, run `uv run pytest tests/ -n auto -x -q --no-header -p no:randomly` before declaring Phase A passed. A green local gate does **not** guarantee a green CI gate for parallel-sensitive tests.
-- **Markdown lint failure**: Check `markdown_result.output` in the quality gate response for the exact violations (file:line and rule code). Call `fix_quality_issues()` (which includes markdown auto-fix for fixable rules); if markdown errors remain (e.g. MD036 is not auto-fixable), apply manual fixes per **fix.md** and the violation details. Zero markdown errors required before Phase A can pass. **SwiftPM note**: if violations are in `.build/checkouts/**` (external Swift package dependency docs), these are suppressed by the Cortex quality gate's `.build` exclude — if they still appear, the Cortex server is outdated; update it.
+- **Markdown lint failure**: Check `markdown_result.output` in the quality gate response for the exact violations (file:line and rule code). Call `autofix()` (which includes markdown auto-fix for fixable rules); if markdown errors remain (e.g. MD036 is not auto-fixable), apply manual fixes per **fix.md** and the violation details. Zero markdown errors required before Phase A can pass. **SwiftPM note**: if violations are in `.build/checkouts/**` (external Swift package dependency docs), these are suppressed by the Cortex quality gate's `.build` exclude — if they still appear, the Cortex server is outdated; update it.
 - **Submodule hygiene failure**: If Phase A fails with `submodule_hygiene`, Preflight step 5 (synapse pre-stage) was not executed or did not complete. Go back and run Preflight step 5 now: commit any changes inside `.cortex/synapse` (excluding `.cache`), then `git add .cortex/synapse` in the superproject. Then retry `run_quality_gate()`.
 
 ---
@@ -115,7 +115,7 @@ Steps to run inline:
 1. Read memory bank files: `manage_file(file_name="activeContext.md", operation="read")`, `manage_file(file_name="progress.md", operation="read")`, `manage_file(file_name="roadmap.md", operation="read")`. If Cursor strips args (zero-arg returns only activeContext), read `.cortex/memory-bank/progress.md` and `.cortex/memory-bank/roadmap.md` directly.
 2. Update files to reflect current changes. Write via `manage_file(file_name="...", operation="write", content="...", change_description="...")`. If args are stripped, write `.cortex/memory-bank/` files directly — but preserve full, unabridged content (never truncate).
 3. Archive completed plans: `plan(operation="archive_completed")` — scans `.cortex/plans/` for `status: COMPLETE`, moves to archive, removes roadmap entries.
-4. Call `fix_quality_issues()` to auto-fix markdown lint issues in files modified by steps 2-3 (trailing spaces, blank lines, duplicate headings). This prevents Phase B writes from introducing CI-blocking markdown violations.
+4. Call `autofix()` to auto-fix markdown lint issues in files modified by steps 2-3 (trailing spaces, blank lines, duplicate headings). This prevents Phase B writes from introducing CI-blocking markdown violations.
 5. Call `run_docs_gate()` — zero-arg MCP tool for Phase B docs/memory-bank validation.
 6. Parse the response. If `docs_phase_passed: false`:
    - Check `timestamps_result.valid`. If `false`: timestamps have format errors — fix them via `manage_file()` and retry `run_docs_gate()`.
@@ -166,10 +166,26 @@ Steps to run inline:
 1. Classify what changed since Phase A — **use your knowledge of what Phase B and C actually wrote**, not `git diff HEAD` or `git status` (those show the full working tree including pre-existing uncommitted files unrelated to this commit, which is expected and not a problem):
    - `source_changed`: any file under `src/` or `tests/` was **written by Phase B or C steps** in this pipeline run.
    - `markdown_changed`: any `.md`/`.mdc` file was **written by Phase B or C steps** (`.cortex/memory-bank/`, `.cortex/plans/`, `AGENTS.md`, `CLAUDE.md`, `.cortex/synapse/prompts/`). Phase B always modifies memory-bank files, so this is usually `true`.
-   - **Do not flag pre-existing working-tree changes** (files modified before the pipeline started) as unexpected. Those are the user's in-progress work and are unrelated to `fix_quality_issues()` behavior.
-   - **`fix_quality_issues()` `files_modified` field** lists only rumdl-fixed markdown files — seeing it non-empty (e.g. `.cortex/memory-bank/*.md`) is normal and expected, not a sign of unexpected scope expansion.
-2. **If `source_changed`**: call `run_quality_gate_fresh()` — full re-run including tests, types, lint, format, markdown. If any check fails: call `fix_quality_issues()` and retry (max 3 iterations).
-3. **If only `markdown_changed`** (no source changes): run `fix_quality_issues()` to auto-fix any remaining markdown lint. Then verify with `run_quality_gate_fresh()`. Since no source code changed, test/type/lint/format results from Phase A are still valid — only markdown lint needs verification. If tests timeout but all non-test checks pass, Step 12 passes (Phase A already proved tests are green and no source changed).
+   - **Do not flag pre-existing working-tree changes** (files modified before the pipeline started) as unexpected. Those are the user's in-progress work and are unrelated to `autofix()` behavior.
+   - **`autofix()` `files_modified` field** lists only rumdl-fixed markdown files — seeing it non-empty (e.g. `.cortex/memory-bank/*.md`) is normal and expected, not a sign of unexpected scope expansion.
+2. **If `source_changed`**: write fresh config then run the gate:
+
+   ```text
+   pipeline_handoff(operation="write", pipeline="commit", phase="checks",
+     data='{"force_fresh": true, "test_timeout": 600}')
+   run_quality_gate()
+   ```
+
+   Full re-run including tests, types, lint, format, markdown. If any check fails: call `autofix()` and retry (max 3 iterations).
+3. **If only `markdown_changed`** (no source changes): run `autofix()` to auto-fix any remaining markdown lint. Then verify:
+
+   ```text
+   pipeline_handoff(operation="write", pipeline="commit", phase="checks",
+     data='{"force_fresh": true, "test_timeout": 600}')
+   run_quality_gate()
+   ```
+
+   Since no source code changed, test/type/lint/format results from Phase A are still valid — only markdown lint needs verification. If tests timeout but all non-test checks pass, Step 12 passes (Phase A already proved tests are green and no source changed).
 4. **If nothing changed**: skip re-run, write success with `skipped_checks` list.
 5. Write result:
 
@@ -241,12 +257,12 @@ pipeline_handoff(operation="clear", pipeline="commit")
 - **Preflight fails (no changes)**: STOP — nothing to commit
 - **Preflight `git stash create` fails with "beyond a symbolic link"**: Non-blocking — use `snapshot_ref = "HEAD"` and continue. This is expected in TradeWing because `.cortex/memory-bank` and `.cortex/plans` may be symlinked in local workflows.
 - **Phase A fails after 3 fix iterations**: STOP, report unresolvable issues
-- **Phase A fails due to markdown lint**: Read `markdown_result.output` for exact violations (file:line, rule code). Call `fix_quality_issues()` (includes markdown auto-fix for fixable rules). If errors remain (e.g. MD036 is not auto-fixable), apply manual fixes using the violation details. Zero markdown errors required before Phase A can pass.
+- **Phase A fails due to markdown lint**: Read `markdown_result.output` for exact violations (file:line, rule code). Call `autofix()` (includes markdown auto-fix for fixable rules). If errors remain (e.g. MD036 is not auto-fixable), apply manual fixes using the violation details. Zero markdown errors required before Phase A can pass.
 - **Phase B timestamps fail**: Fix timestamp format errors via `manage_file()`, retry `run_docs_gate()`. Timestamps failure IS blocking.
 - **Phase B roadmap_sync fails only**: Non-blocking warning — record it, proceed to Phase C.
 - **Phase C Synapse commit fails** (e.g. merge conflict inside submodule): STOP, block commit, report the submodule error
 - **Step 12 fails after 3 iterations**: Block commit — unless failures are exclusively pytest timeouts and no source code (`src/`/`tests/`) changed since Phase A (see timeout-only rule above)
-- **MCP disconnects**: All phase checks use blocking zero-arg tools (`run_quality_gate`, `run_quality_gate_fresh`, `run_docs_gate`) that run end-to-end in a single call. On disconnect, simply retry the tool call.
+- **MCP disconnects**: All phase checks use blocking zero-arg tools (`run_quality_gate`, `run_docs_gate`) that run end-to-end in a single call. On disconnect, simply retry the tool call.
 - **3 consecutive MCP failures**: Circuit-breaker per `shared-conventions.md`. Call `pipeline_handoff(operation="read", pipeline="commit")` to restore context after reconnect.
 - **On any pipeline failure**: Report phase and error. Offer rollback using `snapshot_ref` from `phases.preflight`. Do NOT auto-rollback.
 

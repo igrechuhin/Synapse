@@ -49,7 +49,7 @@ After pre-flight passes, continue directly to execution steps without pausing fo
 
 - Use **Cortex MCP tools** for all memory bank, rules, validation, and structure operations.
 - Use **standard IDE tools** (`Read`, `Write`, `Glob`, `Grep`, `Edit`) for code and file operations. See Agent Tool Mapping below for per-agent equivalents.
-- **Do NOT** run language-specific formatters/linters/test runners directly (e.g., `black`, `ruff`, `pytest`). Use `execute_pre_commit_checks()` or `fix_quality_issues()` instead.
+- **Do NOT** run language-specific formatters/linters/test runners directly (e.g., `black`, `ruff`, `pytest`). Use `execute_pre_commit_checks()` or `autofix()` instead.
 - Shell commands are a last resort when MCP tools and IDE tools are both unavailable.
 
 ## Agent Tool Mapping

@@ -156,7 +156,7 @@ pipeline_handoff(operation="write", pipeline="implement", phase="verify",
 
 **IMPORTANT**: Run Fix inline. This ensures all quality, test, and docs issues are resolved before the session ends. Follow the **fix.md** prompt logic (`target=all`):
 
-1. **Quality**: call `fix_quality_issues()`, then `run_quality_gate()`. If issues remain, fix inline and retry (max 3 iterations).
+1. **Quality**: call `autofix()`, then `run_quality_gate()`. If issues remain, fix inline and retry (max 3 iterations).
 2. **Tests**: if `run_quality_gate()` reports test failures, diagnose and fix them (max 3 iterations).
 3. **Docs**: call `run_docs_gate()`. If timestamps or roadmap_sync fail, fix via `manage_file()` and retry (max 3 iterations).
 

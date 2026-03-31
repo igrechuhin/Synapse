@@ -377,6 +377,7 @@ def validate_data(data: dict) -> None:
 - **Private symbols are module-internal only**: `_` prefix only for same-module use
 - **NEVER use type-checker suppressions**: `# pyright: ignore[reportPrivateUsage]` is FORBIDDEN
 - **Fix by making symbol public**: Rename everywhere (definition, internal calls, external usages)
+- **No public-from-private alias shims**: The anti-pattern `name = _name` is FORBIDDEN. Use a real public definition name instead of aliasing a private symbol. CI/governance regex: `^([a-zA-Z_][a-zA-Z0-9_]*)\s*=\s*_\1$`
 - **CI MUST fail** if private symbols accessed across modules
 
 ## Public API and Type Names (ENFORCED)

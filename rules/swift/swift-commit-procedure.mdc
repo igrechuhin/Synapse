@@ -23,7 +23,7 @@ Use Cortex MCP quality gate tools instead of running scripts directly:
 
 - `run_quality_gate()` — runs SwiftFormat, unused parameters, file/function size checks
 - `run_docs_gate()` — verifies DocC documentation coverage
-- `fix_quality_issues()` — auto-fixes formatting and style violations
+- `autofix()` — auto-fixes formatting and style violations
 
 ## Failure Handling (ENFORCED)
 

@@ -47,7 +47,7 @@ Call `run_quality_gate()` — zero-arg tool that runs Phase A end-to-end and ret
 Parse the result:
 
 - If `preflight_passed: true`: record coverage, proceed.
-- If `preflight_passed: false`: call `fix_quality_issues()`, then call `run_quality_gate()` again. Max 3 fix iterations.
+- If `preflight_passed: false`: call `autofix()`, then call `run_quality_gate()` again. Max 3 fix iterations.
 
 **GATE**: Quality gate must pass before reporting completion.
 
