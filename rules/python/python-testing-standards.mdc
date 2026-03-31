@@ -228,6 +228,8 @@ class TestUserServiceCreation:
 - **Pyright Enforcement**: `reportPrivateUsage` errors indicate private function access - MANDATORY to fix
 - **Type Checker Suppressions FORBIDDEN**: Using `# type: ignore[reportPrivateUsage]` or `# type: ignore[private-usage]` to test private functions is STRICTLY FORBIDDEN
 - **Test Through Public API**: All private function behavior MUST be tested through public interface - MANDATORY
+- **No Test-Only Alias Shims**: Do NOT add private/public compatibility aliases only to satisfy tests (for example `_analyze_impl = analyze_impl`) - MANDATORY
+- **Patch Public Symbols**: When mocking/patching in tests, target the public exported symbol name if one exists - MANDATORY
 
 **FORBIDDEN (Python-Specific):**
 
@@ -246,6 +248,11 @@ from mymodule import _validate_input  # type: ignore[reportPrivateUsage] or type
 
 def test_validate_input():
     assert _validate_input("test")  # BLOCKED
+```
+
+```python
+# ❌ FORBIDDEN - Test-only alias shim in production module
+_analyze_impl = analyze_impl
 ```
 
 **REQUIRED (Python-Specific):**
@@ -267,6 +274,12 @@ def test_calculate_total_includes_tax():
 # If _validate_input needs direct testing, make it public:
 # def validate_input(...) instead of def _validate_input(...)
 # OR extract to separate module for testing
+```
+
+```python
+# ✅ REQUIRED - Patch the public symbol in tests
+with patch("mypkg.feature.analyze_impl", new_callable=AsyncMock):
+    ...
 ```
 
 **Pyright Configuration:**

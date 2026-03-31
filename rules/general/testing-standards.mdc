@@ -92,6 +92,8 @@ Do not limit tests to the happy path; edge-case coverage is mandatory for new an
 - ❌ Using type checker suppressions or workarounds to test private functions
 - ❌ Testing private implementation details directly
 - ❌ Bypassing encapsulation to test internal behavior
+- ❌ Adding compatibility aliases only for tests (for example `_foo_impl = foo_impl`)
+- ❌ Patching private aliases in tests when a public symbol exists
 
 **REQUIRED:**
 
@@ -99,3 +101,4 @@ Do not limit tests to the happy path; edge-case coverage is mandatory for new an
 - ✅ If private function needs direct testing, make it public or extract to separate module
 - ✅ Test behavior, not implementation details
 - ✅ Verify functionality through public API contracts
+- ✅ Patch/public-call the real exported symbol names in tests (not private aliases)
