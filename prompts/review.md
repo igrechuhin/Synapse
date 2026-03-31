@@ -250,6 +250,13 @@ Also include **Effort** (Low / Medium / High), **Impact** (Low / Medium / High),
 - Rules violations found → fix immediately
 - Consecutive MCP failures → follow circuit-breaker pattern per `shared-conventions.md`
 
+## Step 13: Post-Prompt Hook (Self-Improvement)
+
+After writing the final report for this review run, invoke the post-prompt self-improvement hook:
+
+- Read `.cortex/synapse/prompts/post-prompt-hook.md` and execute it to analyze the session and emit any applicable Skills, Plans, or Rules.
+- Treat this hook as **non-blocking**: if it fails or is unavailable (for example, MCP connection issues), record a brief note in the final report `## Next` section and consider the review workflow complete.
+
 ## Final report (required format)
 
 **MANDATORY**: Use the **Artifact (review)** report type from `docs/guides/synapse-final-report-templates.md`.

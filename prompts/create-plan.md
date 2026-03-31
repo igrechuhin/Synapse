@@ -95,6 +95,13 @@ Plans: `.cortex/plans/`. Memory bank: `.cortex/memory-bank/`. Use `manage_file()
 - **Plan file creation errors**: Check permissions, directory existence
 - **Roadmap update errors**: Check format, report specific error
 
+## Step 10: Post-Prompt Hook (Self-Improvement)
+
+After writing the final report for this plan-creation run, invoke the post-prompt self-improvement hook:
+
+- Read `.cortex/synapse/prompts/post-prompt-hook.md` and execute it to analyze the session and emit any applicable Skills, Plans, or Rules.
+- Treat this hook as **non-blocking**: if it fails or is unavailable (for example, MCP connection issues), record a brief note in the final report `## Next` section and consider the planning workflow complete.
+
 ## Final report (required format)
 
 **MANDATORY**: Use the **Artifact** report type from `docs/guides/synapse-final-report-templates.md`.

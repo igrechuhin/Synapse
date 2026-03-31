@@ -38,7 +38,15 @@
           "file": "analyze.md",
           "name": "Analyze",
           "description": "End-of-session analysis: check all (context effectiveness and session optimization). Single entry point replacing analyze-context-effectiveness and analyze-session-optimization.",
+          "internal": true,
           "keywords": ["analyze", "end-of-session", "context", "effectiveness", "session", "optimization", "synapse", "reviews"]
+        },
+        {
+          "file": "post-prompt-hook.md",
+          "name": "Post-Prompt Hook",
+          "description": "Lightweight post-prompt self-improvement hook that runs analysis Steps 4–9 and emits Skills, Plans, or Rules as needed",
+          "internal": true,
+          "keywords": ["post-prompt", "self-improvement", "analysis", "feedback-loop"]
         }
       ]
     }

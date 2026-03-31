@@ -26,7 +26,7 @@ Use a single-goal session pattern to improve completion reliability (aligned wit
 
 Each phase must complete before the next begins:
 
-1. **Preflight** → 2. **Phase A** → 3. **Phase B** → 4. **Phase C** → 5. **Step 12** → 6. **Step 13** → 7. **Step 14** → 8. **Step 15**
+1. **Preflight** → 2. **Phase A** → 3. **Phase B** → 4. **Phase C** → 5. **Step 12** → 6. **Step 13** → 7. **Step 14** → 8. **Step 15** → 9. **Step 16**
 
 ---
 
@@ -219,11 +219,9 @@ Then push the superproject branch (including `main`) without extra confirmation.
 
 ---
 
-## Step 15: Analyze and Cleanup — MANDATORY
+## Step 15: Cleanup — MANDATORY
 
-Call `analyze(target="context")` then `analyze(target="usage_patterns")`. Non-blocking on connection errors.
-
-Then clean up the pipeline state:
+Clean up the pipeline state:
 
 ```text
 pipeline_handoff(operation="clear", pipeline="commit")
@@ -261,6 +259,13 @@ pipeline_handoff(operation="read", pipeline="commit")
 ```
 
 This restores the full record of completed phases, coverage values, snapshot_ref, and submodule status — continue from the first phase not yet in `phases`.
+
+## Step 16: Post-Prompt Hook (Self-Improvement)
+
+After writing the final report for this commit pipeline run, invoke the post-prompt self-improvement hook:
+
+- Read `.cortex/synapse/prompts/post-prompt-hook.md` and execute it to analyze the session and emit any applicable Skills, Plans, or Rules.
+- Treat this hook as **non-blocking**: if it fails or is unavailable (for example, MCP connection issues), record a brief note in the final report `## Next` section and consider the commit pipeline itself complete.
 
 ## Final report (required format)
 
@@ -304,5 +309,5 @@ This restores the full record of completed phases, coverage values, snapshot_ref
 - All phases (Preflight, A, B, C) and Step 12 passed
 - Commit created with content-descriptive message
 - Push completed (or non-blocking failure documented)
-- Analyze executed (or non-blocking failure documented)
 - Pipeline state cleared
+- Post-prompt hook executed (or non-blocking failure documented)

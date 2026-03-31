@@ -110,14 +110,34 @@ Call `session(operation="compact")` to compact memory bank. Record token savings
 
 Call `fix_quality_issues()` to ensure markdown quality on any modified files.
 
-## Step 9: Improvements Plan (conditional)
+## Step 9a: Skill Router (conditional)
 
-If Steps 4-6 produced improvement recommendations:
+If Steps 4-6 produced recommendations about tool usage patterns, workflow patterns, or missing reusable agent capabilities:
+
+1. Update an existing skill or create a new entry under `.cortex/resources/skills/`.
+2. Prefer reusable instructions that can be applied in future sessions, not one-off notes.
+3. Record what changed in the final report `## Next` section when relevant.
+
+If no skill-oriented recommendations exist: skip this step.
+
+## Step 9b: Plan Router (conditional)
+
+If Steps 4-6 produced recommendations about bugs, missing features, or agent/script improvements:
 
 1. Call `plan(operation="create", plan_title="Session improvements from {timestamp}", description="...")`.
 2. Call `plan(operation="register", ...)` to add to roadmap.
 
-If no recommendations: skip this step.
+If no plan-oriented recommendations exist: skip this step.
+
+## Step 9c: Rule Router (conditional)
+
+If Steps 4-6 produced recommendations about recurring standards violations or new enforceable standards:
+
+1. Create or update rules under `.cortex/synapse/rules/` and update the corresponding manifest entry.
+2. For newly created rules, include `created_by: analyze-feedback-loop` in rule metadata/frontmatter where applicable.
+3. Keep rules language-agnostic unless the recommendation is explicitly language-specific.
+
+If no rules-oriented recommendations exist: skip this step.
 
 ---
 
@@ -144,7 +164,9 @@ If any MCP tool fails with "Connection closed" (MCP error -32000):
 |-------|-------|
 | Report | `.cortex/reviews/session-optimization-<timestamp>.md` |
 | Compaction | <before> → <after> tokens (<n>% reduction) |
+| Skill updated | <path OR —> |
 | Plan created | <path OR —> |
+| Rule created | <path OR —> |
 
 ## Next
 
@@ -154,12 +176,15 @@ If any MCP tool fails with "Connection closed" (MCP error -32000):
 **Rules**:
 
 - Include compaction metrics when `session(compact)` ran
-- Plan created row only if Step 9 produced improvements plan
+- Skill updated row only if Step 9a produced a skill artifact
+- Plan created row only if Step 9b produced a plan
+- Rule created row only if Step 9c produced a rule file
 
 ## Success Criteria
 
 - Steps 4-6 executed (or gracefully skipped on connection errors)
-- Report assembled and saved to reviews directory
+- Report assembled and saved to `.cortex/reviews/`
 - Memory bank compaction executed
-- Improvements plan created if recommendations exist
-- Report saved to `.cortex/reviews/`
+- Step 9a: Skill updated or created if tool/workflow patterns found
+- Step 9b: Plan created and registered if bugs/features/improvements found
+- Step 9c: Rule created or updated if recurring violations or new standards found

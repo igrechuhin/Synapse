@@ -53,11 +53,12 @@ Steps to run inline:
 5. Read the `cortex://context` resource for implementation context (zero-arg, reads task from session config). Non-blocking if unavailable.
 6. Read the `cortex://rules` resource for coding standards. Non-blocking if unavailable.
 7. If the selected step references a plan file, read it directly. Extract implementation steps, success criteria, testing strategy, and which steps are already done.
+   - Look for a `## Partial Progress Log` section at the end of the plan file. If present, extract the entries — these are subtasks already completed in prior sessions. Pass them to the `implement-code` subagent so it does not repeat them.
 8. Write result:
 
 ```text
 pipeline_handoff(operation="write", pipeline="implement", phase="select",
-  data='{"status":"complete","selected_step":"<title>","plan_file":"<path or null>","selection_source":"explicit_plan"|"roadmap_priority","roadmap_section":"<section>"}')
+  data='{"status":"complete","selected_step":"<title>","plan_file":"<path or null>","selection_source":"explicit_plan"|"roadmap_priority","roadmap_section":"<section>","partial_progress":"<comma-separated list of already-completed subtasks, or null if none>"}')
 ```
 
 **GATE**: Read `pipeline_handoff(operation="read", pipeline="implement")` and verify `phases.select.status == "complete"`. If `phases.select.status == "roadmap_complete"`: report "Roadmap complete" and STOP.
@@ -72,7 +73,7 @@ Before invoking, write the task:
 
 ```text
 pipeline_handoff(operation="write", pipeline="implement", phase="code",
-  data='{"selected_step": "<from select>", "plan_file": "<from select>", "roadmap_section": "<from select>"}')
+  data='{"selected_step": "<from select>", "plan_file": "<from select>", "roadmap_section": "<from select>", "partial_progress": "<from select.partial_progress, or null>"}')
 ```
 
 Use the `implement-code` subagent to scope the smallest meaningful subtask, implement it with tests, and run the quality gate.
@@ -111,7 +112,13 @@ This single call atomically:
 1. Call `update_memory_bank(operation="progress_append", date_str="YYYY-MM-DD", entry_text="**{step_title}** - PARTIAL. {summary}")`.
 2. Call `update_memory_bank(operation="active_context_append", date_str="YYYY-MM-DD", title="{step_title} (PARTIAL)", summary="{summary}")` only if the partial work materially affects active behavior.
 3. Do NOT remove the roadmap entry.
-4. If a plan file was used: update its status to `IN_PROGRESS` with notes on what's done vs. remaining.
+4. If a plan file was used: append to it a `## Partial Progress Log` section (or add a new entry to the existing one) using `manage_file(operation="append_section", ...)` or by reading and rewriting the file. Each log entry must follow this format:
+
+   ```text
+   - YYYY-MM-DD: {subtask description from phases.code.subtask} — files: {comma-separated files_changed}
+   ```
+
+   This log is read by the Selection phase in the next session to avoid repeating completed subtasks.
 
 Write result:
 
@@ -189,6 +196,13 @@ This restores the full record of completed phases — continue from the first ph
 - **Quality gate fails after 3 iterations**: STOP, report unresolvable issues
 - **Finalize fails (memory bank crash)**: STOP, report with FIX-ASAP priority
 - **Quality gate unavailable (doc-only sessions)**: Record "Quality gate skipped" and proceed to Finalize
+
+## Step 6: Post-Prompt Hook (Self-Improvement)
+
+After writing the final report for this implement pipeline run, invoke the post-prompt self-improvement hook:
+
+- Read `.cortex/synapse/prompts/post-prompt-hook.md` and execute it to analyze the session and emit any applicable Skills, Plans, or Rules.
+- Treat this hook as **non-blocking**: if it fails or is unavailable (for example, MCP connection issues), record a brief note in the final report `## Next` section and consider the implement workflow complete.
 
 ## Final report (required format)
 

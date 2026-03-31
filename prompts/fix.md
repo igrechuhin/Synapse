@@ -210,6 +210,13 @@ Only stop after **3 complete fix-and-verify iterations per target** have all fai
 
 If an attempt worsens the tree (new failures, duplicate defs, invalid syntax), **roll back that attempt** and retry with a different strategy — see **Rollback on regressions** under [Fix-loop integrity (NO-GO)](#fix-loop-integrity-no-go).
 
+## Step 10: Post-Prompt Hook (Self-Improvement)
+
+After writing the final report for this fix run, invoke the post-prompt self-improvement hook:
+
+- Read `.cortex/synapse/prompts/post-prompt-hook.md` and execute it to analyze the session and emit any applicable Skills, Plans, or Rules.
+- Treat this hook as **non-blocking**: if it fails or is unavailable (for example, MCP connection issues), record a brief note in the final report `## Next` section and consider the fix workflow complete.
+
 ## Final report (required format)
 
 **MANDATORY**: Use the **Diagnostic** report type from `docs/guides/synapse-final-report-templates.md`.
