@@ -1,0 +1,14 @@
+---
+alwaysApply: true
+---
+
+# CSharp Coding Standards (Template)
+
+- Use descriptive type and method names aligned with .NET conventions.
+- Prefer immutable models and explicit nullability annotations where practical.
+- Handle exceptions intentionally; avoid broad catch blocks that hide failures.
+
+## Project-Specific TODOs
+
+- TODO: Define formatter/linter settings (`dotnet format`, analyzers, style rules).
+- TODO: Add framework guidance (ASP.NET, MAUI, worker services) if used.
