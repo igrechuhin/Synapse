@@ -109,16 +109,21 @@ This single call atomically:
 
 **If only part of the step was completed**:
 
-1. Call `update_memory_bank(operation="progress_append", date_str="YYYY-MM-DD", entry_text="**{step_title}** - PARTIAL. {summary}")`.
-2. Call `update_memory_bank(operation="active_context_append", date_str="YYYY-MM-DD", title="{step_title} (PARTIAL)", summary="{summary}")` only if the partial work materially affects active behavior.
-3. Do NOT remove the roadmap entry.
-4. If a plan file was used: append to it a `## Partial Progress Log` section (or add a new entry to the existing one) using `manage_file(operation="append_section", ...)` or by reading and rewriting the file. Each log entry must follow this format:
+1. **Hard guardrail (anti-scrap backlog)**: if `phases.code.files_changed` is empty OR contains only memory-bank/plan bookkeeping files, treat this run as a no-op:
+   - do NOT append PARTIAL progress or activeContext entries,
+   - do NOT create/add/split roadmap PENDING items,
+   - keep the existing selected roadmap entry unchanged,
+   - write finalize state with `memory_bank_updated: false` and note `no_op_run`.
+2. For real partial implementation work (with concrete non-bookkeeping deliverables), call `update_memory_bank(operation="progress_append", date_str="YYYY-MM-DD", entry_text="**{step_title}** - PARTIAL. {summary}")`.
+3. Call `update_memory_bank(operation="active_context_append", date_str="YYYY-MM-DD", title="{step_title} (PARTIAL)", summary="{summary}")` only if the partial work materially affects active behavior.
+4. Do NOT remove the roadmap entry.
+5. If a plan file was used: append to it a `## Partial Progress Log` section (or add a new entry to the existing one) using `manage_file(operation="append_section", ...)` or by reading and rewriting the file. Each log entry must follow this format:
 
    ```text
    - YYYY-MM-DD: {subtask description from phases.code.subtask} — files: {comma-separated files_changed}
    ```
 
-   This log is read by the Selection phase in the next session to avoid repeating completed subtasks.
+   This log is read by the Selection phase in the next session to avoid repeating completed subtasks. Log only concrete implementation work; do not log metadata-only churn.
 
 Write result:
 

@@ -25,6 +25,7 @@ For `/cortex/fix`, **clean** means **issue-clean for the active fix target(s)** 
 - **NO-GO — `TYPE_CHECKING` workarounds**: NEVER use `TYPE_CHECKING` conditional imports; they violate project standards — use normal imports or refactor instead.
 - **NO-GO — circular imports**: NEVER paper over import cycles; extract shared types/helpers to a new module instead.
 - **NO-GO — invalid syntax**: NEVER commit syntax-invalid Python.
+- **NO-GO — synthetic roadmap backlog**: NEVER fabricate generic `PENDING` roadmap bullets (for example, “follow-up reconciliation/normalization”) solely to satisfy docs gates. Only add backlog items that map to concrete, implementation-ready unfinished work.
 - **NO-GO — Cursor command stubs**: NEVER create, track, or widen `.gitignore` for `.cursor/commands/*.md` to pass tests or the quality gate. Workflows are **canonical under `.cortex/synapse/prompts/`** (and project `.cortex/prompts/`); duplicating them as Cursor commands **pollutes the user’s command picker** and fights `.gitignore` (`/.cursor/`). If `tests/integration/test_synapse_final_report_prompt_alignment.py` complains about empty `.cursor/commands/`, fix the **test or prompt expectations** (optional skip when no `*.md` is correct) — do **not** add stub command files.
 
 **Post-fix validation** (before treating the quality target as ✅ for changed Python modules): run `python3 -m py_compile <path/to/file.py>` and `python3 -c "import <module_import_path>"` for each changed module (use the package import path, e.g. `cortex.tools.foo`, not a filesystem path). If either command fails, fix the cause or revert — do not proceed to success.
@@ -193,6 +194,12 @@ Route based on change scope:
 2. Align activeContext and progress: ensure completed work in `activeContext.md`, ongoing work in `roadmap.md`.
 3. Fix timestamp and sync issues: read `cortex://validation` resource. Apply targeted fixes.
 4. Re-run docs validation: call `run_docs_gate()`. If not passing, go back to step 1 (max 3 iterations).
+
+`roadmap_progress_consistency` handling rule:
+
+- If this check fails, do **not** create generic placeholder `PENDING` bullets.
+- Only add a roadmap `PENDING` entry when you can point to a concrete unfinished deliverable with implementation-ready wording.
+- If no concrete unfinished deliverable exists, treat the check as a validation mismatch to be addressed in validator logic (or by truthfully resolving stale PARTIAL history), not by backlog fabrication.
 
 ## Failure Handling
 
