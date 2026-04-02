@@ -142,9 +142,7 @@ def main() -> None:
         if stderr:
             print(stderr, file=sys.stderr)
 
-        combined_output = "\n".join(
-            part for part in [stdout, stderr] if part
-        )
+        combined_output = "\n".join(part for part in [stdout, stderr] if part)
         total_tests, failed_tests = parse_swift_test_summary(combined_output)
         normalized_success = did_tests_pass(result.returncode, failed_tests)
 

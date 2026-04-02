@@ -5,7 +5,11 @@ from __future__ import annotations
 
 import unittest
 
-from run_tests import decode_process_output, did_tests_pass, parse_swift_test_summary
+from swift_test_runner import (
+    decode_process_output,
+    did_tests_pass,
+    parse_swift_test_summary,
+)
 
 
 class SwiftRunTestsStatusMappingTests(unittest.TestCase):
@@ -20,7 +24,9 @@ class SwiftRunTestsStatusMappingTests(unittest.TestCase):
         self.assertEqual(failed, 0)
 
     def test_parse_summary_returns_none_for_missing_summary(self) -> None:
-        total, failed = parse_swift_test_summary("Build complete! No test summary line.")
+        total, failed = parse_swift_test_summary(
+            "Build complete! No test summary line."
+        )
 
         self.assertIsNone(total)
         self.assertIsNone(failed)
@@ -49,9 +55,11 @@ class SwiftRunTestsStatusMappingTests(unittest.TestCase):
     def test_did_tests_pass_false_when_nonzero_returncode_and_failures(self) -> None:
         self.assertFalse(did_tests_pass(returncode=1, failed_tests=3))
 
-    def test_did_tests_pass_false_when_nonzero_returncode_and_no_parsed_count(self) -> None:
+    def test_did_tests_pass_false_when_nonzero_returncode_and_no_parsed_count(
+        self,
+    ) -> None:
         self.assertFalse(did_tests_pass(returncode=1, failed_tests=None))
 
 
 if __name__ == "__main__":
-    unittest.main()
+    _ = unittest.main()

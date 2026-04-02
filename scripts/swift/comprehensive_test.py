@@ -7,7 +7,7 @@ Saves a timestamped markdown log to .logs/ (retains last 10 logs).
 Configuration:
     FAST_MODE:   Set to 1 to skip slow checks (MLX, complexity) (default: 0)
     LOG_DIR:     Directory for log files (default: <script_dir>/.logs)
-    TEST_TIMEOUT: Forwarded to run_tests.py (default: 600)
+    TEST_TIMEOUT: Forwarded to swift_test_runner.py (default: 600)
 """
 
 from __future__ import annotations
@@ -155,7 +155,7 @@ def main() -> None:
             ("DocC coverage", "check_docc.py"),
         ]
 
-    checks.append(("Test suite", "run_tests.py"))
+    checks.append(("Test suite", "swift_test_runner.py"))
 
     passed = failed = 0
     for name, script_name in checks:
