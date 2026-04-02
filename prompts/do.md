@@ -1,4 +1,4 @@
-# Implement Next Roadmap Step
+# Do
 
 **CRITICAL**: Execute ALL phases below AUTOMATICALLY. Do NOT pause, summarize, or ask for confirmation between phases. Start with Selection immediately. When a roadmap item is too large to finish in one session, make concrete, high-impact partial progress and update plans/status accordingly instead of stopping with no changes.
 
@@ -6,7 +6,7 @@ This is part of the **compound-engineering loop** (Plan → Work → Review → 
 
 ## Clean Semantics
 
-For `/cortex/implement`, **clean** means **step-complete and gate-clean** for the selected roadmap slice:
+For `/cortex/do`, **clean** means **step-complete and gate-clean** for the selected roadmap slice:
 
 - The selected subtask is implemented to the intended completion level (full or explicit partial).
 - Required verification/fix phases for that step pass.
@@ -40,7 +40,7 @@ Steps to run inline:
 
 1. Call `session()` to verify MCP health. If unhealthy, STOP.
 2. Read the roadmap: `manage_file(file_name="roadmap.md", operation="read")`. If Cursor strips args, read `.cortex/memory-bank/roadmap.md` directly.
-3. If the user provided an explicit plan hint (e.g. `/cortex/implement @.cortex/plans/<slug>.md`):
+3. If the user provided an explicit plan hint (e.g. `/cortex/do @.cortex/plans/<slug>.md`):
    - Read the referenced plan file directly.
    - Verify the plan exists and is not archived/COMPLETE.
    - If eligible, use it as the selected step.

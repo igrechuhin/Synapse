@@ -132,7 +132,7 @@
       ]
     },
     "implement": {
-      "description": "Agents used in the implement-next-roadmap-step pipeline",
+      "description": "Agents used in the implement (do.md) pipeline",
       "agents": [
         {
           "file": "roadmap-implementer.md",

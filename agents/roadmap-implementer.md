@@ -1,6 +1,6 @@
 ---
 name: roadmap-implementer
-description: Roadmap step selection specialist. Verifies MCP health, reads the roadmap, selects the next pending step, loads context and rules. Invoked by the implement-next-roadmap-step orchestrator as the first delegation.
+description: Roadmap step selection specialist. Verifies MCP health, reads the roadmap, selects the next pending step, loads context and rules. Invoked by the implement (do.md) orchestrator as the first delegation.
 ---
 
 # Roadmap Implementer Agent

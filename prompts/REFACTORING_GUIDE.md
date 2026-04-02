@@ -137,7 +137,7 @@ Each prompt (commit, review, implement, plan, analyze, fix) runs in an **indepen
 The Plan -> Work -> Review -> Compound loop is **inter-session**:
 
 ```text
-Session A: create-plan.md      → plan file + roadmap entry
+Session A: plan.md             → plan file + roadmap entry
 Session B: implement.md        → code + tests + quality gate + memory bank update
 Session C: commit.md           → full pipeline + push + analyze
 ```

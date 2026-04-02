@@ -241,7 +241,7 @@ This document defines **typed JSON schemas** for structured communication betwee
 ## PlanCreatorResult
 
 **Produced by**: `plan-creator` agent
-**Consumed by**: `create-plan.md` orchestrator
+**Consumed by**: `plan.md` orchestrator
 
 ```json
 {

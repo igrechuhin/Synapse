@@ -1,6 +1,6 @@
 ---
 name: implement-finalizer
-description: Implementation finalization specialist. Updates memory bank, verifies completion, archives plans, and runs roadmap sync after code implementation is done. Invoked by the implement-next-roadmap-step orchestrator after implement-executor completes.
+description: Implementation finalization specialist. Updates memory bank, verifies completion, archives plans, and runs roadmap sync after code implementation is done. Invoked by the implement (do.md) orchestrator after implement-executor completes.
 ---
 
 # Implement Finalizer Agent
@@ -113,6 +113,6 @@ Report to orchestrator:
 
 ## Error Handling
 
-- **Memory bank tool failures (CRITICAL)**: If `manage_file`, `append_entry`, `roadmap` tools crash or disconnect → STOP. Create investigation plan via create-plan prompt. Link in roadmap under "Blockers (ASAP Priority)". Report to user with description, impact, and FIX-ASAP recommendation.
+- **Memory bank tool failures (CRITICAL)**: If `manage_file`, `append_entry`, `roadmap` tools crash or disconnect → STOP. Create investigation plan via the Plan prompt (`plan.md`). Link in roadmap under "Blockers (ASAP Priority)". Report to user with description, impact, and FIX-ASAP recommendation.
 - **Roadmap sync failures**: Fix inconsistencies before reporting completion. Use dedicated roadmap tools, not full-content writes.
 - **Plan archiver failures**: If archiving fails, document what needs to be archived and report as follow-up work.

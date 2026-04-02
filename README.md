@@ -11,8 +11,8 @@ Synapse is a git submodule that provides shared development resources across pro
 │   ├── review.md               # Code review procedure
 │   ├── fix.md                  # Fix/debug procedure
 │   ├── analyze.md              # Analysis procedure
-│   ├── implement-next-roadmap-step.md
-│   ├── create-plan.md
+│   ├── do.md
+│   ├── plan.md
 │   ├── prompts-manifest.json   # Prompt registry
 │   └── archive/                # Retired prompts
 ├── rules/                      # Coding standards and guidelines

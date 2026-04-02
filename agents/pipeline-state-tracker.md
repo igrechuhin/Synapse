@@ -128,7 +128,7 @@ The following LLM-generated decisions MUST be persisted via `checkpoint_write` i
 
 | Decision | Pipeline | Written after | Read before |
 |---|---|---|---|
-| `similarity_decision`, `target_plan_path`, `decision_rationale` | create-plan | Step 1 (similarity check) | Step 3 (create/enrich) |
+| `similarity_decision`, `target_plan_path`, `decision_rationale` | plan | Step 1 (similarity check) | Step 3 (create/enrich) |
 | `primary_language` | commit, review | Pre-Action Checklist (common-checklist) | All sub-agent delegations |
 | `coverage_threshold_override` | commit | Step 4 (if override detected) | Step 12 (final gate) |
 

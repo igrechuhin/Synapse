@@ -1,4 +1,4 @@
-# Create Plan from Description
+# Plan
 
 **PURPOSE**: Create a plan document and register it in the roadmap. **NO CODE CHANGES.** This prompt produces a `.md` plan file only.
 
@@ -8,7 +8,7 @@
 
 ## Clean Semantics
 
-For `/cortex/create-plan`, **clean** means **planning-complete and registration-clean**:
+For `/cortex/plan`, **clean** means **planning-complete and registration-clean**:
 
 - Plan file is created/enriched with required sections.
 - Roadmap registration is complete and consistent.
@@ -121,13 +121,13 @@ After writing the final report for this plan-creation run, invoke the post-promp
 
 ## Next
 
-`/cortex/implement @.cortex/plans/<filename>.md`
+`/cortex/do @.cortex/plans/<filename>.md`
 ```
 
 **Rules**:
 
 - Roadmap field: section name where registered, or "Not registered" if skipped
-- Next: always include implement command for new plans
+- Next: always include do command for new plans
 
 ## Success Criteria
 

@@ -1,6 +1,6 @@
 ---
 name: implement-executor
-description: Implementation execution specialist. Plans, codes, tests, and runs quality gates for a single roadmap step. Invoked by the implement-next-roadmap-step orchestrator after the step has been selected and context loaded.
+description: Implementation execution specialist. Plans, codes, tests, and runs quality gates for a single roadmap step. Invoked by the implement (do.md) orchestrator after the step has been selected and context loaded.
 ---
 
 # Implement Executor Agent

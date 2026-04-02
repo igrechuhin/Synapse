@@ -5,7 +5,7 @@ description: Reference document defining the output format and templates for cod
 
 # Review Output Schema
 
-This document defines the output format for code review reports. The `review.md` orchestrator references this schema to produce structured reports that can be directly consumed by `create-plan.md`.
+This document defines the output format for code review reports. The `review.md` orchestrator references this schema to produce structured reports that can be directly consumed by `plan.md`.
 
 ## Report File
 
@@ -157,7 +157,7 @@ Each critical issue MUST include all fields to enable plan creation:
 
 ## Plan-Ready Structure
 
-The review report is structured for `create-plan.md` to extract:
+The review report is structured for `plan.md` to extract:
 
 - **Requirements and goals** from issue descriptions
 - **Implementation tasks** from detailed step breakdowns

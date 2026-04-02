@@ -244,11 +244,11 @@ When you create or execute any script (inline snippet or file) during a session:
 
 - **MANDATORY**: Use the project's script tooling: call `capture_session_script` and/or `analyze_session_scripts` or `suggest_tool_improvements` as appropriate.
 - Do not run scripts without using script tooling; not using it is a process violation.
-- This aligns with Phase 27 script-generation-prevention and implement-next-roadmap-step guidance.
+- This aligns with Phase 27 script-generation-prevention and implement (do.md) guidance.
 
 ## End-of-session Analyze prompt for high-level workflows (CONDITIONAL)
 
-- **Prompts**: All high-level Synapse prompts that orchestrate multi-step workflows (for example `commit.md`, `review.md`, `implement-next-roadmap-step.md`, `create-plan.md`) SHOULD include a final step that executes the **Analyze (End of Session)** prompt (`analyze.md` from the Synapse prompts directory), but ONLY when the current prompt is the **last workflow in the session**.
+- **Prompts**: All high-level Synapse prompts that orchestrate multi-step workflows (for example `commit.md`, `review.md`, `do.md`, `plan.md`) SHOULD include a final step that executes the **Analyze (End of Session)** prompt (`analyze.md` from the Synapse prompts directory), but ONLY when the current prompt is the **last workflow in the session**.
 - **Deduplication**: If the user will invoke another high-level prompt after this one (e.g., running `/cortex/review` then `/cortex/commit`), only the **last** prompt in the session should execute `analyze.md`. Earlier prompts should skip the analyze step to avoid redundant execution.
 - **commit.md exception**: The commit prompt (`commit.md`) always runs analyze as its final step since it is typically the last action in a session.
 - **New prompts**: When adding or refactoring any prompt under `.cortex/synapse/prompts/`, include a **conditional** analyze step (not mandatory) that runs when the prompt is the last workflow in the session.
@@ -362,8 +362,8 @@ When encountering **NON-CRITICAL** errors, you may use alternative approaches:
    - **For NON-CRITICAL errors**: See "Alternative Approaches for Non-Critical Errors" section above
 
 2. **Create investigation plan** (For CRITICAL errors):
-   - **Use the create-plan prompt** (Synapse prompts directory) to create a plan
-   - Follow ALL steps in the create-plan prompt to create a comprehensive investigation plan
+   - **Use the Plan prompt** (Synapse prompts directory) to create a plan
+   - Follow ALL steps in the Plan prompt to create a comprehensive investigation plan
    - Plan must include:
      - Problem statement describing the tool failure
      - Root cause analysis approach
@@ -403,7 +403,7 @@ When encountering **NON-CRITICAL** errors, you may use alternative approaches:
 
 **VIOLATION**:
 
-- Encountering **CRITICAL** MCP tool errors without stopping, creating investigation plan via `create-plan.md`, and providing summary to user is a CRITICAL violation.
+- Encountering **CRITICAL** MCP tool errors without stopping, creating investigation plan via `plan.md`, and providing summary to user is a CRITICAL violation.
 - Using alternative approaches for **NON-CRITICAL** errors without documenting the error and verifying the alternative provides equivalent information is a violation.
 
 ## Violations (BLOCKED)

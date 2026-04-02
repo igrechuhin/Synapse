@@ -46,7 +46,7 @@ X. **Step Name** - **Delegate to `agent-name` agent**:
 ### Common Pre-Action Checklist (`common-checklist.md`)
 
 - Single agent that loads structure, memory bank, rules, and detects primary language
-- Referenced by: `create-plan.md`, `review.md`, `implement-next-roadmap-step.md`, `analyze.md`, `commit.md`
+- Referenced by: `plan.md`, `review.md`, `do.md`, `analyze.md`, `commit.md`
 - Eliminates ~300 lines of duplicated `manage_file` calls across prompts
 
 ### Language-Aware Review
@@ -58,14 +58,14 @@ X. **Step Name** - **Delegate to `agent-name` agent**:
 ### Analyze Ownership
 
 - `analyze.md` runs ONLY from `commit.md` Step 15 (always runs, mandatory)
-- Other prompts (`review.md`, `create-plan.md`, `implement-next-roadmap-step.md`) do NOT run analyze
+- Other prompts (`review.md`, `plan.md`, `do.md`) do NOT run analyze
 - Users can invoke `/cortex/analyze` directly if needed
 - Eliminates unverifiable "is this the last workflow?" branch from 4 prompts
 
 ### Simplified Roadmap Registration
 
 - `plan(operation="register")` is the **sole API** for adding new roadmap entries
-- Full-content `manage_file(write)` fallback removed from `create-plan.md`
+- Full-content `manage_file(write)` fallback removed from `plan.md`
 
 ### Final Gate Validator (`final-gate-validator.md`)
 
@@ -124,7 +124,7 @@ X. **Step Name** - **Delegate to `agent-name` agent**:
 
 - Extracted review report format from review.md (~200 lines)
 - Defines issue, violation, completeness, and improvement templates
-- Structured for plan-ready consumption by create-plan.md
+- Structured for plan-ready consumption by plan.md
 - Reduces review.md from 434 to 152 lines
 
 ## Status
@@ -137,8 +137,8 @@ X. **Step Name** - **Delegate to `agent-name` agent**:
 - ✅ Review output schema reference created (report templates)
 - ✅ commit.md rewritten as orchestration-only (1,842 -> 275 lines)
 - ✅ review.md rewritten with schema reference (434 -> 152 lines)
-- ✅ create-plan.md simplified (conditional analyze removed, severity levels added)
-- ✅ implement-next-roadmap-step.md updated (conditional analyze removed, severity levels)
+- ✅ plan.md simplified (conditional analyze removed, severity levels added)
+- ✅ do.md updated (conditional analyze removed, severity levels)
 - ✅ analyze.md updated (severity levels, common-checklist delegation)
 - ✅ fix-quality.md updated (severity levels)
 - ✅ fix-tests.md updated (severity levels)
@@ -152,14 +152,14 @@ X. **Step Name** - **Delegate to `agent-name` agent**:
 - ✅ Agent health checker created (batch pre-flight validation)
 - ✅ Pipeline state tracker created (review/analyze state persistence)
 - ✅ fix-quality.md, fix-tests.md, docs-sync.md consolidated into fix.md
-- ✅ Deterministic plan deduplication scoring added to create-plan.md
+- ✅ Deterministic plan deduplication scoring added to plan.md
 
 ### Reliability Hardening (Post-Review)
 
 - ✅ `shared-conventions.md` created — severity levels, pre-flight protocol, path resolution, tooling preferences, max-retry limits, session model
 - ✅ `memory-bank-contract.md` created — write discipline, allowed/forbidden tools, post-write verification, integrity rules
-- ✅ Max-retry counts (3 iterations) added to fix loops in commit.md, fix.md, implement-next-roadmap-step.md
-- ✅ Similarity scoring in create-plan.md simplified (45 lines → 15 lines; removed fragile keyword counting)
+- ✅ Max-retry counts (3 iterations) added to fix loops in commit.md, fix.md, do.md
+- ✅ Similarity scoring in plan.md simplified (45 lines → 15 lines; removed fragile keyword counting)
 - ✅ Steps 9-11 in commit.md made deterministic (removed conditional parallelism)
 - ✅ All orchestration prompts reference `shared-conventions.md` instead of inline severity/pre-flight boilerplate
 - ✅ Memory bank integrity check added to common-checklist agent (blocks on empty/corrupted core files)
@@ -171,8 +171,8 @@ X. **Step Name** - **Delegate to `agent-name` agent**:
 |---|---|---|---|
 | commit.md | 1,842 | 275 | -85% |
 | review.md | 434 | 152 | -65% |
-| create-plan.md | 339 | 330 | -3% |
-| implement-next-roadmap-step.md | 125 | 119 | -5% |
+| plan.md | 339 | 330 | -3% |
+| do.md | 125 | 119 | -5% |
 | **Total prompt lines** | **2,740** | **876** | **-68%** |
 
 New agents created: 4 files, ~520 lines total (net complexity moved to dedicated, testable agents).
