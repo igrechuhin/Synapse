@@ -14,6 +14,7 @@ Configuration:
 from __future__ import annotations
 
 import os
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -29,6 +30,19 @@ TEST_TIMEOUT = get_config_int("TEST_TIMEOUT", 600)
 TEST_FILTER = os.getenv("TEST_FILTER", "")
 TEST_TARGET = os.getenv("TEST_TARGET", "")
 PARALLEL = get_config_int("PARALLEL", 1)
+_SWIFT_TEST_SUMMARY_RE = re.compile(
+    r"Executed\s+(?P<total>\d+)\s+tests?,\s+with\s+(?P<failed>\d+)\s+failures?",
+    re.IGNORECASE,
+)
+
+
+def decode_process_output(raw_output: str | bytes | None) -> str:
+    """Return subprocess output as a safe UTF-8 string."""
+    if raw_output is None:
+        return ""
+    if isinstance(raw_output, bytes):
+        return raw_output.decode("utf-8", errors="replace")
+    return raw_output
 
 
 def find_swift() -> str:
@@ -62,6 +76,45 @@ def build_test_cmd(swift: str) -> list[str]:
     return cmd
 
 
+def parse_swift_test_summary(output: str) -> tuple[int | None, int | None]:
+    """Parse total and failed test counts from `swift test` output.
+
+    Args:
+        output: Combined stdout/stderr from swift test execution.
+
+    Returns:
+        Tuple of (total_tests, failed_tests). If no summary is found, both values
+        are None.
+    """
+    match = _SWIFT_TEST_SUMMARY_RE.search(output)
+    if match is None:
+        return None, None
+
+    total_tests = int(match.group("total"))
+    failed_tests = int(match.group("failed"))
+    return total_tests, failed_tests
+
+
+def did_tests_pass(returncode: int, failed_tests: int | None) -> bool:
+    """Normalize test pass/fail status for quality gate consumers.
+
+    Args:
+        returncode: Exit code from `swift test`.
+        failed_tests: Parsed number of test failures, when available.
+
+    Returns:
+        True when tests should be treated as passed.
+    """
+    # A non-zero exit code indicates a command/runtime-level error even if the
+    # parsed test summary reports zero failures.
+    if returncode != 0:
+        return False
+
+    if failed_tests is None:
+        return True
+    return failed_tests == 0
+
+
 def main() -> None:
     """Run swift test."""
     project_root = get_project_root(Path(__file__))
@@ -76,20 +129,31 @@ def main() -> None:
             cmd,
             cwd=project_root,
             capture_output=True,
-            text=True,
+            text=False,
             check=False,
             timeout=TEST_TIMEOUT,
         )
 
-        if result.stdout:
-            print(result.stdout)
-        if result.stderr:
-            print(result.stderr, file=sys.stderr)
+        stdout = decode_process_output(result.stdout)
+        stderr = decode_process_output(result.stderr)
 
-        if result.returncode != 0:
+        if stdout:
+            print(stdout)
+        if stderr:
+            print(stderr, file=sys.stderr)
+
+        combined_output = "\n".join(
+            part for part in [stdout, stderr] if part
+        )
+        total_tests, failed_tests = parse_swift_test_summary(combined_output)
+        normalized_success = did_tests_pass(result.returncode, failed_tests)
+
+        if not normalized_success:
             print("❌ Tests failed.", file=sys.stderr)
             sys.exit(1)
 
+        if total_tests is not None and failed_tests is not None:
+            print(f"Test summary: total={total_tests}, failed={failed_tests}")
         print("✅ All tests passed")
         sys.exit(0)
 

@@ -28,6 +28,19 @@ FAST_MODE = get_config_int("FAST_MODE", 0)
 _SCRIPT_DIR = Path(__file__).parent
 
 
+def decode_process_output(raw_output: str | bytes | None) -> str:
+    """Return subprocess output as a safe UTF-8 string.
+
+    Decodes bytes with replacement so binary-prefixed output (for example PNG
+    header bytes like 0x89) does not crash quality tooling.
+    """
+    if raw_output is None:
+        return ""
+    if isinstance(raw_output, bytes):
+        return raw_output.decode("utf-8", errors="replace")
+    return raw_output
+
+
 def get_log_dir() -> Path:
     """Return the log directory, creating it if needed.
 
@@ -66,10 +79,12 @@ def run_script(name: str, script: Path, log_lines: list[str]) -> bool:
         result = subprocess.run(
             [sys.executable, str(script)],
             capture_output=True,
-            text=True,
+            text=False,
             check=False,
         )
-        output = (result.stdout + result.stderr).strip()
+        output = (
+            decode_process_output(result.stdout) + decode_process_output(result.stderr)
+        ).strip()
         if output:
             log_lines.append(output + "\n")
 

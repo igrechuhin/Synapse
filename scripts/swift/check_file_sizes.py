@@ -122,6 +122,14 @@ def main() -> None:
     for swift_file in swift_files:
         if is_excluded(swift_file):
             continue
+        # Root Package.swift is the SPM manifest; it cannot be split across files.
+        # CI file-size job only scans Sources/ and Tests/ (see .github/workflows/quality.yml).
+        resolved = swift_file.resolve()
+        if (
+            swift_file.name == "Package.swift"
+            and resolved.parent == project_root.resolve()
+        ):
+            continue
         lines = count_logical_lines(swift_file)
         if lines > MAX_FILE_LINES:
             violations.append((swift_file, lines))
