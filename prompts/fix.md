@@ -166,8 +166,7 @@ Route based on change scope:
    - **Function too long** (> 30 lines): extract helper functions.
    - **Markdown lint**: fix manually per rule code (MD057, MD046, MD051, MD076, MD022, MD047). For `.cortex/memory-bank/*.md` use `manage_file()`.
 4. Re-verify with `run_quality_gate()`. Repeat from step 3 (max 3 iterations).
-5. ⚠️ **CI parity gap — function length filtering**: Even when `run_quality_gate()` reports no function-length violations, CI may still fail. The local gate applies a diff-aware filter that skips violations outside changed diff hunks or pre-existing in HEAD; CI's `check_function_lengths.py` checks every function with no filtering. After `run_quality_gate()` passes, **scan every modified `.py` file manually**: for each function, count logical lines (excluding blanks, comments, docstrings). If any function exceeds 30 lines, extract helpers before declaring the quality target ✅.
-6. Before declaring the 🛠️ quality target ✅ for Python edits: apply **Post-fix validation** and **Rollback on regressions** from [Fix-loop integrity (NO-GO)](#fix-loop-integrity-no-go) — `py_compile`, import check, and bounded retry with revert on new failures.
+5. Before declaring the 🛠️ quality target ✅ for Python edits: apply **Post-fix validation** and **Rollback on regressions** from [Fix-loop integrity (NO-GO)](#fix-loop-integrity-no-go) — `py_compile`, import check, and bounded retry with revert on new failures.
 
 ### 🧪 tests Target
 
