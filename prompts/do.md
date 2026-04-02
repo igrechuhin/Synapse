@@ -26,13 +26,13 @@ Each phase must complete before the next begins:
 
 Cursor's MCP bridge strips all tool arguments to `{}`. Use these patterns:
 
-**For `pipeline_handoff` write calls** — embed `_op`, `_phase`, and `_pipeline` directly in
+**For `pipeline_handoff` write calls** — embed `operation`, `phase`, and `pipeline` directly in
 the data JSON. The tool strips these routing keys before storing the payload, so they never
 appear in the phase result files:
 
 ```json
 // Write to: .cortex/.session/current-task.json — routing + payload in one write
-{"_op": "write", "_phase": "select", "_pipeline": "implement", "status": "complete", ...payload...}
+{"operation": "write", "phase": "select", "pipeline": "implement", "status": "complete", ...payload...}
 ```
 
 Then call `pipeline_handoff()` with no args. **The write response includes `pipeline_state`** —
@@ -99,7 +99,7 @@ Steps to run inline:
 
 ```json
 // Write to: .cortex/.session/current-task.json
-{"_op":"write","_phase":"select","_pipeline":"implement","status":"complete","selected_step":"<title>","plan_file":"<path or null>","selection_source":"explicit_plan or roadmap_priority","roadmap_section":"<section>","partial_progress":"<comma-separated completed subtasks or null>"}
+{"operation":"write","phase":"select","pipeline":"implement","status":"complete","selected_step":"<title>","plan_file":"<path or null>","selection_source":"explicit_plan or roadmap_priority","roadmap_section":"<section>","partial_progress":"<comma-separated completed subtasks or null>"}
 ```
 
 Then call `pipeline_handoff()`.
@@ -116,7 +116,7 @@ Before invoking, write the task:
 
 ```json
 // Write to: .cortex/.session/current-task.json
-{"_op":"write","_phase":"code","_pipeline":"implement","selected_step":"<from select>","plan_file":"<from select>","roadmap_section":"<from select>","partial_progress":"<from select.partial_progress, or null>"}
+{"operation":"write","phase":"code","pipeline":"implement","selected_step":"<from select>","plan_file":"<from select>","roadmap_section":"<from select>","partial_progress":"<from select.partial_progress, or null>"}
 ```
 
 Then call `pipeline_handoff()`.
@@ -174,7 +174,7 @@ Write result:
 
 ```json
 // Write to: .cortex/.session/current-task.json
-{"_op":"write","_phase":"finalize","_pipeline":"implement","status":"complete","memory_bank_updated":true,"roadmap_entry":"removed or kept","plan_file":"archived or updated or none"}
+{"operation":"write","phase":"finalize","pipeline":"implement","status":"complete","memory_bank_updated":true,"roadmap_entry":"removed or kept","plan_file":"archived or updated or none"}
 ```
 
 Then call `pipeline_handoff()`. **GATE**: check `pipeline_state.phases.finalize.status == "complete"` from the response.
@@ -195,7 +195,7 @@ Then call `pipeline_handoff()`. **GATE**: check `pipeline_state.phases.finalize.
 
 ```json
 // Write to: .cortex/.session/current-task.json
-{"_op":"write","_phase":"verify","_pipeline":"implement","status":"passed","roadmap_check":"passed","progress_check":"passed","stray_complete_plans":[]}
+{"operation":"write","phase":"verify","pipeline":"implement","status":"passed","roadmap_check":"passed","progress_check":"passed","stray_complete_plans":[]}
 ```
 
 Then call `pipeline_handoff()`. **GATE**: check `pipeline_state.phases.verify.status == "passed"` from the response.
@@ -214,7 +214,7 @@ Write result:
 
 ```json
 // Write to: .cortex/.session/current-task.json
-{"_op":"write","_phase":"fix","_pipeline":"implement","status":"passed or failed","quality_passed":true,"tests_passed":true,"docs_passed":true,"fix_iterations":0}
+{"operation":"write","phase":"fix","pipeline":"implement","status":"passed or failed","quality_passed":true,"tests_passed":true,"docs_passed":true,"fix_iterations":0}
 ```
 
 Then call `pipeline_handoff()`. **GATE**: `pipeline_state.phases.fix.status == "passed"` is recommended but non-blocking — if fix fails after 3 iterations per target, log remaining issues and proceed to Cleanup.

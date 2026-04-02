@@ -34,12 +34,12 @@ Each phase must complete before the next begins:
 
 Cursor's MCP bridge strips all tool arguments to `{}`. Use these patterns:
 
-**For `pipeline_handoff` write calls** — embed `_op`, `_phase`, and `_pipeline` directly in
+**For `pipeline_handoff` write calls** — embed `operation`, `phase`, and `pipeline` directly in
 the data JSON. The tool strips these routing keys before storing the payload:
 
 ```json
 // Write to: .cortex/.session/current-task.json — routing + payload in one write
-{"_op": "write", "_phase": "<phase>", "_pipeline": "commit", ...payload...}
+{"operation": "write", "phase": "<phase>", "pipeline": "commit", ...payload...}
 ```
 
 Then call `pipeline_handoff()`. **The write response includes `pipeline_state`** —
@@ -97,7 +97,7 @@ Steps to run inline:
 
 ```json
 // Write to: .cortex/.session/current-task.json
-{"_op":"write","_phase":"preflight","_pipeline":"commit","status":"complete","snapshot_ref":"<value>","changes_detected":true}
+{"operation":"write","phase":"preflight","pipeline":"commit","status":"complete","snapshot_ref":"<value>","changes_detected":true}
 ```
 
 Then call `pipeline_handoff()`. **GATE**: check `pipeline_state.phases.preflight.status == "complete"` from the response.
@@ -117,7 +117,7 @@ Steps to run inline:
 
 ```json
 // Write to: .cortex/.session/current-task.json
-{"_op":"write","_phase":"checks","_pipeline":"commit","status":"passed or failed","coverage":0.0,"fix_iterations":0,"preflight_passed":true,"dirty_checks":{},"last_clean_results":{}}
+{"operation":"write","phase":"checks","pipeline":"commit","status":"passed or failed","coverage":0.0,"fix_iterations":0,"preflight_passed":true,"dirty_checks":{},"last_clean_results":{}}
 ```
 
 Then call `pipeline_handoff()`. **GATE**: check `pipeline_state.phases.checks.status == "passed"` from the response.
@@ -152,7 +152,7 @@ Steps to run inline:
 
 ```json
 // Write to: .cortex/.session/current-task.json
-{"_op":"write","_phase":"docs","_pipeline":"commit","status":"complete","memory_bank_updated":true,"docs_phase_passed":true,"plans_archived":0,"roadmap_sync_warning":false}
+{"operation":"write","phase":"docs","pipeline":"commit","status":"complete","memory_bank_updated":true,"docs_phase_passed":true,"plans_archived":0,"roadmap_sync_warning":false}
 ```
 
 Then call `pipeline_handoff()`. **GATE**: check `pipeline_state.phases.docs.status == "complete"` from the response. `docs_phase_passed: false` caused by roadmap_sync only (with timestamps passing) is **non-blocking** — note it and continue.
@@ -178,7 +178,7 @@ Steps to run inline:
 
 ```json
 // Write to: .cortex/.session/current-task.json
-{"_op":"write","_phase":"validate","_pipeline":"commit","status":"passed","timestamps_valid":true,"roadmap_sync_valid":true,"submodule_status":"clean or committed","synapse_commit_sha":null}
+{"operation":"write","phase":"validate","pipeline":"commit","status":"passed","timestamps_valid":true,"roadmap_sync_valid":true,"submodule_status":"clean or committed","synapse_commit_sha":null}
 ```
 
 Then call `pipeline_handoff()`.
@@ -202,7 +202,7 @@ Steps to run inline:
 
    ```json
    // Write to: .cortex/.session/current-task.json
-   {"_op":"write","_phase":"checks","_pipeline":"commit","force_fresh":true,"test_timeout":600}
+   {"operation":"write","phase":"checks","pipeline":"commit","force_fresh":true,"test_timeout":600}
    ```
 
    Then call `pipeline_handoff()` and `run_quality_gate()`.
@@ -212,7 +212,7 @@ Steps to run inline:
 
    ```json
    // Write to: .cortex/.session/current-task.json
-   {"_op":"write","_phase":"checks","_pipeline":"commit","force_fresh":true,"test_timeout":600}
+   {"operation":"write","phase":"checks","pipeline":"commit","force_fresh":true,"test_timeout":600}
    ```
 
    Then call `pipeline_handoff()` and `run_quality_gate()`.
@@ -223,7 +223,7 @@ Steps to run inline:
 
 ```json
 // Write to: .cortex/.session/current-task.json
-{"_op":"write","_phase":"final-gate","_pipeline":"commit","status":"passed or failed","coverage":0.0,"fix_loops_executed":0,"skipped_checks":[]}
+{"operation":"write","phase":"final-gate","pipeline":"commit","status":"passed or failed","coverage":0.0,"fix_loops_executed":0,"skipped_checks":[]}
 ```
 
 Then call `pipeline_handoff()`. **GATE**: check `pipeline_state.phases.final-gate.status == "passed"` from the response before proceeding to Step 13.
