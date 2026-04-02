@@ -22,9 +22,46 @@ Each phase must complete before the next begins:
 
 ---
 
+## Cursor Arg-Stripping Protocol
+
+Cursor's MCP bridge strips all tool arguments to `{}`. Use these patterns:
+
+**For `pipeline_handoff` write calls** — embed `_op`, `_phase`, and `_pipeline` directly in
+the data JSON. The tool strips these routing keys before storing the payload, so they never
+appear in the phase result files:
+
+```json
+// Write to: .cortex/.session/current-task.json — routing + payload in one write
+{"_op": "write", "_phase": "select", "_pipeline": "implement", "status": "complete", ...payload...}
+```
+
+Then call `pipeline_handoff()` with no args. **The write response includes `pipeline_state`** —
+check `pipeline_state.phases.<phase>.status` for gate verification instead of a separate read call.
+
+**For `init` and `clear`** — write just the routing keys (no payload):
+
+```json
+{"operation": "init", "pipeline": "implement"}
+```
+
+```json
+{"operation": "clear", "pipeline": "implement"}
+```
+
+**Other Cursor fallbacks:**
+
+- **For `manage_file`**: zero-arg always returns `activeContext.md`. To read other files (e.g. `roadmap.md`, `progress.md`), read `.cortex/memory-bank/{file}.md` directly with `Read`.
+- **For `validate`**: read the `cortex://validation` resource instead (it runs both timestamp and roadmap_sync checks).
+- **Zero-arg tools work normally**: `run_quality_gate()`, `run_docs_gate()`, `autofix()`, `session()`, `plan(operation="archive_completed")`.
+
 ## Pipeline Initialization
 
-Before starting, call:
+Before starting, write the session config then call init:
+
+```json
+// Write to: .cortex/.session/current-task.json
+{"operation": "init", "pipeline": "implement"}
+```
 
 ```text
 pipeline_handoff(operation="init", pipeline="implement")
@@ -54,14 +91,16 @@ Steps to run inline:
 6. Read the `cortex://rules` resource for coding standards. Non-blocking if unavailable.
 7. If the selected step references a plan file, read it directly. Extract implementation steps, success criteria, testing strategy, and which steps are already done.
    - Look for a `## Partial Progress Log` section at the end of the plan file. If present, extract the entries — these are subtasks already completed in prior sessions. Pass them to the `implement-code` subagent so it does not repeat them.
-8. Write result:
+8. Write result (embed routing in data — one write, no separate read needed):
 
-```text
-pipeline_handoff(operation="write", pipeline="implement", phase="select",
-  data='{"status":"complete","selected_step":"<title>","plan_file":"<path or null>","selection_source":"explicit_plan"|"roadmap_priority","roadmap_section":"<section>","partial_progress":"<comma-separated list of already-completed subtasks, or null if none>"}')
+```json
+// Write to: .cortex/.session/current-task.json
+{"_op":"write","_phase":"select","_pipeline":"implement","status":"complete","selected_step":"<title>","plan_file":"<path or null>","selection_source":"explicit_plan or roadmap_priority","roadmap_section":"<section>","partial_progress":"<comma-separated completed subtasks or null>"}
 ```
 
-**GATE**: Read `pipeline_handoff(operation="read", pipeline="implement")` and verify `phases.select.status == "complete"`. If `phases.select.status == "roadmap_complete"`: report "Roadmap complete" and STOP.
+Then call `pipeline_handoff()`.
+
+**GATE**: Check `pipeline_state.phases.select.status == "complete"` from the write response. If `status == "roadmap_complete"`: report "Roadmap complete" and STOP.
 
 ---
 
@@ -71,14 +110,16 @@ This is the only phase that uses a subagent (for context isolation during heavy 
 
 Before invoking, write the task:
 
-```text
-pipeline_handoff(operation="write", pipeline="implement", phase="code",
-  data='{"selected_step": "<from select>", "plan_file": "<from select>", "roadmap_section": "<from select>", "partial_progress": "<from select.partial_progress, or null>"}')
+```json
+// Write to: .cortex/.session/current-task.json
+{"_op":"write","_phase":"code","_pipeline":"implement","selected_step":"<from select>","plan_file":"<from select>","roadmap_section":"<from select>","partial_progress":"<from select.partial_progress, or null>"}
 ```
+
+Then call `pipeline_handoff()`.
 
 Use the `implement-code` subagent to scope the smallest meaningful subtask, implement it with tests, and run the quality gate.
 
-**GATE**: Read state and verify `phases.code.status == "passed"` before proceeding to Finalize.
+**GATE**: Check `pipeline_state.phases.code.status == "passed"` from the write response (or call `pipeline_handoff(operation="read", pipeline="implement")` if the subagent's response is unavailable).
 
 ---
 
@@ -86,7 +127,7 @@ Use the `implement-code` subagent to scope the smallest meaningful subtask, impl
 
 **IMPORTANT**: Run Finalize inline in the orchestrator.
 
-Read the implementation result from pipeline state:
+Read the implementation result from the code-phase write response's `pipeline_state`, or call:
 
 ```text
 pipeline_handoff(operation="read", pipeline="implement")
@@ -127,12 +168,12 @@ This single call atomically:
 
 Write result:
 
-```text
-pipeline_handoff(operation="write", pipeline="implement", phase="finalize",
-  data='{"status":"complete","memory_bank_updated":true,"roadmap_entry":"removed"|"kept","plan_file":"archived"|"updated"|"none"}')
+```json
+// Write to: .cortex/.session/current-task.json
+{"_op":"write","_phase":"finalize","_pipeline":"implement","status":"complete","memory_bank_updated":true,"roadmap_entry":"removed or kept","plan_file":"archived or updated or none"}
 ```
 
-**GATE**: Verify `phases.finalize.status == "complete"` before Verify.
+Then call `pipeline_handoff()`. **GATE**: check `pipeline_state.phases.finalize.status == "complete"` from the response.
 
 ---
 
@@ -148,12 +189,12 @@ pipeline_handoff(operation="write", pipeline="implement", phase="finalize",
 3. Call `plan(operation="archive_completed")` to archive any remaining plans with `status: COMPLETE`.
 4. Write result:
 
-```text
-pipeline_handoff(operation="write", pipeline="implement", phase="verify",
-  data='{"status":"passed","roadmap_check":"passed","progress_check":"passed","stray_complete_plans":[]}')
+```json
+// Write to: .cortex/.session/current-task.json
+{"_op":"write","_phase":"verify","_pipeline":"implement","status":"passed","roadmap_check":"passed","progress_check":"passed","stray_complete_plans":[]}
 ```
 
-**GATE**: Verify `phases.verify.status == "passed"`.
+Then call `pipeline_handoff()`. **GATE**: check `pipeline_state.phases.verify.status == "passed"` from the response.
 
 ---
 
@@ -167,12 +208,12 @@ pipeline_handoff(operation="write", pipeline="implement", phase="verify",
 
 Write result:
 
-```text
-pipeline_handoff(operation="write", pipeline="implement", phase="fix",
-  data='{"status":"passed"|"failed","quality_passed":<bool>,"tests_passed":<bool>,"docs_passed":<bool>,"fix_iterations":<n>}')
+```json
+// Write to: .cortex/.session/current-task.json
+{"_op":"write","_phase":"fix","_pipeline":"implement","status":"passed or failed","quality_passed":true,"tests_passed":true,"docs_passed":true,"fix_iterations":0}
 ```
 
-**GATE**: `phases.fix.status == "passed"` is recommended but non-blocking — if fix fails after 3 iterations per target, log remaining issues and proceed to Cleanup. The subsequent `/cortex/commit` pipeline will catch any remaining problems.
+Then call `pipeline_handoff()`. **GATE**: `pipeline_state.phases.fix.status == "passed"` is recommended but non-blocking — if fix fails after 3 iterations per target, log remaining issues and proceed to Cleanup.
 
 ---
 
@@ -180,9 +221,12 @@ pipeline_handoff(operation="write", pipeline="implement", phase="fix",
 
 After successful Verify and Fix:
 
-```text
-pipeline_handoff(operation="clear", pipeline="implement")
+```json
+// Write to: .cortex/.session/current-task.json
+{"operation": "clear", "pipeline": "implement"}
 ```
+
+Then call `pipeline_handoff()`.
 
 ## Resuming After Context Compression
 

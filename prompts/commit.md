@@ -30,24 +30,51 @@ Each phase must complete before the next begins:
 
 ---
 
-## Cursor Arg-Stripping Fallback
+## Cursor Arg-Stripping Protocol
 
-Cursor's MCP bridge may strip tool arguments, sending `{}` instead. Detect this: if `pipeline_handoff(operation="init", pipeline="commit")` returns a read result instead of creating pipeline state, args are being stripped. In this case:
+Cursor's MCP bridge strips all tool arguments to `{}`. Use these patterns:
 
-- **Skip all `pipeline_handoff` calls** — track phase results in your own context instead of writing to pipeline state files.
+**For `pipeline_handoff` write calls** — embed `_op`, `_phase`, and `_pipeline` directly in
+the data JSON. The tool strips these routing keys before storing the payload:
+
+```json
+// Write to: .cortex/.session/current-task.json — routing + payload in one write
+{"_op": "write", "_phase": "<phase>", "_pipeline": "commit", ...payload...}
+```
+
+Then call `pipeline_handoff()`. **The write response includes `pipeline_state`** —
+check `pipeline_state.phases.<phase>.status` for gate verification instead of a separate read.
+
+**For `init` and `clear`** — write just the routing keys:
+
+```json
+{"operation": "init", "pipeline": "commit"}
+```
+
+```json
+{"operation": "clear", "pipeline": "commit"}
+```
+
+**Other Cursor fallbacks:**
+
 - **For `manage_file`**: zero-arg always returns `activeContext.md`. To read other files (e.g. `roadmap.md`, `progress.md`), read `.cortex/memory-bank/{file}.md` directly with `Read`.
 - **For `validate`**: read the `cortex://validation` resource instead (it runs both timestamp and roadmap_sync checks).
 - **Zero-arg tools work normally**: `run_quality_gate()`, `run_docs_gate()`, `autofix()`, `session()`, `plan(operation="archive_completed")`.
 
 ## Pipeline Initialization
 
-Before invoking Preflight, call:
+Before invoking Preflight, write the session config then call init:
+
+```json
+// Write to: .cortex/.session/current-task.json
+{"operation": "init", "pipeline": "commit"}
+```
 
 ```text
 pipeline_handoff(operation="init", pipeline="commit")
 ```
 
-This creates `.cortex/.session/{session_id}/commit/` where all phase inputs and outputs are stored. If args are stripped (see fallback above), skip this step.
+This creates `.cortex/.session/{session_id}/commit/` where all phase inputs and outputs are stored.
 
 ---
 
@@ -68,12 +95,12 @@ Steps to run inline:
    This ensures Phase A's submodule hygiene check sees a clean, in-sync submodule.
 6. Write result:
 
-```text
-pipeline_handoff(operation="write", pipeline="commit", phase="preflight",
-  data='{"status":"complete","snapshot_ref":"<value>","changes_detected":true}')
+```json
+// Write to: .cortex/.session/current-task.json
+{"_op":"write","_phase":"preflight","_pipeline":"commit","status":"complete","snapshot_ref":"<value>","changes_detected":true}
 ```
 
-**GATE**: Verify `phases.preflight.status == "complete"` before proceeding to Phase A.
+Then call `pipeline_handoff()`. **GATE**: check `pipeline_state.phases.preflight.status == "complete"` from the response.
 
 ---
 
@@ -88,12 +115,12 @@ Steps to run inline:
 3. If `preflight_passed: false`: call `autofix()`, then call `run_quality_gate()` again. Repeat up to 3 times.
 4. Write result to pipeline state:
 
-```text
-pipeline_handoff(operation="write", pipeline="commit", phase="checks",
-  data='{"status":"passed"|"failed","coverage":<value>,"fix_iterations":<n>,"preflight_passed":<bool>,"dirty_checks":{},"last_clean_results":{}}')
+```json
+// Write to: .cortex/.session/current-task.json
+{"_op":"write","_phase":"checks","_pipeline":"commit","status":"passed or failed","coverage":0.0,"fix_iterations":0,"preflight_passed":true,"dirty_checks":{},"last_clean_results":{}}
 ```
 
-**GATE**: Verify `phases.checks.status == "passed"` before proceeding to Phase B.
+Then call `pipeline_handoff()`. **GATE**: check `pipeline_state.phases.checks.status == "passed"` from the response.
 
 **Validation rules for Phase A**:
 
@@ -122,12 +149,12 @@ Steps to run inline:
    - Check `roadmap_sync_result.valid`. If `false`: inspect `roadmap_sync_result` for specific issues. Fix any simple structural issues (stale plan refs, missing entries) via `manage_file()` and retry once. If roadmap_sync still fails after one retry **and timestamps are valid**, treat it as a **non-blocking warning** — record it and proceed to Phase C without blocking the commit.
 7. Write result:
 
-```text
-pipeline_handoff(operation="write", pipeline="commit", phase="docs",
-  data='{"status":"complete","memory_bank_updated":true,"docs_phase_passed":<bool>,"plans_archived":<n>,"roadmap_sync_warning":<bool>}')
+```json
+// Write to: .cortex/.session/current-task.json
+{"_op":"write","_phase":"docs","_pipeline":"commit","status":"complete","memory_bank_updated":true,"docs_phase_passed":true,"plans_archived":0,"roadmap_sync_warning":false}
 ```
 
-**GATE**: Verify `phases.docs.status == "complete"` before proceeding to Phase C. `docs_phase_passed: false` caused by roadmap_sync only (with timestamps passing) is **non-blocking** — note it and continue.
+Then call `pipeline_handoff()`. **GATE**: check `pipeline_state.phases.docs.status == "complete"` from the response. `docs_phase_passed: false` caused by roadmap_sync only (with timestamps passing) is **non-blocking** — note it and continue.
 
 ---
 
@@ -148,12 +175,14 @@ Steps to run inline:
      e. After the submodule commit, the superproject sees a new gitlink — this will be staged in Step 13.
 3. Write result:
 
-```text
-pipeline_handoff(operation="write", pipeline="commit", phase="validate",
-  data='{"status":"passed","timestamps_valid":<bool>,"roadmap_sync_valid":<bool>,"submodule_status":"<clean|committed>","synapse_commit_sha":"<sha or null>"}')
+```json
+// Write to: .cortex/.session/current-task.json
+{"_op":"write","_phase":"validate","_pipeline":"commit","status":"passed","timestamps_valid":true,"roadmap_sync_valid":true,"submodule_status":"clean or committed","synapse_commit_sha":null}
 ```
 
-**GATE**: Verify `phases.validate.status == "passed"`.
+Then call `pipeline_handoff()`.
+
+**GATE**: check `pipeline_state.phases.validate.status == "passed"` from the response.
 
 ---
 
@@ -170,31 +199,33 @@ Steps to run inline:
    - **`autofix()` `files_modified` field** lists only rumdl-fixed markdown files — seeing it non-empty (e.g. `.cortex/memory-bank/*.md`) is normal and expected, not a sign of unexpected scope expansion.
 2. **If `source_changed`**: write fresh config then run the gate:
 
-   ```text
-   pipeline_handoff(operation="write", pipeline="commit", phase="checks",
-     data='{"force_fresh": true, "test_timeout": 600}')
-   run_quality_gate()
+   ```json
+   // Write to: .cortex/.session/current-task.json
+   {"_op":"write","_phase":"checks","_pipeline":"commit","force_fresh":true,"test_timeout":600}
    ```
+
+   Then call `pipeline_handoff()` and `run_quality_gate()`.
 
    Full re-run including tests, types, lint, format, markdown. If any check fails: call `autofix()` and retry (max 3 iterations).
 3. **If only `markdown_changed`** (no source changes): run `autofix()` to auto-fix any remaining markdown lint. Then verify:
 
-   ```text
-   pipeline_handoff(operation="write", pipeline="commit", phase="checks",
-     data='{"force_fresh": true, "test_timeout": 600}')
-   run_quality_gate()
+   ```json
+   // Write to: .cortex/.session/current-task.json
+   {"_op":"write","_phase":"checks","_pipeline":"commit","force_fresh":true,"test_timeout":600}
    ```
+
+   Then call `pipeline_handoff()` and `run_quality_gate()`.
 
    Since no source code changed, test/type/lint/format results from Phase A are still valid — only markdown lint needs verification. If tests timeout but all non-test checks pass, Step 12 passes (Phase A already proved tests are green and no source changed).
 4. **If nothing changed**: skip re-run, write success with `skipped_checks` list.
 5. Write result:
 
-```text
-pipeline_handoff(operation="write", pipeline="commit", phase="final-gate",
-  data='{"status":"passed"|"failed","coverage":<value>,"fix_loops_executed":<n>,"skipped_checks":[...]}')
+```json
+// Write to: .cortex/.session/current-task.json
+{"_op":"write","_phase":"final-gate","_pipeline":"commit","status":"passed or failed","coverage":0.0,"fix_loops_executed":0,"skipped_checks":[]}
 ```
 
-**GATE**: Verify `phases.final-gate.status == "passed"` before proceeding to Step 13.
+Then call `pipeline_handoff()`. **GATE**: check `pipeline_state.phases.final-gate.status == "passed"` from the response before proceeding to Step 13.
 
 **Validation rules for Step 12**:
 
@@ -239,9 +270,12 @@ Then push the superproject branch (including `main`) without extra confirmation.
 
 Clean up the pipeline state:
 
-```text
-pipeline_handoff(operation="clear", pipeline="commit")
+```json
+// Write to: .cortex/.session/current-task.json
+{"operation": "clear", "pipeline": "commit"}
 ```
+
+Then call `pipeline_handoff()`.
 
 ---
 
