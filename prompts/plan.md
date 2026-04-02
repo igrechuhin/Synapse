@@ -70,7 +70,11 @@ Fallback if `plan(operation="create")` fails (Cursor may strip args): write the 
 
 Registering the plan in the roadmap is **REQUIRED** — every new or enriched plan MUST be registered.
 
-Call `plan(operation="register", plan_title="...", description="...", status="PENDING", section="...")`.
+Call `plan(operation="register", plan_title="...", description="...", plan_relative_path=".cortex/plans/<filename>.md", status="PENDING", section="...")`.
+
+`plan_relative_path` is REQUIRED for new or enriched plan registrations. Use the canonical `.cortex/plans/<filename>.md` path from the created or updated plan file.
+
+Fallback when MCP arguments are stripped: append `Plan: .cortex/plans/<filename>.md` to `description` (same canonical path; include final punctuation to match roadmap parsing expectations).
 
 **GATE**: If `plan(operation="register")` fails, STOP and report. **PROHIBITED**: using StrReplace, direct Write, string-replace, or direct file-write tools on roadmap.md — this causes corruption and is a VIOLATION. Use MCP tools only.
 

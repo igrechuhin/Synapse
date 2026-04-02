@@ -76,22 +76,26 @@ pipeline_handoff(operation="init", pipeline="implement")
 Steps to run inline:
 
 1. Call `session()` to verify MCP health. If unhealthy, STOP.
-2. Read the roadmap: `manage_file(file_name="roadmap.md", operation="read")`. If Cursor strips args, read `.cortex/memory-bank/roadmap.md` directly.
-3. If the user provided an explicit plan hint (e.g. `/cortex/do @.cortex/plans/<slug>.md`):
+2. Read `gate_feedback` from `pipeline_handoff(operation="read", pipeline="implement", phase="gate_feedback")`.
+   - If present, print the feedback first: `> ⚠️ Gate failed on previous run: <summary>. Top files: <top_files>`
+   - Increment `gate_iterations` in `pipeline_handoff` for the active `run_id`.
+   - If the same `run_id` reaches 5 iterations, pause and report to the user instead of looping.
+3. Read the roadmap: `manage_file(file_name="roadmap.md", operation="read")`. If Cursor strips args, read `.cortex/memory-bank/roadmap.md` directly.
+4. If the user provided an explicit plan hint (e.g. `/cortex/do @.cortex/plans/<slug>.md`):
    - Read the referenced plan file directly.
    - Verify the plan exists and is not archived/COMPLETE.
    - If eligible, use it as the selected step.
    - If ineligible, fall back to roadmap priority selection below.
-4. When no eligible explicit plan: identify the next pending step by priority:
+5. When no eligible explicit plan: identify the next pending step by priority:
    - Blockers (ASAP Priority) — first item
    - Active Work (in progress) — first item
    - Pending plans — first item
    - If no pending steps exist: report "Roadmap complete" and STOP.
-5. Read the `cortex://context` resource for implementation context (zero-arg, reads task from session config). Non-blocking if unavailable.
-6. Read the `cortex://rules` resource for coding standards. Non-blocking if unavailable.
-7. If the selected step references a plan file, read it directly. Extract implementation steps, success criteria, testing strategy, and which steps are already done.
+6. Read the `cortex://context` resource for implementation context (zero-arg, reads task from session config). Non-blocking if unavailable.
+7. Read the `cortex://rules` resource for coding standards. Non-blocking if unavailable.
+8. If the selected step references a plan file, read it directly. Extract implementation steps, success criteria, testing strategy, and which steps are already done.
    - Look for a `## Partial Progress Log` section at the end of the plan file. If present, extract the entries — these are subtasks already completed in prior sessions. Pass them to the `implement-code` subagent so it does not repeat them.
-8. Write result (embed routing in data — one write, no separate read needed):
+9. Write result (embed routing in data — one write, no separate read needed):
 
 ```json
 // Write to: .cortex/.session/current-task.json
