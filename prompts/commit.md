@@ -171,13 +171,14 @@ Steps to run inline:
      a. Review the diff: `cd .cortex/synapse && git diff --stat` — verify changes are intentional (match current session work or are routine analytics updates).
      b. Stage all changes: `cd .cortex/synapse && git add -A`.
      c. Commit inside the submodule: `cd .cortex/synapse && git commit -m "<message>"`. Use conventional commit format describing the Synapse changes (e.g. `chore: update prompts for zero-arg tools, remove inlined cursor-agents`). For analytics-only changes, use `chore: update usage analytics`.
-     d. Record `submodule_status = "committed"` and `synapse_commit_sha` in pipeline state.
-     e. After the submodule commit, the superproject sees a new gitlink — this will be staged in Step 13.
+     d. **Push the submodule**: `cd .cortex/synapse && git push`. Push failures are non-blocking (auth/network/SSL) — record `push_succeeded: false` and the error, provide the manual push command, and continue. The superproject MUST NOT reference a submodule commit that doesn't exist on the remote, so always push before staging the updated gitlink.
+     e. Record `submodule_status = "committed"`, `synapse_commit_sha`, and `synapse_push_succeeded` in pipeline state.
+     f. After the submodule commit, the superproject sees a new gitlink — this will be staged in Step 13.
 3. Write result:
 
 ```json
 // Write to: .cortex/.session/current-task.json
-{"operation":"write","phase":"validate","pipeline":"commit","status":"passed","timestamps_valid":true,"roadmap_sync_valid":true,"submodule_status":"clean or committed","synapse_commit_sha":null}
+{"operation":"write","phase":"validate","pipeline":"commit","status":"passed","timestamps_valid":true,"roadmap_sync_valid":true,"submodule_status":"clean or committed","synapse_commit_sha":null,"synapse_push_succeeded":true}
 ```
 
 Then call `pipeline_handoff()`.
@@ -260,7 +261,7 @@ If `phases.validate.submodule_status == "committed"`: stage the submodule pointe
 
 ## Step 14: Push Branch
 
-**Always check Synapse first** — run `cd .cortex/synapse && git log --oneline origin/main..HEAD` to detect unpushed Synapse commits. Do NOT rely solely on `phases.validate.submodule_status` (it may be absent when args are stripped). If there are unpushed Synapse commits, push the submodule first — `cd .cortex/synapse && git push`. Push the submodule before the superproject so the superproject's gitlink points to a commit that exists on the remote.
+**Safety-net Synapse check** — run `cd .cortex/synapse && git log --oneline origin/main..HEAD` to detect any unpushed Synapse commits (Phase C should have pushed already, but push may have failed non-blockingly or args may have been stripped). If there are unpushed Synapse commits, push the submodule first — `cd .cortex/synapse && git push`. Always push the submodule before the superproject so the superproject's gitlink points to a commit that exists on the remote.
 
 Then push the superproject branch (including `main`) without extra confirmation. Push failures are non-blocking. SSL errors: retry up to 2 times.
 
@@ -295,6 +296,7 @@ Then call `pipeline_handoff()`.
 - **Phase B timestamps fail**: Fix timestamp format errors via `manage_file()`, retry `run_docs_gate()`. Timestamps failure IS blocking.
 - **Phase B roadmap_sync fails only**: Non-blocking warning — record it, proceed to Phase C.
 - **Phase C Synapse commit fails** (e.g. merge conflict inside submodule): STOP, block commit, report the submodule error
+- **Phase C Synapse push fails** (auth/network/SSL): Non-blocking — record the error and `synapse_push_succeeded: false` in pipeline state. Step 14 will retry the push as a safety net. Provide the manual push command to the user.
 - **Step 12 fails after 3 iterations**: Block commit — unless failures are exclusively pytest timeouts and no source code (`src/`/`tests/`) changed since Phase A (see timeout-only rule above)
 - **MCP disconnects**: All phase checks use blocking zero-arg tools (`run_quality_gate`, `run_docs_gate`) that run end-to-end in a single call. On disconnect, simply retry the tool call.
 - **3 consecutive MCP failures**: Circuit-breaker per `shared-conventions.md`. Call `pipeline_handoff(operation="read", pipeline="commit")` to restore context after reconnect.
