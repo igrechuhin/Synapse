@@ -64,6 +64,8 @@ Fallback if `plan(operation="create")` fails (Cursor may strip args): write the 
 - Dependencies, Success Criteria
 - Testing Strategy (95% coverage target)
 
+When planning implementation work, note that agents should use `# AI:` comments for non-obvious decisions (why, not what) on their own line above the affected code.
+
 **If enriching existing**: Read the existing plan, merge new requirements, update steps and priorities. Write back using `Write` or `Edit`.
 
 ## Step 8: Register Plan in Roadmap

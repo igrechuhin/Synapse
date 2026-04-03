@@ -54,6 +54,10 @@ check `pipeline_state.phases.<phase>.status` for gate verification instead of a 
 - **For `validate`**: read the `cortex://validation` resource instead (it runs both timestamp and roadmap_sync checks).
 - **Zero-arg tools work normally**: `run_quality_gate()`, `run_docs_gate()`, `autofix()`, `session()`, `plan(operation="archive_completed")`.
 
+### Optional reflection pass (`run_quality_gate`)
+
+For security-sensitive or data-mutation changes, enable the heuristic **reflection** pass (critic review of the git diff) after primary checks pass. Set `reflection: true` or `force_reflection: true` in the commit pipeline `checks` payload (via `pipeline_handoff(operation="write", pipeline="commit", phase="checks", ...)` together with `force_fresh` / `test_timeout`), or the same keys in `.cortex/.session/current-task.json`. Error-level reflection findings set `preflight_passed` to false. See `docs/guides/reflection-pass.md`.
+
 ## Pipeline Initialization
 
 Before starting, write the session config then call init:
@@ -122,6 +126,8 @@ Before invoking, write the task:
 Then call `pipeline_handoff()`.
 
 Use the `implement-code` subagent to scope the smallest meaningful subtask, implement it with tests, and run the quality gate.
+
+For non-obvious logic, add `# AI:` comments explaining agent decisions (why, not what) on their own line above the affected block.
 
 **GATE**: Check `pipeline_state.phases.code.status == "passed"` from the write response (or call `pipeline_handoff(operation="read", pipeline="implement")` if the subagent's response is unavailable).
 
