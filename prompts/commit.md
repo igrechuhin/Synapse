@@ -78,11 +78,9 @@ This creates `.cortex/.session/{session_id}/commit/` where all phase inputs and 
 
 ---
 
-## Preflight — run inline (no subagent)
+## Preflight — @commit-preflight subagent
 
-**IMPORTANT**: Run Preflight inline in the orchestrator — do NOT use the `commit-preflight` subagent.
-
-Steps to run inline:
+Use @commit-preflight to handle this phase. If the subagent is unavailable, run these steps inline:
 
 1. Call `session()` to verify MCP health. If unhealthy, STOP.
 2. Read `cortex://rules` resource for coding standards. Non-blocking if unavailable.
@@ -104,11 +102,9 @@ Then call `pipeline_handoff()`. **GATE**: check `pipeline_state.phases.preflight
 
 ---
 
-## Phase A: Pre-Commit Checks — run inline (no subagent)
+## Phase A: Pre-Commit Checks — @commit-phase-a subagent
 
-**IMPORTANT**: Run Phase A inline in the orchestrator — do NOT use the `commit-checks` subagent. Subagents run in isolated contexts and may not have access to Cortex MCP tools.
-
-Steps to run inline:
+Use @commit-phase-a to handle this phase. If the subagent is unavailable, run these steps inline:
 
 1. Call `run_quality_gate()` — zero-arg MCP tool that runs Phase A end-to-end and returns full results. Do NOT use `start_quality_job` + `get_quality_job_status`; in Cursor's MCP bridge those calls receive empty `{}` args.
 2. Parse the result: check `preflight_passed` (bool) and `coverage` (float).
@@ -133,11 +129,9 @@ Then call `pipeline_handoff()`. **GATE**: check `pipeline_state.phases.checks.st
 
 ---
 
-## Phase B: Documentation and State — run inline (no subagent)
+## Phase B: Documentation and State — @commit-phase-b subagent
 
-**IMPORTANT**: Run Phase B inline in the orchestrator — do NOT use the `commit-docs` subagent.
-
-Steps to run inline:
+Use @commit-phase-b to handle this phase. If the subagent is unavailable, run these steps inline:
 
 1. Read memory bank files: `manage_file(file_name="activeContext.md", operation="read")`, `manage_file(file_name="progress.md", operation="read")`, `manage_file(file_name="roadmap.md", operation="read")`. If Cursor strips args (zero-arg returns only activeContext), read `.cortex/memory-bank/progress.md` and `.cortex/memory-bank/roadmap.md` directly.
 2. Update files to reflect current changes. Write via `manage_file(file_name="...", operation="write", content="...", change_description="...")`. If args are stripped, write `.cortex/memory-bank/` files directly — but preserve full, unabridged content (never truncate).
@@ -158,11 +152,9 @@ Then call `pipeline_handoff()`. **GATE**: check `pipeline_state.phases.docs.stat
 
 ---
 
-## Phase C: Validation & Synapse Submodule — run inline (no subagent)
+## Phase C: Validation & Synapse Submodule — @commit-phase-c subagent
 
-**IMPORTANT**: Run Phase C inline in the orchestrator — do NOT use the `commit-validate` subagent.
-
-Steps to run inline:
+Use @commit-phase-c to handle this phase. If the subagent is unavailable, run these steps inline:
 
 1. Call `validate(check_type="timestamps")` and `validate(check_type="roadmap_sync")` to verify consistency. If Cursor strips args, read the `cortex://validation` resource instead (runs both checks).
 2. **Synapse submodule handling** — run `cd .cortex/synapse && git status --short`:
@@ -187,11 +179,9 @@ Then call `pipeline_handoff()`.
 
 ---
 
-## Step 12: Final Gate — run inline (no subagent)
+## Step 12: Final Gate — @commit-final-gate subagent
 
-**IMPORTANT**: Run Step 12 inline in the orchestrator — do NOT use the `commit-final-gate` subagent.
-
-Steps to run inline:
+Use @commit-final-gate to handle this phase. If the subagent is unavailable, run these steps inline:
 
 1. Classify what changed since Phase A — **use your knowledge of what Phase B and C actually wrote**, not `git diff HEAD` or `git status` (those show the full working tree including pre-existing uncommitted files unrelated to this commit, which is expected and not a problem):
    - `source_changed`: any file under `src/` or `tests/` was **written by Phase B or C steps** in this pipeline run.

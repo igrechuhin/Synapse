@@ -1,0 +1,161 @@
+{
+  "version": "1.0",
+  "description": "Cursor-invocable subagents. Each file is synced to .cursor/agents/ and (with mcp__ prefix transform) to .claude/agents/. Orchestrator prompts invoke these via @agent-name mentions.",
+  "pipelines": {
+    "implement": {
+      "orchestrator": "prompts/do.md",
+      "agents": [
+        {
+          "file": "implement-code.md",
+          "name": "implement-code",
+          "description": "Scope and implement the smallest meaningful subtask with tests and quality gate. Step 2 of the implement pipeline.",
+          "phase": "code"
+        }
+      ]
+    },
+    "commit": {
+      "orchestrator": "prompts/commit.md",
+      "agents": [
+        {
+          "file": "commit-preflight.md",
+          "name": "commit-preflight",
+          "description": "Verify MCP health, load rules, confirm changes, pre-stage Synapse, create rollback snapshot.",
+          "phase": "preflight"
+        },
+        {
+          "file": "commit-phase-a.md",
+          "name": "commit-phase-a",
+          "description": "Run run_quality_gate(), fix with autofix() (max 3 iterations), record coverage.",
+          "phase": "checks"
+        },
+        {
+          "file": "commit-phase-b.md",
+          "name": "commit-phase-b",
+          "description": "Update memory bank, archive completed plans, run run_docs_gate().",
+          "phase": "docs"
+        },
+        {
+          "file": "commit-phase-c.md",
+          "name": "commit-phase-c",
+          "description": "Validate timestamps, check roadmap/activeContext consistency, handle Synapse submodule commit+push.",
+          "phase": "validate"
+        },
+        {
+          "file": "commit-final-gate.md",
+          "name": "commit-final-gate",
+          "description": "Classify what changed since Phase A, re-run minimal quality gate, block commit if failed.",
+          "phase": "final-gate"
+        }
+      ]
+    },
+    "fix": {
+      "orchestrator": "prompts/fix.md",
+      "agents": [
+        {
+          "file": "fix-quality.md",
+          "name": "fix-quality",
+          "description": "Fix type errors, formatting, linting, and markdown. autofix + run_quality_gate loop (max 3 iterations).",
+          "phase": "quality"
+        },
+        {
+          "file": "fix-tests.md",
+          "name": "fix-tests",
+          "description": "Diagnose and fix failing tests. PHASE 0 diagnosis required before edits. Skips for markdown-only scope.",
+          "phase": "tests"
+        },
+        {
+          "file": "fix-docs.md",
+          "name": "fix-docs",
+          "description": "Sync memory bank files, fix timestamps, resolve roadmap sync issues, validate run_docs_gate.",
+          "phase": "docs"
+        }
+      ]
+    },
+    "review": {
+      "orchestrator": "prompts/review.md",
+      "agents": [
+        {
+          "file": "review-static-analysis.md",
+          "name": "review-static-analysis",
+          "description": "Run run_quality_gate(), parse type/lint/format/markdown results. Step 1.",
+          "phase": "static-analysis"
+        },
+        {
+          "file": "review-bugs.md",
+          "name": "review-bugs",
+          "description": "Language-aware bug detection: runtime errors, logic flaws, anti-patterns. Step 2.",
+          "phase": "bugs"
+        },
+        {
+          "file": "review-consistency.md",
+          "name": "review-consistency",
+          "description": "Cross-file consistency, SOLID/DRY/YAGNI, DI patterns, file/function size limits. Steps 3-4.",
+          "phase": "consistency"
+        },
+        {
+          "file": "review-completeness.md",
+          "name": "review-completeness",
+          "description": "TODO/FIXME, placeholders, test coverage gaps, security vulnerabilities. Steps 5-7.",
+          "phase": "completeness"
+        },
+        {
+          "file": "review-performance.md",
+          "name": "review-performance",
+          "description": "Performance bottlenecks, regression check, score all 9 metrics, write code-review-report file. Steps 8-9.",
+          "phase": "performance"
+        }
+      ]
+    },
+    "analyze": {
+      "orchestrator": "prompts/analyze.md",
+      "agents": [
+        {
+          "file": "analyze-context.md",
+          "name": "analyze-context",
+          "description": "Evaluate load_context effectiveness: token utilization, precision/recall, role budgets. Step 1.",
+          "phase": "context"
+        },
+        {
+          "file": "analyze-session.md",
+          "name": "analyze-session",
+          "description": "Identify mistake patterns, root causes, Synapse recommendations, multi-goal scope risk. Step 2.",
+          "phase": "session"
+        },
+        {
+          "file": "analyze-tools.md",
+          "name": "analyze-tools",
+          "description": "Audit MCP tool budget (<=40 target), dead tools, duplicates, consolidation candidates. Step 3.",
+          "phase": "tools"
+        },
+        {
+          "file": "analyze-compact.md",
+          "name": "analyze-compact",
+          "description": "Assemble report, route findings to plans/skills/rules, compact memory bank, enforce markdown lint. Step 4.",
+          "phase": "compact"
+        }
+      ]
+    },
+    "plan": {
+      "orchestrator": "prompts/plan.md",
+      "agents": [
+        {
+          "file": "plan-creator.md",
+          "name": "plan-creator",
+          "description": "Create plan file with all required sections and YAML frontmatter, register in roadmap.",
+          "phase": "create"
+        }
+      ]
+    }
+  },
+  "shared": {
+    "description": "Reference-only files not directly invoked as subagents.",
+    "files": [
+      {
+        "file": "shared-defaults.md",
+        "name": "shared-defaults",
+        "description": "Shared quality thresholds and conventions referenced by subagents.",
+        "invocable": false
+      }
+    ]
+  }
+}

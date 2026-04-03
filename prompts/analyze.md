@@ -32,7 +32,9 @@ After Step 2, continue to analysis steps below.
 
 ---
 
-## Step 4: Context Effectiveness
+## Step 4: Context Effectiveness — @analyze-context subagent
+
+Use @analyze-context to handle this step. If the subagent is unavailable, run inline:
 
 Read the `cortex://analysis` resource (defaults to context analysis). Or if resource access fails, note "Context effectiveness analysis unavailable" and continue.
 
@@ -40,7 +42,9 @@ If the tool returns data, record: sessions analyzed, calls analyzed, token utili
 
 If `no_data` or connection error: note "Context effectiveness analysis unavailable" and continue.
 
-## Step 5: Session Optimization
+## Step 5: Session Optimization — @analyze-session subagent
+
+Use @analyze-session to handle this step. If the subagent is unavailable, run inline:
 
 Run usage pattern analysis (set `analysis_target` in session config to "usage_patterns", then read `cortex://analysis` resource).
 
@@ -55,7 +59,9 @@ If detected, add a "Session Scope Risk: multi-goal session" note with:
 
 If connection error: note "Session optimization analysis unavailable" and continue.
 
-## Step 6: Tools Optimization
+## Step 6: Tools Optimization — @analyze-tools subagent
+
+Use @analyze-tools to handle this step. If the subagent is unavailable, run inline:
 
 Run tools analysis (set `analysis_target` in session config to "tools", then read `cortex://analysis` resource) if available.
 
@@ -63,7 +69,9 @@ Record: tool budget (registered count vs target of 40), dead tools, duplicates, 
 
 If unavailable: skip and note "Tools optimization skipped (no usage data)".
 
-## Step 7: Report Assembly
+## Step 7: Report Assembly — @analyze-compact subagent
+
+Use @analyze-compact to assemble the report, route findings, and compact the memory bank. If the subagent is unavailable, run inline:
 
 1. Generate timestamp: run `date +%Y-%m-%dT%H-%M`.
 2. Assemble report combining Steps 4-6 findings using the format below.

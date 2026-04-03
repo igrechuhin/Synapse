@@ -112,9 +112,9 @@ Then call `pipeline_handoff()`.
 
 ---
 
-## Implementation — use the `implement-code` subagent
+## Implementation — @implement-code subagent
 
-This is the only phase that uses a subagent (for context isolation during heavy coding work).
+This phase uses the `implement-code` subagent for context isolation during heavy coding work.
 
 Before invoking, write the task:
 
@@ -125,7 +125,7 @@ Before invoking, write the task:
 
 Then call `pipeline_handoff()`.
 
-Use the `implement-code` subagent to scope the smallest meaningful subtask, implement it with tests, and run the quality gate.
+Use @implement-code to scope the smallest meaningful subtask, implement it with tests, and run the quality gate.
 
 For non-obvious logic, add `# AI:` comments explaining agent decisions (why, not what) on their own line above the affected block.
 

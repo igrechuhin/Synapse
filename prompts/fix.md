@@ -148,6 +148,8 @@ Before making changes, complete PHASE 0, load rules, and classify the change sco
 
 ### 🛠️ quality Target
 
+Use @fix-quality to handle this target. If the subagent is unavailable, run inline:
+
 Route based on change scope:
 
 **Path A — markdown_only** (no source files changed):
@@ -170,6 +172,8 @@ Route based on change scope:
 
 ### 🧪 tests Target
 
+Use @fix-tests to handle this target. If the subagent is unavailable, run inline:
+
 Route based on change scope:
 
 **markdown_only**: Skip this target entirely — no source changed, tests cannot be affected.
@@ -187,6 +191,8 @@ Route based on change scope:
 ⚠️ **CI parity gap — parallel test execution**: The local `run_quality_gate()` may run tests single-threaded, while CI always runs `pytest -n auto` (parallel xdist workers). Tests that only fail under parallel execution (e.g. asyncio cross-loop bugs, shared module-level state, concurrent resource races) will pass locally but fail CI. If a test failure involves asyncio, concurrency, event loops, or shared global state, **also run** `uv run pytest tests/ -n auto -x -q --no-header -p no:randomly` locally to reproduce the CI failure before declaring the target ✅.
 
 ### 📝 docs Target
+
+Use @fix-docs to handle this target. If the subagent is unavailable, run inline:
 
 (Fast — never invokes the language build or test runner regardless of scope.)
 

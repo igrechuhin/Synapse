@@ -35,7 +35,9 @@ Load the **most recent prior** `.cortex/reviews/code-review-report-*.md` (the ne
 
 ---
 
-## Step 5: Static Analysis
+## Step 5: Static Analysis — @review-static-analysis subagent
+
+Use @review-static-analysis to handle Steps 5–12. If the subagent is unavailable, run inline:
 
 Parse `run_quality_gate()` results from Step 3 for type_check and quality output.
 

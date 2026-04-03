@@ -30,7 +30,11 @@ Plans directory: `.cortex/plans/`. Use `Glob` on `.cortex/plans/*.md` for listin
 
 ---
 
-## Step 5: Check for Existing Related Plans
+## Step 5: Plan Creation — @plan-creator subagent
+
+Use @plan-creator to handle Steps 5–9. If the subagent is unavailable, run inline:
+
+### Check for Existing Related Plans
 
 1. List existing plans: use `Glob` on `.cortex/plans/*.md` (excluding archive/).
 2. For each existing plan with YAML frontmatter, compute similarity score:
