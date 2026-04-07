@@ -69,6 +69,11 @@ Record: tool budget (registered count vs target of 40), dead tools, duplicates, 
 
 If unavailable: skip and note "Tools optimization skipped (no usage data)".
 
+## Step 6.5: Memory Bank Health (non-blocking)
+
+Memory-bank lint runs automatically inside the commit pipeline via `autofix`.
+Skip this section — memory-bank health checks are not a separate step here.
+
 ## Step 7: Report Assembly — @analyze-compact subagent
 
 Use @analyze-compact to assemble the report, route findings, and compact the memory bank. If the subagent is unavailable, run inline:
@@ -106,6 +111,10 @@ Use @analyze-compact to assemble the report, route findings, and compact the mem
 ### Tools Optimization
 
 [Tool budget, dead tools, duplicates, consolidation candidates]
+
+## Memory Bank Health
+
+- Memory-bank lint runs automatically via `autofix` in the commit pipeline.
 
 ### Report Location
 

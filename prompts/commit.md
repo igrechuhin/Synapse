@@ -136,8 +136,8 @@ Use @commit-phase-b to handle this phase. If the subagent is unavailable, run th
 1. Read memory bank files: `manage_file(file_name="activeContext.md", operation="read")`, `manage_file(file_name="progress.md", operation="read")`, `manage_file(file_name="roadmap.md", operation="read")`. If Cursor strips args (zero-arg returns only activeContext), read `.cortex/memory-bank/progress.md` and `.cortex/memory-bank/roadmap.md` directly.
 2. Update files to reflect current changes. Write via `manage_file(file_name="...", operation="write", content="...", change_description="...")`. If args are stripped, write `.cortex/memory-bank/` files directly — but preserve full, unabridged content (never truncate).
 3. Archive completed plans: `plan(operation="archive_completed")` — scans `.cortex/plans/` for `status: COMPLETE`, moves to archive, removes roadmap entries.
-4. Call `autofix()` to auto-fix markdown lint issues in files modified by steps 2-3 (trailing spaces, blank lines, duplicate headings). This prevents Phase B writes from introducing CI-blocking markdown violations.
-5. Call `run_docs_gate()` — zero-arg MCP tool for Phase B docs/memory-bank validation.
+4. Call `autofix()` to auto-fix markdown lint and memory-bank housekeeping issues in files modified by steps 2-3. This prevents Phase B writes from introducing CI-blocking markdown violations and auto-resolves deterministic memory-bank lint findings.
+5. Call `run_docs_gate()` — zero-arg MCP tool for Phase B docs/memory-bank validation (includes memory-bank lint checks in regular commit flow).
 6. Parse the response. If `docs_phase_passed: false`:
    - Check `timestamps_result.valid`. If `false`: timestamps have format errors — fix them via `manage_file()` and retry `run_docs_gate()`.
    - Check `roadmap_sync_result.valid`. If `false`: inspect `roadmap_sync_result` for specific issues. Fix any simple structural issues (stale plan refs, missing entries) via `manage_file()` and retry once. If roadmap_sync still fails after one retry **and timestamps are valid**, treat it as a **non-blocking warning** — record it and proceed to Phase C without blocking the commit.
@@ -285,6 +285,7 @@ Then call `pipeline_handoff()`.
 - **Phase A fails due to markdown lint**: Read `markdown_result.output` for exact violations (file:line, rule code). Call `autofix()` (includes markdown auto-fix for fixable rules). If errors remain (e.g. MD036 is not auto-fixable), apply manual fixes using the violation details. Zero markdown errors required before Phase A can pass.
 - **Phase B timestamps fail**: Fix timestamp format errors via `manage_file()`, retry `run_docs_gate()`. Timestamps failure IS blocking.
 - **Phase B roadmap_sync fails only**: Non-blocking warning — record it, proceed to Phase C.
+- **Phase B memory-bank lint fails**: Run `autofix()` first (required) to apply deterministic housekeeping fixes, then retry `run_docs_gate()`. If unresolved after 3 attempts, stop and report remaining blockers.
 - **Phase C Synapse commit fails** (e.g. merge conflict inside submodule): STOP, block commit, report the submodule error
 - **Phase C Synapse push fails** (auth/network/SSL): Non-blocking — record the error and `synapse_push_succeeded: false` in pipeline state. Step 14 will retry the push as a safety net. Provide the manual push command to the user.
 - **Step 12 fails after 3 iterations**: Block commit — unless failures are exclusively pytest timeouts and no source code (`src/`/`tests/`) changed since Phase A (see timeout-only rule above)
