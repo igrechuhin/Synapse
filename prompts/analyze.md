@@ -121,6 +121,15 @@ Use @analyze-compact to assemble the report, route findings, and compact the mem
 Saved to: {reviews_path}/session-optimization-{timestamp}.md
 ```
 
+## Step 7.5: File Session Analysis Artifact (Always)
+
+After Step 7 assembles and writes the session optimization report, always file it to the memory bank:
+
+1. Call:
+   - `manage_file(operation="file_artifact", artifact_type="session_analysis", title="Session Optimization {timestamp}", content="<full session analysis markdown>")`
+2. Treat artifact filing as required for successful completion (do not skip based on score).
+3. Record the returned artifact path in the final `## Output` table.
+
 ## Step 8: Memory Bank Compaction
 
 Call `session(operation="compact")` to compact memory bank. Record token savings and snapshot paths.
@@ -211,6 +220,7 @@ If any MCP tool fails with "Connection closed" (MCP error -32000):
 | Field | Value |
 |-------|-------|
 | Report | `.cortex/reviews/session-optimization-<timestamp>.md` |
+| Session artifact | `.cortex/memory-bank/analyses/<file>.md` |
 | Compaction | <before> → <after> tokens (<n>% reduction) |
 | Skill updated | <path OR —> |
 | Plan created | <path OR —> |

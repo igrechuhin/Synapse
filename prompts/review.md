@@ -102,6 +102,19 @@ Check for:
 - Blocking I/O in async contexts
 - Memory leaks, resource cleanup
 
+## Step 12.5: File Review Artifact (Threshold-Gated)
+
+After writing the review report, decide whether to file it into the memory bank:
+
+1. Resolve filing threshold from `.cortex/config/lint-config.json` key `review_filing_threshold`.
+2. If config is missing, malformed, or key is absent, use default threshold `7`.
+3. Compare the computed **Overall** review score (0-10) against the threshold.
+4. If `overall_score >= threshold`, call:
+   - `manage_file(operation="file_artifact", artifact_type="review_report", title="<review title>", content="<full review markdown>")`
+5. If below threshold, skip filing and note the skip reason in `## Next`.
+
+For successful filing, include the returned filed artifact path in `## Next`.
+
 ---
 
 ## Report Assembly
