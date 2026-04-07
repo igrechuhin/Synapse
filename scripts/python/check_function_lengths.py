@@ -163,6 +163,19 @@ def _get_files_from_env() -> list[Path] | None:
     return [Path(p) for p in stripped.splitlines() if p]
 
 
+def _is_test_path(path: Path, project_root: Path) -> bool:
+    """Return True when path is a Python test file path."""
+    normalized_name = path.name.lower()
+    if normalized_name.startswith("test_") or normalized_name.endswith("_test.py"):
+        return True
+    try:
+        rel_parts = path.relative_to(project_root).parts
+    except ValueError:
+        rel_parts = path.parts
+    lowered_parts = {part.lower() for part in rel_parts}
+    return "tests" in lowered_parts
+
+
 def main() -> None:
     """Check all Python files for function length violations."""
     # Get project root and source directory
@@ -200,7 +213,9 @@ def main() -> None:
         # Dispatcher mode: check exactly these files with ".py" suffix.
         py_files = [f for f in files_from_env if f.suffix == ".py"]
         for py_file in py_files:
-            if _is_excluded(py_file):
+            # AI: Dispatcher mode checks explicitly selected files; test files must
+            # not be hidden by global exclusions that are intended for source scans.
+            if _is_excluded(py_file) and not _is_test_path(py_file, project_root):
                 continue
             violations = check_function_length(py_file)
             for func_name, logical_lines, start_line, end_line in violations:
