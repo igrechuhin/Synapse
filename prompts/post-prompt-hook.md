@@ -84,9 +84,9 @@ If Steps 4–6 produced improvement recommendations:
    - bugs, missing features, or agent improvements that suggest new or updated Plans,
    - recurring rule violations or new standards that suggest new or updated Rules.
 2. For each applicable category, create or update artifacts:
-   - **Skills** (`src/cortex/resources/skills/<name>.json`): read existing files first, then write/update via `manage_file(operation="write", ...)`. Schema: `{"name","description","tools","when_to_use","workflow_sequences","example_invocations","troubleshooting_tips","keywords"}`.
+   - **Skills** (`src/cortex/resources/skills/<name>.json`): read existing files first, then write/update via `write_artifact(artifact_type="skill", name="<slug>", content="<json>")`. Schema: `{"name","description","tools","when_to_use","workflow_sequences","example_invocations","troubleshooting_tips","keywords"}`.
    - **Plans** (`.cortex/plans/`): call `plan(operation="create", ...)` then `plan(operation="register", ...)`.
-   - **Rules** (`.cortex/synapse/rules/<general|python|...>/<slug>.mdc`): write via `manage_file(operation="write", ...)` with frontmatter `description`, `alwaysApply: false`, `created_by: analyze-feedback-loop`.
+   - **Rules** (`.cortex/synapse/rules/<general|python|...>/<slug>.mdc`): write via `write_artifact(artifact_type="rule", name="<general|python|...>/<slug>.mdc", content="<mdc>")` with frontmatter `description`, `alwaysApply: false`, `created_by: analyze-feedback-loop`.
 
 Multiple artifact types are not mutually exclusive — emit **all** that apply.
 

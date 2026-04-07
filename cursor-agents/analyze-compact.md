@@ -65,7 +65,7 @@ Write to `.cortex/reviews/session-optimization-{timestamp}.md`.
 
 ## Step 3: Route findings (conditional)
 
-- **Skills**: if findings concern tool/workflow patterns → read existing files under `src/cortex/resources/skills/`, then write/update via `manage_file(operation="write", ...)` using this schema:
+- **Skills**: if findings concern tool/workflow patterns → read existing files under `src/cortex/resources/skills/`, then write/update via `write_artifact(artifact_type="skill", name="<slug>", content="<json>")` using this schema:
 
   ```json
   {"name":"<slug>","description":"...","tools":[...],"when_to_use":"...","workflow_sequences":[...],"example_invocations":[...],"troubleshooting_tips":[...],"keywords":[...]}
@@ -75,7 +75,7 @@ Write to `.cortex/reviews/session-optimization-{timestamp}.md`.
 
 - **Plans**: if findings concern bugs/features/improvements → call `plan(operation="create", ...)` and `plan(operation="register", ...)`. For tools optimization findings, the plan must include exact tool budget numbers, per-tool actions, and implementation steps by problem class.
 
-- **Rules**: if findings concern recurring standards violations → write/update via `manage_file(operation="write", ...)` with frontmatter:
+- **Rules**: if findings concern recurring standards violations → write/update via `write_artifact(artifact_type="rule", name="<general|python|...>/<slug>.mdc", content="<mdc>")` with frontmatter:
 
   ```markdown
   ---

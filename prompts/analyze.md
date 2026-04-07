@@ -123,7 +123,7 @@ Call `autofix()` to ensure markdown quality on any modified files.
 If Steps 4-6 produced recommendations about tool usage patterns, workflow patterns, or missing reusable agent capabilities:
 
 1. Read existing skill files under `.cortex/resources/skills/` with `manage_file` to find the best match (update existing vs. create new).
-2. Write or update the JSON file using `manage_file(operation="write", ...)`. Schema:
+2. Write or update the JSON file using `write_artifact(artifact_type="skill", name="<slug>", content="<json>")`. Schema:
 
    ```json
    {
@@ -159,7 +159,7 @@ If no plan-oriented recommendations exist: skip this step.
 If Steps 4-6 produced recommendations about recurring standards violations or new enforceable standards:
 
 1. Choose the appropriate subdirectory: `.cortex/synapse/rules/general/` for language-agnostic rules, `.cortex/synapse/rules/python/` (or other language dir) for language-specific ones.
-2. Write or update the `.mdc` file using `manage_file(operation="write", ...)`. Required frontmatter:
+2. Write or update the `.mdc` file using `write_artifact(artifact_type="rule", name="<general|python|...>/<slug>.mdc", content="<mdc>")`. Required frontmatter:
 
    ```markdown
    ---
