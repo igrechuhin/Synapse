@@ -180,12 +180,28 @@ def main() -> None:
         else:
             src_dir = Path(src_dir)
 
+    try:
+        from cortex.core.constants import FUNCTION_LENGTH_EXCLUDED_PATHS
+
+        excluded: frozenset[str] = frozenset(FUNCTION_LENGTH_EXCLUDED_PATHS)
+    except ImportError:
+        excluded = frozenset[str]()
+
+    def _is_excluded(path: Path) -> bool:
+        try:
+            rel = str(path.relative_to(project_root)).replace("\\", "/")
+        except ValueError:
+            rel = str(path)
+        return rel in excluded
+
     all_violations: list[tuple[Path, str, int, int, int]] = []
     files_from_env = _get_files_from_env()
     if files_from_env is not None:
         # Dispatcher mode: check exactly these files with ".py" suffix.
         py_files = [f for f in files_from_env if f.suffix == ".py"]
         for py_file in py_files:
+            if _is_excluded(py_file):
+                continue
             violations = check_function_length(py_file)
             for func_name, logical_lines, start_line, end_line in violations:
                 all_violations.append(
@@ -198,21 +214,10 @@ def main() -> None:
             print(f"Project root: {project_root}", file=sys.stderr)
             sys.exit(1)
 
-        try:
-            from cortex.core.constants import FUNCTION_LENGTH_EXCLUDED_PATHS
-
-            excluded: frozenset[str] = frozenset(FUNCTION_LENGTH_EXCLUDED_PATHS)
-        except ImportError:
-            excluded = frozenset[str]()
-
         for py_file in src_dir.glob("**/*.py"):
             if "__pycache__" in str(py_file) or py_file.name.startswith("test_"):
                 continue
-            try:
-                rel = str(py_file.relative_to(project_root)).replace("\\", "/")
-            except ValueError:
-                rel = str(py_file)
-            if rel in excluded:
+            if _is_excluded(py_file):
                 continue
 
             violations = check_function_length(py_file)
