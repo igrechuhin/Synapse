@@ -122,9 +122,26 @@ Call `autofix()` to ensure markdown quality on any modified files.
 
 If Steps 4-6 produced recommendations about tool usage patterns, workflow patterns, or missing reusable agent capabilities:
 
-1. Update an existing skill or create a new entry under `.cortex/resources/skills/`.
-2. Prefer reusable instructions that can be applied in future sessions, not one-off notes.
-3. Record what changed in the final report `## Next` section when relevant.
+1. Read existing skill files under `.cortex/resources/skills/` with `manage_file` to find the best match (update existing vs. create new).
+2. Write or update the JSON file using `manage_file(operation="write", ...)`. Schema:
+
+   ```json
+   {
+     "name": "<slug>",
+     "description": "<one-line purpose>",
+     "tools": ["<tool1>", "<tool2>"],
+     "when_to_use": "<trigger condition>",
+     "workflow_sequences": ["tool_a(...) → tool_b(...)"],
+     "example_invocations": ["tool_a(param=value)"],
+     "troubleshooting_tips": ["If X, do Y."],
+     "keywords": ["keyword1", "keyword2"]
+   }
+   ```
+
+3. Prefer reusable instructions applicable to future sessions, not one-off notes.
+4. Record what changed in the final report `## Next` section when relevant.
+
+**Path**: `.cortex/resources/skills/<name>.json`
 
 If no skill-oriented recommendations exist: skip this step.
 
@@ -141,9 +158,23 @@ If no plan-oriented recommendations exist: skip this step.
 
 If Steps 4-6 produced recommendations about recurring standards violations or new enforceable standards:
 
-1. Create or update rules under `.cortex/synapse/rules/` and update the corresponding manifest entry.
-2. For newly created rules, include `created_by: analyze-feedback-loop` in rule metadata/frontmatter where applicable.
+1. Choose the appropriate subdirectory: `.cortex/synapse/rules/general/` for language-agnostic rules, `.cortex/synapse/rules/python/` (or other language dir) for language-specific ones.
+2. Write or update the `.mdc` file using `manage_file(operation="write", ...)`. Required frontmatter:
+
+   ```markdown
+   ---
+   description: <one-line description>
+   globs: <file globs this rule applies to, or omit for global>
+   alwaysApply: false
+   created_by: analyze-feedback-loop
+   ---
+
+   <rule body>
+   ```
+
 3. Keep rules language-agnostic unless the recommendation is explicitly language-specific.
+
+**Path**: `.cortex/synapse/rules/<general|python|...>/<slug>.mdc`
 
 If no rules-oriented recommendations exist: skip this step.
 
