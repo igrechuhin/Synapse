@@ -122,7 +122,7 @@ Call `autofix()` to ensure markdown quality on any modified files.
 
 If Steps 4-6 produced recommendations about tool usage patterns, workflow patterns, or missing reusable agent capabilities:
 
-1. Read existing skill files under `.cortex/resources/skills/` with `manage_file` to find the best match (update existing vs. create new).
+1. Check for an existing skill first via `skill_pack(operation="load", pack_name="<slug>")` so you can merge or update instead of overwriting.
 2. Write or update the JSON file using `write_artifact(artifact_type="skill", name="<slug>", content="<json>")`. Schema:
 
    ```json
@@ -141,7 +141,7 @@ If Steps 4-6 produced recommendations about tool usage patterns, workflow patter
 3. Prefer reusable instructions applicable to future sessions, not one-off notes.
 4. Record what changed in the final report `## Next` section when relevant.
 
-**Path**: `.cortex/resources/skills/<name>.json`
+**Path**: `src/cortex/resources/skills/<name>.json`
 
 If no skill-oriented recommendations exist: skip this step.
 
