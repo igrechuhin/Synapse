@@ -68,7 +68,7 @@ All prompts and agents MUST use these three levels consistently:
        - Response is not None
        - Response is dict (not JSON string)
        - Response has "status" field
-       [... 30 more lines of implementation details ...]
+   [... 30 more lines of implementation details ...]
 ```
 
 ### After (Orchestration Only)
