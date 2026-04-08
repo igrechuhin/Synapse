@@ -63,6 +63,10 @@ Saved to: .cortex/reviews/session-optimization-<timestamp>.md
 
 Write to `.cortex/reviews/session-optimization-{timestamp}.md`.
 
+## Step 2.5: Token Budget
+
+Read `cortex://analysis` and parse the JSON field `token_budget` (especially `token_budget.markdown`). Flag any memory bank file over 500 words as a compression candidate. If candidates exist, append a **Token Budget** subsection to the report (or ensure the markdown from the resource is reflected) and recommend running `compress_memory_bank()`.
+
 ## Step 3: Route findings (conditional)
 
 - **Skills**: if findings concern tool/workflow patterns → read existing files under `src/cortex/resources/skills/`, then write/update via `write_artifact(artifact_type="skill", name="<slug>", content="<json>")` using this schema:

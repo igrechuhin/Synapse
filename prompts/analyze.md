@@ -69,6 +69,10 @@ Record: tool budget (registered count vs target of 40), dead tools, duplicates, 
 
 If unavailable: skip and note "Tools optimization skipped (no usage data)".
 
+## Step 6.4: Token Budget
+
+Read the token budget section from `cortex://analysis` (JSON includes `token_budget.markdown`). Flag any memory bank file over 500 words as a compression candidate. If candidates exist, emit a recommendation to run `compress_memory_bank()` and include the token budget table in the session-optimization report (Step 7).
+
 ## Step 6.5: Memory Bank Health (non-blocking)
 
 Memory-bank lint runs automatically inside the commit pipeline via `autofix`.
