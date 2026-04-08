@@ -5,6 +5,12 @@
       "description": "General purpose rules for all projects",
       "rules": [
         {
+          "file": "agent-internal-communication.mdc",
+          "priority": 88,
+          "keywords": ["agent-internal", "brevity", "sub-agent", "pipeline_handoff", "think", "token-efficiency"],
+          "description": "Compact prose for agent-to-agent channels (sub-agent results, handoff text, think scratchpad)"
+        },
+        {
           "file": "agent-workflow.mdc",
           "priority": 90,
           "keywords": ["agent", "workflow", "self-improvement", "self-audit", "quality", "execution"],

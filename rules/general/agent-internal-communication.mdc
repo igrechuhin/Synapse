@@ -1,0 +1,13 @@
+---
+alwaysApply: true
+---
+
+# Agent-Internal Communication
+
+When writing output consumed by another agent (not shown to the user):
+
+- Drop: articles, filler openers ("I have", "As requested", "It is worth noting"), hedging ("may", "might", "could"), step recaps already visible in tool history.
+- Keep verbatim: file paths, function names, error messages, test names, type names, CLI commands, MCP tool names.
+- Keep readable: sentences must be grammatically complete. No abbreviation of domain terms. A human reading the output should understand it without effort — just without filler.
+- Applies to: sub-agent result summaries, pipeline_handoff free-text fields (context, summary), think() scratchpad output.
+- Does NOT apply to: MCP tool result strings shown in Cursor chat, /cortex/analyze reports, cortex://context resource content, or any other text the user reads directly.
