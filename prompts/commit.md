@@ -134,7 +134,11 @@ Then call `pipeline_handoff()`. **GATE**: check `pipeline_state.phases.checks.st
 Use @commit-phase-b to handle this phase. If the subagent is unavailable, run these steps inline:
 
 1. Read memory bank files: `manage_file(file_name="activeContext.md", operation="read")`, `manage_file(file_name="progress.md", operation="read")`, `manage_file(file_name="roadmap.md", operation="read")`. If Cursor strips args (zero-arg returns only activeContext), read `.cortex/memory-bank/progress.md` and `.cortex/memory-bank/roadmap.md` directly.
-2. Update files to reflect current changes. Write via `manage_file(file_name="...", operation="write", content="...", change_description="...")`. If args are stripped, write `.cortex/memory-bank/` files directly — but preserve full, unabridged content (never truncate).
+2. Update structured memory bank files using targeted mutations — **not** `manage_file(write)`:
+   - activeContext: `update_memory_bank(operation="active_context_append", date_str="YYYY-MM-DD", title="...", summary="...")`
+   - progress: `update_memory_bank(operation="progress_append", date_str="YYYY-MM-DD", title="...", summary="...")`
+   - roadmap: `update_memory_bank(operation="roadmap_add/remove/remove_section", ...)`
+   - `manage_file(write)` is for arbitrary wiki pages only (techContext.md, systemPatterns.md, etc.) — never use it for roadmap/progress/activeContext.
 3. Archive completed plans: `plan(operation="archive_completed")` — scans `.cortex/plans/` for `status: COMPLETE`, moves to archive, removes roadmap entries.
 4. Call `autofix()` to auto-fix markdown lint and memory-bank housekeeping issues in files modified by steps 2-3. This prevents Phase B writes from introducing CI-blocking markdown violations and auto-resolves deterministic memory-bank lint findings.
 5. Call `run_docs_gate()` — zero-arg MCP tool for Phase B docs/memory-bank validation (includes memory-bank lint checks in regular commit flow).

@@ -47,6 +47,12 @@
           "description": "Lightweight post-prompt self-improvement hook that runs analysis Steps 4–9 and emits Skills, Plans, or Rules as needed",
           "internal": true,
           "keywords": ["post-prompt", "self-improvement", "analysis", "feedback-loop"]
+        },
+        {
+          "file": "ingest.md",
+          "name": "Ingest",
+          "description": "Ingest external sources into the memory bank, synthesize key takeaways, update related pages, and log contradictions",
+          "keywords": ["ingest", "memory-bank", "knowledge-base", "source", "wiki", "summary"]
         }
       ]
     }

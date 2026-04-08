@@ -84,7 +84,11 @@ Fallback when MCP arguments are stripped: append `Plan: .cortex/plans/<filename>
 
 **GATE**: If `plan(operation="register")` fails, STOP and report. **PROHIBITED**: using StrReplace, direct Write, string-replace, or direct file-write tools on roadmap.md — this causes corruption and is a VIOLATION. Use MCP tools only.
 
-Fallback for enriched plans: call `update_memory_bank(operation="roadmap_add", section="...", entry_text="...")`. When using fallback `manage_file(write)`, content must be full, unabridged roadmap (pre-write check: content length must be at least as long as the roadmap as read). Never truncate, never pass shortened or summarized roadmap content.
+Fallback for enriched plans: call `update_memory_bank(operation="roadmap_add", section="...", entry_text="...")`. **`manage_file(write)` must not be used for roadmap.md** — it bypasses structured mutation and risks corruption. `manage_file(write)` is for arbitrary wiki pages only (techContext.md, systemPatterns.md, etc.).
+
+If fallback write of roadmap content is ever required, pass **full, unabridged, complete** content only. **Never truncate** and never pass **shortened** or **summarized** roadmap content.
+
+Before any fallback write, run a **pre-write content length** check: the outgoing content must be **at least as long** as the content read from roadmap.md (or **as long as** the original when no intended additions were made). If this check fails, STOP and restore full content before continuing.
 
 ## Step 9: Verify Completion
 
