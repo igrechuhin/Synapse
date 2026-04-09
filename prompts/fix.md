@@ -162,10 +162,15 @@ Route based on change scope:
 
 1. Call `autofix()`. This runs format, lint, type, and markdown auto-fix (does NOT run tests).
 2. Verify with `run_quality_gate()`. Parse the result for `preflight_passed` and per-check results.
-3. **CI parity structural checks (mandatory before ✅)**: after a green `run_quality_gate()`, run the same structural guards CI enforces and fail the target if either reports violations:
-   - `uv run python .cortex/synapse/scripts/python/check_file_sizes.py`
-   - `uv run python .cortex/synapse/scripts/python/check_function_lengths.py`
-   Treat any mismatch (local gate green but structural scripts failing) as stale/partial-gate evidence: keep fixing and re-verify.
+3. **CI parity structural checks (mandatory before ✅)**: after a green `run_quality_gate()`, discover and run all parity scripts from language subfolders under `.cortex/synapse/scripts/`:
+
+   ```bash
+   for script in check_file_sizes.py check_function_lengths.py build.py; do
+     find .cortex/synapse/scripts -mindepth 2 -maxdepth 2 -name "$script" | sort | xargs -I{} python3 {}
+   done
+   ```
+
+   Treat any non-zero exit as stale/partial-gate evidence — the Cortex Python gate does not invoke the project's native compiler/build tool. Keep fixing and re-verify (max 3 iterations).
 4. If checks still fail, parse the result — `results.type_check.output` and `results.quality.output` contain full error output. Fix each error:
    - **Type errors**: fix import, type annotation, or cast at the reported line.
    - **File too long** (> 400 lines): extract helpers or split into a new module.

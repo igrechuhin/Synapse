@@ -109,10 +109,15 @@ Use @commit-phase-a to handle this phase. If the subagent is unavailable, run th
 1. Call `run_quality_gate()` — zero-arg MCP tool that runs Phase A end-to-end and returns full results. Do NOT use `start_quality_job` + `get_quality_job_status`; in Cursor's MCP bridge those calls receive empty `{}` args.
 2. Parse the result: check `preflight_passed` (bool) and `coverage` (float).
 3. If `preflight_passed: false`: call `autofix()`, then call `run_quality_gate()` again. Repeat up to 3 times.
-4. **CI parity structural checks (mandatory before passing Phase A)**: even when `preflight_passed: true`, run:
-   - `uv run python .cortex/synapse/scripts/python/check_file_sizes.py`
-   - `uv run python .cortex/synapse/scripts/python/check_function_lengths.py`
-   If either fails, treat Phase A as failed, fix inline, and re-run `run_quality_gate()` (max 3 total iterations).
+4. **CI parity checks (mandatory before passing Phase A)**: even when `preflight_passed: true`, discover and run all parity scripts from language subfolders under `.cortex/synapse/scripts/`:
+
+   ```bash
+   for script in check_file_sizes.py check_function_lengths.py build.py; do
+     find .cortex/synapse/scripts -mindepth 2 -maxdepth 2 -name "$script" | sort | xargs -I{} python3 {}
+   done
+   ```
+
+   If any script exits non-zero, treat Phase A as failed, fix inline, and re-run `run_quality_gate()` (max 3 total iterations). Skip a script name only when no matching file exists.
 5. Write result to pipeline state:
 
 ```json
@@ -206,10 +211,7 @@ Use @commit-final-gate to handle this phase. If the subagent is unavailable, run
    Then call `pipeline_handoff()` and `run_quality_gate()`.
 
    Full re-run including tests, types, lint, format, markdown. If any check fails: call `autofix()` and retry (max 3 iterations).
-   After a green result, run CI parity structural checks again:
-   - `uv run python .cortex/synapse/scripts/python/check_file_sizes.py`
-   - `uv run python .cortex/synapse/scripts/python/check_function_lengths.py`
-   If either fails, Step 12 is failed (do not commit).
+   After a green result, re-run CI parity checks (same discovery as Phase A step 4). If any fails, Step 12 is failed (do not commit).
 3. **If only `markdown_changed`** (no source changes): run `autofix()` to auto-fix any remaining markdown lint. Then verify:
 
    ```json
@@ -236,7 +238,7 @@ Then call `pipeline_handoff()`. **GATE**: check `pipeline_state.phases.final-gat
 - If any critical check fails or is skipped in this final run, Step 12 is **failed** and you must **block commit creation**.
 - Skipped-clean checks are NOT failures — they are optimizations where a check is trusted from Phase A.
 - **Timeout-only test failures** (when only `.cortex/` markdown changed, not `src/`/`tests/`): if Step 12 fails exclusively due to pytest timeouts and all non-test checks (format, lint, types, markdown) pass, Step 12 **passes**. Rationale: Phase A already proved tests are green; timeouts in the detached subprocess are caused by resource contention with the MCP server, not code bugs.
-- **Structural-check mismatch rule**: if `run_quality_gate()` reports pass but `check_file_sizes.py` or `check_function_lengths.py` fails, treat the gate as stale/partial and block commit creation until parity checks pass.
+- **Structural-check mismatch rule**: if `run_quality_gate()` reports pass but `check_file_sizes.py`, `check_function_lengths.py`, or the language-specific build script (Phase A step 5) fails, treat the gate as stale/partial and block commit creation until all parity checks pass.
 
 ---
 
@@ -295,6 +297,7 @@ Then call `pipeline_handoff()`.
 - **Preflight fails (no changes)**: STOP — nothing to commit
 - **Preflight `git stash create` fails with "beyond a symbolic link"**: Non-blocking — use `snapshot_ref = "HEAD"` and continue. This is expected in TradeWing because `.cortex/memory-bank` and `.cortex/plans` may be symlinked in local workflows.
 - **Phase A fails after 3 fix iterations**: STOP, report unresolvable issues
+- **Phase A fails due to project build failure** (step 5 exits non-zero): fix compilation/build errors, re-run both `run_quality_gate()` and the language-specific build script. Do NOT create the commit until the build succeeds.
 - **Phase A fails due to markdown lint**: Read `markdown_result.output` for exact violations (file:line, rule code). Call `autofix()` (includes markdown auto-fix for fixable rules). If errors remain (e.g. MD036 is not auto-fixable), apply manual fixes using the violation details. Zero markdown errors required before Phase A can pass.
 - **Phase B timestamps fail**: Fix timestamp format errors via `manage_file()`, retry `run_docs_gate()`. Timestamps failure IS blocking.
 - **Phase B roadmap_sync fails only**: Non-blocking warning — record it, proceed to Phase C.
