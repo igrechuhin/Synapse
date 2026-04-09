@@ -21,6 +21,14 @@ Also check:
 - Missing error handling in public-facing functions
 - Public APIs with no corresponding tests
 
+If scope includes a plan markdown file, also scan for unresolved markers:
+
+- `[NEEDS CLARIFICATION: ...]`
+- `[NEEDS CLARIFICATION(blocking): ...]`
+
+For each marker: record location, blocking status, and a suggested resolution approach.
+If any blocking marker exists, mark the plan as **not ready for implementation**.
+
 ## Step 2: Test coverage review
 
 From `coverage` in handoff (from static-analysis gate result):
