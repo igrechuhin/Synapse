@@ -22,7 +22,7 @@ except ImportError:
     from _utils import get_config_path, get_project_root
 
 
-_GENERATED_SUFFIXES = (".pb.swift", ".generated.swift")
+_GENERATED_SUFFIXES = (".pb.swift", ".generated.swift", ".grpc.swift")
 
 _PUBLIC_TYPE_RE = re.compile(
     "".join(

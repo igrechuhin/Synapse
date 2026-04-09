@@ -162,13 +162,17 @@ Route based on change scope:
 
 1. Call `autofix()`. This runs format, lint, type, and markdown auto-fix (does NOT run tests).
 2. Verify with `run_quality_gate()`. Parse the result for `preflight_passed` and per-check results.
-3. If checks still fail, parse the result — `results.type_check.output` and `results.quality.output` contain full error output. Fix each error:
+3. **CI parity structural checks (mandatory before ✅)**: after a green `run_quality_gate()`, run the same structural guards CI enforces and fail the target if either reports violations:
+   - `uv run python .cortex/synapse/scripts/python/check_file_sizes.py`
+   - `uv run python .cortex/synapse/scripts/python/check_function_lengths.py`
+   Treat any mismatch (local gate green but structural scripts failing) as stale/partial-gate evidence: keep fixing and re-verify.
+4. If checks still fail, parse the result — `results.type_check.output` and `results.quality.output` contain full error output. Fix each error:
    - **Type errors**: fix import, type annotation, or cast at the reported line.
    - **File too long** (> 400 lines): extract helpers or split into a new module.
    - **Function too long** (> 30 lines): extract helper functions.
    - **Markdown lint**: fix manually per rule code (MD057, MD046, MD051, MD076, MD022, MD047). For `.cortex/memory-bank/*.md` use `manage_file()`.
-4. Re-verify with `run_quality_gate()`. Repeat from step 3 (max 3 iterations).
-5. Before declaring the 🛠️ quality target ✅ for Python edits: apply **Post-fix validation** and **Rollback on regressions** from [Fix-loop integrity (NO-GO)](#fix-loop-integrity-no-go) — `py_compile`, import check, and bounded retry with revert on new failures.
+5. Re-verify with `run_quality_gate()`. Repeat from step 4 (max 3 iterations).
+6. Before declaring the 🛠️ quality target ✅ for Python edits: apply **Post-fix validation** and **Rollback on regressions** from [Fix-loop integrity (NO-GO)](#fix-loop-integrity-no-go) — `py_compile`, import check, and bounded retry with revert on new failures.
 
 ### 🧪 tests Target
 

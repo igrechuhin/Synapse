@@ -27,7 +27,14 @@ except ImportError:
 MAX_FILE_LINES = get_config_int("MAX_FILE_LINES", 400)
 WARN_FILE_LINES = get_config_int("WARN_FILE_LINES", 350)
 
-_GENERATED_SUFFIXES = (".pb.swift", ".generated.swift")
+_GENERATED_SUFFIXES = (".pb.swift", ".generated.swift", ".grpc.swift")
+
+# Intentionally large files excluded from the size check (match CI quality.yml).
+# IndicatorComputerFactory.swift — single-file registry, planned refactor tracked separately.
+# ContainerFactory.swift         — DI container registry, planned refactor tracked separately.
+_EXCLUDED_FILENAMES: frozenset[str] = frozenset(
+    {"IndicatorComputerFactory.swift", "ContainerFactory.swift"}
+)
 
 
 def count_logical_lines(path: Path) -> int:
@@ -63,6 +70,8 @@ def is_excluded(path: Path) -> bool:
         True if the file should be excluded from checks.
     """
     if any(path.name.endswith(s) for s in _GENERATED_SUFFIXES):
+        return True
+    if path.name in _EXCLUDED_FILENAMES:
         return True
     return False
 
