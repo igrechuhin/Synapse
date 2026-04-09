@@ -24,9 +24,30 @@ Git-clean working tree is not required; this prompt is clean when planning artif
 
 **Step 3**: Read the `cortex://rules` resource for coding standards (zero-arg, reads task from session config). Non-blocking if unavailable.
 
-After Step 3, continue to plan creation below. The steps below define the **implementation sequence**; execute them in order.
+After Step 3, continue to Step 4 below before plan creation.
 
 Plans directory: `.cortex/plans/`. Use `Glob` on `.cortex/plans/*.md` for listing.
+
+---
+
+## Step 4: Explore Gate
+
+Before creating any plan, decide whether an explore phase is needed.
+
+**Run `/cortex/explore` first if ANY of these are true:**
+
+- Multiple valid approaches exist with non-obvious trade-offs (e.g. different architectures, libraries, or design patterns)
+- The task is novel — no prior plan or roadmap entry covers this area
+- The request is ambiguous about scope, tech choice, or design direction
+- Complexity or risk is unclear and requires deliberation
+
+**Skip explore and proceed directly to Step 5 if ALL of these are true:**
+
+- The approach is already agreed upon or obvious from context
+- A prior explore log exists for this topic (check `.cortex/plans/explore/`)
+- The request is a straightforward addition to an existing plan
+
+If explore is needed: run `/cortex/explore`, wait for the user to select an option, then return here with `explore_log_path` set to the generated log. Pass `explore_log_path` to `plan(operation="create")` in Step 7.
 
 ---
 
@@ -63,7 +84,7 @@ Use `think` tool for complex plans to scope the approach.
 Fallback if `plan(operation="create")` fails (Cursor may strip args): write the plan file using `Write` to `.cortex/plans/{slug}.md` with this structure:
 
 - YAML frontmatter (title, component, work_type, status: PENDING, priority, created, depends_on)
-- Goal, Context, Implementation Steps
+- Goal, Context, Implementation Steps — steps define the **implementation sequence**; when implementing the plan, execute them in order (number steps in implementation order).
 - Verification Checklist per step: What to search for | Search scope | Files to re-read
 - Dependencies, Success Criteria
 - Testing Strategy (95% coverage target)

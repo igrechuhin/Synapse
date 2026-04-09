@@ -29,6 +29,13 @@
           "keywords": ["roadmap", "implementation", "tasks", "planning", "progress"]
         },
         {
+          "file": "explore.md",
+          "name": "Explore",
+          "description": "Brainstorm approaches before committing to a plan. Produces an ephemeral decision log without creating formal plan or roadmap entries.",
+          "internal": true,
+          "keywords": ["explore", "brainstorm", "options", "trade-offs", "decision", "pre-plan"]
+        },
+        {
           "file": "plan.md",
           "name": "Plan",
           "description": "Create a development plan based on user description, add it to plans directory, and update roadmap",
