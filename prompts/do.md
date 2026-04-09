@@ -16,9 +16,20 @@ Local code edits may exist during implementation; git-clean working tree is not 
 
 ## Sequential Execution Order
 
-Each phase must complete before the next begins:
+Each phase must complete before the next begins. For multi-subtask plans, the inner loop (Implementation → Finalize) repeats until the plan step is fully complete or context is nearly exhausted:
 
-1. **Selection** (inline) → 2. **Implementation** (subagent) → 3. **Finalize** (inline) → 4. **Verify** (inline) → 5. **Fix** (inline)
+1. **Selection** (inline, once per `/do` call)
+2. **Inner subtask loop** (repeat until `step_fully_complete=true` or context budget low):
+   a. **Implementation** (subagent) → b. **Finalize** (inline)
+3. **Verify** (inline, once after loop exits)
+4. **Fix** (inline, once after Verify)
+
+**Loop exit conditions** (stop the inner loop and proceed to Verify):
+
+- `phases.code.step_fully_complete == true` — plan step is done
+- Quality gate failed 3× — unrecoverable, exit and report
+- Estimated remaining context < 20% — defer remaining subtasks to next session
+- Same subtask was attempted twice with no new files changed — no-op guard
 
 ---
 
@@ -112,24 +123,26 @@ Then call `pipeline_handoff()`.
 
 ---
 
-## Implementation — @implement-code subagent
+## Implementation — @implement-code subagent (inner loop)
 
-This phase uses the `implement-code` subagent for context isolation during heavy coding work.
+This phase uses the `implement-code` subagent for context isolation during heavy coding work. **This phase runs in a loop** — see Sequential Execution Order above.
 
-Before invoking, write the task:
+Before each invocation, write the task with updated `partial_progress` (cumulative across all prior subtasks in this session and prior sessions):
 
 ```json
 // Write to: .cortex/.session/current-task.json
-{"operation":"write","phase":"code","pipeline":"implement","selected_step":"<from select>","plan_file":"<from select>","roadmap_section":"<from select>","partial_progress":"<from select.partial_progress, or null>"}
+{"operation":"write","phase":"code","pipeline":"implement","selected_step":"<from select>","plan_file":"<from select>","roadmap_section":"<from select>","partial_progress":"<all completed subtasks so far — from select.partial_progress plus any just-completed in this session>"}
 ```
 
 Then call `pipeline_handoff()`.
 
-Use @implement-code to scope the smallest meaningful subtask, implement it with tests, and run the quality gate.
+Use @implement-code to implement **as many consecutive subtasks as context allows** — not just one. The subagent should continue through the remaining plan steps, gate after each, and report `step_fully_complete=true` when the entire plan step is done.
 
 For non-obvious logic, add `# AI:` comments explaining agent decisions (why, not what) on their own line above the affected block.
 
 **GATE**: Check `pipeline_state.phases.code.status == "passed"` from the write response (or call `pipeline_handoff(operation="read", pipeline="implement")` if the subagent's response is unavailable).
+
+**After each subagent return**: if `step_fully_complete=false`, append the just-completed subtask to `partial_progress`, then loop back to Implementation (re-invoke @implement-code with updated state). If `step_fully_complete=true`, exit the inner loop and proceed to Verify.
 
 ---
 
