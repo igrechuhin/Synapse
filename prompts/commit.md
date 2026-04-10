@@ -109,13 +109,17 @@ Use @commit-phase-a to handle this phase. If the subagent is unavailable, run th
 1. Call `run_quality_gate()` — zero-arg MCP tool that runs Phase A end-to-end and returns full results. Do NOT use `start_quality_job` + `get_quality_job_status`; in Cursor's MCP bridge those calls receive empty `{}` args.
 2. Parse the result: check `preflight_passed` (bool) and `coverage` (float).
 3. If `preflight_passed: false`: call `autofix()`, then call `run_quality_gate()` again. Repeat up to 3 times.
-4. **CI parity checks (mandatory before passing Phase A)**: even when `preflight_passed: true`, discover and run all parity scripts from language subfolders under `.cortex/synapse/scripts/`:
+4. **CI parity checks (mandatory before passing Phase A)**: even when `preflight_passed: true`, run parity scripts across all language subfolders, passing the changed file list via `FILES` so each script only checks files matching its own extension:
 
    ```bash
+   CHANGED_FILES=$(git diff --name-only HEAD && git diff --name-only)
    for script in check_file_sizes.py check_function_lengths.py build.py; do
-     find .cortex/synapse/scripts -mindepth 2 -maxdepth 2 -name "$script" | sort | xargs -I{} python3 {}
+     find .cortex/synapse/scripts -mindepth 2 -maxdepth 2 -name "$script" | sort | \
+       while read -r s; do FILES="$CHANGED_FILES" python3 "$s"; done
    done
    ```
+
+   Each script's `_get_files_from_env()` filters by its own extension (`.py`, `.swift`, `.ts`, …). When `FILES` contains no files matching the script's language it exits 0 immediately — no directory-scan fallback is triggered.
 
    If any script exits non-zero, treat Phase A as failed, fix inline, and re-run `run_quality_gate()` (max 3 total iterations). Skip a script name only when no matching file exists.
 5. Write result to pipeline state:

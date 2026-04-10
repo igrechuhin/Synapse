@@ -162,13 +162,18 @@ Route based on change scope:
 
 1. Call `autofix()`. This runs format, lint, type, and markdown auto-fix (does NOT run tests).
 2. Verify with `run_quality_gate()`. Parse the result for `preflight_passed` and per-check results.
-3. **CI parity structural checks (mandatory before ✅)**: after a green `run_quality_gate()`, discover and run all parity scripts from language subfolders under `.cortex/synapse/scripts/`:
+3. **CI parity structural checks (mandatory before ✅)**: after a green `run_quality_gate()`, run parity scripts across **all** language subfolders, but always pass the changed file list via `FILES` so each script only checks files matching its own extension:
 
    ```bash
+   # Build the changed file list once (staged + unstaged source files).
+   CHANGED_FILES=$(git diff --name-only HEAD && git diff --name-only)
    for script in check_file_sizes.py check_function_lengths.py build.py; do
-     find .cortex/synapse/scripts -mindepth 2 -maxdepth 2 -name "$script" | sort | xargs -I{} python3 {}
+     find .cortex/synapse/scripts -mindepth 2 -maxdepth 2 -name "$script" | sort | \
+       while read -r s; do FILES="$CHANGED_FILES" python3 "$s"; done
    done
    ```
+
+   Each script's `_get_files_from_env()` filters by its own extension (`.py`, `.swift`, `.ts`, …). When `FILES` contains no files matching the script's language, it exits 0 immediately — no directory-scan fallback is triggered, so missing `Sources/` or `src/` directories are never a problem.
 
    Treat any non-zero exit as stale/partial-gate evidence — the Cortex Python gate does not invoke the project's native compiler/build tool. Keep fixing and re-verify (max 3 iterations).
 4. If checks still fail, parse the result — `results.type_check.output` and `results.quality.output` contain full error output. Fix each error:
@@ -221,7 +226,7 @@ Use @fix-docs to handle this target. If the subagent is unavailable, run inline:
 **DO NOT stop to describe issues or ask the user if they want fixes applied.** Fix immediately and re-run.
 
 - Type errors → edit the source file at the reported line.
-- File/function too long → extract helpers; split if needed.
+- File/function too long → extract helpers; split if needed. **`autofix()` returning `files_modified: []` does NOT mean this is unresolvable — `autofix()` only handles format/lint/type errors, never structural refactors. You MUST perform function extraction manually by editing the source file.**
 - Markdown lint failures → fix manually per rule code, then re-run `autofix()`.
 - Test assertion mismatches → update the assertion (verify new behavior is correct first).
 - Docs sync failures → edit memory bank files via `manage_file()`.
@@ -229,6 +234,8 @@ Use @fix-docs to handle this target. If the subagent is unavailable, run inline:
 - **Empty `.cursor/commands` vs alignment test**: Do **not** add `.cursor/commands/*.md` — see **NO-GO — Cursor command stubs** and the tests-target bullet on final-report alignment.
 
 Only stop after **3 complete fix-and-verify iterations per target** have all failed.
+
+⛔ **MANDATORY RE-VERIFY AFTER EDITS**: After making ANY file edits, you MUST complete a full re-verification pass (run all applicable gates and parity scripts) before writing the final report. Do NOT end the session or emit a conversational summary after edits — loop back to the verification step and only stop when all targets are ✅ or the 3-iteration limit is reached. Offering to run further checks ("If you want, I can now...") after edits is a violation — just run them.
 
 If an attempt worsens the tree (new failures, duplicate defs, invalid syntax), **roll back that attempt** and retry with a different strategy — see **Rollback on regressions** under [Fix-loop integrity (NO-GO)](#fix-loop-integrity-no-go).
 
