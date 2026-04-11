@@ -136,6 +136,14 @@ Before each invocation, write the task with updated `partial_progress` (cumulati
 
 Then call `pipeline_handoff()`.
 
+### Parallel `[P]` steps (when `plan_file` is set)
+
+1. Call `plan(operation="get", slug="<plan stem>", response_format="metadata")` (or equivalent zero-arg routing) and read `task_graph` plus `can_parallelize`.
+2. Map `## Partial Progress Log` / `partial_progress` to a set of completed numeric **Step ids** when possible; otherwise treat no steps as complete.
+3. Compute the next runnable batch with the same rules as `next_execution_frontier()` in `src/cortex/core/plan_utils.py`: prefer ready `[P]` steps (dependencies and sequential predecessors satisfied), up to **3** concurrent `implement-code` runs with `isolation="worktree"`; if none are ready, run **one** ready sequential step. Recompute after each batch finishes.
+4. Spawn one `implement-code` subagent per frontier step (parallel batch may be size 1–3); wait for the batch to finish before computing the next frontier. Sequential steps never share a wave with other work.
+5. If `can_parallelize` is false, keep the existing single-subagent loop (no worktree parallelism).
+
 Use @implement-code to implement **as many consecutive subtasks as context allows** — not just one. The subagent should continue through the remaining plan steps, gate after each, and report `step_fully_complete=true` when the entire plan step is done.
 
 For non-obvious logic, add `# AI:` comments explaining agent decisions (why, not what) on their own line above the affected block.
