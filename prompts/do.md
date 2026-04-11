@@ -82,6 +82,14 @@ Before starting, write the session config then call init:
 pipeline_handoff(operation="init", pipeline="implement")
 ```
 
+## Workflow schema (compound sequence)
+
+After `session()`, read **`brief.workflow_schema`**, **`brief.workflow_schema_description`**, and **`brief.workflow_phases`**. They describe the ordered compound loop for this project (plan → implement → review → commit, or a variant such as fast-path that omits review).
+
+- Treat **`brief.workflow_phases`** as the authoritative ordered list of slash-command phases for the session. When a later phase is absent from the list (for example fast-path has no review entry), **do not** run that slash command for this work item unless the user explicitly asks for it.
+- **`/cortex/do`** covers only the **implement** slice (Selection → Implementation → Finalize → Verify → Fix). Other entries in `workflow_phases` are separate invocations the user or agent runs when executing the full loop; this prompt still runs the implement inner phases in full unless the user narrows scope.
+- Optional phases in YAML use `condition` expressions; agents do not re-evaluate them here — rely on `session()` output and plan context. Use `manage_file(operation="list_schemas")` to discover schemas and `manage_file(operation="fork_schema", content=<json>)` to copy a built-in schema into `.cortex/schemas/` for local edits.
+
 ---
 
 ## Selection — run inline (no subagent)
