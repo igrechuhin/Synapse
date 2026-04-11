@@ -79,10 +79,7 @@ If ingest does not yet copy raw bytes into `.cortex/wiki/sources/`, add an immut
 ## Step 5: Rebuild `index.md`
 
 1. Enumerate all wiki pages (all `*.md` under category directories; exclude `schema.md` and `index.md` themselves).
-2. Rebuild the catalog table defined in `schema.md`:
-
-   `| Page | Category | Summary | Sources |`
-
+2. Rebuild the catalog table defined in `schema.md` with columns `| Page | Category | Summary | Sources |`.
 3. **Page** column: relative markdown link from `index.md` to each page.
 4. **Summary**: one line per page.
 5. **Sources**: path under `sources/` or external path / “ingest slug”.
