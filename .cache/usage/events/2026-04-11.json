@@ -268,5 +268,50 @@
     "param_validation_failure": null,
     "result_used": null,
     "response_tokens": 887
+  },
+  {
+    "id": "dd1182e9-bd65-4710-80d0-c2285028bb23",
+    "tool_name": "pipeline_handoff",
+    "timestamp": "2026-04-11T14:18:22.053326+00:00",
+    "duration_ms": 18.348084,
+    "success": true,
+    "error_type": null,
+    "params_hash": null,
+    "handler_kind": "tool",
+    "result_summary": null,
+    "retry_count": 0,
+    "param_validation_failure": null,
+    "result_used": null,
+    "response_tokens": 51
+  },
+  {
+    "id": "0cbd16fa-a472-451b-a7a5-d75da2a234d0",
+    "tool_name": "analyze_impl",
+    "timestamp": "2026-04-11T14:18:24.860906+00:00",
+    "duration_ms": 2.712334,
+    "success": true,
+    "error_type": null,
+    "params_hash": null,
+    "handler_kind": "tool",
+    "result_summary": null,
+    "retry_count": 0,
+    "param_validation_failure": null,
+    "result_used": null,
+    "response_tokens": 721
+  },
+  {
+    "id": "dc331a09-092e-458b-a6d1-bf8313cc6926",
+    "tool_name": "analyze",
+    "timestamp": "2026-04-11T14:18:24.866370+00:00",
+    "duration_ms": 8.487958,
+    "success": true,
+    "error_type": null,
+    "params_hash": null,
+    "handler_kind": "resource",
+    "result_summary": null,
+    "retry_count": 0,
+    "param_validation_failure": null,
+    "result_used": null,
+    "response_tokens": 1292
   }
 ]
