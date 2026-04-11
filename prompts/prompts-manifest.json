@@ -60,6 +60,12 @@
           "name": "Ingest",
           "description": "Ingest external sources into the memory bank, synthesize key takeaways, update related pages, and log contradictions",
           "keywords": ["ingest", "memory-bank", "knowledge-base", "source", "wiki", "summary"]
+        },
+        {
+          "file": "init-wiki.md",
+          "name": "Init Wiki",
+          "description": "Seed .cortex/wiki from existing project docs, run ingest snapshots, write categorized wiki pages, and rebuild index.md",
+          "keywords": ["wiki", "init-wiki", "knowledge-base", "docs", "ingest", "index", "cortex-wiki"]
         }
       ]
     }
