@@ -122,7 +122,11 @@ def main():
     # Build test command with coverage (matches CI workflow exactly)
     cmd = test_cmd + [
         "tests/",  # Use tests/ directory (matches CI: tests/)
-        "-v",
+        "-n",
+        "auto",  # Match CI: parallel xdist workers
+        "-x",  # Fail fast on first error
+        "-q",  # Quiet output
+        "--no-header",
         "--cov=src/cortex",  # Match CI: --cov=src/cortex
         "--cov-report=xml",  # Match CI: --cov-report=xml
         "--cov-report=term",  # Also include terminal report
