@@ -58,6 +58,10 @@ def build_cmd(swift: str) -> list[str]:
 def main() -> None:
     """Run swift build."""
     project_root = get_project_root(Path(__file__))
+    if not (project_root / "Package.swift").exists():
+        print("✅ No Swift package detected at project root (skipped)")
+        sys.exit(0)
+
     swift = find_swift()
     cmd = build_cmd(swift)
 

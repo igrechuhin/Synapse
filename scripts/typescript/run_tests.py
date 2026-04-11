@@ -46,9 +46,20 @@ def detect_package_manager(project_root: Path) -> str:
     return "npm"
 
 
+def _has_typescript_project(project_root: Path) -> bool:
+    """Return True when the project root contains TypeScript config or package.json."""
+    return (project_root / "package.json").exists() or (
+        project_root / "tsconfig.json"
+    ).exists()
+
+
 def main() -> None:
     """Run the project test suite."""
     project_root = get_project_root(Path(__file__))
+    if not _has_typescript_project(project_root):
+        print("✅ No TypeScript project detected (skipped)")
+        sys.exit(0)
+
     pm = detect_package_manager(project_root)
     cmd = [pm, "run", TEST_SCRIPT]
 

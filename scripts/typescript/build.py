@@ -49,6 +49,13 @@ def detect_package_manager(project_root: Path) -> str:
     return "npm"
 
 
+def has_typescript_project(project_root: Path) -> bool:
+    """Return True when the project root contains TypeScript config or package.json."""
+    return (project_root / "package.json").exists() or (
+        project_root / "tsconfig.json"
+    ).exists()
+
+
 def has_build_script(project_root: Path, pm: str) -> bool:
     """Check whether a build script is defined in package.json.
 
@@ -74,6 +81,10 @@ def has_build_script(project_root: Path, pm: str) -> bool:
 def main() -> None:
     """Run the TypeScript build."""
     project_root = get_project_root(Path(__file__))
+    if not has_typescript_project(project_root):
+        print("✅ No TypeScript project detected (skipped)")
+        sys.exit(0)
+
     pm = detect_package_manager(project_root)
 
     if TSC_ONLY or not has_build_script(project_root, pm):

@@ -114,7 +114,7 @@ Steps to run inline:
 
 ```json
 // Write to: .cortex/.session/current-task.json
-{"operation":"write","phase":"select","pipeline":"implement","status":"complete","selected_step":"<title>","plan_file":"<path or null>","selection_source":"explicit_plan or roadmap_priority","roadmap_section":"<section>","partial_progress":"<comma-separated completed subtasks or null>"}
+{"operation":"write","phase":"select","pipeline":"implement","status":"complete","selected_step":"<title>","plan_file":"<path or null>","scope":"<plan:<slug> when plan_file exists; null otherwise>","selection_source":"explicit_plan or roadmap_priority","roadmap_section":"<section>","partial_progress":"<comma-separated completed subtasks or null>"}
 ```
 
 Then call `pipeline_handoff()`.
@@ -131,7 +131,7 @@ Before each invocation, write the task with updated `partial_progress` (cumulati
 
 ```json
 // Write to: .cortex/.session/current-task.json
-{"operation":"write","phase":"code","pipeline":"implement","selected_step":"<from select>","plan_file":"<from select>","roadmap_section":"<from select>","partial_progress":"<all completed subtasks so far — from select.partial_progress plus any just-completed in this session>"}
+{"operation":"write","phase":"code","pipeline":"implement","selected_step":"<from select>","plan_file":"<from select>","scope":"<from select scope or plan:<plan_file stem>>","roadmap_section":"<from select>","partial_progress":"<all completed subtasks so far — from select.partial_progress plus any just-completed in this session>"}
 ```
 
 Then call `pipeline_handoff()`.

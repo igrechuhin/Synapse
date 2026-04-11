@@ -49,6 +49,10 @@ def detect_package_manager(project_root: Path) -> str:
 def main() -> None:
     """Run the project build script."""
     project_root = get_project_root(Path(__file__))
+    if not (project_root / "package.json").exists():
+        print("✅ No JavaScript project detected at project root (skipped)")
+        sys.exit(0)
+
     pm = detect_package_manager(project_root)
     cmd = [pm, "run", BUILD_SCRIPT]
 
