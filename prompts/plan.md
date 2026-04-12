@@ -28,6 +28,16 @@ After Step 3, continue to Step 4 below before plan creation.
 
 Plans directory: `.cortex/plans/`. Use `Glob` on `.cortex/plans/*.md` for listing.
 
+## Planning depth (fast-forward vs step-by-step)
+
+Before creating a plan in Step 7, choose how much to generate in one pass:
+
+- **Default (no flag)**: call `plan(operation="create", ...)` with `planning_mode="ff"` or omit `planning_mode` — all sections are written in one shot (fast-forward).
+- **Explicit `--step` in the user message**: set `planning_mode="step"` on `plan(operation="create", ...)`. Only the Goal section is written to `draft-<slug>.md`; the user reviews before you call `continue_step`, then `approve_step` for each section, and `finalize_step` when every section is approved or skipped.
+- **Heuristic**: if the topic mentions architecture, redesign, migration, or security (case-insensitive), suggest step-by-step in your narrative and use `planning_mode="step"` unless the user insists on fast-forward.
+
+**Resuming step-by-step**: read the draft path from the prior tool result, then use `plan(operation="continue_step" | "approve_step" | "finalize_step", ...)` as documented in the plan tool. To inspect or remove abandoned drafts, use `manage_file(operation="list_drafts")` and `manage_file(operation="discard_draft", content='{"plan_slug": "<stem>"}')`.
+
 ---
 
 ## Step 4: Explore Gate

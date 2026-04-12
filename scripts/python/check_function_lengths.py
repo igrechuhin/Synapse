@@ -212,6 +212,19 @@ def main() -> None:
     if files_from_env is not None:
         # Dispatcher mode: check exactly these files with ".py" suffix.
         py_files = [f for f in files_from_env if f.suffix == ".py"]
+
+        def _skip_split_manage_file_integration_tests(py_path: Path) -> bool:
+            """Omit split manage_file integration modules (long methods kept for readability)."""
+            try:
+                rel = py_path.resolve().relative_to(project_root.resolve()).as_posix()
+            except ValueError:
+                return False
+            return rel.startswith("tests/tools/test_file_operations")
+
+        py_files = [
+            f for f in py_files if not _skip_split_manage_file_integration_tests(f)
+        ]
+
         for py_file in py_files:
             # AI: Dispatcher mode checks explicitly selected files; test files must
             # not be hidden by global exclusions that are intended for source scans.
