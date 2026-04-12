@@ -16,7 +16,7 @@ When invoked:
 
 Key practices:
 
-- Use **only** Cortex MCP tool `execute_pre_commit_checks(checks=["format"])` or, as fallback, `.venv/bin/python .cortex/synapse/scripts/{language}/fix_formatting.py` then `.venv/bin/python .cortex/synapse/scripts/{language}/check_formatting.py`. Do **NOT** run raw formatter commands (e.g., `black`, `prettier`) in a Shell.
+- Use **only** Cortex MCP tool `autofix()` (zero-arg, fixes format/lint/type/markdown) or, as fallback, `.venv/bin/python .cortex/synapse/scripts/{language}/fix_formatting.py` then `.venv/bin/python .cortex/synapse/scripts/{language}/check_formatting.py`. Do **NOT** run raw formatter commands (e.g., `black`, `prettier`) in a Shell. (`execute_pre_commit_checks` is deprecated — use `autofix()`.)
 - Auto-detect project language and appropriate formatter
 - Verify formatter check passes after formatting
 - Report structured results with files formatted count
