@@ -96,7 +96,7 @@ Return a concise markdown report:
 - Layout: created vs skipped paths
 - Seed files processed (path → wiki page link)
 - `index.md` row count added or updated
-- Suggested next actions (for example run `/cortex/ingest` for new URLs, or `/cortex/query` once pages exist)
+- Suggested next actions (for example run `/cortex/ingest` for new URLs, or `/cortex/ask` once pages exist)
 
 ## Verification checklist (self-check before exit)
 

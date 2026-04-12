@@ -26,7 +26,7 @@ Use a single-goal session pattern to improve completion reliability (aligned wit
 
 Each phase must complete before the next begins:
 
-1. **Preflight** → 2. **Phase A** → 3. **Phase B** → 4. **Phase C** → 5. **Step 12** → 6. **Step 13** → 7. **Step 14** → 8. **Step 15** → 9. **Step 16**
+1. **Preflight** → 2. **Phase A** → 3. **Wiki staged ingest (Phase A→B bridge)** → 4. **Phase B** → 5. **Phase C** → 6. **Step 12** → 7. **Step 13** → 8. **Step 14** → 9. **Step 15** → 10. **Step 16**
 
 ---
 
@@ -138,6 +138,57 @@ Then call `pipeline_handoff()`. **GATE**: check `pipeline_state.phases.checks.st
 - If the quality result reports any **failed** or **skipped** critical checks, Phase A is considered **failed** and the commit pipeline must **stop without creating a commit**.
 - **Markdown lint failure**: Check `markdown_result.output` in the quality gate response for the exact violations (file:line and rule code). Call `autofix()` (which includes markdown auto-fix for fixable rules); if markdown errors remain (e.g. MD036 is not auto-fixable), apply manual fixes per **fix.md** and the violation details. Zero markdown errors required before Phase A can pass. **SwiftPM note**: if violations are in `.build/checkouts/**` (external Swift package dependency docs), these are suppressed by the Cortex quality gate's `.build` exclude — if they still appear, the Cortex server is outdated; update it.
 - **Submodule hygiene failure**: If Phase A fails with `submodule_hygiene`, Preflight step 5 (synapse pre-stage) was not executed or did not complete. Go back and run Preflight step 5 now: commit any changes inside `.cortex/synapse` (excluding `.cache`), then `git add .cortex/synapse` in the superproject. Then retry `run_quality_gate()`.
+
+---
+
+## Wiki staged ingest (after Phase A, before Phase B)
+
+Run this **only after** Phase A (`phases.checks`) is **passed**. It keeps `.cortex/wiki/` in sync with staged markdown docs so wiki pages can ship in the **same commit** as the source files (see `.cortex/plans/wiki-auto-ingest-git-hooks.md`).
+
+1. From the **repository root** (where `.git` lives), list staged paths:
+
+   ```bash
+   git diff --cached --name-only
+   ```
+
+2. Invoke `wiki_ingest_staged_docs` with that list and the repo root (`Path.cwd()` when already at root). Example (uses the project virtualenv via `uv`):
+
+   ```bash
+   uv run python <<'PY'
+   from __future__ import annotations
+
+   import subprocess
+   import sys
+   from pathlib import Path
+
+   from cortex.tools.wiki.staged_ingest import wiki_ingest_staged_docs
+
+   root = Path.cwd()
+   staged = subprocess.check_output(
+       ["git", "diff", "--cached", "--name-only"],
+       cwd=root,
+       text=True,
+   ).splitlines()
+   result = wiki_ingest_staged_docs(staged, root)
+   print(result.model_dump_json(indent=2))
+   if result.errors:
+       sys.exit("wiki staged ingest failed: " + "; ".join(result.errors))
+   if result.wiki_files_written:
+       subprocess.run(
+           ["git", "add", "--", *result.wiki_files_written],
+           cwd=root,
+           check=True,
+       )
+   PY
+   ```
+
+3. If `wiki_files_written` is empty, there is nothing to stage — continue silently.
+
+4. If ingest returns **errors** (unreadable paths, ingest failures), **stop** the commit pipeline before Phase B until the errors are resolved.
+
+5. After a successful `git add` of wiki paths, **re-run** `git diff --cached --name-only` if you need an updated staged list for logging; Phase B `run_docs_gate()` must see the staged wiki files.
+
+Then proceed to **Phase B**.
 
 ---
 

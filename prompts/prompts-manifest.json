@@ -66,6 +66,12 @@
           "name": "Init Wiki",
           "description": "Seed .cortex/wiki from existing project docs, run ingest snapshots, write categorized wiki pages, and rebuild index.md",
           "keywords": ["wiki", "init-wiki", "knowledge-base", "docs", "ingest", "index", "cortex-wiki"]
+        },
+        {
+          "file": "ask.md",
+          "name": "Ask",
+          "description": "Answer project questions from .cortex/wiki using index.md, read 3–5 relevant pages, cite sources, optionally file confirmed synthesis as a new page",
+          "keywords": ["wiki", "ask", "knowledge-base", "cortex-wiki", "index", "citations"]
         }
       ]
     }

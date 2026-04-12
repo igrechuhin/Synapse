@@ -132,7 +132,7 @@ After Step 7 assembles and writes the session optimization report, always file i
 1. Call:
    - `manage_file(operation="file_artifact", artifact_type="session_analysis", title="Session Optimization {timestamp}", content="<full session analysis markdown>")`
 2. Treat artifact filing as required for successful completion (do not skip based on score).
-3. Record the returned artifact path in the final `## Output` table.
+3. Record the returned memory-bank analyses path in the final `## Output` table. When the attached project has a wiki layout at `.cortex/wiki/`, the same `file_artifact` call also mirrors the artifact into `.cortex/wiki/analyses/`; record that wiki path when present (otherwise note that no wiki mirror applied).
 
 ## Step 8: Memory Bank Compaction
 
@@ -224,7 +224,7 @@ If any MCP tool fails with "Connection closed" (MCP error -32000):
 | Field | Value |
 |-------|-------|
 | Report | `.cortex/reviews/session-optimization-<timestamp>.md` |
-| Session artifact | `.cortex/memory-bank/analyses/<file>.md` |
+| Session artifact | Memory bank: `.cortex/memory-bank/analyses/<file>.md`; wiki mirror (only if `.cortex/wiki/` exists): `.cortex/wiki/analyses/<file>.md` |
 | Compaction | <before> → <after> tokens (<n>% reduction) |
 | Skill updated | <path OR —> |
 | Plan created | <path OR —> |
@@ -237,6 +237,7 @@ If any MCP tool fails with "Connection closed" (MCP error -32000):
 
 **Rules**:
 
+- Session artifact row must list the memory-bank path from the tool response and, when a wiki is present, the mirrored `.cortex/wiki/analyses/` path (or state explicitly that no wiki mirror occurred).
 - Include compaction metrics when `session(compact)` ran
 - Skill updated row only if Step 9a produced a skill artifact
 - Plan created row only if Step 9b produced a plan

@@ -113,7 +113,7 @@ After writing the review report, decide whether to file it into the memory bank:
    - `manage_file(operation="file_artifact", artifact_type="review_report", title="<review title>", content="<full review markdown>")`
 5. If below threshold, skip filing and note the skip reason in `## Next`.
 
-For successful filing, include the returned filed artifact path in `## Next`.
+For successful filing, include the returned memory-bank analyses path in `## Next`. When the attached project has a wiki layout at `.cortex/wiki/`, the same `file_artifact` call also mirrors the artifact into `.cortex/wiki/analyses/`; include that wiki path when present (otherwise note that no wiki mirror applied).
 
 ---
 
@@ -312,6 +312,7 @@ After writing the final report for this review run, invoke the post-prompt self-
 - Flag negative deltas with ⚠️
 - Issues table: carried forward from prior reports + new findings
 - ⚠️ in Result if any High/Critical issues
+- When a review is filed via `file_artifact`, `## Next` must mention the memory-bank analyses path and, if `.cortex/wiki/` exists, the mirrored `.cortex/wiki/analyses/` path (or state that no wiki mirror occurred).
 
 ## Success Criteria
 
