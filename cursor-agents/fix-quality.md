@@ -15,7 +15,7 @@ Call `pipeline_handoff(operation="read", pipeline="fix", phase="quality")`. Load
 **markdown_only** (no source files changed):
 
 1. Call `autofix()` — auto-fixes markdown lint.
-2. Call `run_docs_gate()` to verify docs are clean.
+2. Call `run_quality_gate()` — same gate `commit` runs in Phase A; catches markdown lint violations (MD036, MD057, etc.) in all files including new untracked plan files. Do NOT use `run_docs_gate()` here: it only checks timestamps and roadmap sync, not markdown lint, which produces a false green that commit Phase A will then fail.
 3. If markdown errors remain, fix manually per rule code and re-run `autofix()`. Max 3 iterations.
 4. Write result and report.
 

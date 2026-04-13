@@ -90,7 +90,7 @@ All MCP tools work when called with empty `{}` arguments. Use these zero-arg too
    - **mixed**: both source and markdown files changed
 3. Record the scope and use it to select the right tool path below.
 
-**Why this matters**: `run_quality_gate()` spawns a full language-specific build + test run (e.g. `swift build` + `swift test`, `pytest`, `go test`). On large projects this takes **5–15+ minutes**. When only markdown files changed, tests are provably irrelevant — running them wastes time and makes the prompt appear to hang.
+**Why this matters**: `run_quality_gate()` spawns a full language-specific build + test run (e.g. `swift build` + `swift test`, `pytest`, `go test`). On large projects this takes **5–15+ minutes**. When only markdown files changed, language tests are provably irrelevant — but `run_quality_gate()` is still required for `markdown_only` scope because it runs the markdown lint check. Do NOT substitute `run_docs_gate()` for quality verification: `run_docs_gate()` only checks timestamps and roadmap sync, not markdown lint, which would produce a false green that `commit` Phase A would then fail.
 
 ## Submodule-First Fix Routing (MANDATORY)
 
@@ -155,8 +155,10 @@ Route based on change scope:
 **Path A — markdown_only** (no source files changed):
 
 1. Call `autofix()` to auto-fix markdown lint issues.
-2. Verify with `run_docs_gate()` (fast; confirms docs are clean without running tests).
-3. If markdown lint errors remain in the quality result, fix them manually per rule code and re-run `autofix()`. Repeat (max 3 iterations).
+2. Verify with `run_quality_gate()` — this is the same gate `commit` runs in Phase A, ensuring markdown lint (MD036, MD057, etc.) in all files (including new untracked plan files) is clean before commit.
+3. If markdown lint errors remain, fix them manually per rule code and re-run `autofix()`. Repeat (max 3 iterations).
+
+> **Why not `run_docs_gate()` here?** `run_docs_gate()` only checks timestamps and roadmap sync — it does NOT run markdown lint. Using it as the quality gate for `markdown_only` scope produces a false green: `fix` passes while `commit` Phase A later fails on markdown lint violations (MD036 etc.) in the same files.
 
 **Path B — source_changed or mixed** (source or test files changed):
 
