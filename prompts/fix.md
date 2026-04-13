@@ -180,7 +180,7 @@ Route based on change scope:
    - **Type errors**: fix import, type annotation, or cast at the reported line.
    - **File too long** (> 400 lines): extract helpers or split into a new module.
    - **Function too long** (> 30 lines): extract helper functions.
-   - **Markdown lint**: fix manually per rule code (MD057, MD046, MD051, MD076, MD022, MD047). For `.cortex/memory-bank/*.md` use `manage_file()`.
+   - **Markdown lint**: fix manually per rule code (MD057, MD046, MD051, MD076, MD022, MD047). For `.cortex/memory-bank/*.md` use `manage_file()`. **Generated files**: if violations are in generated files (e.g. `.cortex/wiki/**`), the fix must go into the generator code, not just the generated file — otherwise violations will reappear on the next ingest run.
 5. Re-verify with `run_quality_gate()`. Repeat from step 4 (max 3 iterations).
 6. Before declaring the 🛠️ quality target ✅ for Python edits: apply **Post-fix validation** and **Rollback on regressions** from [Fix-loop integrity (NO-GO)](#fix-loop-integrity-no-go) — `py_compile`, import check, and bounded retry with revert on new failures.
 
