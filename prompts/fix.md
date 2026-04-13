@@ -162,20 +162,32 @@ Route based on change scope:
 
 1. Call `autofix()`. This runs format, lint, type, and markdown auto-fix (does NOT run tests).
 2. Verify with `run_quality_gate()`. Parse the result for `preflight_passed` and per-check results.
-3. **CI parity structural checks (mandatory before ✅)**: after a green `run_quality_gate()`, run parity scripts across **all** language subfolders, but always pass the changed file list via `FILES` so each script only checks files matching its own extension:
+3. **CI parity structural checks (mandatory before ✅)**: after a green `run_quality_gate()`, run parity scripts across **all** language subfolders. These checks mirror exactly what the commit pipeline runs in Phase A — **if any script exits non-zero here, fix must be treated as failed, same as commit would.**
+
+   ⛔ **HARD GATE**: You MUST run these scripts as actual subprocesses and check their exit codes. A glob-based Python fallback or manual file inspection is **not** a valid substitute. If the shell does not support the `find … | while read` pattern, use `python3 -c` with `subprocess` or `pathlib.Path.glob` to enumerate and invoke each script individually.
+
+   Run in two passes:
+
+   **Pass 1 — changed-files check** (catches violations introduced by the current diff):
 
    ```bash
-   # Build the changed file list once (staged + unstaged source files).
    CHANGED_FILES=$(git diff --name-only HEAD && git diff --name-only)
    for script in check_file_sizes.py check_function_lengths.py build.py; do
      find .cortex/synapse/scripts -mindepth 2 -maxdepth 2 -name "$script" | sort | \
-       while read -r s; do FILES="$CHANGED_FILES" python3 "$s"; done
+       while read -r s; do FILES="$CHANGED_FILES" python3 "$s" || exit 1; done
    done
    ```
 
-   Each script's `_get_files_from_env()` filters by its own extension (`.py`, `.swift`, `.ts`, …). When `FILES` contains no files matching the script's language, it exits 0 immediately — no directory-scan fallback is triggered, so missing `Sources/` or `src/` directories are never a problem.
+   **Pass 2 — full-repo file-size scan** (catches pre-existing violations in unchanged files that commit would also catch; `check_function_lengths.py` is delta-only so skip it here):
 
-   Treat any non-zero exit as stale/partial-gate evidence — the Cortex Python gate does not invoke the project's native compiler/build tool. Keep fixing and re-verify (max 3 iterations).
+   ```bash
+   find .cortex/synapse/scripts -mindepth 2 -maxdepth 2 -name "check_file_sizes.py" | sort | \
+     while read -r s; do python3 "$s" || exit 1; done
+   ```
+
+   Each script's `_get_files_from_env()` filters by its own extension (`.py`, `.swift`, `.ts`, …). When `FILES` contains no files matching the script's language, it exits 0 immediately — no directory-scan fallback is triggered.
+
+   Treat any non-zero exit as a hard failure — fix the violation and re-run both passes (max 3 iterations).
 4. If checks still fail, parse the result — `results.type_check.output` and `results.quality.output` contain full error output. Fix each error:
    - **Type errors**: fix import, type annotation, or cast at the reported line.
    - **File too long** (> 400 lines): extract helpers or split into a new module.

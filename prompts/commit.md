@@ -109,14 +109,25 @@ Use @commit-phase-a to handle this phase. If the subagent is unavailable, run th
 1. Call `run_quality_gate()` — zero-arg MCP tool that runs Phase A end-to-end and returns full results. Do NOT use `start_quality_job` + `get_quality_job_status`; in Cursor's MCP bridge those calls receive empty `{}` args.
 2. Parse the result: check `preflight_passed` (bool) and `coverage` (float).
 3. If `preflight_passed: false`: call `autofix()`, then call `run_quality_gate()` again. Repeat up to 3 times.
-4. **CI parity checks (mandatory before passing Phase A)**: even when `preflight_passed: true`, run parity scripts across all language subfolders, passing the changed file list via `FILES` so each script only checks files matching its own extension:
+4. **CI parity checks (mandatory before passing Phase A)**: even when `preflight_passed: true`, run parity scripts in two passes.
+
+   ⛔ **HARD GATE**: Run scripts as actual subprocesses and check exit codes. A glob fallback or manual inspection is not valid.
+
+   **Pass 1 — changed-files check** (catches violations in the current diff):
 
    ```bash
    CHANGED_FILES=$(git diff --name-only HEAD && git diff --name-only)
    for script in check_file_sizes.py check_function_lengths.py build.py; do
      find .cortex/synapse/scripts -mindepth 2 -maxdepth 2 -name "$script" | sort | \
-       while read -r s; do FILES="$CHANGED_FILES" python3 "$s"; done
+       while read -r s; do FILES="$CHANGED_FILES" python3 "$s" || exit 1; done
    done
+   ```
+
+   **Pass 2 — full-repo file-size scan** (catches pre-existing violations in unchanged files; `check_function_lengths.py` is delta-only so skip it here):
+
+   ```bash
+   find .cortex/synapse/scripts -mindepth 2 -maxdepth 2 -name "check_file_sizes.py" | sort | \
+     while read -r s; do python3 "$s" || exit 1; done
    ```
 
    Each script's `_get_files_from_env()` filters by its own extension (`.py`, `.swift`, `.ts`, …). When `FILES` contains no files matching the script's language it exits 0 immediately — no directory-scan fallback is triggered.

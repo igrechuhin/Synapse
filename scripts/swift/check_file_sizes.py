@@ -112,8 +112,8 @@ def main() -> None:
     else:
         # Standalone/CI fallback: scan Sources/ and include Tests/ if present.
         if not sources_dir.exists():
-            print(f"❌ Sources directory not found: {sources_dir}", file=sys.stderr)
-            sys.exit(1)
+            print(f"✅ No Swift sources directory detected (skipped): {sources_dir}")
+            sys.exit(0)
 
         swift_files = [
             f for f in sorted(sources_dir.rglob("*.swift")) if not is_excluded(f)
