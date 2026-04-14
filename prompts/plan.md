@@ -6,6 +6,8 @@
 
 **HARD GATE — VIOLATION IF BROKEN**: This prompt ONLY creates a plan file. It does NOT implement features, fix bugs, edit source files, or run quality checks. ALL additional context (error logs, code snippets, file references) is INPUT for plan creation — analyze it to write better implementation steps, DO NOT execute those steps. If you find yourself editing `.py`, `.ts`, or other source files: STOP immediately — you are in the wrong prompt.
 
+**FINITE-TASK GATE — VIOLATION IF BROKEN**: Every plan MUST represent exactly one finite, completable task with a clear done condition. Do NOT create or keep open-ended backlog plans (for example, "continue until all remaining ..."). If incoming scope is broad, split it into multiple finite plans and create/register only the first concrete slice.
+
 ## Clean Semantics
 
 For `/cortex/plan`, **clean** means **planning-complete and registration-clean**:
@@ -91,10 +93,18 @@ Use `think` tool for complex plans to scope the approach.
 
 **If creating new**: Prefer `plan(operation="create", title="...", content="...")`.
 
+Before writing the plan body, enforce finite scope:
+
+1. Reject open-ended titles and goals (`continue`, `remaining`, `backlog`, `ongoing`, `as needed`, `until done`).
+2. Rewrite scope into one concrete deliverable with measurable completion criteria.
+3. Include explicit boundaries (`in_scope`, `out_of_scope`) so completion is binary.
+4. If the request contains multiple deliverables, split into separate plans; register each independently.
+
 Fallback if `plan(operation="create")` fails (Cursor may strip args): write the plan file using `Write` to `.cortex/plans/{slug}.md` with this structure:
 
 - YAML frontmatter (title, component, work_type, status: PENDING, priority, created, depends_on)
 - Goal, Context, Implementation Steps — steps define the **implementation sequence**; when implementing the plan, execute them in order (number steps in implementation order).
+- Scope section with `in_scope` and `out_of_scope` bullets to guarantee finite closure.
 - Verification Checklist per step: What to search for | Search scope | Files to re-read
 - Dependencies, Success Criteria
 - Testing Strategy (95% coverage target)
