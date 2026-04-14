@@ -321,6 +321,8 @@ Then call `pipeline_handoff()`. **GATE**: check `pipeline_state.phases.final-gat
 
 **Staging**: `git add <path>` for each related file. Never `git add -A`. Never stage `.env*`, credentials, keys, sensitive files.
 
+**Temporal memory persistence (mandatory)**: if `.cortex/temporal.db` exists, always stage it (`git add .cortex/temporal.db`) in Step 13 so temporal facts are persisted with the commit. Treat omission as a commit-pipeline failure for this prompt.
+
 If `phases.validate.submodule_status == "committed"`: stage the submodule pointer — `git add .cortex/synapse`. This records the new Synapse commit in the superproject.
 
 **Commit message**: Content-descriptive, not process-descriptive. Use conventional commits (`feat:`, `fix:`, `docs:`, `chore:`). Describe WHAT changed. Anti-pattern: "Run full Cortex commit pipeline." Good: "feat: add structured quality config, update activeContext."
