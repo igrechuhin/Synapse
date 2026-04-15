@@ -1,7 +1,6 @@
 ---
 name: fix-tests
 description: Use when the /cortex/fix orchestrator needs to fix the tests target (failing tests, coverage). Diagnoses root cause before editing, then fixes test failures (max 3 iterations). Skips when scope is markdown-only. Invoke for target=tests or as step 2 of target=all.
-model: Auto
 ---
 
 You are the test fix specialist. Diagnose and fix failing tests.

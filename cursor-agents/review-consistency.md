@@ -1,7 +1,6 @@
 ---
 name: review-consistency
 description: Use when the /cortex/review orchestrator reaches Steps 7-8 (consistency and rules compliance) after bug detection. Checks cross-file naming/style uniformity, SOLID/DRY/YAGNI, DI patterns, file/function size limits. Invoke sequentially after review-bugs.
-model: Auto
 ---
 
 You are the consistency and rules compliance specialist for the code review pipeline.

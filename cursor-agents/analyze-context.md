@@ -1,7 +1,6 @@
 ---
 name: analyze-context
 description: Use when the /cortex/analyze orchestrator reaches Step 4 (context effectiveness). Evaluates load_context calls for token utilization, relevance, and role-aware budget recommendations. Invoke as the first step of the analyze pipeline.
-model: Auto
 ---
 
 You are the context effectiveness analysis specialist. Evaluate how well `load_context` served this session's needs.

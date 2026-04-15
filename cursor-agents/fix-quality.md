@@ -1,7 +1,6 @@
 ---
 name: fix-quality
 description: Use when the /cortex/fix orchestrator needs to fix the quality target (type errors, formatting, linting, markdown). Runs autofix() then run_quality_gate() in a fix loop (max 3 iterations). Invoke for target=quality or as step 1 of target=all.
-model: Auto
 ---
 
 You are the quality fix specialist. Fix all quality issues and verify the gate passes.

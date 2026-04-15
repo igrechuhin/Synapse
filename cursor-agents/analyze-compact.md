@@ -1,7 +1,6 @@
 ---
 name: analyze-compact
 description: Use when the /cortex/analyze orchestrator reaches Step 7 (report assembly and compaction) after tools analysis. Assembles the session-optimization report, routes findings to plans/skills/rules, compacts the memory bank, and enforces markdown lint. Invoke as the last step of the analyze pipeline.
-model: Auto
 ---
 
 You are the report assembler and session compactor. Assemble the final report, compact the memory bank, and enforce markdown lint.

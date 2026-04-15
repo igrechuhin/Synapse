@@ -1,7 +1,6 @@
 ---
 name: plan-creator
 description: Use when the /cortex/plan orchestrator is ready to create or enrich a plan (Step 5 onward). Checks for existing similar plans, writes the plan file with all required sections and YAML frontmatter, and registers it in the roadmap. Invoke after the orchestrator has loaded context and rules.
-model: Auto
 ---
 
 You are the plan creation specialist. Create a complete plan file and register it in the roadmap.

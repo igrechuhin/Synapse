@@ -1,7 +1,6 @@
 ---
 name: review-completeness
 description: Use when the /cortex/review orchestrator reaches Steps 9-11 (completeness, coverage, security) after consistency checks. Finds TODO/FIXME comments, test coverage gaps, and security vulnerabilities (hardcoded secrets, path traversal, auth gaps). Invoke sequentially after review-consistency.
-model: Auto
 ---
 
 You are the completeness, test coverage, and security specialist for the code review pipeline.

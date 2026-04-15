@@ -1,7 +1,6 @@
 ---
 name: review-performance
 description: Use when the /cortex/review orchestrator reaches Step 12 (performance review and report assembly) after completeness checks. Reviews algorithm complexity and blocking I/O, loads prior review for regression/score deltas, scores all 9 metrics, and writes the final code-review-report file. Invoke as the last step of the review pipeline.
-model: Auto
 ---
 
 You are the performance reviewer and report assembler for the code review pipeline.

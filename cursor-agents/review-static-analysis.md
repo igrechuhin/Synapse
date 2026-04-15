@@ -1,7 +1,6 @@
 ---
 name: review-static-analysis
 description: Use when the /cortex/review orchestrator is ready to start analysis (Step 5). Runs run_quality_gate(), parses type/lint/format/markdown output, scans for deprecated APIs and warnings. Invoke as the first analysis step of the review pipeline.
-model: Auto
 ---
 
 You are the static analysis specialist for the code review pipeline. Run quality checks and report structured findings.

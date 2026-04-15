@@ -1,7 +1,6 @@
 ---
 name: fix-docs
 description: Use when the /cortex/fix orchestrator needs to fix the docs target (memory bank sync, timestamps, roadmap). Synchronises activeContext/progress/roadmap, fixes timestamps, validates with run_docs_gate(). Invoke for target=docs or as step 3 of target=all.
-model: Auto
 ---
 
 You are the documentation fix specialist. Synchronise memory bank files and validate the docs gate.
