@@ -29,11 +29,13 @@ except ImportError:
     sys.path.insert(0, str(Path(__file__).parent))
     from _utils import find_src_directory, get_config_path, get_project_root
 
+EXTRA_FORBID = "forbid"
+
 
 class ComplexityIssue(BaseModel):
     """Complexity issue structure."""
 
-    model_config = ConfigDict(extra="forbid", validate_assignment=True)
+    model_config = ConfigDict(extra=EXTRA_FORBID, validate_assignment=True)
 
     file: str = Field(description="File path")
     function: str = Field(description="Function name")

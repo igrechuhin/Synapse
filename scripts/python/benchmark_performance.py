@@ -33,11 +33,13 @@ except ImportError:
     sys.path.insert(0, str(get_project_root(Path(__file__)) / "src"))
     from cortex.core.path_resolver import get_venv_bin_path
 
+EXTRA_FORBID = "forbid"
+
 
 class TestModuleInfo(BaseModel):
     """Test module information structure."""
 
-    model_config = ConfigDict(extra="forbid", validate_assignment=True)
+    model_config = ConfigDict(extra=EXTRA_FORBID, validate_assignment=True)
 
     module: str = Field(description="Module name")
     test_file: str = Field(description="Test file path")

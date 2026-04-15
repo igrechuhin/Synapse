@@ -28,11 +28,13 @@ except ImportError:
     sys.path.insert(0, str(Path(__file__).parent))
     from _utils import find_src_directory, get_config_path, get_project_root
 
+EXTRA_FORBID = "forbid"
+
 
 class PerformanceIssue(BaseModel):
     """Performance issue structure."""
 
-    model_config = ConfigDict(extra="forbid", validate_assignment=True)
+    model_config = ConfigDict(extra=EXTRA_FORBID, validate_assignment=True)
 
     type: str = Field(description="Issue type")
     severity: str = Field(description="Issue severity (high/medium/low)")
