@@ -37,6 +37,11 @@ def _get_files_from_env() -> list[Path] | None:
     return [Path(p) for p in stripped.splitlines() if p]
 
 
+def _allow_full_scan() -> bool:
+    """Return True when fallback full-repo scan is explicitly enabled."""
+    return os.environ.get("ALLOW_FULL_SCAN") == "1"
+
+
 def _count_logical_lines(path: Path) -> int:
     try:
         text = path.read_text(encoding="utf-8")
@@ -69,15 +74,33 @@ def _count_logical_lines(path: Path) -> int:
 
 def main() -> None:
     files_from_env = _get_files_from_env()
-    if files_from_env is None:
-        print("✅ No FILES provided for JavaScript (skipped)")
-        sys.exit(0)
-
     project_root = get_project_root(Path(__file__))
     violations: list[tuple[Path, int]] = []
     warnings_list: list[tuple[Path, int]] = []
 
-    js_files = [f for f in files_from_env if f.suffix in {".js", ".jsx"}]
+    js_files: list[Path]
+    if files_from_env is not None:
+        js_files = [f for f in files_from_env if f.suffix in {".js", ".jsx"}]
+    else:
+        if not _allow_full_scan():
+            print("✅ No FILES provided and ALLOW_FULL_SCAN!=1 (skipped)")
+            sys.exit(0)
+
+        src_dir = project_root / "src"
+        js_files = []
+        if src_dir.exists():
+            js_files.extend(sorted(src_dir.rglob("*.js")))
+            js_files.extend(sorted(src_dir.rglob("*.jsx")))
+
+        tests_dir = project_root / "tests"
+        if tests_dir.exists():
+            js_files.extend(sorted(tests_dir.rglob("*.js")))
+            js_files.extend(sorted(tests_dir.rglob("*.jsx")))
+
+        if not js_files:
+            print("✅ No JavaScript sources detected for full scan (skipped)")
+            sys.exit(0)
+
     for js_file in js_files:
         lines = _count_logical_lines(js_file)
         if lines > MAX_LINES:

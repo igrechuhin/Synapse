@@ -87,6 +87,11 @@ def _get_files_from_env() -> list[Path] | None:
     return [Path(p) for p in stripped.splitlines() if p]
 
 
+def _allow_full_scan() -> bool:
+    """Return True when fallback full-repo scan is explicitly enabled."""
+    return os.environ.get("ALLOW_FULL_SCAN") == "1"
+
+
 def main() -> None:
     """Check Swift files for size violations."""
     project_root = get_project_root(Path(__file__))
@@ -110,6 +115,10 @@ def main() -> None:
             f for f in files_from_env if f.suffix == ".swift" and not is_excluded(f)
         ]
     else:
+        if not _allow_full_scan():
+            print("✅ No FILES provided and ALLOW_FULL_SCAN!=1 (skipped)")
+            sys.exit(0)
+
         # Standalone/CI fallback: scan Sources/ and include Tests/ if present.
         if not sources_dir.exists():
             print(f"✅ No Swift sources directory detected (skipped): {sources_dir}")

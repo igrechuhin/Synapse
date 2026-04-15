@@ -28,6 +28,11 @@ def _get_files_from_env() -> list[Path] | None:
     return [Path(p) for p in stripped.splitlines() if p]
 
 
+def _allow_full_scan() -> bool:
+    """Return True when fallback full-repo scan is explicitly enabled."""
+    return os.environ.get("ALLOW_FULL_SCAN") == "1"
+
+
 def _count_logical_lines(path: Path) -> int:
     try:
         text = path.read_text(encoding="utf-8")
@@ -60,15 +65,33 @@ def _count_logical_lines(path: Path) -> int:
 
 def main() -> None:
     files_from_env = _get_files_from_env()
-    if files_from_env is None:
-        print("✅ No FILES provided for TypeScript (skipped)")
-        sys.exit(0)
-
     project_root = get_project_root(Path(__file__))
     violations: list[tuple[Path, int]] = []
     warnings_list: list[tuple[Path, int]] = []
 
-    ts_files = [f for f in files_from_env if f.suffix in {".ts", ".tsx"}]
+    ts_files: list[Path]
+    if files_from_env is not None:
+        ts_files = [f for f in files_from_env if f.suffix in {".ts", ".tsx"}]
+    else:
+        if not _allow_full_scan():
+            print("✅ No FILES provided and ALLOW_FULL_SCAN!=1 (skipped)")
+            sys.exit(0)
+
+        src_dir = project_root / "src"
+        ts_files = []
+        if src_dir.exists():
+            ts_files.extend(sorted(src_dir.rglob("*.ts")))
+            ts_files.extend(sorted(src_dir.rglob("*.tsx")))
+
+        tests_dir = project_root / "tests"
+        if tests_dir.exists():
+            ts_files.extend(sorted(tests_dir.rglob("*.ts")))
+            ts_files.extend(sorted(tests_dir.rglob("*.tsx")))
+
+        if not ts_files:
+            print("✅ No TypeScript sources detected for full scan (skipped)")
+            sys.exit(0)
+
     for ts_file in ts_files:
         lines = _count_logical_lines(ts_file)
         if lines > MAX_LINES:

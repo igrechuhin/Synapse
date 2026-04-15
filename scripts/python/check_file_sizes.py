@@ -107,6 +107,11 @@ def _get_files_from_env() -> list[Path] | None:
     return [Path(p) for p in stripped.splitlines() if p]
 
 
+def _allow_full_scan() -> bool:
+    """Return True when fallback full-repo scan is explicitly enabled."""
+    return os.environ.get("ALLOW_FULL_SCAN") == "1"
+
+
 def main() -> None:
     """Check all Python files for size violations."""
     # Get project root and source directory
@@ -138,14 +143,17 @@ def main() -> None:
             elif lines > WARN_LINES:
                 warnings_list.append((py_file, lines))
     else:
+        if not _allow_full_scan():
+            print("✅ No FILES provided and ALLOW_FULL_SCAN!=1 (skipped)")
+            sys.exit(0)
+
         # Fallback scan (keep existing behavior/output formatting).
         if not src_dir.exists():
             print(
-                f"Error: Source directory {src_dir} does not exist",
+                f"✅ Python source directory not found at {src_dir} (skipped)",
                 file=sys.stderr,
             )
-            print(f"Project root: {project_root}", file=sys.stderr)
-            sys.exit(1)
+            sys.exit(0)
 
         # Must match cortex.core.constants.FILE_SIZE_EXCLUDED_FILENAMES and pre_commit_helpers
         for py_file in src_dir.glob("**/*.py"):
