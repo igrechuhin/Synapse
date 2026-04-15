@@ -107,7 +107,9 @@ Then call `pipeline_handoff()`. **GATE**: check `pipeline_state.phases.preflight
 Use @commit-phase-a to handle this phase. If the subagent is unavailable, run these steps inline:
 
 1. Call `run_quality_gate()` — zero-arg MCP tool that runs Phase A end-to-end and returns full results. Do NOT use `start_quality_job` + `get_quality_job_status`; in Cursor's MCP bridge those calls receive empty `{}` args.
-2. Parse the result: check `preflight_passed` (bool) and `coverage` (float).
+2. Parse the result: check `preflight_passed` (bool) and extract coverage from `results.tests.coverage` when present.
+   - Coverage is optional and language-dependent. SwiftPM runs may populate a numeric fraction when ``swift test --enable-code-coverage`` produced artifacts and Cortex parsed them; the same configured threshold applies as for Python when a numeric value is present.
+   - If coverage is unavailable (no parseable value), carry `coverage: null` in pipeline state and report coverage as `N/A` (do not coerce to `0.0`).
 3. If `preflight_passed: false`: call `autofix()`, then call `run_quality_gate()` again. Repeat up to 3 times.
 4. **CI parity checks (mandatory before passing Phase A)**: even when `preflight_passed: true`, run parity scripts in two passes.
 
@@ -137,7 +139,7 @@ Use @commit-phase-a to handle this phase. If the subagent is unavailable, run th
 
 ```json
 // Write to: .cortex/.session/current-task.json
-{"operation":"write","phase":"checks","pipeline":"commit","status":"passed or failed","coverage":0.0,"fix_iterations":0,"preflight_passed":true,"dirty_checks":{},"last_clean_results":{}}
+{"operation":"write","phase":"checks","pipeline":"commit","status":"passed or failed","coverage":null,"fix_iterations":0,"preflight_passed":true,"dirty_checks":{},"last_clean_results":{}}
 ```
 
 Then call `pipeline_handoff()`. **GATE**: check `pipeline_state.phases.checks.status == "passed"` from the response.
@@ -292,7 +294,7 @@ Use @commit-final-gate to handle this phase. If the subagent is unavailable, run
 
 ```json
 // Write to: .cortex/.session/current-task.json
-{"operation":"write","phase":"final-gate","pipeline":"commit","status":"passed or failed","coverage":0.0,"fix_loops_executed":0,"skipped_checks":[]}
+{"operation":"write","phase":"final-gate","pipeline":"commit","status":"passed or failed","coverage":null,"fix_loops_executed":0,"skipped_checks":[]}
 ```
 
 Then call `pipeline_handoff()`. **GATE**: check `pipeline_state.phases.final-gate.status == "passed"` from the response before proceeding to Step 13.
@@ -407,7 +409,7 @@ After writing the final report for this commit pipeline run, invoke the post-pro
 | Phase | Status | Notes |
 |-------|--------|-------|
 | Preflight | ✅/❌ | snapshot: <ref> |
-| Quality (A) | ✅/❌ | <coverage>% coverage |
+| Quality (A) | ✅/❌ | <coverage>% coverage OR N/A |
 | Docs (B) | ✅/❌ | <roadmap updated OR —> |
 | Validate (C) | ✅/❌ | — |
 | Final gate | ✅/❌ | <n> fix iterations |
@@ -416,7 +418,7 @@ After writing the final report for this commit pipeline run, invoke the post-pro
 
 - Commit: `<sha>` on `<branch>`
 - Files: <list>
-- Coverage: <n>%
+- Coverage: <n>% or N/A
 - Pushed: ✅/❌ <remote>
 
 ## Next

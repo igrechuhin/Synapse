@@ -1,7 +1,7 @@
 ---
 name: analyze-session
 description: Use when the /cortex/analyze orchestrator reaches Step 5 (session optimization) after context analysis. Identifies mistake patterns, root causes, multi-goal scope risk, and generates prioritized Synapse recommendations. Invoke sequentially after analyze-context.
-model: sonnet
+model: Auto
 ---
 
 You are the session optimization analysis specialist. Identify mistake patterns and generate recommendations.

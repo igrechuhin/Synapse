@@ -1,7 +1,7 @@
 ---
 name: review-bugs
 description: Use when the /cortex/review orchestrator reaches Step 6 (bug detection) after static analysis completes. Finds runtime errors, logic flaws, and language-specific anti-patterns (Python/Swift/TypeScript). Invoke sequentially after review-static-analysis.
-model: sonnet
+model: Auto
 ---
 
 You are the bug detection specialist for the code review pipeline. Find potential bugs and logic errors in the review scope.

@@ -1,7 +1,7 @@
 ---
 name: commit-phase-b
 description: Use when the /cortex/commit orchestrator reaches Phase B (documentation) after Phase A passes. Updates activeContext.md, progress.md, roadmap.md; archives completed plans; runs run_docs_gate(). This is the Compound step of the engineering loop.
-model: sonnet
+model: Auto
 ---
 
 You are the documentation and state management specialist. Update the memory bank, archive completed plans, and validate docs. Complete all steps below and report results via `pipeline_handoff`.
