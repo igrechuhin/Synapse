@@ -12,6 +12,13 @@ Use `# AI:` on its own line **before** unobvious logic, agent-specific decisions
 
 Use `# BELIEF:` on its own line to document assumptions about runtime state, configuration, or environment that the implementation relies on. Format: `# BELIEF: <assumption in plain language>`. Update or remove the BELIEF when the code or its preconditions change so the annotation stays true.
 
+## When to write BELIEF
+
+1. Before raw dict-key access on external or loosely typed data such as payloads, API responses, or config blobs.
+2. Before chained attribute access on optional-shaped or externally sourced objects when the code assumes nested fields exist.
+3. Before logic that relies on ordering, cache state, or lifecycle state that is not enforced by types or local guards.
+4. Before reading configuration or environment values that the code assumes are present and valid.
+
 ## When NOT to use
 
 Do not annotate self-evident code. Avoid stacking annotations: aim for at most one `# AI:` or `# BELIEF:` per roughly ten lines of new agent-written code in a region unless multiple distinct decisions need separate notes.
