@@ -27,19 +27,25 @@ Call `run_quality_gate()`. From the response, extract:
 
 - `results.tests.output`: failing test names and error messages
 - `results.tests.tests_failed`, `results.tests.pass_rate`, `results.tests.coverage`
+- coverage threshold diagnostics from quality output (required vs current), when present
 
 ## Step 3: Fix loop (max 3 iterations)
 
-For each failing test:
+For each iteration:
 
-1. `Read` the failing test file and the implementation module it tests.
-2. Identify the failure cause from the stack trace:
-   - **Assertion mismatch**: read the implementation, update the assertion to match new behavior (verify new behavior is correct first).
-   - **Governance tests**: fix the source — never weaken the test.
-   - **`.cursor/commands` empty**: do NOT add stub command files — fix the test skip logic instead.
-3. Apply fix at the reported file:line.
-4. After each fix: `python3 -m py_compile <path>` and `python3 -c "import <module>"`.
-5. If a fix attempt introduces NEW test failures vs the state before that attempt: roll back and try a different approach.
+1. If there are failing tests (`tests_failed > 0`):
+   - `Read` the failing test file and the implementation module it tests.
+   - Identify the failure cause from the stack trace:
+     - **Assertion mismatch**: read the implementation, update the assertion to match new behavior (verify new behavior is correct first).
+     - **Governance tests**: fix the source — never weaken the test.
+     - **`.cursor/commands` empty**: do NOT add stub command files — fix the test skip logic instead.
+   - Apply fix at the reported file:line.
+2. If no tests fail but coverage is below threshold:
+   - Treat this as an active tests-target failure (do not mark success).
+   - Use coverage output hints to find under-tested modules/paths.
+   - Add deterministic tests for missing branches and edge cases in the highest-impact uncovered code.
+3. After each fix (Python modules only): `python3 -m py_compile <path>` and `python3 -c "import <module>"`.
+4. If a fix attempt introduces NEW test failures vs the state before that attempt: roll back and try a different approach.
 
 After fixes: call `run_quality_gate()`. Check `results.tests.success`.
 

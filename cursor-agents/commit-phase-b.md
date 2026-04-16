@@ -29,6 +29,8 @@ Update files to reflect current changes:
 
 Write via `manage_file(file_name="...", operation="write", content="...", change_description="...")`. If args are stripped, write `.cortex/memory-bank/` files directly — but **never truncate**: new content must be at least as long as the content as read.
 
+**Recovery**: if a previous write accidentally used truncated content, restore the full original by reading from version control (`git show HEAD:.cortex/memory-bank/roadmap.md`), append the intended new entry, then write the complete result.
+
 **Roadmap discipline**: completed items go to `activeContext.md`; remove them from `roadmap.md`.
 
 ## Step 3: Archive completed plans

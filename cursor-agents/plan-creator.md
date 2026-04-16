@@ -29,6 +29,8 @@ For non-trivial plans, use the `think` tool to break down the approach before wr
 
 ## Step 3: Write the plan
 
+**SCHEMA VIOLATION — PLAN IS INVALID** if the file is missing the YAML frontmatter or any required section. Do not report success until every item in the table below is confirmed present.
+
 **All plan files MUST start with YAML frontmatter**:
 
 ```yaml
@@ -43,19 +45,27 @@ depends_on: []
 ---
 ```
 
-**Required sections** (all mandatory):
+**Required sections — ALL mandatory, NO exceptions, in this order:**
 
-- **Goal**: clear statement of what this plan achieves
-- **Context**: why needed, business requirements
-- **Approach**: high-level implementation strategy
-- **Implementation Steps**: numbered, ordered — executed in sequence by `/cortex/do`
-- **Verification Checklist**: for steps that eliminate patterns — what to search for, scope, expected result, files to re-read
-- **Dependencies**: on other plans or external work
-- **Success Criteria**: measurable outcomes
-- **Testing Strategy**: coverage target (95%), unit/integration/edge cases, AAA pattern, no blanket skips
-- **Risks and Mitigation**: potential risks and mitigations
+| # | Section header | Content requirement |
+|---|---------------|---------------------|
+| 1 | `## Goal` | Single clear statement of what this plan achieves |
+| 2 | `## Context` | Why needed, what triggered this, business/technical requirements |
+| 3 | `## Scope` | `**in_scope**` bullet list AND `**out_of_scope**` bullet list — both required |
+| 4 | `## Approach` | High-level implementation strategy (1–3 paragraphs) |
+| 5 | `## Implementation Steps` | Numbered, ordered — executed in sequence by `/cortex/do` |
+| 6 | `## Verification Checklist` | Per-step: what to search for, search scope, files to re-read after changes |
+| 7 | `## Dependencies` | Other plans or external work this depends on |
+| 8 | `## Success Criteria` | Measurable, binary outcomes |
+| 9 | `## Testing Strategy` | 95% coverage target, unit/integration/negative cases, AAA pattern, no blanket skips |
+| 10 | `## Risks and Mitigation` | Table of risks with mitigations |
 
 **Create**: prefer `plan(operation="create", title="...", content="...")`. Fallback: `Write` to `.cortex/plans/{slug}.md`.
+
+**Self-verify after writing (MANDATORY — do not skip)**:
+Read the file back immediately after writing. Check that all 10 section headers and the YAML frontmatter are present. If any are missing: rewrite the file with the complete schema before proceeding to Step 4. This check is not optional — reporting success without it is a violation.
+
+**Non-schema sections are forbidden**: Do NOT add sections not listed in the table above (e.g. "Change History", "Notes", "Appendix", "Open Questions"). If you feel additional content is needed, fit it into the closest required section. Extra sections cause schema drift and must be removed.
 
 **Enrich**: `Read` existing plan, merge new sections/steps, write back in-place.
 

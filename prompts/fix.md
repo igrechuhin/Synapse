@@ -214,7 +214,13 @@ Route based on change scope:
    - **Assertion count mismatch**: read the implementation, update the assertion.
    - **Governance tests**: fix the source — never weaken the test.
    - **Final-report alignment / `.cursor/commands`**: If the failure is `expected at least one *.md under .cursor/commands` (or similar), the repository policy is **no tracked Cursor command markdown** — alignment checks **skip** when that folder has no `*.md`. Fix the **integration test** (or restore the skip path), not the working tree with new command stubs. See **NO-GO — Cursor command stubs** above.
-4. Re-run `run_quality_gate()` after fixes. Repeat (max 3 iterations).
+4. **Coverage-only failure handling (mandatory)**: if `tests_failed == 0` and quality still fails because coverage is below threshold:
+   - Parse gate output for coverage details (current %, required %, and any uncovered-module hints).
+   - Identify the highest-impact uncovered or under-covered modules touched by current work (or core hot paths if no hints are available).
+   - Add focused tests that exercise missing branches/edge cases in those modules (AAA style; deterministic).
+   - Re-run `run_quality_gate()` immediately and keep iterating coverage uplift (max 3 iterations total for this target).
+   - Do **not** stop with a policy-only recommendation while there are obvious missing tests you can add in this run.
+5. Re-run `run_quality_gate()` after fixes. Repeat (max 3 iterations).
 
 ⚠️ **CI parity gap — parallel test execution**: The local `run_quality_gate()` may run tests single-threaded, while CI always runs `pytest -n auto` (parallel xdist workers). Tests that only fail under parallel execution (e.g. asyncio cross-loop bugs, shared module-level state, concurrent resource races) will pass locally but fail CI. If a test failure involves asyncio, concurrency, event loops, or shared global state, **also run** `uv run pytest tests/ -n auto -x -q --no-header -p no:randomly` locally to reproduce the CI failure before declaring the target ✅.
 

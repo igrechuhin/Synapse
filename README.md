@@ -21,16 +21,17 @@ Synapse is a git submodule that provides shared development resources across pro
 │   ├── python/                 # Python-specific rules
 │   ├── markdown/               # Markdown formatting rules
 │   └── rules-manifest.json     # Rules registry
-├── agents/                     # Cursor/Claude agent definitions
-│   ├── agents-manifest.json    # Agent registry
-│   ├── commit-phase-a/b/c.md   # Commit pipeline agents
-│   ├── memory-bank-updater.md
+├── cursor-agents/              # ACTIVE: pipeline subagents (synced to .cursor/agents/ and .claude/agents/)
+│   ├── cursor-agents-manifest.json
+│   ├── commit-preflight/phase-a/b/c/final-gate.md
+│   ├── fix-quality/tests/docs.md
+│   ├── review-static-analysis/bugs/consistency/completeness/performance.md
+│   ├── analyze-context/session/tools/compact.md
 │   ├── plan-creator.md
-│   ├── roadmap-implementer.md
-│   └── ...                     # 40+ specialized agents
-├── cursor-agents/              # Cursor-specific agent configs
 │   ├── implement-code.md
 │   └── shared-defaults.md
+├── agents/                     # DEPRECATED: legacy agent definitions (not synced, not invoked)
+│   └── ...                     # Retained for historical reference only
 └── scripts/                    # Language-SPECIFIC quality gate scripts
     └── python/                 # Python scripts (ruff, black, pyright, pytest)
 ```

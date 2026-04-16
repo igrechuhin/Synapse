@@ -100,14 +100,52 @@ Before writing the plan body, enforce finite scope:
 3. Include explicit boundaries (`in_scope`, `out_of_scope`) so completion is binary.
 4. If the request contains multiple deliverables, split into separate plans; register each independently.
 
-Fallback if `plan(operation="create")` fails (Cursor may strip args): write the plan file using `Write` to `.cortex/plans/{slug}.md` with this structure:
+**FALLBACK — VIOLATION IF ANY SECTION IS OMITTED**: If `plan(operation="create")` fails (Cursor may strip args), write the plan file using `Write` to `.cortex/plans/{slug}.md`. The file MUST contain ALL of the following sections in this exact order — omitting any section is a schema violation and the plan is invalid:
 
-- YAML frontmatter (title, component, work_type, status: PENDING, priority, created, depends_on)
-- Goal, Context, Implementation Steps — steps define the **implementation sequence**; when implementing the plan, execute them in order (number steps in implementation order).
-- Scope section with `in_scope` and `out_of_scope` bullets to guarantee finite closure.
-- Verification Checklist per step: What to search for | Search scope | Files to re-read
-- Dependencies, Success Criteria
-- Testing Strategy (95% coverage target)
+```
+---
+title: "<title>"
+component: "<component>"
+work_type: "fix | refactor | feature | optimize | docs | infrastructure"
+status: "PENDING"
+priority: "Critical | High | Medium | Low"
+created: "<YYYY-MM-DD>"
+depends_on: []
+---
+
+## Goal
+## Context
+## Scope
+  **in_scope** — bullet list
+  **out_of_scope** — bullet list
+## Approach
+## Implementation Steps
+## Verification Checklist
+## Dependencies
+## Success Criteria
+## Testing Strategy
+## Risks and Mitigation
+```
+
+**Required sections — mandatory, no exceptions:**
+
+| Section | Content |
+|---------|---------|
+| YAML frontmatter | title, component, work_type, status: PENDING, priority, created, depends_on |
+| Goal | Single clear statement of what this plan achieves |
+| Context | Why needed, what triggered this, business/technical requirements |
+| Scope | `**in_scope**` and `**out_of_scope**` bullet lists — guarantees binary completion |
+| Approach | High-level implementation strategy (1–3 paragraphs) |
+| Implementation Steps | Numbered, ordered — executed in sequence by `/cortex/do` |
+| Verification Checklist | Per-step: what to search for, search scope, files to re-read after changes |
+| Dependencies | Other plans or external work this depends on |
+| Success Criteria | Measurable, binary outcomes |
+| Testing Strategy | 95% coverage target, unit/integration/negative cases, AAA pattern |
+| Risks and Mitigation | Table of risks with mitigations |
+
+**After writing, self-verify**: Read the file back and confirm every section header above is present. If any is missing, rewrite the file before proceeding. Do NOT report success until this check passes.
+
+**Non-schema sections are forbidden**: Do NOT add sections beyond the 10 listed above (e.g. "Change History", "Notes", "Appendix", "Open Questions"). Extra sections cause schema drift and must be removed before reporting success.
 
 When planning implementation work, note that agents should use `# AI:` comments for non-obvious decisions (why, not what) on their own line above the affected code.
 
@@ -186,6 +224,7 @@ After writing the final report for this plan-creation run, invoke the post-promp
 
 ## Success Criteria
 
-- Plan file created with all required sections (frontmatter, goal, steps, Verification Checklist, testing strategy with 95% coverage target)
+- Plan file created with ALL required sections: YAML frontmatter, Goal, Context, Scope (in_scope + out_of_scope), Approach, Implementation Steps, Verification Checklist, Dependencies, Success Criteria, Testing Strategy (95% target), Risks and Mitigation
+- Self-verify read-back passed — all 10 section headers confirmed present before reporting success
 - Plan registered in roadmap
 - All paths obtained dynamically via MCP tools
