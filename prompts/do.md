@@ -16,17 +16,19 @@ Local code edits may exist during implementation; git-clean working tree is not 
 
 ## Sequential Execution Order
 
-Each phase must complete before the next begins. For multi-subtask plans, the inner loop (Implementation → Finalize) repeats until the plan step is fully complete or context is nearly exhausted:
+Each phase must complete before the next begins. For multi-subtask plans, the inner loop (Implementation) repeats until the plan step is fully complete or context is nearly exhausted:
 
 1. **Selection** (inline, once per `/do` call)
 2. **Inner subtask loop** (repeat until `step_fully_complete=true` or context budget low):
-   a. **Implementation** (subagent) → b. **Finalize** (inline)
-3. **Verify** (inline, once after loop exits)
-4. **Fix** (inline, once after Verify)
+   a. **Implementation** (subagent)
+3. **Review Gate** (inline, only when implementation reports `step_fully_complete=true`)
+4. **Finalize** (inline)
+5. **Verify** (inline, once after Finalize)
+6. **Fix** (inline, once after Verify)
 
-**Loop exit conditions** (stop the inner loop and proceed to Verify):
+**Loop exit conditions** (stop the inner loop and move to Review Gate or Finalize as appropriate):
 
-- `phases.code.step_fully_complete == true` — plan step is done
+- `phases.code.step_fully_complete == true` — plan step is ready for the post-implementation review gate
 - Quality gate failed 3× — unrecoverable, exit and report
 - Estimated remaining context < 20% — defer remaining subtasks to next session
 - Same subtask was attempted twice with no new files changed — no-op guard
@@ -87,7 +89,8 @@ pipeline_handoff(operation="init", pipeline="implement")
 After `session()`, read **`brief.workflow_schema`**, **`brief.workflow_schema_description`**, and **`brief.workflow_phases`**. They describe the ordered compound loop for this project (plan → implement → review → commit, or a variant such as fast-path that omits review).
 
 - Treat **`brief.workflow_phases`** as the authoritative ordered list of slash-command phases for the session. When a later phase is absent from the list (for example fast-path has no review entry), **do not** run that slash command for this work item unless the user explicitly asks for it.
-- **`/cortex/do`** covers only the **implement** slice (Selection → Implementation → Finalize → Verify → Fix). Other entries in `workflow_phases` are separate invocations the user or agent runs when executing the full loop; this prompt still runs the implement inner phases in full unless the user narrows scope.
+- **`/cortex/do`** covers only the **implement** slice (Selection → Implementation → internal Review Gate → Finalize → Verify → Fix). Other entries in `workflow_phases` are separate invocations the user or agent runs when executing the full loop; this prompt still runs the implement inner phases in full unless the user narrows scope.
+- The internal **Review Gate** below is not a second user-invoked `/cortex/review` command. It is a mandatory completion check inside `/cortex/do` that reuses the review contract before a plan can be marked complete.
 - Optional phases in YAML use `condition` expressions; agents do not re-evaluate them here — rely on `session()` output and plan context. Use `manage_file(operation="list_schemas")` to discover schemas and `manage_file(operation="fork_schema", content=<json>)` to copy a built-in schema into `.cortex/schemas/` for local edits.
 
 ---
@@ -158,7 +161,42 @@ For non-obvious logic, add `# AI:` comments explaining agent decisions (why, not
 
 **GATE**: Check `pipeline_state.phases.code.status == "passed"` from the write response (or call `pipeline_handoff(operation="read", pipeline="implement")` if the subagent's response is unavailable).
 
-**After each subagent return**: if `step_fully_complete=false`, append the just-completed subtask to `partial_progress`, then loop back to Implementation (re-invoke @implement-code with updated state). If `step_fully_complete=true`, exit the inner loop and proceed to Verify.
+**After each subagent return**: if `step_fully_complete=false`, append the just-completed subtask to `partial_progress`, then loop back to Implementation (re-invoke @implement-code with updated state). If `step_fully_complete=true`, exit the inner loop and proceed to Review Gate.
+
+---
+
+## Review Gate — run inline (mandatory when code-phase reports complete)
+
+**IMPORTANT**: Run Review Gate inline in the orchestrator. This gate decides whether the plan can actually complete or must be reopened with tracked gaps.
+
+Only run this phase when `phases.code.step_fully_complete == true`. If the implementation phase ended partial, skipped, or failed, do **not** invoke review; proceed directly to Finalize using the partial path.
+
+1. Read the implementation result from `pipeline_handoff(operation="read", pipeline="implement")`.
+2. Launch the `code-reviewer` subagent for the implemented scope. Provide:
+   - selected step title
+   - plan file path
+   - files changed in `phases.code.files_changed`
+   - success criteria from the plan
+   - instruction to use the `.cortex/synapse/prompts/review.md` contract when classifying findings
+3. Normalize the review result into exactly one of:
+   - `no_gaps` — review found no correctness/completeness/security gaps; optional improvement suggestions alone do **not** reopen the plan
+   - `gaps_found` — review found one or more actionable implementation gaps that must be fixed before completion
+   - `review_blocked` — review could not complete because the subagent/tooling failed or returned malformed output; treat as blocked, **not** as `gaps_found`
+4. For `gaps_found`, build a bounded de-duplicated list of actionable gaps with stable wording. Record concise evidence (file paths, symbols, or issue IDs) for each gap.
+5. Write result:
+
+```json
+// Write to: .cortex/.session/current-task.json
+{"operation":"write","phase":"review","pipeline":"implement","status":"complete","review_outcome":"no_gaps or gaps_found or review_blocked","gaps":["<deduplicated actionable gap>", "..."],"evidence":["<path or symbol>", "..."],"review_summary":"<compact summary>"}
+```
+
+Then call `pipeline_handoff()`.
+
+**GATE**:
+
+- `review_outcome == "no_gaps"` → proceed to Finalize complete path
+- `review_outcome == "gaps_found"` → proceed to Finalize reopened-plan path
+- `review_outcome == "review_blocked"` → STOP completion flow, keep the plan open, and report the blocker
 
 ---
 
@@ -172,9 +210,9 @@ Read the implementation result from the code-phase write response's `pipeline_st
 pipeline_handoff(operation="read", pipeline="implement")
 ```
 
-Extract: `phases.code.step_fully_complete`, `phases.code.subtask`, `phases.code.files_changed`, `phases.code.coverage`, `phases.select.plan_file`, `phases.select.selected_step`.
+Extract: `phases.code.step_fully_complete`, `phases.code.subtask`, `phases.code.files_changed`, `phases.code.coverage`, `phases.select.plan_file`, `phases.select.selected_step`, and when present `phases.review.review_outcome`, `phases.review.gaps`, `phases.review.review_summary`.
 
-**If the roadmap step is fully completed**:
+**If the roadmap step is fully completed and `phases.review.review_outcome == "no_gaps"`**:
 
 Call `plan(operation="complete", plan_title="{exact roadmap title}", summary="{summary}", plan_file_name="{filename}.md", progress_entry="**{step_title}** - COMPLETE. {summary}", completion_date="YYYY-MM-DD")`.
 
@@ -187,7 +225,7 @@ This single call atomically:
 
 **Rule**: Never call `update_memory_bank` for roadmap/activeContext/progress when completing a step — `plan(complete)` handles all of it.
 
-**If only part of the step was completed**:
+**If only part of the step was completed, or review reopened the work (`review_outcome == "gaps_found"`)**:
 
 1. **Hard guardrail (anti-scrap backlog)**: if `phases.code.files_changed` is empty OR contains only memory-bank/plan bookkeeping files, treat this run as a no-op:
    - do NOT append PARTIAL progress or activeContext entries,
@@ -197,19 +235,26 @@ This single call atomically:
 2. For real partial implementation work (with concrete non-bookkeeping deliverables), call `update_memory_bank(operation="progress_append", date_str="YYYY-MM-DD", entry_text="**{step_title}** - PARTIAL. {summary}")`.
 3. Call `update_memory_bank(operation="active_context_append", date_str="YYYY-MM-DD", title="{step_title} (PARTIAL)", summary="{summary}")` only if the partial work materially affects active behavior.
 4. Do NOT remove the roadmap entry.
-5. If a plan file was used: append to it a `## Partial Progress Log` section (or add a new entry to the existing one) using `manage_file(operation="append_section", ...)` or by reading and rewriting the file. Each log entry must follow this format:
+5. If `review_outcome == "gaps_found"` and a plan file was used:
+   - append or update a canonical `## Review Follow-Up Gaps` section in the same plan
+   - record one bullet per unique gap using stable wording, for example `- [ ] <gap> (evidence: <path/symbol>)`
+   - de-duplicate against existing bullets so re-running `/cortex/do` does not spam identical gap entries
+   - ensure the plan frontmatter status is `PENDING` before exiting Finalize
+   - do **not** call `plan(operation="complete")` for a reopened plan
+6. If a plan file was used: append to it a `## Partial Progress Log` section (or add a new entry to the existing one) using `manage_file(operation="append_section", ...)` or by reading and rewriting the file. Each log entry must follow this format:
 
    ```text
    - YYYY-MM-DD: {subtask description from phases.code.subtask} — files: {comma-separated files_changed}
    ```
 
    This log is read by the Selection phase in the next session to avoid repeating completed subtasks. Log only concrete implementation work; do not log metadata-only churn.
+7. If `review_outcome == "review_blocked"`, do not mark the plan complete and do not fabricate gaps. Exit with a blocked summary instead.
 
 Write result:
 
 ```json
 // Write to: .cortex/.session/current-task.json
-{"operation":"write","phase":"finalize","pipeline":"implement","status":"complete","memory_bank_updated":true,"roadmap_entry":"removed or kept","plan_file":"archived or updated or none"}
+{"operation":"write","phase":"finalize","pipeline":"implement","status":"complete","memory_bank_updated":true,"roadmap_entry":"removed or kept","plan_file":"archived or updated or none","completion_outcome":"completed_no_gaps or reopened_with_gaps or blocked_review"}
 ```
 
 Then call `pipeline_handoff()`. **GATE**: check `pipeline_state.phases.finalize.status == "complete"` from the response.
@@ -282,6 +327,7 @@ This restores the full record of completed phases — continue from the first ph
 - **Selection fails (MCP unhealthy)**: STOP immediately
 - **Selection returns roadmap_complete**: Report "Roadmap complete" and STOP
 - **Quality gate fails after 3 iterations**: STOP, report unresolvable issues
+- **Review Gate returns `review_blocked`**: STOP completion, keep the plan open, report the blocker, and do not convert it into `gaps_found`
 - **Finalize fails (memory bank crash)**: STOP, report with FIX-ASAP priority
 - **Quality gate unavailable (doc-only sessions)**: Record "Quality gate skipped" and proceed to Finalize
 
@@ -307,7 +353,8 @@ After writing the final report for this implement pipeline run, invoke the post-
 |-------|--------|-------|
 | Selection | ✅/❌ | <source: roadmap/explicit> |
 | Implementation | ✅/❌ | <n> files, <n> tests, <n>% |
-| Finalize | ✅/❌ | <plan archived OR —> |
+| Review Gate | ✅/❌/⏭️ | <no_gaps, reopened_with_gaps, or blocked> |
+| Finalize | ✅/❌ | <plan archived, updated, or kept open> |
 | Verify | ✅/❌ | <roadmap entry status> |
 | Fix | ✅/⏭️ | <n> iterations |
 
@@ -316,7 +363,7 @@ After writing the final report for this implement pipeline run, invoke the post-
 - Files: <list>
 - Tests added: <n>
 - Coverage: <n>%
-- Plan: <archived/IN_PROGRESS/none>
+- Plan: <archived/PENDING/IN_PROGRESS/none>
 
 ## Next
 
@@ -326,14 +373,16 @@ After writing the final report for this implement pipeline run, invoke the post-
 **Rules**:
 
 - Partial implementations: use ⚠️ in Result
-- Roadmap/plan state changes go in Finalize/Verify Notes
+- Reopened plans due to review gaps also use ⚠️ in Result
+- Roadmap/plan state changes go in Review Gate / Finalize / Verify Notes
 
 ## Success Criteria
 
 - Implementation complete and all tests pass
+- Post-implementation review gate ran for completed work and ended in `no_gaps` before plan completion
 - Quality gate passed (zero lint, file-size, function-length, type_check violations)
 - Coverage >= 90% global, >= 95% for new/modified code
 - Memory bank updated (roadmap entry removed or retained correctly, progress added, activeContext updated)
-- Completed plans archived; partial plans marked IN_PROGRESS
+- Completed plans archived; reopened plans remain `PENDING` with de-duplicated `## Review Follow-Up Gaps`
 - Fix phase executed (quality + tests + docs all green, or remaining issues logged)
 - Pipeline state cleared
