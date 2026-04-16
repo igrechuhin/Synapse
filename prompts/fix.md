@@ -220,6 +220,16 @@ Route based on change scope:
    - Add focused tests that exercise missing branches/edge cases in those modules (AAA style; deterministic).
    - Re-run `run_quality_gate()` immediately and keep iterating coverage uplift (max 3 iterations total for this target).
    - Do **not** stop with a policy-only recommendation while there are obvious missing tests you can add in this run.
+   - Emit a bounded evidence contract in the tests-phase handoff payload:
+     - `coverage_only_failure: true`
+     - `coverage_attempt_evidence`: concise summary of tests added/updated
+     - `coverage_attempt_count`: integer in `[0,3]`
+     - `coverage_delta`: numeric delta between last two measured coverage values
+     - `blocker_reason`: required only when no further in-session uplift is feasible
+   - The tests target is ✅ only when either:
+     - coverage reaches threshold after at least one uplift attempt (`coverage_attempt_evidence` present), or
+     - status is explicitly `BLOCKED` with a concrete `blocker_reason`.
+   - Exiting without `coverage_attempt_evidence` or `BLOCKED` classification is a hard failure.
 5. Re-run `run_quality_gate()` after fixes. Repeat (max 3 iterations).
 
 ⚠️ **CI parity gap — parallel test execution**: The local `run_quality_gate()` may run tests single-threaded, while CI always runs `pytest -n auto` (parallel xdist workers). Tests that only fail under parallel execution (e.g. asyncio cross-loop bugs, shared module-level state, concurrent resource races) will pass locally but fail CI. If a test failure involves asyncio, concurrency, event loops, or shared global state, **also run** `uv run pytest tests/ -n auto -x -q --no-header -p no:randomly` locally to reproduce the CI failure before declaring the target ✅.

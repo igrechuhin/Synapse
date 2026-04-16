@@ -44,6 +44,12 @@ For each iteration:
    - Treat this as an active tests-target failure (do not mark success).
    - Use coverage output hints to find under-tested modules/paths.
    - Add deterministic tests for missing branches and edge cases in the highest-impact uncovered code.
+   - Track the coverage-only evidence contract for handoff:
+     - `coverage_only_failure: true`
+     - `coverage_attempt_count`: increment per uplift attempt (max 3)
+     - `coverage_attempt_evidence`: short evidence list of tests added/updated
+     - `coverage_delta`: measured change after each run (new minus prior coverage)
+     - `blocker_reason`: required if uplift is no longer feasible in this run
 3. After each fix (Python modules only): `python3 -m py_compile <path>` and `python3 -c "import <module>"`.
 4. If a fix attempt introduces NEW test failures vs the state before that attempt: roll back and try a different approach.
 
@@ -56,8 +62,13 @@ Repeat up to 3 iterations. STOP after 3 with unresolvable issue report.
 ## Step 4: Write result
 
 ```json
-{"operation":"write","phase":"tests","pipeline":"fix","status":"passed or failed or skipped","fix_iterations":<n>,"pass_rate":<value>,"coverage":<value>}
+{"operation":"write","phase":"tests","pipeline":"fix","status":"passed or failed or skipped or BLOCKED","fix_iterations":<n>,"pass_rate":<value>,"coverage":<value>,"coverage_only_failure":<bool>,"coverage_attempt_count":<int>,"coverage_attempt_evidence":"<string|null>","coverage_delta":<float|null>,"blocker_reason":"<string|null>"}
 ```
+
+Coverage-only exit policy:
+
+- If coverage remains below threshold, success is forbidden unless `coverage_attempt_evidence` is present.
+- If no feasible uplift path exists after bounded attempts, set `status: "BLOCKED"` with explicit `blocker_reason`.
 
 Write to `.cortex/.session/current-task.json`, then call `pipeline_handoff()`.
 
