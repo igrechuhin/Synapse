@@ -102,7 +102,7 @@ Before writing the plan body, enforce finite scope:
 
 **FALLBACK — VIOLATION IF ANY SECTION IS OMITTED**: If `plan(operation="create")` fails (Cursor may strip args), write the plan file using `Write` to `.cortex/plans/{slug}.md`. The file MUST contain ALL of the following sections in this exact order — omitting any section is a schema violation and the plan is invalid:
 
-```
+```text
 ---
 title: "<title>"
 component: "<component>"
@@ -136,7 +136,7 @@ depends_on: []
 | Context | Why needed, what triggered this, business/technical requirements |
 | Scope | `**in_scope**` and `**out_of_scope**` bullet lists — guarantees binary completion |
 | Approach | High-level implementation strategy (1–3 paragraphs) |
-| Implementation Steps | Numbered, ordered — executed in sequence by `/cortex/do` |
+| Implementation Steps | Numbered, ordered — define the implementation sequence; execute them in order via `/cortex/do` |
 | Verification Checklist | Per-step: what to search for, search scope, files to re-read after changes |
 | Dependencies | Other plans or external work this depends on |
 | Success Criteria | Measurable, binary outcomes |
