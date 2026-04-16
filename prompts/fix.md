@@ -146,6 +146,14 @@ Before making changes, complete PHASE 0, load rules, and classify the change sco
 
 ⛔ **GATE**: Fix loops are limited to **3 iterations** per target. After 3 failed fix-and-verify cycles, STOP and report unresolvable issues.
 
+### Post-Exhaustion Analysis (required when limit reached)
+
+(a) Root-cause hypothesis: Write one paragraph explaining why the loop did not converge. Focus on the failed approach, incorrect constraint, or missing prerequisite instead of restating the latest error.
+
+(b) Reformulated brief: Write a short replacement brief that states the corrected constraint, dependency, or alternative approach the next session should start with.
+
+(c) Directive: State this verbatim: `Do NOT retry in this session.` Open a new session with the reformulated brief instead of repeating the same approach.
+
 ### 🛠️ quality Target
 
 Use @fix-quality to handle this target. If the subagent is unavailable, run inline:

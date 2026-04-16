@@ -42,6 +42,14 @@ Max 3 iterations. After each: record total violation count. If iteration 2 count
 4. After fixing Python files: run `python3 -m py_compile <path>` and `python3 -c "import <module>"` to confirm no syntax errors before next gate run.
 5. If `preflight_passed: true` → proceed to Step 3.
 
+### Post-Exhaustion Analysis (required when limit reached)
+
+(a) Root-cause hypothesis: Write one paragraph explaining why the loop did not converge. Focus on the failed approach, incorrect constraint, or missing prerequisite instead of restating the latest error.
+
+(b) Reformulated brief: Write a short replacement brief that states the corrected constraint, dependency, or alternative approach the next session should start with.
+
+(c) Directive: State this verbatim: `Do NOT retry in this session.` Open a new session with the reformulated brief instead of repeating the same approach.
+
 **NO-GO** (never do these):
 
 - Duplicate function/class definitions
