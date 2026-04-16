@@ -39,7 +39,7 @@ Max 3 iterations. After each: record total violation count. If iteration 2 count
    - File too long (>400 lines): extract helpers or split module
    - Function too long (>30 lines): extract helper functions
    - Markdown lint: fix per rule code (MD057, MD046, etc.)
-4. After fixing Python files: run `python3 -m py_compile <path>` and `python3 -c "import <module>"` to confirm no syntax errors before next gate run.
+4. After fixing Python files: run `.venv/bin/python -m py_compile <path>` and `PYTHONPATH=src .venv/bin/python -c "import <module>"` to confirm no syntax errors before next gate run. `.venv/bin/python` is mandatory; any other interpreter is a critical error.
 5. If `preflight_passed: true` → proceed to Step 3.
 
 ### Post-Exhaustion Analysis (required when limit reached)

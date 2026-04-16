@@ -50,8 +50,13 @@ For each iteration:
      - `coverage_attempt_evidence`: short evidence list of tests added/updated
      - `coverage_delta`: measured change after each run (new minus prior coverage)
      - `blocker_reason`: required if uplift is no longer feasible in this run
-3. After each fix (Python modules only): `python3 -m py_compile <path>` and `python3 -c "import <module>"`.
-4. If a fix attempt introduces NEW test failures vs the state before that attempt: roll back and try a different approach.
+3. **If `tests_failed=0` and `success=false` and `coverage=null` with error "Test execution failed"** — this indicates the test subprocess exited non-zero for a reason unrelated to test assertion failures. Investigate before retrying:
+   - Read the full `results.tests.output` for build errors, linker errors, crashes, or signals that appeared after test execution (e.g. `error:`, `ld:`, `Segmentation fault`, `Illegal instruction`, `Killed`, `swift build` failures).
+   - For Swift: check whether some test targets failed to compile while others ran successfully. Look for `error: build had 1 command failures` or similar in the output tail.
+   - Identify the specific target or file causing the non-zero exit and fix the compile/link error there.
+   - If the subprocess exit cause cannot be fixed in this session (e.g. requires external dependency, hardware-specific crash), set `status: "BLOCKED"` with `blocker_reason` describing the exact subprocess failure.
+4. After each fix (Python modules only): `.venv/bin/python -m py_compile <path>` and `PYTHONPATH=src .venv/bin/python -c "import <module>"`. `.venv/bin/python` is mandatory; any other interpreter is a critical error.
+5. If a fix attempt introduces NEW test failures vs the state before that attempt: roll back and try a different approach.
 
 After fixes: call `run_quality_gate()`. Check `results.tests.success`.
 
