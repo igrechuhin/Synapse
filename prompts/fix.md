@@ -237,10 +237,10 @@ Route based on change scope:
    ⛔ **HARD GATE**: You MUST write new tests NOW. Do NOT call `run_quality_gate()` again before writing at least one new test. Do NOT produce a "coverage is below threshold" summary and stop. The only valid exits from this branch are: (a) coverage reaches threshold, or (b) status is explicitly `BLOCKED` with a concrete `blocker_reason` after at least one test-writing attempt.
 
    - Parse coverage details: current %, required %, uncovered-module hints from gate output.
-   - Use `Grep`/`Read` to find the highest-impact uncovered code paths in modules touched by current work.
-   - **Write the tests** — add focused, deterministic test cases (AAA style) for missing branches and edge cases.
-   - Call `run_quality_gate()` and measure the delta.
-   - Repeat (max 3 iterations).
+   - **Identify the top uncovered modules** — pick the 3–5 modules with the most uncovered lines that are touched by current work (or core hot paths if no hints). Do this upfront for the whole batch.
+   - **Write tests for all identified modules before running the gate** — add focused, deterministic test cases (AAA style) covering missing branches and edge cases across all target modules. Do not run `run_quality_gate()` between individual modules; finish the full batch first.
+   - Call `run_quality_gate()` once for the entire batch and measure the delta.
+   - Repeat with the next batch (max 3 iterations total).
    - Track the evidence contract:
      - `coverage_only_failure: true`
      - `coverage_attempt_evidence`: concise summary of tests added/updated

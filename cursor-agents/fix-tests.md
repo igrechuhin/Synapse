@@ -50,15 +50,15 @@ Call `run_quality_gate()`. From the response, extract:
 ⛔ **HARD GATE**: You MUST write new tests NOW before calling `run_quality_gate()` again. Do NOT produce a summary and stop. The only valid exits are: (a) coverage reaches threshold, or (b) `status: "BLOCKED"` with a concrete `blocker_reason` after at least one test-writing attempt.
 
 - Parse coverage details: current %, required %, uncovered-module hints from gate output.
-- Use `Grep`/`Read` to find the highest-impact uncovered code paths in modules touched by current work (or core hot paths if no hints are available).
-- **Write the tests** — add focused, deterministic test cases (AAA style) for missing branches and edge cases.
+- **Identify the top uncovered modules** — pick the 3–5 modules with the most uncovered lines that are touched by current work (or core hot paths if no hints). Do this upfront for the whole batch.
+- **Write tests for all identified modules before running the gate** — add focused, deterministic test cases (AAA style) covering missing branches and edge cases across all target modules. Do not run `run_quality_gate()` between individual modules; finish the full batch first.
 - Track the evidence contract:
   - `coverage_only_failure: true`
   - `coverage_attempt_count`: increment per uplift attempt (max 3)
-  - `coverage_attempt_evidence`: short evidence list of tests added/updated
-  - `coverage_delta`: measured change after each run (new minus prior coverage)
+  - `coverage_attempt_evidence`: short evidence list of tests added/updated per module
+  - `coverage_delta`: measured change after each batch run (new minus prior coverage)
   - `blocker_reason`: required if uplift is no longer feasible in this run
-- Call `run_quality_gate()` and measure the delta. Repeat up to 3 iterations.
+- Call `run_quality_gate()` once for the entire batch and measure the delta. Repeat with the next batch (max 3 iterations total).
 
 **Branch C — `tests_failed == 0` and `success == false` and `coverage == null`** (subprocess crash/build error):
 
