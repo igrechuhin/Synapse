@@ -8,9 +8,9 @@ run with --compare-baseline to detect regressions against a stored baseline.
 Use --save-baseline after a known-good run to update the baseline.
 
 Usage:
-    uv run python .cortex/synapse/scripts/python/run_eval_check.py --mode full --threshold 0.85
-    uv run python .cortex/synapse/scripts/python/run_eval_check.py --save-baseline
-    uv run python .cortex/synapse/scripts/python/run_eval_check.py --compare-baseline
+    .venv/bin/python .cortex/synapse/scripts/python/run_eval_check.py --mode full --threshold 0.85
+    .venv/bin/python .cortex/synapse/scripts/python/run_eval_check.py --save-baseline
+    .venv/bin/python .cortex/synapse/scripts/python/run_eval_check.py --compare-baseline
 """
 
 import argparse

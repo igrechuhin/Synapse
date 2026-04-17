@@ -117,7 +117,7 @@ def main() -> int:
             file=sys.stderr,
         )
         print(
-            "Generate it with: uv run python -m pytest tests/ --cov=src/cortex "
+            "Generate it with: .venv/bin/python -m pytest tests/ --cov=src/cortex "
             + "--cov-report=json:coverage.json",
             file=sys.stderr,
         )

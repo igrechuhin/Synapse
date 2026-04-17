@@ -121,7 +121,7 @@ Use @commit-phase-a to handle this phase. If the subagent is unavailable, run th
    CHANGED_FILES=$(git diff --name-only HEAD && git diff --name-only)
    for script in check_file_sizes.py check_function_lengths.py build.py; do
      find .cortex/synapse/scripts -mindepth 2 -maxdepth 2 -name "$script" | sort | \
-       while read -r s; do FILES="$CHANGED_FILES" python3 "$s" || exit 1; done
+      while read -r s; do FILES="$CHANGED_FILES" .venv/bin/python "$s" || exit 1; done
    done
    ```
 
@@ -129,7 +129,7 @@ Use @commit-phase-a to handle this phase. If the subagent is unavailable, run th
 
    ```bash
    find .cortex/synapse/scripts -mindepth 2 -maxdepth 2 -name "check_file_sizes.py" | sort | \
-     while read -r s; do python3 "$s" || exit 1; done
+    while read -r s; do .venv/bin/python "$s" || exit 1; done
    ```
 
    Each script's `_get_files_from_env()` filters by its own extension (`.py`, `.swift`, `.ts`, …). When `FILES` contains no files matching the script's language it exits 0 immediately — no directory-scan fallback is triggered.
@@ -164,10 +164,10 @@ Run this **only after** Phase A (`phases.checks`) is **passed**. It keeps `.cort
    git diff --cached --name-only
    ```
 
-2. Invoke `wiki_ingest_staged_docs` with that list and the repo root (`Path.cwd()` when already at root). Example (uses the project virtualenv via `uv`):
+2. Invoke `wiki_ingest_staged_docs` with that list and the repo root (`Path.cwd()` when already at root). Example (must use the project virtualenv interpreter):
 
    ```bash
-   uv run python <<'PY'
+   .venv/bin/python <<'PY'
    from __future__ import annotations
 
    import subprocess

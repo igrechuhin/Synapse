@@ -4,7 +4,7 @@ Generates a report of functions with high cyclomatic or cognitive
 complexity, nesting depth, and other maintainability metrics.
 
 Usage:
-    python .cortex/synapse/scripts/python/analyze_complexity.py
+    .venv/bin/python .cortex/synapse/scripts/python/analyze_complexity.py
 
 Output:
     - Report of high-complexity functions

@@ -4,7 +4,7 @@
 Delegates to ``cortex.tools.files.markdown_link_validation`` (single implementation
 shared with the Phase A markdown check). Run from repository root:
 
-    uv run python .cortex/synapse/scripts/python/check_markdown_links.py
+    .venv/bin/python .cortex/synapse/scripts/python/check_markdown_links.py
 """
 
 from __future__ import annotations

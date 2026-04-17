@@ -5,9 +5,9 @@ Captures token usage from recent tool invocations (via query_usage token_efficie
 and saves a report for before/after comparison when optimizing tools.
 
 Usage:
-    uv run python .cortex/synapse/scripts/python/run_token_benchmark.py [--days 7]
-    uv run python .cortex/synapse/scripts/python/run_token_benchmark.py --baseline
-    uv run python .cortex/synapse/scripts/python/run_token_benchmark.py --compare
+    .venv/bin/python .cortex/synapse/scripts/python/run_token_benchmark.py [--days 7]
+    .venv/bin/python .cortex/synapse/scripts/python/run_token_benchmark.py --baseline
+    .venv/bin/python .cortex/synapse/scripts/python/run_token_benchmark.py --compare
 """
 
 from __future__ import annotations

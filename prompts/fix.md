@@ -174,7 +174,7 @@ Route based on change scope:
 2. Verify with `run_quality_gate()`. Parse the result for `preflight_passed` and per-check results.
 3. **CI parity structural checks (mandatory before ✅)**: after a green `run_quality_gate()`, run parity scripts across **all** language subfolders. These checks mirror exactly what the commit pipeline runs in Phase A — **if any script exits non-zero here, fix must be treated as failed, same as commit would.**
 
-   ⛔ **HARD GATE**: You MUST run these scripts as actual subprocesses and check their exit codes. A glob-based Python fallback or manual file inspection is **not** a valid substitute. If the shell does not support the `find … | while read` pattern, use `python3 -c` with `subprocess` or `pathlib.Path.glob` to enumerate and invoke each script individually.
+   ⛔ **HARD GATE**: You MUST run these scripts as actual subprocesses and check their exit codes. A glob-based Python fallback or manual file inspection is **not** a valid substitute. If the shell does not support the `find … | while read` pattern, use `.venv/bin/python -c` with `subprocess` or `pathlib.Path.glob` to enumerate and invoke each script individually. Using any other interpreter is a critical error.
 
    Run in two passes:
 
@@ -184,7 +184,7 @@ Route based on change scope:
    CHANGED_FILES=$(git diff --name-only HEAD && git diff --name-only)
    for script in check_file_sizes.py check_function_lengths.py build.py; do
      find .cortex/synapse/scripts -mindepth 2 -maxdepth 2 -name "$script" | sort | \
-       while read -r s; do FILES="$CHANGED_FILES" python3 "$s" || exit 1; done
+       while read -r s; do FILES="$CHANGED_FILES" .venv/bin/python "$s" || exit 1; done
    done
    ```
 
@@ -192,7 +192,7 @@ Route based on change scope:
 
    ```bash
    find .cortex/synapse/scripts -mindepth 2 -maxdepth 2 -name "check_file_sizes.py" | sort | \
-     while read -r s; do python3 "$s" || exit 1; done
+     while read -r s; do .venv/bin/python "$s" || exit 1; done
    ```
 
    Each script's `_get_files_from_env()` filters by its own extension (`.py`, `.swift`, `.ts`, …). When `FILES` contains no files matching the script's language, it exits 0 immediately — no directory-scan fallback is triggered.

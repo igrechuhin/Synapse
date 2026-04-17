@@ -4,7 +4,7 @@
 Writes docs/api/config-defaults.json with current default values for
 validation, optimization, and structure config. Run from project root:
 
-    uv run python .cortex/synapse/scripts/python/generate_config_reference.py
+    .venv/bin/python .cortex/synapse/scripts/python/generate_config_reference.py
 
 Used to keep docs/api/configuration-reference.md in sync with source.
 """
