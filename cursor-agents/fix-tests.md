@@ -31,37 +31,44 @@ Call `run_quality_gate()`. From the response, extract:
 
 ## Step 3: Fix loop (max 3 iterations)
 
-For each iteration:
+⛔ **BRANCH GATE — choose exactly one path based on `tests_failed` before doing anything else**:
 
-1. If there are failing tests (`tests_failed > 0`):
-   - `Read` the failing test file and the implementation module it tests.
-   - Identify the failure cause from the stack trace:
-     - **Assertion mismatch**: read the implementation, update the assertion to match new behavior (verify new behavior is correct first).
-     - **Governance tests**: fix the source — never weaken the test.
-     - **`.cursor/commands` empty**: do NOT add stub command files — fix the test skip logic instead.
-   - Apply fix at the reported file:line.
-2. If no tests fail but coverage is below threshold:
-   - Treat this as an active tests-target failure (do not mark success).
+**Branch A — `tests_failed > 0` (assertion failures)**:
 
-   ⛔ **HARD GATE**: You MUST attempt at least one concrete test-writing pass before declaring this target blocked or exhausted. Reporting the coverage gap without adding any tests is a violation. Only set `status: "BLOCKED"` after you have attempted uplift and have a concrete `blocker_reason` explaining why further uplift is not feasible in this session.
+- `Read` the failing test file and the implementation module it tests.
+- Identify the failure cause from the stack trace:
+  - **Assertion mismatch**: read the implementation, update the assertion to match new behavior (verify new behavior is correct first).
+  - **Governance tests**: fix the source — never weaken the test.
+  - **`.cursor/commands` empty**: do NOT add stub command files — fix the test skip logic instead.
+- Apply fix at the reported file:line.
+- After each fix (Python modules only): `.venv/bin/python -m py_compile <path>` and `PYTHONPATH=src .venv/bin/python -c "import <module>"`.
+- If a fix attempt introduces NEW test failures vs the state before that attempt: roll back and try a different approach.
+- Call `run_quality_gate()`. Repeat up to 3 iterations.
 
-   - Use coverage output hints to find under-tested modules/paths.
-   - Add deterministic tests for missing branches and edge cases in the highest-impact uncovered code.
-   - Track the coverage-only evidence contract for handoff:
-     - `coverage_only_failure: true`
-     - `coverage_attempt_count`: increment per uplift attempt (max 3)
-     - `coverage_attempt_evidence`: short evidence list of tests added/updated
-     - `coverage_delta`: measured change after each run (new minus prior coverage)
-     - `blocker_reason`: required if uplift is no longer feasible in this run
-3. **If `tests_failed=0` and `success=false` and `coverage=null` with error "Test execution failed"** — this indicates the test subprocess exited non-zero for a reason unrelated to test assertion failures. Investigate before retrying:
-   - Read the full `results.tests.output` for build errors, linker errors, crashes, or signals that appeared after test execution (e.g. `error:`, `ld:`, `Segmentation fault`, `Illegal instruction`, `Killed`, `swift build` failures).
-   - For Swift: check whether some test targets failed to compile while others ran successfully. Look for `error: build had 1 command failures` or similar in the output tail.
-   - Identify the specific target or file causing the non-zero exit and fix the compile/link error there.
-   - If the subprocess exit cause cannot be fixed in this session (e.g. requires external dependency, hardware-specific crash), set `status: "BLOCKED"` with `blocker_reason` describing the exact subprocess failure.
-4. After each fix (Python modules only): `.venv/bin/python -m py_compile <path>` and `PYTHONPATH=src .venv/bin/python -c "import <module>"`. `.venv/bin/python` is mandatory; any other interpreter is a critical error.
-5. If a fix attempt introduces NEW test failures vs the state before that attempt: roll back and try a different approach.
+**Branch B — `tests_failed == 0` and coverage below threshold (coverage-only failure)**:
 
-After fixes: call `run_quality_gate()`. Check `results.tests.success`.
+⛔ **HARD GATE**: You MUST write new tests NOW before calling `run_quality_gate()` again. Do NOT produce a summary and stop. The only valid exits are: (a) coverage reaches threshold, or (b) `status: "BLOCKED"` with a concrete `blocker_reason` after at least one test-writing attempt.
+
+- Parse coverage details: current %, required %, uncovered-module hints from gate output.
+- Use `Grep`/`Read` to find the highest-impact uncovered code paths in modules touched by current work (or core hot paths if no hints are available).
+- **Write the tests** — add focused, deterministic test cases (AAA style) for missing branches and edge cases.
+- Track the evidence contract:
+  - `coverage_only_failure: true`
+  - `coverage_attempt_count`: increment per uplift attempt (max 3)
+  - `coverage_attempt_evidence`: short evidence list of tests added/updated
+  - `coverage_delta`: measured change after each run (new minus prior coverage)
+  - `blocker_reason`: required if uplift is no longer feasible in this run
+- Call `run_quality_gate()` and measure the delta. Repeat up to 3 iterations.
+
+**Branch C — `tests_failed == 0` and `success == false` and `coverage == null`** (subprocess crash/build error):
+
+- Read the full `results.tests.output` for build errors, linker errors, crashes, or signals (e.g. `error:`, `ld:`, `Segmentation fault`, `swift build` failures).
+- For Swift: look for `error: build had 1 command failures` or similar in the output tail.
+- Fix the compile/link error at the reported file:line.
+- If the subprocess exit cause cannot be fixed in this session, set `status: "BLOCKED"` with `blocker_reason`.
+- Call `run_quality_gate()`. Repeat up to 3 iterations.
+
+After all branches: check `results.tests.success`.
 
 **CI parity gap**: if failure involves asyncio, concurrency, or shared global state, also run `uv run pytest tests/ -n auto -x -q --no-header -p no:randomly` to reproduce the CI failure before declaring fixed.
 

@@ -221,31 +221,39 @@ Route based on change scope:
 **source_changed or mixed**:
 
 1. Call `run_quality_gate()` to get test results alongside quality checks.
-2. Locate failing tests: open failing test files and implementation modules using `Grep`/`Read`.
-3. Debug and fix in small, focused steps. Follow AAA pattern:
-   - **Assertion count mismatch**: read the implementation, update the assertion.
-   - **Governance tests**: fix the source — never weaken the test.
-   - **Final-report alignment / `.cursor/commands`**: If the failure is `expected at least one *.md under .cursor/commands` (or similar), the repository policy is **no tracked Cursor command markdown** — alignment checks **skip** when that folder has no `*.md`. Fix the **integration test** (or restore the skip path), not the working tree with new command stubs. See **NO-GO — Cursor command stubs** above.
-4. **Coverage-only failure handling (mandatory)**: if `tests_failed == 0` and quality still fails because coverage is below threshold:
 
-   ⛔ **HARD GATE**: You MUST attempt at least one concrete test-writing pass before declaring this target blocked or exhausted. Writing "coverage is below threshold" and stopping without adding any tests is a violation. Only mark `status: "BLOCKED"` after you have attempted uplift and have a concrete `blocker_reason` explaining why further uplift is not feasible.
+2. ⛔ **BRANCH GATE — choose exactly one path based on `tests_failed`**:
 
-   - Parse gate output for coverage details (current %, required %, and any uncovered-module hints).
-   - Identify the highest-impact uncovered or under-covered modules touched by current work (or core hot paths if no hints are available).
-   - Add focused tests that exercise missing branches/edge cases in those modules (AAA style; deterministic).
-   - Re-run `run_quality_gate()` immediately and keep iterating coverage uplift (max 3 iterations total for this target).
-   - Do **not** stop with a policy-only recommendation while there are obvious missing tests you can add in this run.
-   - Emit a bounded evidence contract in the tests-phase handoff payload:
+   **Branch A — `tests_failed > 0` (assertion failures)**:
+   - Locate failing tests: open failing test files and implementation modules using `Grep`/`Read`.
+   - Debug and fix in small, focused steps. Follow AAA pattern:
+     - **Assertion count mismatch**: read the implementation, update the assertion.
+     - **Governance tests**: fix the source — never weaken the test.
+     - **Final-report alignment / `.cursor/commands`**: If the failure is `expected at least one *.md under .cursor/commands` (or similar), the repository policy is **no tracked Cursor command markdown** — alignment checks **skip** when that folder has no `*.md`. Fix the **integration test** (or restore the skip path), not the working tree with new command stubs. See **NO-GO — Cursor command stubs** above.
+   - Re-run `run_quality_gate()` and repeat (max 3 iterations).
+
+   **Branch B — `tests_failed == 0` and coverage below threshold (coverage-only failure)**:
+
+   ⛔ **HARD GATE**: You MUST write new tests NOW. Do NOT call `run_quality_gate()` again before writing at least one new test. Do NOT produce a "coverage is below threshold" summary and stop. The only valid exits from this branch are: (a) coverage reaches threshold, or (b) status is explicitly `BLOCKED` with a concrete `blocker_reason` after at least one test-writing attempt.
+
+   - Parse coverage details: current %, required %, uncovered-module hints from gate output.
+   - Use `Grep`/`Read` to find the highest-impact uncovered code paths in modules touched by current work.
+   - **Write the tests** — add focused, deterministic test cases (AAA style) for missing branches and edge cases.
+   - Call `run_quality_gate()` and measure the delta.
+   - Repeat (max 3 iterations).
+   - Track the evidence contract:
      - `coverage_only_failure: true`
      - `coverage_attempt_evidence`: concise summary of tests added/updated
      - `coverage_attempt_count`: integer in `[0,3]`
      - `coverage_delta`: numeric delta between last two measured coverage values
      - `blocker_reason`: required only when no further in-session uplift is feasible
-   - The tests target is ✅ only when either:
-     - coverage reaches threshold after at least one uplift attempt (`coverage_attempt_evidence` present), or
-     - status is explicitly `BLOCKED` with a concrete `blocker_reason`.
+   - ✅ only when coverage reaches threshold after at least one uplift attempt, or `BLOCKED` with a concrete reason.
    - Exiting without `coverage_attempt_evidence` or `BLOCKED` classification is a hard failure.
-5. Re-run `run_quality_gate()` after fixes. Repeat (max 3 iterations).
+
+   **Branch C — `tests_failed == 0` and `success == false` and `coverage == null`** (subprocess crash/build error):
+   - Read the full `results.tests.output` for build errors, crashes, or linker failures.
+   - Fix the compile/link error at the reported file:line.
+   - Re-run `run_quality_gate()` and repeat (max 3 iterations).
 
 ⚠️ **CI parity gap — parallel test execution**: The local `run_quality_gate()` may run tests single-threaded, while CI always runs `pytest -n auto` (parallel xdist workers). Tests that only fail under parallel execution (e.g. asyncio cross-loop bugs, shared module-level state, concurrent resource races) will pass locally but fail CI. If a test failure involves asyncio, concurrency, event loops, or shared global state, **also run** `uv run pytest tests/ -n auto -x -q --no-header -p no:randomly` locally to reproduce the CI failure before declaring the target ✅.
 
