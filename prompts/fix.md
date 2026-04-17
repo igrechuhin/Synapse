@@ -236,11 +236,11 @@ Route based on change scope:
 
    ⛔ **HARD GATE**: You MUST write new tests NOW. Do NOT call `run_quality_gate()` again before writing at least one new test. Do NOT produce a "coverage is below threshold" summary and stop. The only valid exits from this branch are: (a) coverage reaches threshold, or (b) status is explicitly `BLOCKED` with a concrete `blocker_reason` after at least one test-writing attempt.
 
-   - Parse coverage details: current %, required %, uncovered-module hints from gate output.
-   - **Identify the top uncovered modules** — pick the 3–5 modules with the most uncovered lines that are touched by current work (or core hot paths if no hints). Do this upfront for the whole batch.
-   - **Write tests for all identified modules before running the gate** — add focused, deterministic test cases (AAA style) covering missing branches and edge cases across all target modules. Do not run `run_quality_gate()` between individual modules; finish the full batch first.
+   - Read `results.tests.coverage_gaps` from the gate output — this is a pre-computed list of the top 10 uncovered files sorted by uncovered lines descending. Each entry has `file`, `coverage`, `lines_total`, `lines_uncovered`. Use this list directly as your test-writing targets — do NOT search the codebase for uncovered modules yourself.
+   - **Pick the top 3–5 files** from `coverage_gaps` (highest `lines_uncovered` first). Read each file to understand its public API and untested paths.
+   - **Write tests for all selected files in one batch** — add focused, deterministic test cases (AAA style) covering missing branches and edge cases across all target files. Do not run `run_quality_gate()` between individual files; finish the full batch first.
    - Call `run_quality_gate()` once for the entire batch and measure the delta.
-   - Repeat with the next batch (max 3 iterations total).
+   - Repeat with the next batch from remaining `coverage_gaps` entries (max 3 iterations total).
    - Track the evidence contract:
      - `coverage_only_failure: true`
      - `coverage_attempt_evidence`: concise summary of tests added/updated
