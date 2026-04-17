@@ -198,7 +198,11 @@ Route based on change scope:
    Each script's `_get_files_from_env()` filters by its own extension (`.py`, `.swift`, `.ts`, …). When `FILES` contains no files matching the script's language, it exits 0 immediately — no directory-scan fallback is triggered.
 
    Treat any non-zero exit as a hard failure — fix the violation and re-run both passes (max 3 iterations).
-4. If checks still fail, parse the result — `results.type_check.output` and `results.quality.output` contain full error output. Fix each error:
+4. If checks still fail, parse the result — `results.type_check.output` and `results.quality.output` contain full error output.
+
+   ⛔ **COVERAGE-ONLY ESCAPE HATCH**: If `tests_failed == 0` AND the **only** remaining failure is coverage below threshold (no type errors, no lint errors, no format errors), **stop the quality loop immediately** and proceed to the tests target. Coverage uplift is the tests target's responsibility — spending quality iterations calling `autofix()` on a coverage gap is a NO-OP and wastes the iteration budget. Record this as `coverage_only_escape: true` in your working notes.
+
+   Fix each error:
    - **Type errors**: fix import, type annotation, or cast at the reported line.
    - **File too long** (> 400 lines): extract helpers or split into a new module.
    - **Function too long** (> 30 lines): extract helper functions.
@@ -223,6 +227,9 @@ Route based on change scope:
    - **Governance tests**: fix the source — never weaken the test.
    - **Final-report alignment / `.cursor/commands`**: If the failure is `expected at least one *.md under .cursor/commands` (or similar), the repository policy is **no tracked Cursor command markdown** — alignment checks **skip** when that folder has no `*.md`. Fix the **integration test** (or restore the skip path), not the working tree with new command stubs. See **NO-GO — Cursor command stubs** above.
 4. **Coverage-only failure handling (mandatory)**: if `tests_failed == 0` and quality still fails because coverage is below threshold:
+
+   ⛔ **HARD GATE**: You MUST attempt at least one concrete test-writing pass before declaring this target blocked or exhausted. Writing "coverage is below threshold" and stopping without adding any tests is a violation. Only mark `status: "BLOCKED"` after you have attempted uplift and have a concrete `blocker_reason` explaining why further uplift is not feasible.
+
    - Parse gate output for coverage details (current %, required %, and any uncovered-module hints).
    - Identify the highest-impact uncovered or under-covered modules touched by current work (or core hot paths if no hints are available).
    - Add focused tests that exercise missing branches/edge cases in those modules (AAA style; deterministic).

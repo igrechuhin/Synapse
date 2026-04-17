@@ -42,6 +42,9 @@ For each iteration:
    - Apply fix at the reported file:line.
 2. If no tests fail but coverage is below threshold:
    - Treat this as an active tests-target failure (do not mark success).
+
+   ⛔ **HARD GATE**: You MUST attempt at least one concrete test-writing pass before declaring this target blocked or exhausted. Reporting the coverage gap without adding any tests is a violation. Only set `status: "BLOCKED"` after you have attempted uplift and have a concrete `blocker_reason` explaining why further uplift is not feasible in this session.
+
    - Use coverage output hints to find under-tested modules/paths.
    - Add deterministic tests for missing branches and edge cases in the highest-impact uncovered code.
    - Track the coverage-only evidence contract for handoff:
