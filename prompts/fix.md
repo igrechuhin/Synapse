@@ -125,6 +125,10 @@ Steps:
 5. Run `fix docs` — complete the full docs workflow below.
 6. Report a combined summary with emoji status: ✅/⚠️/❌ per target (quality/tests/docs), plus the single highest-signal failure snippet if anything is ❌.
 
+⛔ **Coverage-only failures are a TESTS problem, not a QUALITY problem**: If `fix quality` ends with coverage as the only remaining failure, do NOT mark the whole run as blocked. The tests target owns coverage uplift and gets its own fresh 3-iteration budget. Proceed to Step 4 and run the tests target in full; Branch B (Write tests → measure → repeat) is mandatory.
+
+⛔ **Tests target always gets real work on coverage failure**: The tests target iteration count MUST reflect actual test-writing attempts, not just a single `run_quality_gate()` call followed by giving up. If the final report shows `Tests | ⚠️ | 1` with no test files added, that is a pipeline failure — re-enter the tests target and complete Branch B before finalizing.
+
 ## Goals (All Targets)
 
 - Use structured MCP tools instead of ad-hoc shell commands.
@@ -234,21 +238,33 @@ Route based on change scope:
 
    **Branch B — `tests_failed == 0` and coverage below threshold (coverage-only failure)**:
 
-   ⛔ **HARD GATE**: You MUST write new tests NOW. Do NOT call `run_quality_gate()` again before writing at least one new test. Do NOT produce a "coverage is below threshold" summary and stop. The only valid exits from this branch are: (a) coverage reaches threshold, or (b) status is explicitly `BLOCKED` with a concrete `blocker_reason` after at least one test-writing attempt.
+   ⛔ **HARD GATE — no infra detours, write tests this iteration**: Once this branch is entered, infra fixes (submodule hygiene, test runner config, gate parsing) are OUT OF SCOPE. You MUST write new tests in this iteration. Do NOT call `run_quality_gate()` again until you have written at least one new test file. Do NOT produce a "coverage is below threshold" summary and stop. Do NOT pivot to diagnosing the gate itself. The only valid exits from this branch are: (a) coverage reaches threshold, or (b) `status: "BLOCKED"` with a concrete `blocker_reason` after at least one test-writing attempt.
 
-   - Read `results.tests.coverage_gaps` from the gate output — this is a pre-computed list of the top 10 uncovered files sorted by uncovered lines descending. Each entry has `file`, `coverage`, `lines_total`, `lines_uncovered`. Use this list directly as your test-writing targets — do NOT search the codebase for uncovered modules yourself.
-   - **Pick the top 3–5 files** from `coverage_gaps` (highest `lines_uncovered` first). Read each file to understand its public API and untested paths.
-   - **Write tests for all selected files in one batch** — add focused, deterministic test cases (AAA style) covering missing branches and edge cases across all target files. Do not run `run_quality_gate()` between individual files; finish the full batch first.
-   - Call `run_quality_gate()` once for the entire batch and measure the delta.
-   - Repeat with the next batch from remaining `coverage_gaps` entries (max 3 iterations total).
-   - Track the evidence contract:
-     - `coverage_only_failure: true`
-     - `coverage_attempt_evidence`: concise summary of tests added/updated
-     - `coverage_attempt_count`: integer in `[0,3]`
-     - `coverage_delta`: numeric delta between last two measured coverage values
-     - `blocker_reason`: required only when no further in-session uplift is feasible
-   - ✅ only when coverage reaches threshold after at least one uplift attempt, or `BLOCKED` with a concrete reason.
-   - Exiting without `coverage_attempt_evidence` or `BLOCKED` classification is a hard failure.
+   **Step 1 — Pick candidate files from `coverage_gaps`**:
+
+   - Read `results.tests.coverage_gaps` from the gate output — the server always populates this on a coverage failure. Each entry has `file`, `coverage`, `lines_total`, `lines_uncovered`, sorted by `lines_uncovered` descending.
+   - Pick the top 3–5 entries with highest `lines_uncovered`.
+
+   **Step 2 — Write tests** (this is the required action):
+
+   - Read each selected file to understand its public API and untested paths.
+   - Add focused, deterministic test cases (AAA style) covering missing branches and edge cases across all selected files IN ONE BATCH. Do not run `run_quality_gate()` between individual files; finish the full batch first.
+
+   **Step 3 — Verify**:
+
+   - Run the language's native test runner to confirm the new tests compile and pass (e.g. `swift test`, `uv run pytest`). Fix any broken new test before moving on.
+   - Call `run_quality_gate()` once for the entire batch and record the new coverage value and delta vs the prior run.
+   - Repeat Steps 1–3 with the next batch from remaining `coverage_gaps` entries (max 3 iterations total).
+
+   **Step 4 — Evidence contract** (required in your final report):
+
+   - `coverage_only_failure: true`
+   - `coverage_attempt_evidence`: concise list of tests added/updated (file:symbol)
+   - `coverage_attempt_count`: integer in `[0,3]`
+   - `coverage_delta`: numeric delta between last two measured coverage values
+   - `blocker_reason`: required only when no further in-session uplift is feasible
+
+   **Exit**: ✅ only when coverage reaches threshold after at least one uplift attempt, OR `BLOCKED` with a concrete reason. Exiting without `coverage_attempt_evidence` or `BLOCKED` classification is a hard failure — this includes final reports that mention coverage uplift as a "next step" without actually attempting it.
 
    **Branch C — `tests_failed == 0` and `success == false` and `coverage == null`** (subprocess crash/build error):
    - Read the full `results.tests.output` for build errors, crashes, or linker failures.
@@ -337,6 +353,7 @@ After writing the final report for this fix run, invoke the post-prompt self-imp
 - ⏭️ for skipped targets (e.g., markdown-only scope)
 - Changes list: file:line format for each edit
 - If a ⚠️ rules-disabled warning was recorded in step 1 of Pre-Action Checklist, include it as the first item under `## Next`
+- ⛔ **No ⚠️ fallback for Tests target**: Status must be ✅, ❌, or ⏭️. Marking the tests target as "⚠️ verified via external runner" or similar is a reporting violation — if the gate reports coverage below threshold and no new tests were written in the tests target, status is ❌.
 
 ## Success Criteria
 

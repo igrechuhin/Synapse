@@ -47,18 +47,31 @@ Call `run_quality_gate()`. From the response, extract:
 
 **Branch B — `tests_failed == 0` and coverage below threshold (coverage-only failure)**:
 
-⛔ **HARD GATE**: You MUST write new tests NOW before calling `run_quality_gate()` again. Do NOT produce a summary and stop. The only valid exits are: (a) coverage reaches threshold, or (b) `status: "BLOCKED"` with a concrete `blocker_reason` after at least one test-writing attempt.
+⛔ **HARD GATE — no infra detours, write tests this iteration**: Once this branch is entered, infra fixes (submodule hygiene, test runner config, gate parsing) are OUT OF SCOPE. You MUST write new tests in this iteration. Do NOT call `run_quality_gate()` again until you have written at least one new test file. Do NOT pivot to diagnosing the gate itself. The only valid exits are: (a) coverage reaches threshold, or (b) `status: "BLOCKED"` with a concrete `blocker_reason` after at least one test-writing attempt.
 
-- Read `results.tests.coverage_gaps` from the gate output — this is a pre-computed list of the top 10 uncovered files sorted by uncovered lines descending. Each entry has `file`, `coverage`, `lines_total`, `lines_uncovered`. Use this list directly as your test-writing targets — do NOT search the codebase for uncovered modules yourself.
-- **Pick the top 3–5 files** from `coverage_gaps` (highest `lines_uncovered` first). Read each file to understand its public API and untested paths.
-- **Write tests for all selected files in one batch** — add focused, deterministic test cases (AAA style) covering missing branches and edge cases across all target files. Do not run `run_quality_gate()` between individual files; finish the full batch first.
-- Track the evidence contract:
-  - `coverage_only_failure: true`
-  - `coverage_attempt_count`: increment per uplift attempt (max 3)
-  - `coverage_attempt_evidence`: short evidence list of tests added/updated per file
-  - `coverage_delta`: measured change after each batch run (new minus prior coverage)
-  - `blocker_reason`: required if uplift is no longer feasible in this run
-- Call `run_quality_gate()` once for the entire batch and measure the delta. Repeat with the next batch from remaining `coverage_gaps` entries (max 3 iterations total).
+**Step 1 — Pick candidate files from `coverage_gaps`**:
+
+- Read `results.tests.coverage_gaps` from the gate output — the server always populates this on a coverage failure. Each entry has `file`, `coverage`, `lines_total`, `lines_uncovered`, sorted by `lines_uncovered` descending.
+- Pick the top 3–5 entries with highest `lines_uncovered`.
+
+**Step 2 — Write tests** (the required action):
+
+- Read each selected file to understand its public API and untested paths.
+- Add focused, deterministic test cases (AAA style) covering missing branches and edge cases across all selected files IN ONE BATCH. Do not run `run_quality_gate()` between individual files.
+
+**Step 3 — Verify**:
+
+- Run the language's native test runner first (e.g. `swift test`, `uv run pytest`) to confirm new tests compile and pass.
+- Call `run_quality_gate()` once for the batch and record coverage value + delta.
+- Repeat Steps 1–3 with next batch from remaining `coverage_gaps` entries (max 3 iterations total).
+
+**Step 4 — Evidence contract**:
+
+- `coverage_only_failure: true`
+- `coverage_attempt_count`: increment per uplift attempt (max 3)
+- `coverage_attempt_evidence`: short list of tests added/updated (file:symbol)
+- `coverage_delta`: measured change after each batch run (new minus prior coverage)
+- `blocker_reason`: required if uplift is no longer feasible in this run
 
 **Branch C — `tests_failed == 0` and `success == false` and `coverage == null`** (subprocess crash/build error):
 
