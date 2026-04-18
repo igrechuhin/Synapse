@@ -8,7 +8,9 @@ Configuration:
     TEST_TIMEOUT:  Timeout in seconds (default: 600)
     TEST_FILTER:   Filter pattern forwarded to --filter (default: empty)
     TEST_TARGET:   Specific target name forwarded to --target (default: empty)
-    PARALLEL:      Set to 0 to disable parallel test execution (default: 1)
+    PARALLEL:      Set to 0 to disable parallel test execution (default: 0).
+                   Parallel runs have provoked intermittent MLX/SIGBUS failures
+                   in the full TradeWing matrix; keep 1 only when stable.
 """
 
 from __future__ import annotations
@@ -29,9 +31,15 @@ except ImportError:
 TEST_TIMEOUT = get_config_int("TEST_TIMEOUT", 600)
 TEST_FILTER = os.getenv("TEST_FILTER", "")
 TEST_TARGET = os.getenv("TEST_TARGET", "")
-PARALLEL = get_config_int("PARALLEL", 1)
-_SWIFT_TEST_SUMMARY_RE = re.compile(
-    r"Executed\s+(?P<total>\d+)\s+tests?,\s+with\s+(?P<failed>\d+)\s+failures?",
+PARALLEL = get_config_int("PARALLEL", 0)
+_XCTEST_SUMMARY_RE = re.compile(
+    r"Executed\s+(?P<total>\d+)\s+tests?,\s+with\s+"
+    r"(?:(?P<skipped>\d+)\s+tests\s+skipped\s+and\s+)?"
+    r"(?P<failed>\d+)\s+failures",
+    re.IGNORECASE,
+)
+_SWIFT_TESTING_RUN_RE = re.compile(
+    r"Test\s+run\s+with\s+(?P<total>\d+)\s+tests\s+in\s+\d+\s+suites\s+passed",
     re.IGNORECASE,
 )
 
@@ -86,13 +94,16 @@ def parse_swift_test_summary(output: str) -> tuple[int | None, int | None]:
         Tuple of (total_tests, failed_tests). If no summary is found, both values
         are None.
     """
-    match = _SWIFT_TEST_SUMMARY_RE.search(output)
-    if match is None:
-        return None, None
+    matches = list(_XCTEST_SUMMARY_RE.finditer(output))
+    if matches:
+        best = max(matches, key=lambda m: int(m.group("total")))
+        return int(best.group("total")), int(best.group("failed"))
 
-    total_tests = int(match.group("total"))
-    failed_tests = int(match.group("failed"))
-    return total_tests, failed_tests
+    swift_testing = _SWIFT_TESTING_RUN_RE.search(output)
+    if swift_testing is not None:
+        return int(swift_testing.group("total")), 0
+
+    return None, None
 
 
 def did_tests_pass(returncode: int, failed_tests: int | None) -> bool:
