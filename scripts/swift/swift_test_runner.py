@@ -34,8 +34,8 @@ TEST_TARGET = os.getenv("TEST_TARGET", "")
 PARALLEL = get_config_int("PARALLEL", 0)
 _XCTEST_SUMMARY_RE = re.compile(
     r"Executed\s+(?P<total>\d+)\s+tests?,\s+with\s+"
-    r"(?:(?P<skipped>\d+)\s+tests\s+skipped\s+and\s+)?"
-    r"(?P<failed>\d+)\s+failures",
+    + r"(?:(?P<skipped>\d+)\s+tests\s+skipped\s+and\s+)?"
+    + r"(?P<failed>\d+)\s+failures",
     re.IGNORECASE,
 )
 _SWIFT_TESTING_RUN_RE = re.compile(
