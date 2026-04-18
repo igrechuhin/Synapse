@@ -1,9 +1,9 @@
 ---
 name: fix-tests
-description: Use when the /cortex/fix orchestrator needs to fix the tests target (failing tests, coverage). Diagnoses root cause before editing, then fixes test failures (max 3 iterations). Skips when scope is markdown-only. Invoke for target=tests or as step 2 of target=all.
+description: Use when the /cortex/fix orchestrator needs to fix failing tests (assertion failures, subprocess crashes). Coverage uplift is handled by @fix-coverage which runs BEFORE this agent in target=all. Diagnoses root cause before editing, then fixes test failures (max 3 iterations). Skips when scope is markdown-only.
 ---
 
-You are the test fix specialist. Diagnose and fix failing tests.
+You are the test fix specialist. Diagnose and fix failing tests. Coverage uplift is out of scope — @fix-coverage owns that.
 
 ## Step 0: Read handoff context
 
@@ -47,31 +47,12 @@ Call `run_quality_gate()`. From the response, extract:
 
 **Branch B — `tests_failed == 0` and coverage below threshold (coverage-only failure)**:
 
-⛔ **HARD GATE — no infra detours, write tests this iteration**: Once this branch is entered, infra fixes (submodule hygiene, test runner config, gate parsing) are OUT OF SCOPE. You MUST write new tests in this iteration. Do NOT call `run_quality_gate()` again until you have written at least one new test file. Do NOT pivot to diagnosing the gate itself. The only valid exits are: (a) coverage reaches threshold, or (b) `status: "BLOCKED"` with a concrete `blocker_reason` after at least one test-writing attempt.
+⛔ **OUT OF SCOPE** — coverage uplift is owned by `@fix-coverage`, which runs BEFORE this agent in `target=all`. If you reach this branch:
 
-**Step 1 — Pick candidate files from `coverage_gaps`**:
+- If the orchestrator ran `@fix-coverage` and it failed to reach threshold: propagate the prior coverage status via `status: "redirect"`, `blocker_reason: "coverage target did not reach threshold — see @fix-coverage result"`, and stop. Do NOT retry coverage work here.
+- If `target=tests` was invoked directly without running coverage first: return `status: "redirect"`, `blocker_reason: "run /cortex/fix coverage first (or /cortex/fix all)"`, and stop.
 
-- Read `results.tests.coverage_gaps` from the gate output — the server always populates this on a coverage failure. Each entry has `file`, `coverage`, `lines_total`, `lines_uncovered`, sorted by `lines_uncovered` descending.
-- Pick the top 3–5 entries with highest `lines_uncovered`.
-
-**Step 2 — Write tests** (the required action):
-
-- Read each selected file to understand its public API and untested paths.
-- Add focused, deterministic test cases (AAA style) covering missing branches and edge cases across all selected files IN ONE BATCH. Do not run `run_quality_gate()` between individual files.
-
-**Step 3 — Verify**:
-
-- Run the language's native test runner first (e.g. `swift test`, `uv run pytest`) to confirm new tests compile and pass.
-- Call `run_quality_gate()` once for the batch and record coverage value + delta.
-- Repeat Steps 1–3 with next batch from remaining `coverage_gaps` entries (max 3 iterations total).
-
-**Step 4 — Evidence contract**:
-
-- `coverage_only_failure: true`
-- `coverage_attempt_count`: increment per uplift attempt (max 3)
-- `coverage_attempt_evidence`: short list of tests added/updated (file:symbol)
-- `coverage_delta`: measured change after each batch run (new minus prior coverage)
-- `blocker_reason`: required if uplift is no longer feasible in this run
+Writing tests to raise coverage in this agent is a scope violation — use `@fix-coverage` instead.
 
 **Branch C — `tests_failed == 0` and `success == false` and `coverage == null`** (subprocess crash/build error):
 
@@ -98,13 +79,16 @@ Repeat up to 3 iterations. STOP after 3 with unresolvable issue report.
 ## Step 4: Write result
 
 ```json
-{"operation":"write","phase":"tests","pipeline":"fix","status":"passed or failed or skipped or BLOCKED","fix_iterations":<n>,"pass_rate":<value>,"coverage":<value>,"coverage_only_failure":<bool>,"coverage_attempt_count":<int>,"coverage_attempt_evidence":"<string|null>","coverage_delta":<float|null>,"blocker_reason":"<string|null>"}
+{"operation":"write","phase":"tests","pipeline":"fix","status":"passed or failed or skipped or BLOCKED or redirect","fix_iterations":<n>,"pass_rate":<value>,"coverage":<value>,"blocker_reason":"<string|null>"}
 ```
 
-Coverage-only exit policy:
+Status semantics:
 
-- If coverage remains below threshold, success is forbidden unless `coverage_attempt_evidence` is present.
-- If no feasible uplift path exists after bounded attempts, set `status: "BLOCKED"` with explicit `blocker_reason`.
+- `passed` — all tests passing (coverage is the 📈 coverage target's concern, not this one)
+- `failed` — assertion failures remain after 3 iterations
+- `skipped` — markdown-only scope
+- `BLOCKED` — concrete subprocess crash or environmental issue prevents fix
+- `redirect` — coverage-only failure hit in Branch B; orchestrator should route to `@fix-coverage`
 
 Write to `.cortex/.session/current-task.json`, then call `pipeline_handoff()`.
 

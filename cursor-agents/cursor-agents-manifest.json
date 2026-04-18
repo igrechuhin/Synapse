@@ -52,6 +52,12 @@
       "orchestrator": "prompts/fix.md",
       "agents": [
         {
+          "file": "fix-coverage.md",
+          "name": "fix-coverage",
+          "description": "Raise test coverage to threshold by writing tests for top uncovered files from coverage_gaps. Runs FIRST in target=all so new tests get validated by downstream gates. Skips when markdown_only or threshold already met.",
+          "phase": "coverage"
+        },
+        {
           "file": "fix-quality.md",
           "name": "fix-quality",
           "description": "Fix type errors, formatting, linting, and markdown. autofix + run_quality_gate loop (max 3 iterations).",
@@ -60,7 +66,7 @@
         {
           "file": "fix-tests.md",
           "name": "fix-tests",
-          "description": "Diagnose and fix failing tests. PHASE 0 diagnosis required before edits. Skips for markdown-only scope.",
+          "description": "Diagnose and fix failing tests (assertion failures, subprocess crashes). Coverage uplift is handled by fix-coverage. PHASE 0 diagnosis required before edits. Skips for markdown-only scope.",
           "phase": "tests"
         },
         {

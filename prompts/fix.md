@@ -62,12 +62,13 @@ Produce the following note in your response before making edits:
 
 This prompt accepts an optional `target` parameter:
 
+- 📈 **coverage** — Raise test coverage to threshold by writing tests for top uncovered files
 - 🛠️ **quality** — Fix type errors, formatting, linting
-- 🧪 **tests** — Diagnose and fix failing tests
+- 🧪 **tests** — Diagnose and fix failing tests (assertion failures, crashes)
 - 📝 **docs** — Synchronize documentation and memory bank
-- 🔁 **all** — Run all three targets sequentially (see Sequential Execution below)
+- 🔁 **all** — Run all four targets sequentially: coverage → quality → tests → docs (see Sequential Execution below)
 
-⛔ **GATE**: If `target` is **omitted**, you MUST behave as if `target=all` and run all three targets sequentially. Do **not** ask the user which target they need when the command is invoked without parameters.
+⛔ **GATE**: If `target` is **omitted**, you MUST behave as if `target=all` and run all four targets sequentially. Do **not** ask the user which target they need when the command is invoked without parameters.
 
 ## Zero-Arg Tools (all tools work with no arguments)
 
@@ -78,6 +79,17 @@ All MCP tools work when called with empty `{}` arguments. Use these zero-arg too
 - `run_docs_gate()` — run Phase B docs/memory-bank validation (fast; does NOT run tests)
 
 **CRITICAL**: After calling any fix/gate tool (and after completing PHASE 0), you MUST apply all remaining fixes inline. Do NOT produce a list of "required fixes" and stop. Just apply them immediately.
+
+## MCP Availability Precondition (MANDATORY — run first)
+
+⛔ **HARD GATE**: Before classifying scope or diagnosing anything, verify Cortex MCP is available. Read `cortex://health/connection`. If the resource errors with "Server not found", connection refused, or any other failure:
+
+- Do NOT substitute local commands (`swift test`, `pytest`, `rumdl`, parity scripts) for the missing gates.
+- Do NOT mark any target ✅ based on local substitutes.
+- Do NOT invent a "verification iteration" when no gate ran.
+- STOP immediately and emit a ❌ Result with status `BLOCKED_NO_MCP` and this exact failure message: `"Cortex MCP server unavailable — cannot run run_quality_gate / run_docs_gate / autofix. Fix MCP connectivity and re-run /cortex/fix."`
+
+⛔ **Substitute rule**: Local `swift test` measures pass/fail but NOT the coverage gate. SwiftFormat measures formatting but NOT the markdown-lint gate. Parity scripts measure file sizes but NOT test execution. None of these are equivalent to `run_quality_gate()`. Marking Tests ✅ because `swift test` exited 0, or Quality ✅ because `swiftformat --lint` passed, without calling the actual MCP gates, is a reporting violation and must be reported as ❌ with `BLOCKED_NO_MCP`.
 
 ## Change-Scope Assessment (MANDATORY — run before any tool call)
 
@@ -114,20 +126,22 @@ Do **not** use commit-pipeline cleanliness semantics here. In `/cortex/commit`, 
 
 ## Sequential Execution (`all` target)
 
-When `target=all`, run targets **one at a time in order**: quality → tests → docs. Do NOT launch concurrent subagents.
+When `target=all`, run targets **one at a time in order**: coverage → quality → tests → docs. Do NOT launch concurrent subagents.
 
 Steps:
 
 1. Perform Change-Scope Assessment (above) once; reuse the result for all targets.
 2. Run Submodule-First Fix Routing (above) and complete required submodule fixes.
-3. Run `fix quality` — complete the full quality workflow below before proceeding.
-4. Run `fix tests` — complete the full tests workflow below before proceeding.
-5. Run `fix docs` — complete the full docs workflow below.
-6. Report a combined summary with emoji status: ✅/⚠️/❌ per target (quality/tests/docs), plus the single highest-signal failure snippet if anything is ❌.
+3. **Pre-flight gate for coverage**: Call `run_quality_gate()` once. From the response, extract `results.tests.coverage` and `results.tests.coverage_gaps`. Write them to `pipeline_handoff(operation="write", pipeline="fix", phase="coverage", ...)` along with `scope` and `coverage_threshold`. This is the only `run_quality_gate()` call the orchestrator makes — every subagent handles its own subsequent gate calls.
+4. Run `fix coverage` — spawn `@fix-coverage` subagent. It reads `coverage_gaps` from the handoff, writes tests for top uncovered files, verifies with its own `run_quality_gate()` calls. Complete before proceeding.
+5. Run `fix quality` — complete the full quality workflow below before proceeding. (Any tests added in step 4 will be formatted/linted/type-checked here.)
+6. Run `fix tests` — complete the full tests workflow below before proceeding. (Handles assertion failures and subprocess crashes only — coverage uplift already done.)
+7. Run `fix docs` — complete the full docs workflow below.
+8. Report a combined summary with emoji status: ✅/⚠️/❌ per target (coverage/quality/tests/docs), plus the single highest-signal failure snippet if anything is ❌.
 
-⛔ **Coverage-only failures are a TESTS problem, not a QUALITY problem**: If `fix quality` ends with coverage as the only remaining failure, do NOT mark the whole run as blocked. The tests target owns coverage uplift and gets its own fresh 3-iteration budget. Proceed to Step 4 and run the tests target in full; Branch B (Write tests → measure → repeat) is mandatory.
+⛔ **Coverage uplift runs first for a reason**: Any tests the coverage subagent writes in step 4 become part of the codebase and must pass quality/tests/docs gates. Running coverage last would bypass those gates on the new test files. Never reorder.
 
-⛔ **Tests target always gets real work on coverage failure**: The tests target iteration count MUST reflect actual test-writing attempts, not just a single `run_quality_gate()` call followed by giving up. If the final report shows `Tests | ⚠️ | 1` with no test files added, that is a pipeline failure — re-enter the tests target and complete Branch B before finalizing.
+⛔ **Coverage is NOT the tests target's job anymore**: The tests target handles assertion failures and subprocess crashes. Coverage uplift is fully owned by `fix-coverage` in step 4. If the tests target encounters `tests_failed == 0` with coverage below threshold, that means coverage uplift failed or was skipped — do NOT retry coverage work there; report the prior coverage status as-is.
 
 ## Goals (All Targets)
 
@@ -157,6 +171,36 @@ Before making changes, complete PHASE 0, load rules, and classify the change sco
 (b) Reformulated brief: Write a short replacement brief that states the corrected constraint, dependency, or alternative approach the next session should start with.
 
 (c) Directive: State this verbatim: `Do NOT retry in this session.` Open a new session with the reformulated brief instead of repeating the same approach.
+
+### 📈 coverage Target
+
+Use @fix-coverage to handle this target. The subagent owns coverage uplift end-to-end and reads its inputs from `pipeline_handoff(pipeline="fix", phase="coverage")`.
+
+Orchestrator responsibilities before spawning the subagent:
+
+1. Call `run_quality_gate()` once (this is the pre-flight gate from Sequential Execution step 3, reused).
+2. Extract `results.tests.coverage`, `results.tests.coverage_gaps`, and the configured `coverage_threshold`.
+3. Call `pipeline_handoff(operation="write", pipeline="fix", phase="coverage", ...)` with this payload:
+
+   ```json
+   {
+     "scope": "<source_changed | markdown_only | mixed>",
+     "coverage": <float>,
+     "coverage_threshold": <float>,
+     "coverage_gaps": [{"file": "...", "coverage": <f>, "lines_total": <n>, "lines_uncovered": <n>}, ...]
+   }
+   ```
+
+4. Spawn `@fix-coverage`. Do not run coverage uplift work yourself.
+
+After the subagent returns, read its handoff payload (status, iterations, tests_added, final_coverage, coverage_delta, blocker_reason) and fold the result into the orchestrator's final report as the 📈 coverage row.
+
+**Skip conditions** (subagent handles internally and returns `status: "skipped"`):
+
+- `scope == "markdown_only"` — no source changed.
+- `coverage >= coverage_threshold` — threshold already met.
+
+**Fallback when `@fix-coverage` is unavailable**: If the subagent cannot be spawned, run inline by following `.cortex/synapse/cursor-agents/fix-coverage.md` as a prompt — do NOT fall back to the old `fix-tests` Branch B flow (which has been removed).
 
 ### 🛠️ quality Target
 
@@ -238,33 +282,12 @@ Route based on change scope:
 
    **Branch B — `tests_failed == 0` and coverage below threshold (coverage-only failure)**:
 
-   ⛔ **HARD GATE — no infra detours, write tests this iteration**: Once this branch is entered, infra fixes (submodule hygiene, test runner config, gate parsing) are OUT OF SCOPE. You MUST write new tests in this iteration. Do NOT call `run_quality_gate()` again until you have written at least one new test file. Do NOT produce a "coverage is below threshold" summary and stop. Do NOT pivot to diagnosing the gate itself. The only valid exits from this branch are: (a) coverage reaches threshold, or (b) `status: "BLOCKED"` with a concrete `blocker_reason` after at least one test-writing attempt.
+   ⛔ **Out of scope for the tests target** — coverage uplift is fully owned by the 📈 coverage target / `@fix-coverage` subagent, which runs BEFORE this target in `target=all`. If you hit this branch here, it means either:
 
-   **Step 1 — Pick candidate files from `coverage_gaps`**:
+   - `target=tests` was invoked directly without running coverage first — report `status: "redirect"`, `blocker_reason: "run /cortex/fix coverage first (or /cortex/fix all)"`, and stop.
+   - The coverage target ran and failed to reach threshold — propagate the prior coverage status; do NOT retry uplift work here.
 
-   - Read `results.tests.coverage_gaps` from the gate output — the server always populates this on a coverage failure. Each entry has `file`, `coverage`, `lines_total`, `lines_uncovered`, sorted by `lines_uncovered` descending.
-   - Pick the top 3–5 entries with highest `lines_uncovered`.
-
-   **Step 2 — Write tests** (this is the required action):
-
-   - Read each selected file to understand its public API and untested paths.
-   - Add focused, deterministic test cases (AAA style) covering missing branches and edge cases across all selected files IN ONE BATCH. Do not run `run_quality_gate()` between individual files; finish the full batch first.
-
-   **Step 3 — Verify**:
-
-   - Run the language's native test runner to confirm the new tests compile and pass (e.g. `swift test`, `uv run pytest`). Fix any broken new test before moving on.
-   - Call `run_quality_gate()` once for the entire batch and record the new coverage value and delta vs the prior run.
-   - Repeat Steps 1–3 with the next batch from remaining `coverage_gaps` entries (max 3 iterations total).
-
-   **Step 4 — Evidence contract** (required in your final report):
-
-   - `coverage_only_failure: true`
-   - `coverage_attempt_evidence`: concise list of tests added/updated (file:symbol)
-   - `coverage_attempt_count`: integer in `[0,3]`
-   - `coverage_delta`: numeric delta between last two measured coverage values
-   - `blocker_reason`: required only when no further in-session uplift is feasible
-
-   **Exit**: ✅ only when coverage reaches threshold after at least one uplift attempt, OR `BLOCKED` with a concrete reason. Exiting without `coverage_attempt_evidence` or `BLOCKED` classification is a hard failure — this includes final reports that mention coverage uplift as a "next step" without actually attempting it.
+   Do NOT write new tests for coverage in the tests target.
 
    **Branch C — `tests_failed == 0` and `success == false` and `coverage == null`** (subprocess crash/build error):
    - Read the full `results.tests.output` for build errors, crashes, or linker failures.
@@ -333,6 +356,7 @@ After writing the final report for this fix run, invoke the post-prompt self-imp
 
 | Target | Status | Count |
 |--------|--------|-------|
+| Coverage | ✅/❌/⏭️ | <n OR skipped> |
 | Quality | ✅/❌ | <n> |
 | Tests | ✅/❌/⏭️ | <n OR skipped> |
 | Docs | ✅/❌/⏭️ | <n OR skipped> |
@@ -354,11 +378,15 @@ After writing the final report for this fix run, invoke the post-prompt self-imp
 - Changes list: file:line format for each edit
 - If a ⚠️ rules-disabled warning was recorded in step 1 of Pre-Action Checklist, include it as the first item under `## Next`
 - ⛔ **No ⚠️ fallback for Tests target**: Status must be ✅, ❌, or ⏭️. Marking the tests target as "⚠️ verified via external runner" or similar is a reporting violation — if the gate reports coverage below threshold and no new tests were written in the tests target, status is ❌.
+- ⛔ **No green from local substitutes**: Marking Quality ✅ or Tests ✅ without an actual `run_quality_gate()` call is a reporting violation. `swift test` exit 0 is NOT equivalent to Tests ✅ — the coverage gate is part of the Tests success criterion. If MCP was unavailable and the gate never ran, status is ❌ with reason `BLOCKED_NO_MCP`, not ✅ with "1 verification iteration".
 
 ## Success Criteria
 
+Every ✅ requires `run_quality_gate()` or `run_docs_gate()` to have actually run and returned a passing result. No green status is allowed based on local command substitutes.
+
 | Target | Criteria |
 |--------|----------|
-| 🛠️ quality ✅ | Zero type errors, clean formatting/linting, zero markdown errors |
-| 🧪 tests ✅ | All tests passing (skipped when markdown_only) |
-| 📝 docs ✅ | `docs_phase_passed: true`, all sync issues resolved |
+| 📈 coverage ✅ | `@fix-coverage` subagent returned `status: "passed"` with non-empty `tests_added` AND `final_coverage >= coverage_threshold` (measured by `run_quality_gate()`); OR `status: "skipped"` when threshold already met / markdown_only scope |
+| 🛠️ quality ✅ | `run_quality_gate()` returned `preflight_passed: true` — zero type errors, clean formatting/linting, zero markdown errors |
+| 🧪 tests ✅ | `run_quality_gate()` returned `results.tests.success: true` (coverage handled by the 📈 coverage target; skipped when markdown_only) |
+| 📝 docs ✅ | `run_docs_gate()` returned `docs_phase_passed: true`, all sync issues resolved |
