@@ -82,7 +82,25 @@ All MCP tools work when called with empty `{}` arguments. Use these zero-arg too
 
 ## MCP Availability Precondition (MANDATORY — run first)
 
-⛔ **HARD GATE**: Before classifying scope or diagnosing anything, verify Cortex MCP is available. Read `cortex://health/connection`. If the resource errors with "Server not found", connection refused, or any other failure:
+⛔ **HARD GATE**: Before classifying scope or diagnosing anything, verify Cortex MCP tools are callable by invoking `session()` directly as a zero-arg MCP tool.
+
+**How to probe (DIRECT tool call only)**:
+
+- Call `session()` — it's a zero-arg Cortex MCP tool. If the harness presents Cortex tools directly in the tool list (the normal case in Cursor / Claude Code), this works.
+- A successful `session()` call (any non-error return) confirms MCP is live — continue the workflow.
+- A tool-level error return (e.g. session config problem) is NOT an availability failure — continue, diagnose later.
+
+**Do NOT use these probes** — they produce false-negative `BLOCKED_NO_MCP`:
+
+- `fetch_mcp_resource(server="cortex", uri="cortex://health/connection")` — cross-server bridge tool; requires an explicit `cortex` server handle that may not be exposed to every harness even when Cortex tools themselves are live.
+- `call_mcp_tool(server="cortex", toolName="run_quality_gate")` — same cross-server bridge; same false-negative trap.
+- Reading `cortex://health/connection` via `fetch_mcp_resource` or any other cross-server mechanism.
+
+If the Cursor MCP status indicator shows Cortex green but `fetch_mcp_resource(server="cortex", ...)` returns "Server not found", that is NOT a Cortex outage — it means the harness does not expose a cross-server handle by that name. Use the direct tool probe (`session()`) instead.
+
+**Only emit BLOCKED_NO_MCP when the direct probe fails**:
+
+If `session()` itself is unavailable as a callable tool (not listed in the tool inventory, or raises a "tool not found" error):
 
 - Do NOT substitute local commands (`swift test`, `pytest`, `rumdl`, parity scripts) for the missing gates.
 - Do NOT mark any target ✅ based on local substitutes.
