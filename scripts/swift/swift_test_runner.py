@@ -11,6 +11,10 @@ Configuration:
     PARALLEL:      Set to 0 to disable parallel test execution (default: 0).
                    Parallel runs have provoked intermittent MLX/SIGBUS failures
                    in the full TradeWing matrix; keep 1 only when stable.
+    SWIFT_TEST_ALLOW_METAL: Set to 1/true/yes to keep Metal-enabled MLX in the
+                   child process. By default Metal is disabled (``MLX_DISABLE_METAL=1``)
+                   so ``swift test`` is stable under subprocess output capture on
+                   Apple Silicon (intermittent SIGBUS otherwise).
 """
 
 from __future__ import annotations
@@ -126,6 +130,23 @@ def did_tests_pass(returncode: int, failed_tests: int | None) -> bool:
     return failed_tests == 0
 
 
+def _swift_test_child_environment() -> dict[str, str]:
+    """Build environment for the SwiftPM test subprocess.
+
+    Returns:
+        A copy of ``os.environ`` with MLX defaults adjusted for runner stability.
+    """
+    env = os.environ.copy()
+    allow_metal = os.getenv("SWIFT_TEST_ALLOW_METAL", "").strip().lower() in (
+        "1",
+        "true",
+        "yes",
+    )
+    if not allow_metal:
+        env["MLX_DISABLE_METAL"] = "1"
+    return env
+
+
 def main() -> None:
     """Run swift test."""
     project_root = get_project_root(Path(__file__))
@@ -143,6 +164,7 @@ def main() -> None:
             text=False,
             check=False,
             timeout=TEST_TIMEOUT,
+            env=_swift_test_child_environment(),
         )
 
         stdout = decode_process_output(result.stdout)
