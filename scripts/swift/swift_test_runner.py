@@ -5,7 +5,7 @@ Executes `swift test` for the TradeWing project. Any test failure exits
 with code 1, blocking commits and CI.
 
 Configuration:
-    TEST_TIMEOUT:  Timeout in seconds (default: 600)
+    TEST_TIMEOUT:  Timeout in seconds (default: 2700, matching CI quality workflow)
     TEST_FILTER:   Filter pattern forwarded to --filter (default: empty)
     TEST_TARGET:   Specific target name forwarded to --target (default: empty)
     PARALLEL:      Set to 0 to disable parallel test execution (default: 0).
@@ -32,7 +32,7 @@ except ImportError:
     from _utils import get_config_int, get_project_root
 
 
-TEST_TIMEOUT = get_config_int("TEST_TIMEOUT", 600)
+TEST_TIMEOUT = get_config_int("TEST_TIMEOUT", 2700)
 TEST_FILTER = os.getenv("TEST_FILTER", "")
 TEST_TARGET = os.getenv("TEST_TARGET", "")
 PARALLEL = get_config_int("PARALLEL", 0)
