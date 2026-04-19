@@ -82,30 +82,28 @@ All MCP tools work when called with empty `{}` arguments. Use these zero-arg too
 
 ## MCP Availability Precondition (MANDATORY — run first)
 
-⛔ **HARD GATE**: Before classifying scope or diagnosing anything, verify Cortex MCP tools are callable by invoking `session()` directly as a zero-arg MCP tool.
+⛔ **HARD GATE**: Before classifying scope or diagnosing anything, confirm that a Cortex MCP tool is callable from your current session. **Probe by attempting `session()`.** A successful return (any non-error payload) confirms Cortex MCP is reachable — continue the workflow. A tool-level error inside the response (e.g. session-config warning) is NOT an availability failure — continue.
 
-**How to probe (DIRECT tool call only)**:
+**Prompt-level contract**: Cortex MCP exposes a set of tools — `session`, `run_quality_gate`, `run_docs_gate`, `autofix`, `manage_file`, `plan`, `pipeline_handoff`, etc. This prompt assumes you can invoke those tools. **How** you invoke them (direct tool call, cross-server bridge, proxy, custom adapter) is a property of your harness, not of this prompt. Figure that out from your tool inventory before probing.
 
-- Call `session()` — it's a zero-arg Cortex MCP tool. If the harness presents Cortex tools directly in the tool list (the normal case in Cursor / Claude Code), this works.
-- A successful `session()` call (any non-error return) confirms MCP is live — continue the workflow.
-- A tool-level error return (e.g. session config problem) is NOT an availability failure — continue, diagnose later.
+**Do not hardcode server names in your probe**. Cortex MCP servers can be registered under any name the user chose. If your harness needs a server handle to route tool calls, derive it from the current project's MCP configuration or from harness-specific discovery APIs — whatever form that takes in your environment. Never assume a specific name like `cortex` works universally.
 
-**Do NOT use these probes** — they produce false-negative `BLOCKED_NO_MCP`:
+**Only emit `BLOCKED_NO_MCP` when every reasonable invocation path has failed**. This means:
 
-- `fetch_mcp_resource(server="cortex", uri="cortex://health/connection")` — cross-server bridge tool; requires an explicit `cortex` server handle that may not be exposed to every harness even when Cortex tools themselves are live.
-- `call_mcp_tool(server="cortex", toolName="run_quality_gate")` — same cross-server bridge; same false-negative trap.
-- Reading `cortex://health/connection` via `fetch_mcp_resource` or any other cross-server mechanism.
+- You verified `session` is not in your tool inventory under any name or prefix, AND
+- If your harness supports cross-server or proxied calls, you tried the server names present in the user's MCP configuration and none responded, AND
+- No other Cortex tool (`run_quality_gate`, `run_docs_gate`, etc.) responded either.
 
-If the Cursor MCP status indicator shows Cortex green but `fetch_mcp_resource(server="cortex", ...)` returns "Server not found", that is NOT a Cortex outage — it means the harness does not expose a cross-server handle by that name. Use the direct tool probe (`session()`) instead.
+One failed guess is not enough. A single `Server "cortex" not found` error from a cross-server bridge is not proof of outage — it's proof that one specific name doesn't match. Try the names actually registered in the workspace before concluding.
 
-**Only emit BLOCKED_NO_MCP when the direct probe fails**:
-
-If `session()` itself is unavailable as a callable tool (not listed in the tool inventory, or raises a "tool not found" error):
+**When the probe truly fails**:
 
 - Do NOT substitute local commands (`swift test`, `pytest`, `rumdl`, parity scripts) for the missing gates.
 - Do NOT mark any target ✅ based on local substitutes.
 - Do NOT invent a "verification iteration" when no gate ran.
 - STOP immediately and emit a ❌ Result with status `BLOCKED_NO_MCP` and this exact failure message: `"Cortex MCP server unavailable — cannot run run_quality_gate / run_docs_gate / autofix. Fix MCP connectivity and re-run /cortex/fix."`
+
+**Once MCP is confirmed**, use the same invocation path consistently for the rest of the session (e.g. don't mix direct calls with bridged calls — pick one).
 
 ⛔ **Substitute rule**: Local `swift test` measures pass/fail but NOT the coverage gate. SwiftFormat measures formatting but NOT the markdown-lint gate. Parity scripts measure file sizes but NOT test execution. None of these are equivalent to `run_quality_gate()`. Marking Tests ✅ because `swift test` exited 0, or Quality ✅ because `swiftformat --lint` passed, without calling the actual MCP gates, is a reporting violation and must be reported as ❌ with `BLOCKED_NO_MCP`.
 
