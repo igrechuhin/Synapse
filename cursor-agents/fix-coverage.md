@@ -27,6 +27,14 @@ Call `pipeline_handoff(operation="read", pipeline="fix", phase="coverage")`. Loa
 - `coverage` — the prior measured coverage fraction
 - `coverage_threshold` — required fraction (default 0.90)
 
+**If the read returns `Unknown phase 'coverage'`** (older deployed Cortex MCP server): the orchestrator wrote the bootstrap under the fallback location. Read it instead:
+
+```text
+pipeline_handoff(operation="read", pipeline="fix", phase="fix")
+```
+
+Then look for a `coverage_bootstrap` key in the payload — it contains the same `scope` / `coverage_gaps` / `coverage` / `coverage_threshold` fields. When you write your result in Step 5, write to the same fallback location (`phase="fix"`, key `coverage_result`). Do NOT mix locations across read and write.
+
 **If `scope == "markdown_only"`**: write result with `status: "skipped"`, reason `"markdown-only scope"`, and stop.
 
 **If `coverage_gaps` is missing or empty AND `coverage >= coverage_threshold`**: write result with `status: "skipped"`, reason `"coverage already meets threshold"`, and stop. This is the happy path.
@@ -64,11 +72,17 @@ If the gate reports new test failures introduced by this batch, fix them (compil
 
 ## Step 4: Iterate
 
-Repeat Steps 1–3 (max 3 iterations total) until one of:
+⛔ **HARD GATE — you MUST run all 3 iterations** unless one of the explicit exit conditions below triggers. Returning after only 1 or 2 iterations because progress feels slow, the delta is small, or you predict you can't reach the threshold is a violation. Each iteration is one batch of 3–5 files, so 3 iterations covers up to 15 distinct files — that's the budget.
 
-- `new_coverage >= coverage_threshold` → write `status: "passed"` and stop
-- `coverage_delta` is zero or negative for two consecutive iterations → write `status: "BLOCKED"`, `blocker_reason: "coverage uplift stalled — gaps likely require integration/setup work beyond unit tests"`, and stop
-- 3 iterations complete without reaching threshold → write `status: "failed"` with evidence of attempts; DOWNSTREAM `fix-tests` will NOT pick this up (coverage is done); report the remaining gap as a roadmap item
+Repeat Steps 1–3 (max 3 iterations total). Exit conditions, in priority order:
+
+1. **Threshold reached** — `new_coverage >= coverage_threshold` after any iteration → write `status: "passed"` and stop. This is the only success exit.
+2. **Hard stall** — `coverage_delta <= 0.0` for **two consecutive** iterations (i.e. you've added tests twice in a row with no measurable improvement). A small positive delta (e.g. +0.5%) is NOT a stall — it means tests are landing; pick a different batch and continue. Only when the gate says you're literally not moving the needle do you exit early as `status: "BLOCKED"`, `blocker_reason: "coverage uplift stalled — gaps likely require integration/setup work beyond unit tests"`.
+3. **Iteration budget exhausted** — 3 iterations complete without reaching threshold → write `status: "failed"` with `tests_added` listing every test you wrote, `final_coverage`, `coverage_delta` (cumulative since start), and a one-line `blocker_reason` describing what's left.
+
+⛔ **Anti-pattern: do NOT exit after iteration 1 with a positive delta.** That is "1 batch, gave up." If iteration 1 made progress (any positive `coverage_delta`), pick the next 3–5 files from the updated `coverage_gaps` list and run iteration 2. Same for iteration 3. The orchestrator decides whether to stop the wider pipeline based on your final status — your job is to spend the full 3-iteration budget on real test-writing.
+
+⛔ **Anti-pattern: do NOT skip iterations because the gate is slow.** Each `run_quality_gate()` call is ~5–10 minutes for Swift projects. That is the cost. The alternative — declaring failure after 1 batch — wastes the entire `/cortex/fix` invocation.
 
 ## Step 5: Write result
 
@@ -86,6 +100,8 @@ Call `pipeline_handoff(operation="write", pipeline="fix", phase="coverage", ...)
   "blocker_reason": "<string | null>"
 }
 ```
+
+**Fallback location** (only when Step 0 had to use the older-server fallback): write to `pipeline_handoff(operation="write", pipeline="fix", phase="fix", ...)` with the entire payload above nested under a single `coverage_result` key. The orchestrator will look in both places.
 
 ## Report (to orchestrator)
 

@@ -151,13 +151,28 @@ Steps:
 1. Perform Change-Scope Assessment (above) once; reuse the result for all targets.
 2. Run Submodule-First Fix Routing (above) and complete required submodule fixes.
 3. **Pre-flight gate for coverage**: Call `run_quality_gate()` once. From the response, extract `results.tests.coverage` and `results.tests.coverage_gaps`. Write them to `pipeline_handoff(operation="write", pipeline="fix", phase="coverage", ...)` along with `scope` and `coverage_threshold`. This is the only `run_quality_gate()` call the orchestrator makes — every subagent handles its own subsequent gate calls.
-4. Run `fix coverage` — spawn `@fix-coverage` subagent. It reads `coverage_gaps` from the handoff, writes tests for top uncovered files, verifies with its own `run_quality_gate()` calls. Complete before proceeding.
-5. Run `fix quality` — complete the full quality workflow below before proceeding. (Any tests added in step 4 will be formatted/linted/type-checked here.)
-6. Run `fix tests` — complete the full tests workflow below before proceeding. (Handles assertion failures and subprocess crashes only — coverage uplift already done.)
-7. Run `fix docs` — complete the full docs workflow below.
-8. Report a combined summary with emoji status: ✅/⚠️/❌ per target (coverage/quality/tests/docs), plus the single highest-signal failure snippet if anything is ❌.
+
+   **If `pipeline_handoff` rejects `phase="coverage"`** with `Unknown phase 'coverage'` (older deployed Cortex server before the phase allowlist update): the deployed MCP server is out-of-date. Your two options are:
+
+   - **Preferred**: refresh the Cortex MCP install (`uvx cache clean cortex` or restart Cursor's MCP) so the server picks up the current allowlist that includes `coverage`. Re-run `/cortex/fix`.
+   - **Fallback (one shot)**: write the same payload under `phase="fix"` with the entire object nested under a `coverage_bootstrap` key. The `@fix-coverage` subagent will read either location. Do NOT split data across two phases (e.g. `preflight` for input and `fix` for output) — that breaks the contract. Use a single phase for the whole bootstrap and the same one for the result.
+4. Run `fix coverage` — spawn `@fix-coverage` subagent. It reads `coverage_gaps` from the handoff, writes tests for top uncovered files, verifies with its own `run_quality_gate()` calls. **Wait for the subagent to complete and read its handoff result before deciding whether to continue.**
+5. ⛔ **HARD STOP — Coverage gate**: Read the `@fix-coverage` handoff result from `pipeline_handoff(operation="read", pipeline="fix", phase="coverage")`. If that returns `Unknown phase 'coverage'`, fall back to `phase="fix"` and look for the `coverage_result` key (older-server fallback path used by the subagent).
+
+   Proceed to step 6 ONLY if `status` is `passed` or `skipped`. If `status` is `failed` or `BLOCKED`:
+
+   - Do NOT run `fix quality`, `fix tests`, or `fix docs`.
+   - Mark Quality / Tests / Docs as `⏭️` (not ❌) in the final report — they were not attempted because the upstream coverage gate failed.
+   - Report the coverage row as the only ❌ row, with `final_coverage`, `coverage_delta`, `tests_added`, and `blocker_reason` from the subagent.
+   - Emit final report and stop. The user's next action is to either raise the coverage threshold, re-run `/cortex/fix coverage` to attempt more uplift batches, or accept the gap as a tracked roadmap item.
+6. Run `fix quality` — complete the full quality workflow below before proceeding. (Any tests added in step 4 will be formatted/linted/type-checked here.)
+7. Run `fix tests` — complete the full tests workflow below before proceeding. (Handles assertion failures and subprocess crashes only — coverage uplift already done.)
+8. Run `fix docs` — complete the full docs workflow below.
+9. Report a combined summary with emoji status: ✅/❌/⏭️ per target (coverage/quality/tests/docs), plus the single highest-signal failure snippet if anything is ❌.
 
 ⛔ **Coverage uplift runs first for a reason**: Any tests the coverage subagent writes in step 4 become part of the codebase and must pass quality/tests/docs gates. Running coverage last would bypass those gates on the new test files. Never reorder.
+
+⛔ **Coverage failure short-circuits the pipeline**: Quality/Tests gates use the same `run_quality_gate()` that just failed on coverage — they would re-fail with the same error. Burning iterations on Quality (e.g. `Quality | ❌ | 4`) trying to fix what's actually a coverage gap is pure waste. The hard stop in step 5 prevents this.
 
 ⛔ **Coverage is NOT the tests target's job anymore**: The tests target handles assertion failures and subprocess crashes. Coverage uplift is fully owned by `fix-coverage` in step 4. If the tests target encounters `tests_failed == 0` with coverage below threshold, that means coverage uplift failed or was skipped — do NOT retry coverage work there; report the prior coverage status as-is.
 
@@ -375,7 +390,7 @@ After writing the final report for this fix run, invoke the post-prompt self-imp
 | Target | Status | Count |
 |--------|--------|-------|
 | Coverage | ✅/❌/⏭️ | <n OR skipped> |
-| Quality | ✅/❌ | <n> |
+| Quality | ✅/❌/⏭️ | <n OR skipped (⏭️ when Coverage failed and pipeline short-circuited)> |
 | Tests | ✅/❌/⏭️ | <n OR skipped> |
 | Docs | ✅/❌/⏭️ | <n OR skipped> |
 
