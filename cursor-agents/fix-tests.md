@@ -11,6 +11,8 @@ Call `pipeline_handoff(operation="read", pipeline="fix", phase="tests")`. Load `
 
 **If `scope == "markdown_only"`**: write result with `status: "skipped"` and stop — tests cannot be affected by markdown-only changes.
 
+**If you were routed here from `@fix-coverage` with `status: "tests_failing"`**: the pre-flight gate found `tests_failed > 0` before coverage could be measured. Proceed directly to Step 2 — call `run_quality_gate()` to get the current failing test list and fix them via Branch A. Coverage will be re-attempted in the next `/cortex/fix` run once tests are green.
+
 ## Step 1: Diagnose with PHASE 0
 
 **GATE**: Before any file edits, produce a Diagnosis Note:

@@ -24,8 +24,11 @@ Call `pipeline_handoff(operation="read", pipeline="fix", phase="coverage")`. Loa
 
 - `scope` — `source_changed` / `markdown_only` / `mixed`
 - `coverage_gaps` — list of candidate files from the orchestrator's pre-flight `run_quality_gate()` call (each entry has `file`, `coverage`, `lines_total`, `lines_uncovered`, sorted by `lines_uncovered` desc)
-- `coverage` — the prior measured coverage fraction
+- `coverage` — the prior measured coverage fraction (may be `null` if tests failed before coverage collection)
 - `coverage_threshold` — required fraction (default 0.90)
+- `tests_failed` — number of failing tests from the pre-flight gate (may be present; treat missing as 0)
+
+**If `coverage == null` OR `tests_failed > 0` (from bootstrap)**: tests are failing before coverage can be measured — coverage uplift is impossible until the test failure is fixed. Write `status: "tests_failing"` with `blocker_reason: "tests_failed > 0 or coverage null in pre-flight gate — fix failing tests first, then re-run /cortex/fix"` and stop immediately. Do NOT attempt to call `run_quality_gate()` yourself. The orchestrator will route to the Tests target.
 
 **If the read returns `Unknown phase 'coverage'`** (older deployed Cortex MCP server): the orchestrator wrote the bootstrap under the fallback location. Read it instead:
 
@@ -39,7 +42,10 @@ Then look for a `coverage_bootstrap` key in the payload — it contains the same
 
 **If `coverage_gaps` is missing or empty AND `coverage >= coverage_threshold`**: write result with `status: "skipped"`, reason `"coverage already meets threshold"`, and stop. This is the happy path.
 
-**If `coverage_gaps` is missing or empty AND `coverage < coverage_threshold`**: the orchestrator failed to pre-populate gaps. Call `run_quality_gate()` yourself once, read `results.tests.coverage_gaps` from the response, then continue. If the gate also returns no gaps, write `status: "BLOCKED"` with `blocker_reason: "run_quality_gate returned no coverage_gaps despite coverage < threshold"` and stop.
+**If `coverage_gaps` is missing or empty AND `coverage < coverage_threshold`**: the orchestrator failed to pre-populate gaps. Call `run_quality_gate()` yourself once. Check `results.tests.tests_failed` first:
+
+- **If `tests_failed > 0` OR `coverage == null`**: tests are failing before coverage can be measured. Write `status: "tests_failing"` with `blocker_reason: "tests_failed > 0 or coverage null — fix failing tests first, then re-run /cortex/fix"` and stop. The orchestrator will route to the Tests target to fix the failure.
+- **If `tests_failed == 0` and `coverage_gaps` is still empty**: write `status: "BLOCKED"` with `blocker_reason: "run_quality_gate returned no coverage_gaps despite coverage < threshold"` and stop.
 
 ## Step 1: Pick candidate files
 
