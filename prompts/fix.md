@@ -148,13 +148,17 @@ Steps:
 
 1. Perform Change-Scope Assessment (above) once; reuse the result for all targets.
 2. Run Submodule-First Fix Routing (above) and complete required submodule fixes.
-3. **Pre-flight gate for coverage**: Call `run_quality_gate()` once. From the response, extract `results.tests.coverage`, `results.tests.coverage_gaps`, and `results.tests.tests_failed`. Write them to `pipeline_handoff(operation="write", pipeline="fix", phase="coverage", ...)` along with `scope` and `coverage_threshold`. This is the only `run_quality_gate()` call the orchestrator makes — every subagent handles its own subsequent gate calls.
+3. **Pre-flight gate for coverage**: Call `run_quality_gate()` once. Check `preflight_passed` from the response:
+
+   - **If `preflight_passed: true`**: the gate passed — coverage is already at or above threshold. Mark Coverage as `⏭️ skipped (threshold already met)` and proceed directly to step 6 (quality target). Do NOT spawn `@fix-coverage`.
+   - **If `preflight_passed: false`**: extract `results.tests.coverage`, `results.tests.coverage_gaps`, and `results.tests.tests_failed`. Note that a **passing gate trims its result to summary-only** — `results.tests.*` fields are only present when the gate fails. Write the extracted fields to `pipeline_handoff(operation="write", pipeline="fix", phase="coverage", ...)` along with `scope` and `coverage_threshold`. This is the only `run_quality_gate()` call the orchestrator makes — every subagent handles its own subsequent gate calls.
 
    **If `pipeline_handoff` rejects `phase="coverage"`** with `Unknown phase 'coverage'` (older deployed Cortex server before the phase allowlist update): the deployed MCP server is out-of-date. Your two options are:
 
    - **Preferred**: refresh the Cortex MCP install (`uvx cache clean cortex` or restart Cursor's MCP) so the server picks up the current allowlist that includes `coverage`. Re-run `/cortex/fix`.
    - **Fallback (one shot)**: write the same payload under `phase="fix"` with the entire object nested under a `coverage_bootstrap` key. The `@fix-coverage` subagent will read either location. Do NOT split data across two phases (e.g. `preflight` for input and `fix` for output) — that breaks the contract. Use a single phase for the whole bootstrap and the same one for the result.
-4. Run `fix coverage` — spawn `@fix-coverage` subagent. It reads `coverage_gaps` from the handoff, writes tests for top uncovered files, verifies with its own `run_quality_gate()` calls. **Wait for the subagent to complete and read its handoff result before deciding whether to continue.**
+
+4. Run `fix coverage` — spawn `@fix-coverage` subagent (only reached when `preflight_passed: false`). It reads `coverage_gaps` from the handoff, writes tests for top uncovered files, verifies with its own `run_quality_gate()` calls. **Wait for the subagent to complete and read its handoff result before deciding whether to continue.**
 5. ⛔ **HARD STOP — Coverage gate**: Read the `@fix-coverage` handoff result from `pipeline_handoff(operation="read", pipeline="fix", phase="coverage")`. If that returns `Unknown phase 'coverage'`, fall back to `phase="fix"` and look for the `coverage_result` key (older-server fallback path used by the subagent).
 
    **Route based on `@fix-coverage` result status**:

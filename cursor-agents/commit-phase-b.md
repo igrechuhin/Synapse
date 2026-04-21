@@ -9,6 +9,16 @@ You are the documentation and state management specialist. Update the memory ban
 
 Call `pipeline_handoff(operation="read", pipeline="commit", phase="checks")`. Confirm `phases.checks.status == "passed"` before proceeding.
 
+## Resume Check (required)
+
+Before Step 1, call `pipeline_handoff(operation="status", pipeline="commit")`.
+
+- If `phases.docs == "completed"`: skip execution, return prior result.
+- If `phases.docs == "failed"` or `phases.docs == "running"`: continue and re-run this phase.
+- If `phases.docs == "pending"` or missing: continue normally.
+
+Immediately before Step 1, call `pipeline_handoff(operation="mark_running", pipeline="commit", phase="docs")`.
+
 ## Step 1: Load memory bank
 
 Read current state:

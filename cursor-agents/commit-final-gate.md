@@ -9,6 +9,16 @@ You are the final validation gate specialist. Re-verify quality after Phases B a
 
 Call `pipeline_handoff(operation="read", pipeline="commit", phase="validate")`. Confirm `phases.validate.status == "passed"` before proceeding.
 
+## Resume Check (required)
+
+Before Step 1, call `pipeline_handoff(operation="status", pipeline="commit")`.
+
+- If `phases.final-gate == "completed"`: skip execution, return prior result.
+- If `phases.final-gate == "failed"` or `phases.final-gate == "running"`: continue and re-run this phase.
+- If `phases.final-gate == "pending"` or missing: continue normally.
+
+Immediately before Step 1, call `pipeline_handoff(operation="mark_running", pipeline="commit", phase="final-gate")`.
+
 ## Step 1: Classify what changed since Phase A
 
 Use your knowledge of what Phases B and C actually wrote — **not** `git diff HEAD` (that shows the full working tree including pre-existing uncommitted files unrelated to this commit).

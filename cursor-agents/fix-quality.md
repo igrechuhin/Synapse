@@ -9,6 +9,16 @@ You are the quality fix specialist. Fix all quality issues and verify the gate p
 
 Call `pipeline_handoff(operation="read", pipeline="fix", phase="quality")`. Load `scope` (source_changed / markdown_only / mixed) and `rules_loaded`.
 
+## Resume Check (required)
+
+Before Step 1, call `pipeline_handoff(operation="status", pipeline="fix")`.
+
+- If `phases.quality == "completed"`: skip execution, return prior result.
+- If `phases.quality == "failed"` or `phases.quality == "running"`: continue and re-run this phase.
+- If `phases.quality == "pending"` or missing: continue normally.
+
+Immediately before Step 1, call `pipeline_handoff(operation="mark_running", pipeline="fix", phase="quality")`.
+
 ## Step 1: Route by scope
 
 **markdown_only** (no source files changed):

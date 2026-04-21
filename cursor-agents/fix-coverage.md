@@ -28,6 +28,16 @@ Call `pipeline_handoff(operation="read", pipeline="fix", phase="coverage")`. Loa
 - `coverage_threshold` — required fraction (default 0.90)
 - `tests_failed` — number of failing tests from the pre-flight gate (may be present; treat missing as 0)
 
+## Resume Check (required)
+
+Before Step 1, call `pipeline_handoff(operation="status", pipeline="fix")`.
+
+- If `phases.coverage == "completed"`: skip execution, return prior result.
+- If `phases.coverage == "failed"` or `phases.coverage == "running"`: continue and re-run this phase.
+- If `phases.coverage == "pending"` or missing: continue normally.
+
+Immediately before Step 1, call `pipeline_handoff(operation="mark_running", pipeline="fix", phase="coverage")`.
+
 **If `coverage == null` OR `tests_failed > 0` (from bootstrap)**: tests are failing before coverage can be measured — coverage uplift is impossible until the test failure is fixed. Write `status: "tests_failing"` with `blocker_reason: "tests_failed > 0 or coverage null in pre-flight gate — fix failing tests first, then re-run /cortex/fix"` and stop immediately. Do NOT attempt to call `run_quality_gate()` yourself. The orchestrator will route to the Tests target.
 
 **If the read returns `Unknown phase 'coverage'`** (older deployed Cortex MCP server): the orchestrator wrote the bootstrap under the fallback location. Read it instead:

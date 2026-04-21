@@ -9,6 +9,16 @@ You are the documentation fix specialist. Synchronise memory bank files and vali
 
 Call `pipeline_handoff(operation="read", pipeline="fix", phase="docs")`.
 
+## Resume Check (required)
+
+Before Step 1, call `pipeline_handoff(operation="status", pipeline="fix")`.
+
+- If `phases.docs == "completed"`: skip execution, return prior result.
+- If `phases.docs == "failed"` or `phases.docs == "running"`: continue and re-run this phase.
+- If `phases.docs == "pending"` or missing: continue normally.
+
+Immediately before Step 1, call `pipeline_handoff(operation="mark_running", pipeline="fix", phase="docs")`.
+
 ## Step 1: Analyse roadmap and plans
 
 Read current state:

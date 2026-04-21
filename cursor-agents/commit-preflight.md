@@ -9,6 +9,16 @@ You are the commit pipeline preflight specialist. Complete all steps below and r
 
 Call `pipeline_handoff(operation="read", pipeline="commit", phase="preflight")`. If a prior run exists with `status: "circuit_breaker_tripped"` and started < 1 hour ago, note `resumed_from_step` and skip to the last failed step.
 
+## Resume Check (required)
+
+Before Step 1, call `pipeline_handoff(operation="status", pipeline="commit")`.
+
+- If `phases.preflight == "completed"`: skip execution, return prior result.
+- If `phases.preflight == "failed"` or `phases.preflight == "running"`: continue and re-run this phase.
+- If `phases.preflight == "pending"` or missing: continue normally.
+
+Immediately before Step 1, call `pipeline_handoff(operation="mark_running", pipeline="commit", phase="preflight")`.
+
 ## Step 1: MCP health
 
 Call `session()`. If unhealthy, STOP — report `status: "error", error: "MCP unhealthy"`.

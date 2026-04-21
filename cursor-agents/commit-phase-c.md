@@ -9,6 +9,16 @@ You are the pre-commit validation specialist. Validate timestamps, state consist
 
 Call `pipeline_handoff(operation="read", pipeline="commit", phase="docs")`. Confirm `phases.docs.status == "complete"` before proceeding.
 
+## Resume Check (required)
+
+Before Step 1, call `pipeline_handoff(operation="status", pipeline="commit")`.
+
+- If `phases.validate == "completed"`: skip execution, return prior result.
+- If `phases.validate == "failed"` or `phases.validate == "running"`: continue and re-run this phase.
+- If `phases.validate == "pending"` or missing: continue normally.
+
+Immediately before Step 1, call `pipeline_handoff(operation="mark_running", pipeline="commit", phase="validate")`.
+
 ## Step 1: Timestamp validation
 
 Read the `cortex://validation` resource — it runs both timestamp and roadmap_sync checks automatically. If resource access fails, call `validate(check_type="timestamps")` directly.

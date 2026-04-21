@@ -9,6 +9,16 @@ You are the pre-commit checks specialist. Run all quality checks and fix failure
 
 Call `pipeline_handoff(operation="read", pipeline="commit", phase="preflight")`. Confirm `phases.preflight.status == "complete"` before proceeding.
 
+## Resume Check (required)
+
+Before Step 1, call `pipeline_handoff(operation="status", pipeline="commit")`.
+
+- If `phases.checks == "completed"`: skip execution, return prior result.
+- If `phases.checks == "failed"` or `phases.checks == "running"`: continue and re-run this phase.
+- If `phases.checks == "pending"` or missing: continue normally.
+
+Immediately before Step 1, call `pipeline_handoff(operation="mark_running", pipeline="commit", phase="checks")`.
+
 ## Step 1: Run quality gate
 
 Call `run_quality_gate()` — zero-arg tool that runs Phase A end-to-end (format, lint, types, tests, markdown).

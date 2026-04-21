@@ -172,22 +172,22 @@ For non-obvious logic, add `# AI:` comments explaining agent decisions (why, not
 Only run this phase when `phases.code.step_fully_complete == true`. If the implementation phase ended partial, skipped, or failed, do **not** invoke review; proceed directly to Finalize using the partial path.
 
 1. Read the implementation result from `pipeline_handoff(operation="read", pipeline="implement")`.
-2. Launch the `code-reviewer` subagent for the implemented scope. Provide:
-   - selected step title
-   - plan file path
-   - files changed in `phases.code.files_changed`
-   - success criteria from the plan
-   - instruction to use the `.cortex/synapse/prompts/review.md` contract when classifying findings
+2. Perform the review **inline** — do NOT delegate to a subagent. Read each file in `phases.code.files_changed` and assess:
+   - **Correctness**: logic errors, wrong return values, off-by-one, unhandled edge cases
+   - **Completeness**: every success criterion from the plan is satisfied; no TODOs left
+   - **Security**: no hardcoded secrets, no injection risks, no unvalidated external input
+   - **Type safety**: all public functions have return-type annotations; no suppressed type errors
+   - **Test coverage**: new public functions have at least one test; critical paths are tested
+   Optional style suggestions (naming, comments) do **not** count as actionable gaps.
 3. Normalize the review result into exactly one of:
    - `no_gaps` — review found no correctness/completeness/security gaps; optional improvement suggestions alone do **not** reopen the plan
    - `gaps_found` — review found one or more actionable implementation gaps that must be fixed before completion
-   - `review_blocked` — review could not complete because the subagent/tooling failed or returned malformed output; treat as blocked, **not** as `gaps_found`
 4. For `gaps_found`, build a bounded de-duplicated list of actionable gaps with stable wording. Record concise evidence (file paths, symbols, or issue IDs) for each gap.
 5. Write result:
 
 ```json
 // Write to: .cortex/.session/current-task.json
-{"operation":"write","phase":"review","pipeline":"implement","status":"complete","review_outcome":"no_gaps or gaps_found or review_blocked","gaps":["<deduplicated actionable gap>", "..."],"evidence":["<path or symbol>", "..."],"review_summary":"<compact summary>"}
+{"operation":"write","phase":"review","pipeline":"implement","status":"complete","review_outcome":"no_gaps or gaps_found","gaps":["<deduplicated actionable gap>", "..."],"evidence":["<path or symbol>", "..."],"review_summary":"<compact summary>"}
 ```
 
 Then call `pipeline_handoff()`.
@@ -196,7 +196,6 @@ Then call `pipeline_handoff()`.
 
 - `review_outcome == "no_gaps"` → proceed to Finalize complete path
 - `review_outcome == "gaps_found"` → proceed to Finalize reopened-plan path
-- `review_outcome == "review_blocked"` → STOP completion flow, keep the plan open, and report the blocker
 
 ---
 
@@ -248,13 +247,11 @@ This single call atomically:
    ```
 
    This log is read by the Selection phase in the next session to avoid repeating completed subtasks. Log only concrete implementation work; do not log metadata-only churn.
-7. If `review_outcome == "review_blocked"`, do not mark the plan complete and do not fabricate gaps. Exit with a blocked summary instead.
-
 Write result:
 
 ```json
 // Write to: .cortex/.session/current-task.json
-{"operation":"write","phase":"finalize","pipeline":"implement","status":"complete","memory_bank_updated":true,"roadmap_entry":"removed or kept","plan_file":"archived or updated or none","completion_outcome":"completed_no_gaps or reopened_with_gaps or blocked_review"}
+{"operation":"write","phase":"finalize","pipeline":"implement","status":"complete","memory_bank_updated":true,"roadmap_entry":"removed or kept","plan_file":"archived or updated or none","completion_outcome":"completed_no_gaps or reopened_with_gaps"}
 ```
 
 Then call `pipeline_handoff()`. **GATE**: check `pipeline_state.phases.finalize.status == "complete"` from the response.
@@ -327,7 +324,6 @@ This restores the full record of completed phases — continue from the first ph
 - **Selection fails (MCP unhealthy)**: STOP immediately
 - **Selection returns roadmap_complete**: Report "Roadmap complete" and STOP
 - **Quality gate fails after 3 iterations**: STOP, report unresolvable issues
-- **Review Gate returns `review_blocked`**: STOP completion, keep the plan open, report the blocker, and do not convert it into `gaps_found`
 - **Finalize fails (memory bank crash)**: STOP, report with FIX-ASAP priority
 - **Quality gate unavailable (doc-only sessions)**: Record "Quality gate skipped" and proceed to Finalize
 

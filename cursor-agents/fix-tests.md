@@ -9,6 +9,16 @@ You are the test fix specialist. Diagnose and fix failing tests. Coverage uplift
 
 Call `pipeline_handoff(operation="read", pipeline="fix", phase="tests")`. Load `scope`.
 
+## Resume Check (required)
+
+Before Step 1, call `pipeline_handoff(operation="status", pipeline="fix")`.
+
+- If `phases.tests == "completed"`: skip execution, return prior result.
+- If `phases.tests == "failed"` or `phases.tests == "running"`: continue and re-run this phase.
+- If `phases.tests == "pending"` or missing: continue normally.
+
+Immediately before Step 1, call `pipeline_handoff(operation="mark_running", pipeline="fix", phase="tests")`.
+
 **If `scope == "markdown_only"`**: write result with `status: "skipped"` and stop — tests cannot be affected by markdown-only changes.
 
 **If you were routed here from `@fix-coverage` with `status: "tests_failing"`**: the pre-flight gate found `tests_failed > 0` before coverage could be measured. Proceed directly to Step 2 — call `run_quality_gate()` to get the current failing test list and fix them via Branch A. Coverage will be re-attempted in the next `/cortex/fix` run once tests are green.
