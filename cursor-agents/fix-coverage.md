@@ -55,11 +55,17 @@ Then look for a `coverage_bootstrap` key in the payload — it contains the same
 **If `coverage_gaps` is missing or empty AND `coverage < coverage_threshold`**: the orchestrator failed to pre-populate gaps. Call `run_quality_gate()` yourself once. Check `results.tests.tests_failed` first:
 
 - **If `tests_failed > 0` OR `coverage == null`**: tests are failing before coverage can be measured. Write `status: "tests_failing"` with `blocker_reason: "tests_failed > 0 or coverage null — fix failing tests first, then re-run /cortex/fix"` and stop. The orchestrator will route to the Tests target to fix the failure.
-- **If `tests_failed == 0` and `coverage_gaps` is still empty**: write `status: "BLOCKED"` with `blocker_reason: "run_quality_gate returned no coverage_gaps despite coverage < threshold"` and stop.
+- **If `tests_failed == 0` and `coverage_gaps` is still empty**: the server cannot produce per-file gap data (older Cortex or llvm-cov fallback path). **Do NOT block.** Instead, derive candidate files yourself:
+  1. List source files: `find Sources/ -name "*.swift" -not -path "*/Tests/*"` (adjust root for the project layout).
+  2. List existing test files: `find Tests/ -name "*Tests.swift"`.
+  3. Build a rough gap list by identifying source files whose names do not have a corresponding `*Tests.swift` counterpart, or source modules with very few test lines (small test file relative to source file).
+  4. Use the top 3–5 highest-line-count source files without adequate test coverage as your `coverage_gaps` substitutes.
+  5. Proceed to Step 1 with this derived list. Record `coverage_gaps_source: "derived"` in your working notes.
+  If file listing also fails (no source directory found), then write `status: "BLOCKED"` with `blocker_reason: "no coverage_gaps from gate and cannot locate source files — check project layout"` and stop.
 
 ## Step 1: Pick candidate files
 
-From the `coverage_gaps` list, pick the top 3–5 entries by `lines_uncovered` descending. These are your test-writing targets for this iteration. Do not substitute with files you find by other means — the gate's own per-file breakdown is authoritative.
+From the `coverage_gaps` list (or derived list from Step 0 fallback), pick the top 3–5 entries by `lines_uncovered` descending. When `coverage_gaps` came from the gate, that breakdown is authoritative. When using the derived list, pick the largest untested source files.
 
 Record the starting coverage fraction for delta tracking.
 
