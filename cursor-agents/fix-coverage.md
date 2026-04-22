@@ -74,6 +74,16 @@ Record the starting coverage fraction for delta tracking.
 For each selected file:
 
 1. `Read` the source file to understand its public API and untested branches/edge cases.
+   Then classify the uncovered lines:
+   - **Reachable via public/internal API**: the uncovered branch can be triggered by calling
+     the existing public entry point with different inputs. Write a test that passes those inputs.
+   - **Trapped in private/unexported pure logic**: the uncovered function is `private` (Swift),
+     `__`-prefixed (Python), or unexported (Go) and contains no I/O or side effects.
+     **You MUST widen it to `internal` (Swift) or single-`_` prefix (Python) before writing
+     any test.** Do NOT write another entry-point test that can only reach the outer validation
+     layer — those lines are already covered. Go directly to the uncovered helper.
+   - **Trapped in private I/O-dependent code**: the uncovered function calls real services,
+     databases, or network. Do NOT widen it. Skip to the next file in `coverage_gaps`.
 2. Locate or create the matching test file in the project's test tree (e.g. `Tests/<Module>/<File>Tests.swift` for Swift, `tests/<module>/test_<file>.py` for Python).
 3. ⛔ **Import pattern**: Before writing any new test file, `Read` one existing test file in the **same test target directory** to copy its exact `import` statements and module access pattern. Do NOT guess imports — missing a module import is a compile error that breaks the entire test target and nullifies coverage measurement.
 4. **Access visibility**: If uncovered lines are in functions or methods restricted to the narrowest access level for the language (`private`, `__`-prefixed, unexported) and they contain pure logic only (no I/O, no network, no database, no side effects), widen their access to the level the test framework can reach. Only for pure transforms, validation, and math — never for anything touching external services or mutable shared state. Record each source change in your notes.
