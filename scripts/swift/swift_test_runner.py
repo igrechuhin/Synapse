@@ -98,16 +98,42 @@ def parse_swift_test_summary(output: str) -> tuple[int | None, int | None]:
         Tuple of (total_tests, failed_tests). If no summary is found, both values
         are None.
     """
+    # Prefer the Swift Testing aggregate line when present. Hybrid SwiftPM runs
+    # also emit per-suite XCTest "Executed N tests" lines; taking max(N) is not
+    # a meaningful total and can dwarf the real Swift Testing count.
+    swift_testing = _SWIFT_TESTING_RUN_RE.search(output)
+    if swift_testing is not None:
+        return int(swift_testing.group("total")), 0
+
     matches = list(_XCTEST_SUMMARY_RE.finditer(output))
     if matches:
         best = max(matches, key=lambda m: int(m.group("total")))
         return int(best.group("total")), int(best.group("failed"))
 
-    swift_testing = _SWIFT_TESTING_RUN_RE.search(output)
-    if swift_testing is not None:
-        return int(swift_testing.group("total")), 0
-
     return None, None
+
+
+def _transient_swiftpm_failure(
+    returncode: int, failed_tests: int | None, output: str
+) -> bool:
+    """Detect SwiftPM post-test crashes after a successful Swift Testing summary.
+
+    SwiftPM occasionally continues with an incremental build (for example,
+    resource bundle work) after tests finish and the child exits with SIGBUS
+    (negative return code on Unix) or ``unexpected signal`` in logs, even when
+    the Swift Testing summary already reported success.
+    """
+    if failed_tests is not None and failed_tests > 0:
+        return False
+    if _SWIFT_TESTING_RUN_RE.search(output) is None:
+        return False
+    if returncode == 0:
+        return False
+    lowered = output.lower()
+    if "unexpected signal" in lowered:
+        return True
+    # Negative exit status: child terminated by signal (e.g. SIGBUS == -10).
+    return returncode < 0
 
 
 def did_tests_pass(returncode: int, failed_tests: int | None) -> bool:
@@ -156,37 +182,50 @@ def main() -> None:
     print(f"Running: {' '.join(cmd)}")
     print(f"Timeout: {TEST_TIMEOUT}s")
 
+    max_attempts = 3
+
     try:
-        result = subprocess.run(
-            cmd,
-            cwd=project_root,
-            capture_output=True,
-            text=False,
-            check=False,
-            timeout=TEST_TIMEOUT,
-            env=_swift_test_child_environment(),
-        )
+        for attempt in range(1, max_attempts + 1):
+            result = subprocess.run(
+                cmd,
+                cwd=project_root,
+                capture_output=True,
+                text=False,
+                check=False,
+                timeout=TEST_TIMEOUT,
+                env=_swift_test_child_environment(),
+            )
 
-        stdout = decode_process_output(result.stdout)
-        stderr = decode_process_output(result.stderr)
+            stdout = decode_process_output(result.stdout)
+            stderr = decode_process_output(result.stderr)
 
-        if stdout:
-            print(stdout)
-        if stderr:
-            print(stderr, file=sys.stderr)
+            if stdout:
+                print(stdout)
+            if stderr:
+                print(stderr, file=sys.stderr)
 
-        combined_output = "\n".join(part for part in [stdout, stderr] if part)
-        total_tests, failed_tests = parse_swift_test_summary(combined_output)
-        normalized_success = did_tests_pass(result.returncode, failed_tests)
+            combined_output = "\n".join(part for part in [stdout, stderr] if part)
+            total_tests, failed_tests = parse_swift_test_summary(combined_output)
+            normalized_success = did_tests_pass(result.returncode, failed_tests)
 
-        if not normalized_success:
+            if normalized_success:
+                if total_tests is not None and failed_tests is not None:
+                    print(f"Test summary: total={total_tests}, failed={failed_tests}")
+                print("✅ All tests passed")
+                sys.exit(0)
+
+            if attempt < max_attempts and _transient_swiftpm_failure(
+                result.returncode, failed_tests, combined_output
+            ):
+                print(
+                    f"⚠️ Transient SwiftPM test runner failure "
+                    f"(attempt {attempt}/{max_attempts}); retrying...",
+                    file=sys.stderr,
+                )
+                continue
+
             print("❌ Tests failed.", file=sys.stderr)
             sys.exit(1)
-
-        if total_tests is not None and failed_tests is not None:
-            print(f"Test summary: total={total_tests}, failed={failed_tests}")
-        print("✅ All tests passed")
-        sys.exit(0)
 
     except subprocess.TimeoutExpired:
         print(f"❌ Tests timed out after {TEST_TIMEOUT}s.", file=sys.stderr)
