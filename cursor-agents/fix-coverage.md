@@ -76,7 +76,8 @@ For each selected file:
 1. `Read` the source file to understand its public API and untested branches/edge cases.
 2. Locate or create the matching test file in the project's test tree (e.g. `Tests/<Module>/<File>Tests.swift` for Swift, `tests/<module>/test_<file>.py` for Python).
 3. ⛔ **Import pattern**: Before writing any new test file, `Read` one existing test file in the **same test target directory** to copy its exact `import` statements and module access pattern. Do NOT guess imports — missing a module import is a compile error that breaks the entire test target and nullifies coverage measurement.
-4. Add focused, deterministic test cases following the project's AAA pattern. Cover the specific missing branches visible in the source — do not stub or skip.
+4. **Access visibility**: If uncovered lines are in functions or methods restricted to the narrowest access level for the language (`private`, `__`-prefixed, unexported) and they contain pure logic only (no I/O, no network, no database, no side effects), widen their access to the level the test framework can reach. Only for pure transforms, validation, and math — never for anything touching external services or mutable shared state. Record each source change in your notes.
+5. Add focused, deterministic test cases following the project's AAA pattern. Cover the specific missing branches visible in the source — do not stub or skip.
 
 ⛔ **Batch rule**: Write tests for ALL selected files before running the gate. Do NOT call `run_quality_gate()` between files. Running the gate is expensive (full language test suite); batching is the whole point of this agent.
 
