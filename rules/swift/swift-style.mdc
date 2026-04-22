@@ -14,6 +14,8 @@ alwaysApply: false
 - **`private` and `fileprivate`** — use for implementation details — MANDATORY
 - **`open`** — only when subclassing/overriding is explicitly required — MANDATORY
 
+**Exception — coverage-driven access widening**: When a `private` function contains only pure logic (no I/O, no network, no database, no side effects) and cannot be reached from tests via the public API with sufficient branch coverage, you MAY remove the `private` keyword (making it implicitly `internal`) so `@testable import` can access it from tests. Do NOT add an explicit `internal` keyword — just remove `private`. Applies only to pure transforms, validation math, and data-mapping helpers. Never widen I/O-dependent or side-effectful functions.
+
 ## Self Reference (ENFORCED)
 
 - **Avoid explicit `self.`** unless required by the compiler (closures, init parameter shadowing) — MANDATORY

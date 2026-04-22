@@ -73,7 +73,7 @@ For each picked file, **before writing any test**:
 2. If a test file exists, `Read` the source file and list every `private` / `__`-prefixed / unexported function that:
    - Contains pure logic only (no I/O, no network, no database, no side effects), AND
    - Has NOT yet been widened to `internal` / single-`_` prefix.
-3. If any such functions exist — **widen them first, in the source file, before writing any new test**. This is mandatory, not optional. Record each widened function name.
+3. If any such functions exist — **widen them first, in the source file, before writing any new test**. This is mandatory, not optional. The Swift style rule explicitly permits this: remove the `private` keyword (do NOT add `internal` explicitly — just remove `private`) per the "Exception — coverage-driven access widening" in `swift-style.mdc`. Record each widened function name.
 4. Only after exhausting all private pure functions (either widening them or confirming they are I/O-dependent) should you write additional entry-point tests.
 
 ⛔ **Anti-pattern — do NOT add another entry-point test for a file that already has tests until all its private pure-logic functions have been widened.** Writing `test_execute_throwsWhen…` variants on a file with 5 existing test files is a coverage dead end. The outer validation layer is already covered; go deeper.
