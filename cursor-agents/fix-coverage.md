@@ -75,7 +75,8 @@ For each selected file:
 
 1. `Read` the source file to understand its public API and untested branches/edge cases.
 2. Locate or create the matching test file in the project's test tree (e.g. `Tests/<Module>/<File>Tests.swift` for Swift, `tests/<module>/test_<file>.py` for Python).
-3. Add focused, deterministic test cases following the project's AAA pattern. Cover the specific missing branches visible in the source — do not stub or skip.
+3. ⛔ **Import pattern**: Before writing any new test file, `Read` one existing test file in the **same test target directory** to copy its exact `import` statements and module access pattern. Do NOT guess imports — missing a module import is a compile error that breaks the entire test target and nullifies coverage measurement.
+4. Add focused, deterministic test cases following the project's AAA pattern. Cover the specific missing branches visible in the source — do not stub or skip.
 
 ⛔ **Batch rule**: Write tests for ALL selected files before running the gate. Do NOT call `run_quality_gate()` between files. Running the gate is expensive (full language test suite); batching is the whole point of this agent.
 
@@ -83,12 +84,15 @@ For each selected file:
 
 ## Step 3: Verify the batch
 
-1. Run the native test runner quickly to confirm the new tests compile and pass (Swift: `swift test`, Python: `uv run pytest <new test files>`). Fix any compile/assertion error before proceeding. Do NOT ship a broken test.
-2. Call `run_quality_gate()` once for the entire batch.
-3. Record:
+1. **Fast compile check before gate** (Swift only): run `swift build --target <TestTargetName>` for each affected test target. This takes ~5–30 seconds and catches missing imports, undefined symbols, and type mismatches before spending 5–10 minutes on a full gate run. Fix any compile error immediately. If you cannot fix a compile error, roll back that test file — do NOT proceed to `run_quality_gate()` with a broken test target.
+2. Run the native test runner quickly to confirm the new tests compile and pass (Swift: `swift test`, Python: `uv run pytest <new test files>`). Fix any compile/assertion error before proceeding. Do NOT ship a broken test.
+3. Call `run_quality_gate()` once for the entire batch.
+4. Record:
    - `new_coverage` = `results.tests.coverage`
    - `coverage_delta` = `new_coverage - prior_coverage`
    - updated `coverage_gaps` list from the response
+
+If `new_coverage == null` (gate returned null coverage), that means a compile error or test crash made the suite non-runnable. Roll back **all** test files written in this iteration and try a different candidate set — do NOT record a null delta and continue.
 
 If the gate reports new test failures introduced by this batch, fix them (compile errors, wrong assertions) before concluding this iteration. If you cannot fix them cleanly, roll back this batch's test files and try a different candidate set.
 
@@ -96,7 +100,7 @@ If the gate reports new test failures introduced by this batch, fix them (compil
 
 ⛔ **HARD GATE — you MUST run all 3 iterations** unless one of the explicit exit conditions below triggers. Returning after only 1 or 2 iterations because progress feels slow, the delta is small, or you predict you can't reach the threshold is a violation. Each iteration is one batch of 3–5 files, so 3 iterations covers up to 15 distinct files — that's the budget.
 
-Repeat Steps 1–3 (max 3 iterations total). Exit conditions, in priority order:
+Repeat Steps 1–3 (write batch → compile check → gate) max 3 times total. Exit conditions, in priority order:
 
 1. **Threshold reached** — `new_coverage >= coverage_threshold` after any iteration → write `status: "passed"` and stop. This is the only success exit.
 2. **Hard stall** — `coverage_delta <= 0.0` for **two consecutive** iterations (i.e. you've added tests twice in a row with no measurable improvement). A small positive delta (e.g. +0.5%) is NOT a stall — it means tests are landing; pick a different batch and continue. Only when the gate says you're literally not moving the needle do you exit early as `status: "BLOCKED"`, `blocker_reason: "coverage uplift stalled — gaps likely require integration/setup work beyond unit tests"`.

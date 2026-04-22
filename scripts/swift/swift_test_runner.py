@@ -218,8 +218,7 @@ def main() -> None:
                 result.returncode, failed_tests, combined_output
             ):
                 print(
-                    f"⚠️ Transient SwiftPM test runner failure "
-                    f"(attempt {attempt}/{max_attempts}); retrying...",
+                    f"⚠️ Transient SwiftPM test runner failure (attempt {attempt}/{max_attempts}); retrying...",
                     file=sys.stderr,
                 )
                 continue
