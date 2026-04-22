@@ -63,9 +63,20 @@ Then look for a `coverage_bootstrap` key in the payload — it contains the same
   5. Proceed to Step 1 with this derived list. Record `coverage_gaps_source: "derived"` in your working notes.
   If file listing also fails (no source directory found), then write `status: "BLOCKED"` with `blocker_reason: "no coverage_gaps from gate and cannot locate source files — check project layout"` and stop.
 
-## Step 1: Pick candidate files
+## Step 1: Pick candidate files and audit existing test coverage
 
-From the `coverage_gaps` list (or derived list from Step 0 fallback), pick the top 3–5 entries by `lines_uncovered` descending. When `coverage_gaps` came from the gate, that breakdown is authoritative. When using the derived list, pick the largest untested source files.
+From the `coverage_gaps` list (or derived list from Step 0 fallback), pick the top 3–5 entries by `lines_uncovered` descending.
+
+For each picked file, **before writing any test**:
+
+1. Check whether a test file already exists for it (e.g. `*Tests.swift`, `test_*.py`).
+2. If a test file exists, `Read` the source file and list every `private` / `__`-prefixed / unexported function that:
+   - Contains pure logic only (no I/O, no network, no database, no side effects), AND
+   - Has NOT yet been widened to `internal` / single-`_` prefix.
+3. If any such functions exist — **widen them first, in the source file, before writing any new test**. This is mandatory, not optional. Record each widened function name.
+4. Only after exhausting all private pure functions (either widening them or confirming they are I/O-dependent) should you write additional entry-point tests.
+
+⛔ **Anti-pattern — do NOT add another entry-point test for a file that already has tests until all its private pure-logic functions have been widened.** Writing `test_execute_throwsWhen…` variants on a file with 5 existing test files is a coverage dead end. The outer validation layer is already covered; go deeper.
 
 Record the starting coverage fraction for delta tracking.
 
@@ -73,17 +84,7 @@ Record the starting coverage fraction for delta tracking.
 
 For each selected file:
 
-1. `Read` the source file to understand its public API and untested branches/edge cases.
-   Then classify the uncovered lines:
-   - **Reachable via public/internal API**: the uncovered branch can be triggered by calling
-     the existing public entry point with different inputs. Write a test that passes those inputs.
-   - **Trapped in private/unexported pure logic**: the uncovered function is `private` (Swift),
-     `__`-prefixed (Python), or unexported (Go) and contains no I/O or side effects.
-     **You MUST widen it to `internal` (Swift) or single-`_` prefix (Python) before writing
-     any test.** Do NOT write another entry-point test that can only reach the outer validation
-     layer — those lines are already covered. Go directly to the uncovered helper.
-   - **Trapped in private I/O-dependent code**: the uncovered function calls real services,
-     databases, or network. Do NOT widen it. Skip to the next file in `coverage_gaps`.
+1. `Read` the source file. Write tests that exercise the specific uncovered branches — now including the widened helper functions from Step 1.
 2. Locate or create the matching test file in the project's test tree (e.g. `Tests/<Module>/<File>Tests.swift` for Swift, `tests/<module>/test_<file>.py` for Python).
 3. ⛔ **Import pattern**: Before writing any new test file, `Read` one existing test file in the **same test target directory** to copy its exact `import` statements and module access pattern. Do NOT guess imports — missing a module import is a compile error that breaks the entire test target and nullifies coverage measurement.
 4. **Access visibility**: If uncovered lines are in functions or methods restricted to the narrowest access level for the language (`private`, `__`-prefixed, unexported) and they contain pure logic only (no I/O, no network, no database, no side effects), widen their access to the level the test framework can reach. Only for pure transforms, validation, and math — never for anything touching external services or mutable shared state. Record each source change in your notes.
