@@ -146,6 +146,7 @@ When `target=all`, run targets **one at a time in order**: coverage → quality 
 
 Steps:
 
+0. ⛔ **MANDATORY — Clear prior pipeline state**: Before any other work, call `pipeline_handoff(operation="clear", pipeline="fix")`. This removes residual phase result files (`coverage-result.json`, `quality-result.json`, `tests-result.json`, `docs-result.json`) written by an earlier `/fix` invocation in the same Cortex MCP session. Skipping this step causes subagents' Resume Checks (`pipeline_handoff(operation="status", pipeline="fix")`) to see stale `completed` statuses and short-circuit without running, which is a reporting violation. A clear on a fresh session is a no-op and returns `status: "ok"`. **Do this step even if you believe the prior run finished cleanly** — the phase-status cache has no freshness signal and only `clear` guarantees a fresh start.
 1. Perform Change-Scope Assessment (above) once; reuse the result for all targets.
 2. Run Submodule-First Fix Routing (above) and complete required submodule fixes.
 3. **Pre-flight gate for coverage**: Call `run_quality_gate()` once. Check `preflight_passed` from the response:
