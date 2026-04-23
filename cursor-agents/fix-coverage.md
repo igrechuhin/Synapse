@@ -113,6 +113,7 @@ For each selected file:
 Then call `run_quality_gate()` once for the entire batch.
 
 Record:
+
 - `new_coverage` = `results.tests.coverage`
 - `coverage_delta` = `new_coverage - prior_coverage`
 - updated `coverage_gaps` list from the response

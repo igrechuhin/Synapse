@@ -46,6 +46,7 @@ Before writing any new test file:
 3. Do NOT guess imports — a missing module import is a compile error that nullifies coverage.
 
 Required import structure for Swift test targets with `@testable import`:
+
 ```swift
 import XCTest        // or Testing
 @testable import <ModuleName>
@@ -110,6 +111,7 @@ For Swift projects, prefer these file patterns as coverage candidates:
 - Files where `private func` appears frequently (high private method density = high uplift potential)
 
 Avoid these as primary candidates:
+
 - `*.pb.swift` files (generated, never modify)
 - Files that are pure `@main` entry points (no testable logic)
 - Protocol definition files with no implementation
