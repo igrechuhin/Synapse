@@ -1,0 +1,124 @@
+---
+globs: "*.py"
+alwaysApply: false
+---
+
+# Python Coverage Uplift Rules
+
+These rules govern how the `fix-coverage` agent writes tests and widens access in Python projects.
+They are consumed during Steps 1-3 of the coverage uplift loop.
+
+## Access Widening (MANDATORY when name-mangled helpers are unreachable)
+
+When a `__`-prefixed (name-mangled) or `_`-prefixed method contains only pure logic (no I/O, no
+network, no database, no side effects) and cannot be reached via the public API with sufficient
+branch coverage:
+
+1. **Remove the leading `_` prefix** (single-underscore) — rename `_helper` to `helper`. This
+   makes it reachable from tests without any import trick.
+2. **For `__` name-mangling** (double-underscore): rename to a single `_` prefix instead, which
+   suppresses the mangling while still signalling "internal".
+3. **Never add a `public` marker** — Python has no access-control keyword; convention is the only
+   mechanism. Only rename when the function is a pure transform with no side effects.
+4. **Applies only to**: pure transforms, validation math, data-mapping helpers, pure parsing logic.
+5. **Never widen**: functions that call external services, write files, mutate shared state, or
+   perform I/O of any kind.
+
+Record each renamed function in your working notes before writing any test.
+
+## Pre-Test Audit Protocol (MANDATORY for already-tested files)
+
+Before writing any test for a file that already has a test file:
+
+1. `Read` the source file.
+2. List every `_`-prefixed or `__`-prefixed method that contains only pure logic.
+3. Widen each one by renaming (remove the leading underscore(s)). Record each change.
+4. Only after this exhaustive audit, write tests that directly call the newly widened functions.
+
+**Anti-pattern**: Adding another `test_execute_raises_when_…` variant to a file that already has
+5+ tests covering its public entry point is a coverage dead end. The outer validation layer is
+already covered; go deeper into private helpers.
+
+## Import Pattern (MANDATORY)
+
+Before writing any new test file:
+
+1. `Read` one existing test file in the **same test directory** (e.g. `tests/unit/`,
+   `tests/integration/`).
+2. Copy its exact `import` block and `conftest.py` fixture usage verbatim.
+3. Do NOT guess imports — a missing import is a collection error that can silence the entire
+   module from coverage measurement.
+
+Required structure for pytest test files in this project:
+
+```python
+import pytest
+from <package>.<module> import <Symbol>
+# plus any fixtures from conftest.py used in the same directory
+```
+
+## Syntax Check Before Gate (MANDATORY)
+
+After writing a batch of tests but before calling `run_quality_gate()`:
+
+1. Run `uv run python -m py_compile <new_test_file.py>` for each new file.
+2. This catches `SyntaxError`, wrong indentation, and missing colons in under a second.
+3. If the check fails, fix the error immediately. Do NOT proceed to `run_quality_gate()` with a
+   broken file — a syntax error causes `coverage=null` and wastes the full gate runtime.
+
+## Test Isolation (MANDATORY)
+
+Tests that touch the filesystem, environment variables, or shared module state MUST use fixtures
+or `monkeypatch` to isolate them:
+
+```python
+def test_something(tmp_path, monkeypatch):
+    monkeypatch.setenv("MY_CONFIG_PATH", str(tmp_path / "config.json"))
+    # Act and assert here
+```
+
+For tests that patch module-level singletons or global registries, use `pytest`'s `monkeypatch`
+or `unittest.mock.patch` as a context manager — never mutate globals directly in a test body
+without restoring them in a `finally` block or fixture teardown.
+
+## External/Network Call Guard (MANDATORY)
+
+Tests that make real network or filesystem calls outside the project MUST:
+
+1. Be placed in `tests/integration/` or `tests/e2e/`, never in `tests/unit/`.
+2. Be skipped when the required credential or environment variable is absent:
+
+   ```python
+   @pytest.mark.skipif(
+       not os.getenv("MY_API_TOKEN"),
+       reason="requires MY_API_TOKEN (ref: live-api-tests)"
+   )
+   def test_live_endpoint():
+       ...
+   ```
+
+3. Never assert on specific response values from a live API without wrapping the call in a
+   try/except that skips on authentication or connectivity errors.
+
+## Null Coverage Rollback (MANDATORY)
+
+If `run_quality_gate()` returns `coverage=null`:
+
+1. This means the test runner crashed or a collection error made the suite non-runnable.
+2. Roll back ALL test files written in that iteration by restoring original content.
+3. Identify the failing module with `uv run python -m py_compile <file>` for each new file.
+4. Fix the syntax/import error or remove the offending test file before the next iteration.
+
+## Candidate Selection Strategy
+
+For Python projects, prefer these file patterns as coverage candidates:
+
+- Files in `src/<package>/services/` — service classes with complex branching
+- Files in `src/<package>/core/` — pure logic helpers and validators
+- Files where `def _` appears frequently (high private-helper density = high uplift potential)
+
+Avoid these as primary candidates:
+
+- Auto-generated files (`*_pb2.py`, `*_pb2_grpc.py`)
+- Pure `__main__.py` entry points with no testable logic
+- `__init__.py` files that only re-export names

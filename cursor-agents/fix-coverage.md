@@ -56,75 +56,86 @@ Then look for a `coverage_bootstrap` key in the payload — it contains the same
 
 - **If `tests_failed > 0` OR `coverage == null`**: tests are failing before coverage can be measured. Write `status: "tests_failing"` with `blocker_reason: "tests_failed > 0 or coverage null — fix failing tests first, then re-run /cortex/fix"` and stop. The orchestrator will route to the Tests target to fix the failure.
 - **If `tests_failed == 0` and `coverage_gaps` is still empty**: the server cannot produce per-file gap data (older Cortex or llvm-cov fallback path). **Do NOT block.** Instead, derive candidate files yourself:
-  1. List source files: `find Sources/ -name "*.swift" -not -path "*/Tests/*"` (adjust root for the project layout).
-  2. List existing test files: `find Tests/ -name "*Tests.swift"`.
-  3. Build a rough gap list by identifying source files whose names do not have a corresponding `*Tests.swift` counterpart, or source modules with very few test lines (small test file relative to source file).
+  1. List source files (e.g. `find Sources/ -name "*.swift" -not -path "*/Tests/*"` for Swift; adjust for other languages).
+  2. List existing test files (e.g. `find Tests/ -name "*Tests.swift"` for Swift; `find tests/ -name "test_*.py"` for Python).
+  3. Build a rough gap list by identifying source files whose names do not have a corresponding test counterpart, or source modules with very few test lines.
   4. Use the top 3–5 highest-line-count source files without adequate test coverage as your `coverage_gaps` substitutes.
   5. Proceed to Step 1 with this derived list. Record `coverage_gaps_source: "derived"` in your working notes.
   If file listing also fails (no source directory found), then write `status: "BLOCKED"` with `blocker_reason: "no coverage_gaps from gate and cannot locate source files — check project layout"` and stop.
 
-## Step 1: Pick candidate files and audit existing test coverage
+## Step 1: Load language-specific rules
+
+Detect the project's primary language from the `coverage_gaps` file paths (`.swift` → Swift, `.py` → Python, `.go` → Go, `.ts`/`.tsx` → TypeScript).
+
+Load the corresponding language rules file from the Cortex rules resource before doing any per-file work. These files govern access widening, import patterns, compile checks, test isolation, and candidate selection:
+
+- **Swift**: `swift-coverage-uplift.mdc` (in `rules/swift/`)
+- **Python**: `python-coverage-uplift.mdc` (in `rules/python/`) — if absent, use Step 2 defaults
+- Other languages: apply Step 2 generic defaults
+
+**MANDATORY for Swift**: The `swift-coverage-uplift.mdc` rules override any inline Swift instructions in this prompt. Read that file in full before touching any Swift source or test file.
+
+## Step 2: Pick candidate files and audit existing test coverage
 
 From the `coverage_gaps` list (or derived list from Step 0 fallback), pick the top 3–5 entries by `lines_uncovered` descending.
 
-For each picked file, **before writing any test**:
+For each picked file, **before writing any test**, perform the language-appropriate pre-test audit:
 
-1. Check whether a test file already exists for it (e.g. `*Tests.swift`, `test_*.py`).
-2. If a test file exists, `Read` the source file and list every `private` / `__`-prefixed / unexported function that:
-   - Contains pure logic only (no I/O, no network, no database, no side effects), AND
-   - Has NOT yet been widened to `internal` / single-`_` prefix.
-3. If any such functions exist — **widen them first, in the source file, before writing any new test**. This is mandatory, not optional. The Swift style rule explicitly permits this: remove the `private` keyword (do NOT add `internal` explicitly — just remove `private`) per the "Exception — coverage-driven access widening" in `swift-style.mdc`. Record each widened function name.
-4. Only after exhausting all private pure functions (either widening them or confirming they are I/O-dependent) should you write additional entry-point tests.
+- **Swift**: follow the "Pre-Test Audit Protocol" in `swift-coverage-uplift.mdc` — widen private pure functions first.
+- **Python**: list `_`-prefixed pure helper functions; widen to no prefix if they contain only pure logic.
+- **General**: identify any access-restricted pure-logic helpers; widen their visibility to the minimum required for `@testable import` (or equivalent) to reach them.
 
-⛔ **Anti-pattern — do NOT add another entry-point test for a file that already has tests until all its private pure-logic functions have been widened.** Writing `test_execute_throwsWhen…` variants on a file with 5 existing test files is a coverage dead end. The outer validation layer is already covered; go deeper.
+⛔ **Anti-pattern — do NOT add another entry-point test for a file that already has tests until all its pure-logic helpers have been widened.** Writing more `test_execute_throwsWhen…` variants on a file with 5+ existing test files is a coverage dead end. Go deeper.
 
 Record the starting coverage fraction for delta tracking.
 
-## Step 2: Write tests (the only action in scope)
+## Step 3: Write tests (the only action in scope)
 
 For each selected file:
 
-1. `Read` the source file. Write tests that exercise the specific uncovered branches — now including the widened helper functions from Step 1.
-2. Locate or create the matching test file in the project's test tree (e.g. `Tests/<Module>/<File>Tests.swift` for Swift, `tests/<module>/test_<file>.py` for Python).
-3. ⛔ **Import pattern**: Before writing any new test file, `Read` one existing test file in the **same test target directory** to copy its exact `import` statements and module access pattern. Do NOT guess imports — missing a module import is a compile error that breaks the entire test target and nullifies coverage measurement.
-4. **Access visibility**: If uncovered lines are in functions or methods restricted to the narrowest access level for the language (`private`, `__`-prefixed, unexported) and they contain pure logic only (no I/O, no network, no database, no side effects), widen their access to the level the test framework can reach. Only for pure transforms, validation, and math — never for anything touching external services or mutable shared state. Record each source change in your notes.
+1. `Read` the source file. Write tests that exercise the specific uncovered branches — now including the widened helper functions from Step 2.
+2. Locate or create the matching test file in the project's test tree.
+3. **Import pattern (MANDATORY)**: Before writing any new test file, `Read` one existing test file in the **same test target directory** to copy its exact `import` statements and module access pattern. Do NOT guess imports.
+4. Follow all language-specific rules for test isolation, live-API guards, and compile verification per the rules file loaded in Step 1.
 5. Add focused, deterministic test cases following the project's AAA pattern. Cover the specific missing branches visible in the source — do not stub or skip.
 
-⛔ **Batch rule**: Write tests for ALL selected files before running the gate. Do NOT call `run_quality_gate()` between files. Running the gate is expensive (full language test suite); batching is the whole point of this agent.
+⛔ **Batch rule**: Write tests for ALL selected files before running the gate. Do NOT call `run_quality_gate()` between files.
 
-⛔ **No weak tests**: Tests must exercise real code paths, not just instantiate types. A test that only calls a constructor and asserts no exception is a no-op for coverage quality. Each new test must execute at least one non-trivial branch or assert on at least one return value.
+⛔ **No weak tests**: Tests must exercise real code paths, not just instantiate types. Each new test must execute at least one non-trivial branch or assert on at least one return value.
 
-## Step 3: Verify the batch
+## Step 4: Compile check then gate
 
-1. **Fast compile check before gate** (Swift only): run `swift build --target <TestTargetName>` for each affected test target. This takes ~5–30 seconds and catches missing imports, undefined symbols, and type mismatches before spending 5–10 minutes on a full gate run. Fix any compile error immediately. If you cannot fix a compile error, roll back that test file — do NOT proceed to `run_quality_gate()` with a broken test target.
-2. Run the native test runner quickly to confirm the new tests compile and pass (Swift: `swift test`, Python: `uv run pytest <new test files>`). Fix any compile/assertion error before proceeding. Do NOT ship a broken test.
-3. Call `run_quality_gate()` once for the entire batch.
-4. Record:
-   - `new_coverage` = `results.tests.coverage`
-   - `coverage_delta` = `new_coverage - prior_coverage`
-   - updated `coverage_gaps` list from the response
+**Before calling `run_quality_gate()`** (apply for the primary project language):
+
+- **Swift**: run `swift build --target <TestTargetName>` for each affected test target. Fix any compile error immediately. If unfixable, roll back that test file. Do NOT proceed to `run_quality_gate()` with a broken target.
+- **Python**: run `uv run python -m py_compile <new test files>` or equivalent. Fix import/syntax errors first.
+
+Then call `run_quality_gate()` once for the entire batch.
+
+Record:
+- `new_coverage` = `results.tests.coverage`
+- `coverage_delta` = `new_coverage - prior_coverage`
+- updated `coverage_gaps` list from the response
 
 If `new_coverage == null` (gate returned null coverage), that means a compile error or test crash made the suite non-runnable. Roll back **all** test files written in this iteration and try a different candidate set — do NOT record a null delta and continue.
 
-If the gate reports new test failures introduced by this batch, fix them (compile errors, wrong assertions) before concluding this iteration. If you cannot fix them cleanly, roll back this batch's test files and try a different candidate set.
+If the gate reports new test failures introduced by this batch, fix them before concluding this iteration. If unfixable, roll back this batch's test files and try a different candidate set.
 
-## Step 4: Iterate
+## Step 5: Iterate
 
-⛔ **HARD GATE — you MUST run all 3 iterations** unless one of the explicit exit conditions below triggers. Returning after only 1 or 2 iterations because progress feels slow, the delta is small, or you predict you can't reach the threshold is a violation. Each iteration is one batch of 3–5 files, so 3 iterations covers up to 15 distinct files — that's the budget.
+⛔ **HARD GATE — you MUST run all 3 iterations** unless one of the explicit exit conditions below triggers.
 
-Repeat Steps 1–3 (write batch → compile check → gate) max 3 times total. Exit conditions, in priority order:
+Repeat Steps 2–4 (write batch → compile check → gate) max 3 times total. Exit conditions, in priority order:
 
-1. **Threshold reached** — `new_coverage >= coverage_threshold` after any iteration → write `status: "passed"` and stop. This is the only success exit.
-2. **Hard stall** — `coverage_delta <= 0.0` for **two consecutive** iterations (i.e. you've added tests twice in a row with no measurable improvement). A small positive delta (e.g. +0.5%) is NOT a stall — it means tests are landing; pick a different batch and continue. Only when the gate says you're literally not moving the needle do you exit early as `status: "BLOCKED"`, `blocker_reason: "coverage uplift stalled — gaps likely require integration/setup work beyond unit tests"`.
-3. **Iteration budget exhausted** — 3 iterations complete without reaching threshold → write `status: "failed"` with `tests_added` listing every test you wrote, `final_coverage`, `coverage_delta` (cumulative since start), and a one-line `blocker_reason` describing what's left.
+1. **Threshold reached** — `new_coverage >= coverage_threshold` after any iteration → write `status: "passed"` and stop.
+2. **Hard stall** — `coverage_delta <= 0.0` for **two consecutive** iterations → write `status: "BLOCKED"`, `blocker_reason: "coverage uplift stalled — gaps likely require integration/setup work beyond unit tests"`.
+3. **Iteration budget exhausted** — 3 iterations complete without reaching threshold → write `status: "failed"` with `tests_added`, `final_coverage`, `coverage_delta`, and a one-line `blocker_reason`.
 
-⛔ **Strategy switch — if the same top files recur**: If iteration 2 (or 3) starts with the same top-1 or top-2 files from `coverage_gaps` as the previous iteration, and the prior delta was small (< 0.5%), that means adding more entry-point tests on those files has hit diminishing returns. Switch strategy: read the source file and look for private/unexported pure-logic functions (see Step 2 Access visibility rule). Widen their access level and add direct unit tests targeting those functions instead of calling the public entry point again. If no pure-logic functions are private, move to the next file in `coverage_gaps` that has NOT been targeted in the prior iteration.
+⛔ **Strategy switch — if the same top files recur**: If iteration 2 (or 3) starts with the same top-1 or top-2 files from prior iteration with delta < 0.5%, switch strategy: widen more private pure-logic functions (see language-specific rules) and add direct unit tests targeting those functions instead of the public entry point.
 
-⛔ **Anti-pattern: do NOT exit after iteration 1 with a positive delta.** That is "1 batch, gave up." If iteration 1 made progress (any positive `coverage_delta`), pick the next 3–5 files from the updated `coverage_gaps` list and run iteration 2. Same for iteration 3. The orchestrator decides whether to stop the wider pipeline based on your final status — your job is to spend the full 3-iteration budget on real test-writing.
+⛔ **Anti-pattern: do NOT exit after iteration 1 with a positive delta.** Pick the next 3–5 files from the updated `coverage_gaps` and run iteration 2.
 
-⛔ **Anti-pattern: do NOT skip iterations because the gate is slow.** Each `run_quality_gate()` call is ~5–10 minutes for Swift projects. That is the cost. The alternative — declaring failure after 1 batch — wastes the entire `/cortex/fix` invocation.
-
-## Step 5: Write result
+## Step 6: Write result
 
 Call `pipeline_handoff(operation="write", pipeline="fix", phase="coverage", ...)` with this shape:
 
@@ -141,7 +152,7 @@ Call `pipeline_handoff(operation="write", pipeline="fix", phase="coverage", ...)
 }
 ```
 
-**Fallback location** (only when Step 0 had to use the older-server fallback): write to `pipeline_handoff(operation="write", pipeline="fix", phase="fix", ...)` with the entire payload above nested under a single `coverage_result` key. The orchestrator will look in both places.
+**Fallback location** (only when Step 0 had to use the older-server fallback): write to `pipeline_handoff(operation="write", pipeline="fix", phase="fix", ...)` with the entire payload above nested under a single `coverage_result` key.
 
 ## Report (to orchestrator)
 
@@ -168,6 +179,6 @@ Files still uncovered (if any):
 - ✅ (status: passed) requires `final_coverage >= coverage_threshold` AND `tests_added` non-empty
 - ⏭️ (status: skipped) only for `markdown_only` scope or when threshold was already met before any work
 - ❌ (status: failed) means 3 iterations exhausted without reaching threshold; must list `tests_added` and remaining gap
-- 🚫 (status: BLOCKED) means a concrete environmental issue prevents uplift; `blocker_reason` is mandatory and must be specific (not "could not determine candidates")
+- 🚫 (status: BLOCKED) means a concrete environmental issue prevents uplift; `blocker_reason` is mandatory and must be specific
 
 Exiting with `status: "passed"` when `tests_added` is empty, or with `tests_added` non-empty but `final_coverage` was never measured by `run_quality_gate()`, is a reporting violation.
