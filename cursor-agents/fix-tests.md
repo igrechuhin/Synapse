@@ -74,6 +74,8 @@ Writing tests to raise coverage in this agent is a scope violation — use `@fix
 - If the subprocess exit cause cannot be fixed in this session, set `status: "BLOCKED"` with `blocker_reason`.
 - Call `run_quality_gate()`. Repeat up to 3 iterations.
 
+⛔ **Gate-false-negative escape hatch**: If `results.tests.output` shows an authoritative success marker (e.g. Swift Testing ``Test run with N tests ... passed``, XCTest ``Test Suite 'All tests' passed``, ``pytest ... N passed``) but the gate still returns `success == false` with no actionable diagnostic in `results.tests.errors`, **stop looping**. This is a latent gate bug (usually subprocess-level — pipe teardown signal, coverage-merge failure, output parser drift), not a project bug. Write `status: "BLOCKED"`, `blocker_reason: "gate false-negative: tests passed per output but gate reports success=false; file a Cortex MCP issue with .cortex/.session/logs/swift-test-*.log (Swift) or the full results.tests.output"`. Do NOT retry — the code has no bug to fix here.
+
 After all branches: check `results.tests.success`.
 
 **CI parity gap**: if failure involves asyncio, concurrency, or shared global state, also run `uv run pytest tests/ -n auto -x -q --no-header -p no:randomly` to reproduce the CI failure before declaring fixed.
