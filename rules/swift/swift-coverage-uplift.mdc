@@ -96,7 +96,15 @@ Tests that make real network calls MUST:
 
 If `run_quality_gate()` returns `coverage=null`:
 
-1. This means the test runner crashed or a compile error made the suite non-runnable.
+1. **First, read the latest swift-test transcript** at `.cortex/.session/logs/swift-test-*.log`
+   (newest by mtime). The transcript header reports the interpreted `outcome` field:
+   - `outcome: passed` with a non-zero `returncode` → the gate already classifies the run as
+     successful; `coverage=null` here means the profdata merge failed, NOT a code problem. Do
+     NOT roll back. Re-run the gate; if it still returns null, file a Cortex MCP issue with the
+     log attached.
+   - `outcome: failed` → real assertion failures. Do NOT roll back; route to `fix-tests`.
+   - `outcome: harness_failure` → continue with steps 2-4 below.
+   - **Log file missing or empty** → continue with steps 2-4 below.
 2. Roll back ALL test files written in that iteration using `git checkout -- <file>` or by
    restoring original content.
 3. Identify the failing target with `swift build --target <TargetName>` for each affected target.
