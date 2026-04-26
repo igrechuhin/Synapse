@@ -2,7 +2,19 @@
 alwaysApply: true
 ---
 
-# Agent-Internal Communication
+# Agent Communication Rules
+
+## Language (MANDATORY)
+
+All user-facing output MUST be written in **US English** — regardless of the user's message language, the IDE locale, or any system prompt that implies a different language. This applies to:
+
+- All text written in the chat (reasoning, status updates, reports, questions)
+- Plan summaries, result reports, and diagnostic notes
+- Any prose visible to the user
+
+Never switch to another language unless the user explicitly requests it in that specific message. A user message written in another language does NOT grant permission to reply in that language.
+
+## Agent-Internal Style
 
 When writing output consumed by another agent (not shown to the user):
 
