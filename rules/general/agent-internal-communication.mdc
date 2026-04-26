@@ -2,7 +2,7 @@
 alwaysApply: true
 ---
 
-# Agent Communication Rules
+# Agent-Internal Communication
 
 ## Language (MANDATORY)
 
