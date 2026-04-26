@@ -23,8 +23,7 @@ You are the coverage uplift specialist. Your single job is to raise measured tes
 Call `pipeline_handoff(operation="read", pipeline="fix", phase="coverage")`. Load:
 
 - `scope` — `source_changed` / `markdown_only` / `mixed`
-- `coverage_gaps` — top-10 candidate files from the pre-flight gate (two-tier ranked: zero-coverage first by size, then partial by uncovered lines). Each entry has `file`, `coverage`, `lines_total`, `lines_uncovered`.
-- `uncovered_files` — **all** source files with zero line coverage, not capped at 10. Same fields as `coverage_gaps`. Always populated when per-file data is available, regardless of whether the threshold is met. Initialize a working list `uncovered_remaining` from this field at the start and remove files from it as they gain coverage.
+- `coverage_gaps` — list of candidate files from the orchestrator's pre-flight `run_quality_gate()` call (each entry has `file`, `coverage`, `lines_total`, `lines_uncovered`, sorted by `lines_uncovered` desc)
 - `coverage` — the prior measured coverage fraction (may be `null` if tests failed before coverage collection)
 - `coverage_threshold` — required fraction (default 0.90)
 - `tests_failed` — number of failing tests from the pre-flight gate (may be present; treat missing as 0)
@@ -53,9 +52,7 @@ Then look for a `coverage_bootstrap` key in the payload — it contains the same
 
 **If `scope == "markdown_only"`**: write result with `status: "skipped"`, reason `"markdown-only scope"`, and stop.
 
-**If `coverage >= coverage_threshold` AND `uncovered_files` is empty (or missing)**: write result with `status: "skipped"`, reason `"coverage already meets threshold and no zero-coverage files remain"`, and stop.
-
-**If `coverage >= coverage_threshold` AND `uncovered_files` is non-empty**: threshold is met but zero-coverage files remain. Do NOT stop. Proceed to Step 1 — the iteration loop will target `uncovered_remaining` directly (see Step 5).
+**If `coverage_gaps` is missing or empty AND `coverage >= coverage_threshold`**: write result with `status: "skipped"`, reason `"coverage already meets threshold"`, and stop. This is the happy path.
 
 **If `coverage_gaps` is missing or empty AND `coverage < coverage_threshold`**: the orchestrator failed to pre-populate gaps. Call `run_quality_gate()` yourself once. Check `results.tests.tests_failed` first:
 
@@ -83,13 +80,14 @@ Load the corresponding language rules file from the Cortex rules resource before
 
 ## Step 2: Pick candidate files and audit existing test coverage
 
-**Primary source — `uncovered_remaining` (zero-coverage files):** Pick the first 5 entries from `uncovered_remaining` (sorted smallest first). These have no tests at all and are the fastest wins.
+The `coverage_gaps` list is pre-ranked in two tiers by the gate:
 
-After each gate call (Step 4), update `uncovered_remaining`: remove any file whose `coverage` in the new gate response is `> 0.0`.
+- **Tier 1** — zero-coverage files (`coverage == 0.0`), sorted smallest-first. These appear at the top of the list. They have no tests at all and are the easiest wins: a single test file typically moves coverage measurably.
+- **Tier 2** — partially-covered files, sorted by `lines_uncovered` descending.
 
-**Fallback — `coverage_gaps` (partially-covered files):** Use `coverage_gaps` only when `uncovered_remaining` is empty. The list is pre-ranked: zero-coverage files first by size, then partial files by `lines_uncovered` descending. Pick top 3–5 in order.
+**Pick the top 3–5 entries from the list in order.** Do NOT skip Tier 1 entries to jump to larger Tier 2 files — zero-coverage files are fast, high-impact, and must be tackled first.
 
-**Old-gate fallback:** If `uncovered_files` is absent (older deployed Cortex MCP server), treat the zero-coverage entries at the top of `coverage_gaps` (those with `coverage == 0.0`) as `uncovered_remaining` and apply the same logic.
+If `coverage_gaps` is absent or all entries have `coverage > 0.0` (old gate without two-tier support), fall back to picking top 3–5 by `lines_uncovered` descending as before.
 
 For each picked file, **before writing any test**, perform the language-appropriate pre-test audit:
 
@@ -136,20 +134,18 @@ If the gate reports new test failures introduced by this batch, fix them before 
 
 ## Step 5: Iterate
 
-⛔ **HARD GATE — you MUST run all iterations** unless one of the explicit exit conditions below triggers.
+⛔ **HARD GATE — you MUST run all 3 iterations** unless one of the explicit exit conditions below triggers.
+you MUST run all 3 iterations.
 
-Repeat Steps 2–4 (write batch → compile check → gate) with no fixed cap. Exit conditions, in priority order:
+Repeat Steps 2–4 (write batch → compile check → gate) max 3 times total. Exit conditions, in priority order:
 
-1. **All zero-coverage files exhausted** — `uncovered_remaining` is empty (every file either gained coverage or was exhausted by the escape rule) → write `status: "passed"` and stop. This is the primary success condition regardless of whether the numeric threshold is met.
-2. **Threshold reached AND no zero-coverage files remain** — `new_coverage >= coverage_threshold` AND `uncovered_remaining` is empty → write `status: "passed"` and stop.
-3. **Hard stall** — `coverage_delta < 0.0` (strictly negative, i.e. coverage regressed) for **two consecutive** iterations → write `status: "BLOCKED"`, `blocker_reason: "coverage uplift stalled — gaps likely require integration/setup work beyond unit tests"`. A delta of exactly `0.0` is noise, not a stall — keep iterating.
-4. **Iteration budget exhausted** — 6 iterations complete without exhausting `uncovered_remaining` → write `status: "failed"` with `tests_added`, `final_coverage`, `coverage_delta`, `uncovered_remaining` count, and a one-line `blocker_reason`.
+1. **Threshold reached** — `new_coverage >= coverage_threshold` after any iteration → write `status: "passed"` and stop.
+2. **Hard stall** — `coverage_delta < 0.0` (strictly negative, i.e. coverage regressed) for **two consecutive** iterations → write `status: "BLOCKED"`, `blocker_reason: "coverage uplift stalled — gaps likely require integration/setup work beyond unit tests"`. A delta of exactly `0.0` is noise, not a stall — keep iterating.
+3. **Iteration budget exhausted** — 3 iterations complete without reaching threshold → write `status: "failed"` with `tests_added`, `final_coverage`, `coverage_delta`, and a one-line `blocker_reason`.
 
-**If threshold is reached but `uncovered_remaining` is still non-empty:** do NOT stop. Continue targeting `uncovered_remaining` for up to 3 additional iterations (total budget 6). The escape rule still applies: if a file recurs with <0.3% cumulative delta across 2 consecutive iterations, mark it exhausted and move to the next.
+⛔ **Strategy switch — if the same top files recur**: If iteration 2 (or 3) starts with the same top-1 or top-2 files from prior iteration with cumulative delta < 0.3%, **stop targeting those files**. Switch to a completely different module: pick the next files from `coverage_gaps` that have NOT been targeted yet. If all top-10 coverage_gaps files have been targeted with no delta, widen more `private` pure-logic functions in those files (see language-specific rules) before writing more entry-point tests.
 
-⛔ **Strategy switch — if the same top files recur**: If iteration N starts with the same top-1 or top-2 files from the prior iteration with cumulative delta < 0.3%, **stop targeting those files**. Switch to the next entries in `uncovered_remaining` that have NOT been targeted yet.
-
-⛔ **Anti-pattern: do NOT exit after iteration 1 with a positive delta.** Continue with the next batch from `uncovered_remaining`.
+⛔ **Anti-pattern: do NOT exit after iteration 1 with a positive delta.** Pick the next 3–5 files from the updated `coverage_gaps` and run iteration 2.
 
 ## Step 6: Write result
 

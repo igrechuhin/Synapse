@@ -115,6 +115,7 @@ If `run_quality_gate()` returns `coverage=null`:
 **Primary source — `uncovered_remaining` (from `uncovered_files` gate field):** Always pick from `uncovered_remaining` first. These are all source files with zero coverage, sorted smallest-to-largest, not capped at 10. Pick 5 per iteration. Remove files from `uncovered_remaining` after each gate call as they gain coverage. Continue until `uncovered_remaining` is empty.
 
 Good `uncovered_remaining` targets:
+
 - `Types/*Error.swift` — enum `errorDescription` switches: one test covers every case in one pass
 - `Types/*.swift` — value-type structs/enums with pure validation logic
 - `Core/*.swift` — pure logic helpers with no I/O
@@ -122,6 +123,7 @@ Good `uncovered_remaining` targets:
 **Fallback — `coverage_gaps` (partially-covered files):** Use only after `uncovered_remaining` is empty. Sorted by `lines_uncovered` descending.
 
 Good fallback targets:
+
 - Files in `Sources/<Module>/Commands/` — executors with complex branching
 - Files where `private func` appears frequently (high private method density = high uplift potential)
 
