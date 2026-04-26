@@ -38,7 +38,9 @@ Before Step 1, call `pipeline_handoff(operation="status", pipeline="fix")`.
 
 Immediately before Step 1, call `pipeline_handoff(operation="mark_running", pipeline="fix", phase="coverage")`.
 
-**If `coverage == null` OR `tests_failed > 0` (from bootstrap)**: tests are failing before coverage can be measured — coverage uplift is impossible until the test failure is fixed. Write `status: "tests_failing"` with `blocker_reason: "tests_failed > 0 or coverage null in pre-flight gate — fix failing tests first, then re-run /cortex/fix"` and stop immediately. Do NOT attempt to call `run_quality_gate()` yourself. The orchestrator will route to the Tests target.
+**If `tests_failed > 0` (from bootstrap)**: tests are actively failing — coverage uplift is impossible until fixed. Write `status: "tests_failing"` with `blocker_reason: "tests_failed > 0 in pre-flight gate — fix failing tests first, then re-run /cortex/fix"` and stop immediately. Do NOT attempt to call `run_quality_gate()` yourself. The orchestrator will route to the Tests target.
+
+**If `coverage == null` AND `tests_failed == 0` (from bootstrap)**: coverage collection failed (likely a profdata merge issue or harness crash) but tests passed. **Do NOT halt.** Proceed to Step 1 and call `run_quality_gate()` yourself in Step 4 — coverage will be re-measured. Note this state in your working notes as `prior_coverage_null: true` and treat iteration 1's `new_coverage` as the baseline for delta tracking.
 
 **If the read returns `Unknown phase 'coverage'`** (older deployed Cortex MCP server): the orchestrator wrote the bootstrap under the fallback location. Read it instead:
 
@@ -54,7 +56,8 @@ Then look for a `coverage_bootstrap` key in the payload — it contains the same
 
 **If `coverage_gaps` is missing or empty AND `coverage < coverage_threshold`**: the orchestrator failed to pre-populate gaps. Call `run_quality_gate()` yourself once. Check `results.tests.tests_failed` first:
 
-- **If `tests_failed > 0` OR `coverage == null`**: tests are failing before coverage can be measured. Write `status: "tests_failing"` with `blocker_reason: "tests_failed > 0 or coverage null — fix failing tests first, then re-run /cortex/fix"` and stop. The orchestrator will route to the Tests target to fix the failure.
+- **If `tests_failed > 0`**: tests are actively failing. Write `status: "tests_failing"` with `blocker_reason: "tests_failed > 0 — fix failing tests first, then re-run /cortex/fix"` and stop. The orchestrator will route to the Tests target.
+- **If `coverage == null` AND `tests_failed == 0`**: coverage collection failed but tests passed (harness crash / profdata merge issue). Note `prior_coverage_null: true` in working notes, treat this gate call's result as iteration 1 baseline, and proceed with candidate selection using any `coverage_gaps` returned.
 - **If `tests_failed == 0` and `coverage_gaps` is still empty**: the server cannot produce per-file gap data (older Cortex or llvm-cov fallback path). **Do NOT block.** Instead, derive candidate files yourself:
   1. List source files (e.g. `find Sources/ -name "*.swift" -not -path "*/Tests/*"` for Swift; adjust for other languages).
   2. List existing test files (e.g. `find Tests/ -name "*Tests.swift"` for Swift; `find tests/ -name "test_*.py"` for Python).
@@ -129,10 +132,10 @@ If the gate reports new test failures introduced by this batch, fix them before 
 Repeat Steps 2–4 (write batch → compile check → gate) max 3 times total. Exit conditions, in priority order:
 
 1. **Threshold reached** — `new_coverage >= coverage_threshold` after any iteration → write `status: "passed"` and stop.
-2. **Hard stall** — `coverage_delta <= 0.0` for **two consecutive** iterations → write `status: "BLOCKED"`, `blocker_reason: "coverage uplift stalled — gaps likely require integration/setup work beyond unit tests"`.
+2. **Hard stall** — `coverage_delta < 0.0` (strictly negative, i.e. coverage regressed) for **two consecutive** iterations → write `status: "BLOCKED"`, `blocker_reason: "coverage uplift stalled — gaps likely require integration/setup work beyond unit tests"`. A delta of exactly `0.0` is noise, not a stall — keep iterating.
 3. **Iteration budget exhausted** — 3 iterations complete without reaching threshold → write `status: "failed"` with `tests_added`, `final_coverage`, `coverage_delta`, and a one-line `blocker_reason`.
 
-⛔ **Strategy switch — if the same top files recur**: If iteration 2 (or 3) starts with the same top-1 or top-2 files from prior iteration with delta < 0.5%, switch strategy: widen more private pure-logic functions (see language-specific rules) and add direct unit tests targeting those functions instead of the public entry point.
+⛔ **Strategy switch — if the same top files recur**: If iteration 2 (or 3) starts with the same top-1 or top-2 files from prior iteration with cumulative delta < 0.3%, **stop targeting those files**. Switch to a completely different module: pick the next files from `coverage_gaps` that have NOT been targeted yet. If all top-10 coverage_gaps files have been targeted with no delta, widen more `private` pure-logic functions in those files (see language-specific rules) before writing more entry-point tests.
 
 ⛔ **Anti-pattern: do NOT exit after iteration 1 with a positive delta.** Pick the next 3–5 files from the updated `coverage_gaps` and run iteration 2.
 

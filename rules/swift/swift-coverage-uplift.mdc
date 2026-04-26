@@ -123,3 +123,14 @@ Avoid these as primary candidates:
 - `*.pb.swift` files (generated, never modify)
 - Files that are pure `@main` entry points (no testable logic)
 - Protocol definition files with no implementation
+
+## Escape Rule: Skip Unresponsive Files (MANDATORY)
+
+If a file appears in the top coverage gaps across two or more consecutive iterations AND the cumulative coverage delta across those iterations is < 0.3%, that file's uncovered branches are **not reachable via pure unit tests in this session** (e.g., require a live database, network, or complex multi-object integration setup). Apply this escape rule:
+
+1. **Mark the file as exhausted** in working notes: `exhausted: ["<file path>"]`.
+2. **Move to the next file** in `coverage_gaps` that is NOT in the exhausted list.
+3. **Do not return to exhausted files** in this session unless the exhausted list covers all top-10 gap files.
+4. If all top-10 gap files are exhausted and coverage is still below threshold: write `status: "BLOCKED"`, `blocker_reason: "all top coverage gap files are unreachable via unit tests — integration test infrastructure required"`.
+
+This rule prevents the agent from writing ever more tests to the same files with zero coverage uplift.
