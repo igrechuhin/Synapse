@@ -112,18 +112,16 @@ If `run_quality_gate()` returns `coverage=null`:
 
 ## Candidate Selection Strategy
 
-The gate now returns a two-tier ranked list. **Always process candidates in list order — do not reorder.**
+**Primary source — `uncovered_remaining` (from `uncovered_files` gate field):** Always pick from `uncovered_remaining` first. These are all source files with zero coverage, sorted smallest-to-largest, not capped at 10. Pick 5 per iteration. Remove files from `uncovered_remaining` after each gate call as they gain coverage. Continue until `uncovered_remaining` is empty.
 
-**Tier 1 (zero-coverage files, `coverage == 0.0`)** — these appear first in the list, sorted smallest-to-largest. They have no tests at all. A single focused test file covering their main branches typically contributes a measurable coverage delta. Always exhaust Tier 1 before moving to Tier 2.
-
-Good Tier 1 targets include:
+Good `uncovered_remaining` targets:
 - `Types/*Error.swift` — enum `errorDescription` switches: one test covers every case in one pass
 - `Types/*.swift` — value-type structs/enums with pure validation logic
 - `Core/*.swift` — pure logic helpers with no I/O
 
-**Tier 2 (partially-covered files)** — sorted by `lines_uncovered` descending. Move here only after all Tier 1 candidates in the top-10 have been addressed.
+**Fallback — `coverage_gaps` (partially-covered files):** Use only after `uncovered_remaining` is empty. Sorted by `lines_uncovered` descending.
 
-Good Tier 2 targets:
+Good fallback targets:
 - Files in `Sources/<Module>/Commands/` — executors with complex branching
 - Files where `private func` appears frequently (high private method density = high uplift potential)
 
