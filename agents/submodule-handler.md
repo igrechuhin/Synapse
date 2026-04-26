@@ -28,7 +28,7 @@ git status --porcelain
 git -C <synapse_path> status --porcelain -- :/ ":(exclude).cache"
 ```
 
-- **If empty**: Report `status: "pointer_only"` (pointer changed but no local edits) and stop
+- **If empty**: The pointer changed but there are no local submodule edits to commit. Proceed directly to Phase 4 to stage the updated gitlink in the parent repo. Do NOT stop here — an unstaged pointer update will cause the parent commit to reference the wrong submodule SHA and fail CI.
 - **If non-empty**: Proceed to Phase 3
 
 > **Note**: `.cache/` is excluded from this check. Usage event files under
@@ -94,7 +94,7 @@ Report to orchestrator using **SubmoduleHandlerResult** schema:
 | Status | Meaning | Blocking? |
 |---|---|---|
 | `clean` | No submodule changes detected | No |
-| `pointer_only` | Pointer changed, no local edits | No |
+| `pointer_only` | Pointer changed, no local edits; gitlink staged in parent | No |
 | `committed` | Changes committed, pushed (or push non-blocking) | No |
 | `dirty_after_commit` | Uncommitted changes remain after Phase 5 | **GATE** |
 | `commit_failed` | Submodule commit failed | **GATE** |
