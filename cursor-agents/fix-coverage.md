@@ -80,7 +80,14 @@ Load the corresponding language rules file from the Cortex rules resource before
 
 ## Step 2: Pick candidate files and audit existing test coverage
 
-From the `coverage_gaps` list (or derived list from Step 0 fallback), pick the top 3–5 entries by `lines_uncovered` descending.
+The `coverage_gaps` list is pre-ranked in two tiers by the gate:
+
+- **Tier 1** — zero-coverage files (`coverage == 0.0`), sorted smallest-first. These appear at the top of the list. They have no tests at all and are the easiest wins: a single test file typically moves coverage measurably.
+- **Tier 2** — partially-covered files, sorted by `lines_uncovered` descending.
+
+**Pick the top 3–5 entries from the list in order.** Do NOT skip Tier 1 entries to jump to larger Tier 2 files — zero-coverage files are fast, high-impact, and must be tackled first.
+
+If `coverage_gaps` is absent or all entries have `coverage > 0.0` (old gate without two-tier support), fall back to picking top 3–5 by `lines_uncovered` descending as before.
 
 For each picked file, **before writing any test**, perform the language-appropriate pre-test audit:
 

@@ -112,13 +112,22 @@ If `run_quality_gate()` returns `coverage=null`:
 
 ## Candidate Selection Strategy
 
-For Swift projects, prefer these file patterns as coverage candidates:
+The gate now returns a two-tier ranked list. **Always process candidates in list order — do not reorder.**
 
+**Tier 1 (zero-coverage files, `coverage == 0.0`)** — these appear first in the list, sorted smallest-to-largest. They have no tests at all. A single focused test file covering their main branches typically contributes a measurable coverage delta. Always exhaust Tier 1 before moving to Tier 2.
+
+Good Tier 1 targets include:
+- `Types/*Error.swift` — enum `errorDescription` switches: one test covers every case in one pass
+- `Types/*.swift` — value-type structs/enums with pure validation logic
+- `Core/*.swift` — pure logic helpers with no I/O
+
+**Tier 2 (partially-covered files)** — sorted by `lines_uncovered` descending. Move here only after all Tier 1 candidates in the top-10 have been addressed.
+
+Good Tier 2 targets:
 - Files in `Sources/<Module>/Commands/` — executors with complex branching
-- Files in `Sources/<Module>/Core/` — pure logic helpers
 - Files where `private func` appears frequently (high private method density = high uplift potential)
 
-Avoid these as primary candidates:
+Avoid as primary candidates (any tier):
 
 - `*.pb.swift` files (generated, never modify)
 - Files that are pure `@main` entry points (no testable logic)
