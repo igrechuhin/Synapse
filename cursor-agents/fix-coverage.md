@@ -128,31 +128,24 @@ Record:
 - `coverage_delta` = `new_coverage - prior_coverage`
 - updated `coverage_gaps` list from the response
 
-If `new_coverage == null` (gate returned null coverage):
-
-- **If test files were written in this iteration**: roll back all of them and try a different candidate set. A compile error or test crash in the new files made the suite non-runnable.
-- **If no test files were written** (this was a baseline gate call): this is a profdata/bin-path infrastructure issue, not a test-file problem. Do NOT block. Treat this call as a measurement failure, set `prior_coverage_null: true`, and proceed to Step 2 to write tests. The next gate call (after tests are added) will re-attempt coverage collection.
-
-Do NOT record a null delta and continue iterating without writing tests — that wastes the iteration budget.
+If `new_coverage == null` (gate returned null coverage), that means a compile error or test crash made the suite non-runnable. Roll back **all** test files written in this iteration and try a different candidate set — do NOT record a null delta and continue.
 
 If the gate reports new test failures introduced by this batch, fix them before concluding this iteration. If unfixable, roll back this batch's test files and try a different candidate set.
 
 ## Step 5: Iterate
 
-⛔ **HARD GATE — you MUST run all iterations** unless one of the explicit exit conditions below triggers.
+⛔ **HARD GATE — you MUST run all 3 iterations** unless one of the explicit exit conditions below triggers.
+You MUST run all 3 iterations.
 
-Repeat Steps 2–4 (write batch → compile check → gate) with no fixed cap. Exit conditions, in priority order:
+Repeat Steps 2–4 (write batch → compile check → gate) max 3 times total. Exit conditions, in priority order:
 
-1. **All zero-coverage files exhausted** — `uncovered_remaining` is empty (every file either gained coverage or was exhausted by the escape rule) → write `status: "passed"` and stop. This is the primary success condition regardless of whether the numeric threshold is met.
-2. **Threshold reached AND no zero-coverage files remain** — `new_coverage >= coverage_threshold` AND `uncovered_remaining` is empty → write `status: "passed"` and stop.
-3. **Hard stall** — `coverage_delta < 0.0` (strictly negative, i.e. coverage regressed) for **two consecutive** iterations → write `status: "BLOCKED"`, `blocker_reason: "coverage uplift stalled — gaps likely require integration/setup work beyond unit tests"`. A delta of exactly `0.0` is noise, not a stall — keep iterating.
-4. **Iteration budget exhausted** — 6 iterations complete without exhausting `uncovered_remaining` → write `status: "failed"` with `tests_added`, `final_coverage`, `coverage_delta`, `uncovered_remaining` count, and a one-line `blocker_reason`.
+1. **Threshold reached** — `new_coverage >= coverage_threshold` after any iteration → write `status: "passed"` and stop.
+2. **Hard stall** — `coverage_delta < 0.0` (strictly negative, i.e. coverage regressed) for **two consecutive** iterations → write `status: "BLOCKED"`, `blocker_reason: "coverage uplift stalled — gaps likely require integration/setup work beyond unit tests"`. A delta of exactly `0.0` is noise, not a stall — keep iterating.
+3. **Iteration budget exhausted** — 3 iterations complete without reaching threshold → write `status: "failed"` with `tests_added`, `final_coverage`, `coverage_delta`, and a one-line `blocker_reason`.
 
-**If threshold is reached but `uncovered_remaining` is still non-empty:** do NOT stop. Continue targeting `uncovered_remaining` for up to 3 additional iterations (total budget 6). The escape rule still applies: if a file recurs with <0.3% cumulative delta across 2 consecutive iterations, mark it exhausted and move to the next.
+⛔ **Strategy switch — if the same top files recur**: If iteration 2 (or 3) starts with the same top-1 or top-2 files from prior iteration with cumulative delta < 0.3%, **stop targeting those files**. Switch to a completely different module: pick the next files from `coverage_gaps` that have NOT been targeted yet. If all top-10 coverage_gaps files have been targeted with no delta, widen more `private` pure-logic functions in those files (see language-specific rules) before writing more entry-point tests.
 
-⛔ **Strategy switch — if the same top files recur**: If iteration N starts with the same top-1 or top-2 files from the prior iteration with cumulative delta < 0.3%, **stop targeting those files**. Switch to the next entries in `uncovered_remaining` that have NOT been targeted yet.
-
-⛔ **Anti-pattern: do NOT exit after iteration 1 with a positive delta.** Continue with the next batch from `uncovered_remaining`.
+⛔ **Anti-pattern: do NOT exit after iteration 1 with a positive delta.** Pick the next 3–5 files from the updated `coverage_gaps` and run iteration 2.
 
 ## Step 6: Write result
 
