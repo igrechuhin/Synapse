@@ -36,6 +36,7 @@ TEST_TIMEOUT = get_config_int("TEST_TIMEOUT", 2700)
 TEST_FILTER = os.getenv("TEST_FILTER", "")
 TEST_TARGET = os.getenv("TEST_TARGET", "")
 PARALLEL = get_config_int("PARALLEL", 0)
+SWIFT_JOBS = get_config_int("SWIFT_JOBS", 1)
 _XCTEST_SUMMARY_RE = re.compile(
     r"Executed\s+(?P<total>\d+)\s+tests?,\s+with\s+"
     + r"(?:(?P<skipped>\d+)\s+tests\s+skipped\s+and\s+)?"
@@ -79,6 +80,8 @@ def build_test_cmd(swift: str) -> list[str]:
         List of command parts.
     """
     cmd = [swift, "test"]
+    if SWIFT_JOBS > 0:
+        cmd.extend(["--jobs", str(SWIFT_JOBS)])
     if PARALLEL:
         cmd.append("--parallel")
     if TEST_TARGET:
@@ -98,17 +101,26 @@ def parse_swift_test_summary(output: str) -> tuple[int | None, int | None]:
         Tuple of (total_tests, failed_tests). If no summary is found, both values
         are None.
     """
-    # Prefer the Swift Testing aggregate line when present. Hybrid SwiftPM runs
-    # also emit per-suite XCTest "Executed N tests" lines; taking max(N) is not
-    # a meaningful total and can dwarf the real Swift Testing count.
     swift_testing = _SWIFT_TESTING_RUN_RE.search(output)
-    if swift_testing is not None:
-        return int(swift_testing.group("total")), 0
+    swift_testing_total = (
+        int(swift_testing.group("total")) if swift_testing is not None else None
+    )
 
     matches = list(_XCTEST_SUMMARY_RE.finditer(output))
     if matches:
         best = max(matches, key=lambda m: int(m.group("total")))
-        return int(best.group("total")), int(best.group("failed"))
+        xctest_total = int(best.group("total"))
+        xctest_failed = int(best.group("failed"))
+
+        # SwiftPM hybrid runs can emit both Swift Testing and XCTest summaries.
+        # Use whichever total is larger so the runner reports the full executed
+        # slice instead of the smaller Swift Testing subset.
+        if swift_testing_total is not None and swift_testing_total > xctest_total:
+            return swift_testing_total, 0
+        return xctest_total, xctest_failed
+
+    if swift_testing_total is not None:
+        return swift_testing_total, 0
 
     return None, None
 
