@@ -24,8 +24,15 @@
         },
         {
           "file": "do.md",
-          "name": "Do",
+          "name": "Do Single Step",
           "description": "Read the roadmap, identify the next pending step, and implement it completely",
+          "internal": true,
+          "keywords": ["roadmap", "implementation", "tasks", "planning", "progress"]
+        },
+        {
+          "file": "do-loop.md",
+          "name": "Do",
+          "description": "Read the roadmap and implement all pending steps via subagents until complete (max 5 iterations)",
           "keywords": ["roadmap", "implementation", "tasks", "planning", "progress"]
         },
         {
