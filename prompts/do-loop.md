@@ -30,64 +30,60 @@ Same as `do.md`: embed `operation`, `phase`, and `pipeline` inside the data JSON
 
 ---
 
-## Iteration Loop (repeat until `roadmap_complete` or `iteration == max_iterations`)
+## Iteration Loop
 
-### Step 1 — Increment and log
+**CRITICAL — strictly sequential, one subagent at a time.**
+Do NOT spawn the next subagent until Steps A → B → C → D below have all completed for the
+current iteration. Never spawn two subagents concurrently.
 
-Increment `iteration`. Print:
+---
 
-```text
-## Iteration <N> / 5
-```
+### A. Start iteration
 
-### Step 2 — Spawn subagent
+Increment `iteration`. Print: `## Iteration <N> / 5`
 
-Spawn a subagent and instruct it to execute the full `/cortex/do` workflow **inline**:
+Record the current PENDING entries from roadmap.md as `pending_before` (used in D).
+
+---
+
+### B. Spawn subagent — BLOCKING
+
+Spawn **one** subagent with this instruction:
 
 > "Execute the full `/cortex/do` workflow now. Load and follow `.cortex/synapse/prompts/do.md`
 > exactly — run all phases in order: Selection, Implementation (inner loop), Review Gate,
 > Finalize, Verify, Fix, Cleanup. Do not stop early. When complete, output the standard
 > Pipeline report."
 
-The subagent must:
+**STOP HERE. Do not proceed to C until this subagent has returned.**
+No other work happens while the subagent runs.
 
-- Run Selection inline (not delegate it)
-- Spawn `@implement-code` for Implementation (inner loop), as specified in `do.md`
-- Run Review Gate, Finalize, Verify, Fix, Cleanup inline
+---
 
-Wait for the subagent to return before continuing.
+### C. Check roadmap
 
-### Step 3 — Check roadmap
+The subagent has returned. Now read `.cortex/memory-bank/roadmap.md` directly.
 
-After the subagent returns, read `.cortex/memory-bank/roadmap.md` directly.
+Count remaining pending steps (lines starting with `- PENDING:` under Blockers, Active Work,
+or Pending plans sections). Record as `pending_after`.
 
-Count pending steps:
+- If `pending_after == 0`: set `roadmap_complete = true` → **exit loop**
+- If `iteration == max_iterations`: set stop reason `iteration_limit_reached` → **exit loop**
 
-- Any line starting with `- PENDING:` under Blockers, Active Work, or Pending plans sections
-- Any `status: PENDING` or `status: IN_PROGRESS` in referenced plan files (optional cross-check)
+---
 
-If **zero pending steps remain**:
+### D. Stall guard
 
-- Set `roadmap_complete = true`
-- Break the loop
+Compare `pending_after` to `pending_before`.
 
-If **pending steps remain** and `iteration < max_iterations`:
+- If identical (roadmap did not change) or subagent reported failure with no files changed:
+  increment `stall_count`.
+  - If `stall_count >= 2`: set stop reason `stalled` → **exit loop**
+- Otherwise: reset `stall_count = 0`
 
-- Continue to next iteration
+---
 
-If `iteration == max_iterations` and roadmap is not complete:
-
-- Set stop reason to `iteration_limit_reached`
-- Break the loop
-
-### Step 4 — Subagent failure guard
-
-If the subagent returned a failure or the roadmap was unchanged after the iteration
-(same PENDING entries as before the subagent ran):
-
-- Increment a `stall_count`
-- If `stall_count >= 2` (two consecutive stalls): break the loop with stop reason `stalled`
-- Otherwise continue
+Proceed to next iteration (back to A).
 
 ---
 
