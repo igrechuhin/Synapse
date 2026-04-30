@@ -37,8 +37,8 @@ _EXCLUDED_SUFFIXES: tuple[str, ...] = (
 # This is intentionally conservative to avoid false positives.
 _FUNC_START_RE = re.compile(
     r"^\s*(?:public|private|protected|internal)\b"
-    r"(?:[\s\w<>,\[\]]+)?"
-    r"\s*\w+\s*\([^;{}]*\)\s*$"
+    + r"(?:[\s\w<>,\[\]]+)?"
+    + r"\s*\w+\s*\([^;{}]*\)\s*$"
 )
 
 
