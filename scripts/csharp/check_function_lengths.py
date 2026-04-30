@@ -165,9 +165,7 @@ def main() -> None:
         tests_dir = sources_dir.parent / "Tests"
         if tests_dir.exists():
             cs_files += [
-                f
-                for f in sorted(tests_dir.rglob("*.cs"))
-                if not is_excluded(f)
+                f for f in sorted(tests_dir.rglob("*.cs")) if not is_excluded(f)
             ]
 
     all_violations: list[str] = []
@@ -194,4 +192,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-

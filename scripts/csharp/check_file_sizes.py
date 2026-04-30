@@ -113,9 +113,7 @@ def main() -> None:
             print(f"✅ No C# sources directory detected (skipped): {sources_dir}")
             sys.exit(0)
 
-        cs_files = [
-            f for f in sorted(sources_dir.rglob("*.cs")) if not is_excluded(f)
-        ]
+        cs_files = [f for f in sorted(sources_dir.rglob("*.cs")) if not is_excluded(f)]
 
         tests_dir = sources_dir.parent / "Tests"
         if tests_dir.exists():
@@ -172,4 +170,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-
