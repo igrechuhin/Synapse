@@ -27,7 +27,11 @@ If `no_data` or connection error: note "Context effectiveness analysis unavailab
 
 ## Step 5: Session Optimization
 
-Run usage pattern analysis (set `analysis_target` in session config to "usage_patterns", then read `cortex://analysis` resource).
+Run usage pattern analysis:
+
+1. Write to `.cortex/.session/current-task.json`: `{"analysis_target": "usage_patterns"}`
+2. Call `pipeline_handoff()` (no args) to flush the session config.
+3. Read `cortex://analysis` resource — **no query params; the target is read from the session config file**.
 
 Record: mistake patterns, root causes, optimization recommendations, tool anomalies.
 
@@ -42,7 +46,11 @@ If connection error: note "Session optimization analysis unavailable" and contin
 
 ## Step 6: Tools Optimization
 
-Run tools analysis (set `analysis_target` in session config to "tools", then read `cortex://analysis` resource) if available.
+Run tools analysis:
+
+1. Write to `.cortex/.session/current-task.json`: `{"analysis_target": "tools"}`
+2. Call `pipeline_handoff()` (no args) to flush the session config.
+3. Read `cortex://analysis` resource — **no query params; the target is read from the session config file**.
 
 Record: tool budget (registered count vs target of 40), dead tools, duplicates, consolidation candidates. If tool count exceeds 40 target, flag as CRITICAL.
 
