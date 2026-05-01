@@ -5,7 +5,7 @@ limit is reached. Each subagent runs one full `/cortex/do` pass (Selection → I
 Review Gate → Finalize → Verify → Fix → Cleanup). After each pass the orchestrator checks the
 roadmap; if steps remain it spawns a fresh subagent for the next step.
 
-**Maximum iterations**: 5. After 5 passes the loop stops and reports remaining work.
+**Maximum iterations**: 10. After 10 passes the loop stops and reports remaining work.
 
 ---
 
@@ -25,7 +25,7 @@ Same as `do.md`: embed `operation`, `phase`, and `pipeline` inside the data JSON
    - If **no pending steps** exist at start, report "Roadmap already complete" and STOP.
 4. Initialize loop state:
    - `iteration = 0`
-   - `max_iterations = 5`
+   - `max_iterations = 10`
    - `roadmap_complete = false`
 
 ---
@@ -40,7 +40,7 @@ current iteration. Never spawn two subagents concurrently.
 
 ### A. Start iteration
 
-Increment `iteration`. Print: `## Iteration <N> / 5`
+Increment `iteration`. Print: `## Iteration <N> / 10`
 
 Record the current PENDING entries from roadmap.md as `pending_before` (used in D).
 
@@ -94,7 +94,7 @@ Proceed to next iteration (back to A).
 
 **Status**: Roadmap complete ✅ / Iteration limit reached ⚠️ / Stalled ⚠️ / MCP unhealthy ❌
 
-**Iterations run**: <N> / 5
+**Iterations run**: <N> / 10
 
 ### Per-Iteration Summary
 
