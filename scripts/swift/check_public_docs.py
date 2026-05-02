@@ -20,6 +20,7 @@ _COMMENT_LINE_PATTERN = re.compile(r"^\s*///")
 _GENERATED_FILE_MARKERS = ("*.pb.swift", "*.generated.swift")
 _SKIPPED_DIRECTORIES = {"Tests", ".build"}
 _PUBLIC_EXTENSION_PATTERN = re.compile(r"^\s*(?:public|open)\s+extension\b")
+_EXTENSION_PATTERN = re.compile(r"^\s+?(?:(?:public|open|internal|fileprivate|private)\s+)?extension\b")
 _VISIBILITY_RESTRICTED_PATTERN = re.compile(
     r"^\s*(?:private|fileprivate|internal)\s+(?:final\s+)?(?:class|struct|enum|protocol|actor|typealias|init\b|func\b|var\b|let\b|subscript\b)"
 )
@@ -64,36 +65,19 @@ def _is_visibility_restricted_declaration(line: str) -> bool:
 
 
 def _is_undocumented_public_line(
-    lines: list[str], line: str, index: int, public_extension_depth: int
+    lines: list[str], line: str, index: int, member_depth: int
 ) -> bool:
     declaration_is_public = _is_public_declaration(line)
+    # Only flag member declarations that are at the direct member level of a public extension
+    # (member_depth == 1 means we are exactly one brace-scope inside a public extension block)
     in_public_extension_scope = (
-        public_extension_depth > 0
+        member_depth == 1
         and _is_member_declaration(line)
         and not _is_visibility_restricted_declaration(line)
     )
     return (declaration_is_public or in_public_extension_scope) and not _has_docc_comment(
         lines, index
     )
-
-
-def _update_extension_scope(
-    line: str, public_extension_depth: int, extension_depth_stack: list[int]
-) -> int:
-    stripped_line = line.strip()
-    if _is_public_extension_declaration(line):
-        extension_depth_stack.append(1)
-        public_extension_depth += 1
-    elif stripped_line.startswith("extension"):
-        extension_depth_stack.append(0)
-
-    if extension_depth_stack:
-        closing_braces = stripped_line.count("}")
-        while closing_braces > 0 and extension_depth_stack:
-            public_extension_depth -= extension_depth_stack.pop()
-            closing_braces -= 1
-
-    return public_extension_depth
 
 
 def _has_docc_comment(lines: list[str], declaration_line: int) -> bool:
@@ -110,24 +94,66 @@ def _has_docc_comment(lines: list[str], declaration_line: int) -> bool:
 def _find_undocumented_declarations(path: Path) -> list[UndocumentedDeclaration]:
     lines = path.read_text(encoding="utf-8").splitlines()
     findings: list[UndocumentedDeclaration] = []
-    public_extension_depth = 0
-    extension_depth_stack: list[int] = []
+
+    # Track overall brace depth and public extension scopes.
+    # public_ext_entry_depths stores the total_brace_depth value recorded BEFORE the
+    # public extension's opening brace is processed.  Direct members of the extension
+    # are therefore at `total_brace_depth == entry_depth + 1`; lines inside nested
+    # function/closure bodies are at depth >= entry_depth + 2.
+
+    total_brace_depth = 0  # current overall { } depth (after processing this line)
+
+    # Parallel stacks – one entry per { encountered, describing its context.
+    # Each entry: (depth_before_open: int, is_pub_ext_open: bool)
+    scope_stack: list[tuple[int, bool]] = []
+
+    # Depths (before open) for each public extension block still on the stack.
+    public_ext_entry_depths: list[int] = []
+
     for index, line in enumerate(lines, start=1):
-        if _is_undocumented_public_line(lines, line, index, public_extension_depth):
+        stripped = line.strip()
+
+        # Evaluate membership BEFORE updating depths for this line.
+        # A declaration on this line is a *direct member* of a public extension when
+        # total_brace_depth == entry_depth + 1, i.e. member_depth == 1.
+        member_depth = 0
+        if public_ext_entry_depths:
+            member_depth = total_brace_depth - public_ext_entry_depths[-1]
+
+        if _is_undocumented_public_line(lines, line, index, member_depth):
             findings.append(
                 UndocumentedDeclaration(
                     path=path,
                     line=index,
-                    declaration=line.strip(),
+                    declaration=stripped,
                 )
             )
-        public_extension_depth = _update_extension_scope(
-            line, public_extension_depth, extension_depth_stack
-        )
-        if public_extension_depth < 0:
-            raise ValueError(
-                f"Invalid extension depth while parsing {path} at line {index}"
-            )
+
+        # Count braces on this line (approximate: ignores string literals / comments).
+        opens = stripped.count("{")
+        closes = stripped.count("}")
+
+        # Flag whether the FIRST { on this line belongs to a public extension declaration.
+        is_pub_ext = _is_public_extension_declaration(line)
+
+        # Process opens first, then closes (handles same-line open-then-close like closures).
+        for _ in range(opens):
+            depth_before = total_brace_depth
+            total_brace_depth += 1
+            scope_stack.append((depth_before, is_pub_ext))
+            if is_pub_ext:
+                public_ext_entry_depths.append(depth_before)
+            is_pub_ext = False  # only the first { on this line is the extension open
+
+        for _ in range(closes):
+            if scope_stack:
+                depth_before, was_pub_ext = scope_stack.pop()
+                if was_pub_ext and public_ext_entry_depths:
+                    if public_ext_entry_depths[-1] == depth_before:
+                        public_ext_entry_depths.pop()
+            if total_brace_depth > 0:
+                total_brace_depth -= 1
+
     return findings
 
 
