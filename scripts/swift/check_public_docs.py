@@ -20,7 +20,9 @@ _COMMENT_LINE_PATTERN = re.compile(r"^\s*///")
 _GENERATED_FILE_MARKERS = ("*.pb.swift", "*.generated.swift")
 _SKIPPED_DIRECTORIES = {"Tests", ".build"}
 _PUBLIC_EXTENSION_PATTERN = re.compile(r"^\s*(?:public|open)\s+extension\b")
-_EXTENSION_PATTERN = re.compile(r"^\s+?(?:(?:public|open|internal|fileprivate|private)\s+)?extension\b")
+_EXTENSION_PATTERN = re.compile(
+    r"^\s+?(?:(?:public|open|internal|fileprivate|private)\s+)?extension\b"
+)
 _VISIBILITY_RESTRICTED_PATTERN = re.compile(
     r"^\s*(?:private|fileprivate|internal)\s+(?:final\s+)?(?:class|struct|enum|protocol|actor|typealias|init\b|func\b|var\b|let\b|subscript\b)"
 )
@@ -75,9 +77,9 @@ def _is_undocumented_public_line(
         and _is_member_declaration(line)
         and not _is_visibility_restricted_declaration(line)
     )
-    return (declaration_is_public or in_public_extension_scope) and not _has_docc_comment(
-        lines, index
-    )
+    return (
+        declaration_is_public or in_public_extension_scope
+    ) and not _has_docc_comment(lines, index)
 
 
 def _has_docc_comment(lines: list[str], declaration_line: int) -> bool:
@@ -150,7 +152,7 @@ def _find_undocumented_declarations(path: Path) -> list[UndocumentedDeclaration]
                 depth_before, was_pub_ext = scope_stack.pop()
                 if was_pub_ext and public_ext_entry_depths:
                     if public_ext_entry_depths[-1] == depth_before:
-                        public_ext_entry_depths.pop()
+                        _ = public_ext_entry_depths.pop()
             if total_brace_depth > 0:
                 total_brace_depth -= 1
 
@@ -161,18 +163,18 @@ def _parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Count undocumented public/open Swift declarations."
     )
-    parser.add_argument(
+    _ = parser.add_argument(
         "paths",
         nargs="+",
         help="Swift files or directories to scan (for example Sources/Shared).",
     )
-    parser.add_argument(
+    _ = parser.add_argument(
         "--threshold",
         type=int,
         default=0,
         help="Maximum allowed undocumented declarations (default: 0).",
     )
-    parser.add_argument(
+    _ = parser.add_argument(
         "--quiet",
         action="store_true",
         help="Suppress per-declaration output and print only totals.",
@@ -196,7 +198,9 @@ def main() -> int:
         for finding in findings:
             print(f"{finding.path}:{finding.line}: {finding.declaration}")
 
-    print(f"undocumented_public_declarations={len(findings)} threshold={args.threshold}")
+    print(
+        f"undocumented_public_declarations={len(findings)} threshold={args.threshold}"
+    )
     return 0 if len(findings) <= args.threshold else 1
 
 

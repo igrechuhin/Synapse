@@ -26,9 +26,13 @@ class CheckPublicDocsTests(unittest.TestCase):
 
         # Assert
         self.assertEqual(completed.returncode, 1)
-        self.assertIn("undocumented_public_declarations=2 threshold=0", completed.stdout)
+        self.assertIn(
+            "undocumented_public_declarations=2 threshold=0", completed.stdout
+        )
 
-    def test_accepts_docc_comment_when_attribute_is_between_comment_and_declaration(self) -> None:
+    def test_accepts_docc_comment_when_attribute_is_between_comment_and_declaration(
+        self,
+    ) -> None:
         # Arrange
         swift_source = """
         /// Declared with availability metadata.
@@ -45,7 +49,9 @@ class CheckPublicDocsTests(unittest.TestCase):
 
         # Assert
         self.assertEqual(completed.returncode, 0)
-        self.assertIn("undocumented_public_declarations=0 threshold=0", completed.stdout)
+        self.assertIn(
+            "undocumented_public_declarations=0 threshold=0", completed.stdout
+        )
 
     def test_counts_public_extension_members_and_ignores_private_members(self) -> None:
         # Arrange
@@ -63,7 +69,9 @@ class CheckPublicDocsTests(unittest.TestCase):
 
         # Assert
         self.assertEqual(completed.returncode, 1)
-        self.assertIn("undocumented_public_declarations=2 threshold=0", completed.stdout)
+        self.assertIn(
+            "undocumented_public_declarations=2 threshold=0", completed.stdout
+        )
         self.assertNotIn("hiddenMethod", completed.stdout)
 
 
@@ -71,7 +79,9 @@ def _run_checker(swift_source: str) -> subprocess.CompletedProcess[str]:
     script_path = Path(__file__).resolve().with_name("check_public_docs.py")
     with tempfile.TemporaryDirectory() as tmp_dir:
         test_file = Path(tmp_dir) / "Sample.swift"
-        test_file.write_text(textwrap.dedent(swift_source).strip() + "\n", encoding="utf-8")
+        _ = test_file.write_text(
+            textwrap.dedent(swift_source).strip() + "\n", encoding="utf-8"
+        )
         return subprocess.run(
             ["python3", str(script_path), str(test_file)],
             check=False,
