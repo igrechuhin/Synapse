@@ -105,6 +105,11 @@ def parse_swift_test_summary(output: str) -> tuple[int | None, int | None]:
     swift_testing_total = (
         int(swift_testing.group("total")) if swift_testing is not None else None
     )
+    # When Swift Testing emits its aggregate "… passed" line, treat it as canonical.
+    # Full-matrix hybrid runs also stream XCTest per-suite summaries; taking the max
+    # XCTest total can mis-attribute failures from unrelated log noise.
+    if swift_testing is not None:
+        return swift_testing_total, 0
 
     matches = list(_XCTEST_SUMMARY_RE.finditer(output))
     if matches:
@@ -112,15 +117,7 @@ def parse_swift_test_summary(output: str) -> tuple[int | None, int | None]:
         xctest_total = int(best.group("total"))
         xctest_failed = int(best.group("failed"))
 
-        # SwiftPM hybrid runs can emit both Swift Testing and XCTest summaries.
-        # Use whichever total is larger so the runner reports the full executed
-        # slice instead of the smaller Swift Testing subset.
-        if swift_testing_total is not None and swift_testing_total > xctest_total:
-            return swift_testing_total, 0
         return xctest_total, xctest_failed
-
-    if swift_testing_total is not None:
-        return swift_testing_total, 0
 
     return None, None
 

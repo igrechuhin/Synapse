@@ -31,6 +31,20 @@ class SwiftRunTestsStatusMappingTests(unittest.TestCase):
         self.assertIsNone(total)
         self.assertIsNone(failed)
 
+    def test_parse_summary_trusts_swift_testing_pass_line_over_xctest_noise(
+        self,
+    ) -> None:
+        """Aggregate Swift Testing pass wins over stray XCTest failure summaries."""
+        output = (
+            "Executed 9 tests, with 2 failures (0 unexpected) in 1.0 seconds\n"
+            "Test run with 4357 tests in 280 suites passed after 100.0 seconds.\n"
+        )
+
+        total, failed = parse_swift_test_summary(output)
+
+        self.assertEqual(total, 4357)
+        self.assertEqual(failed, 0)
+
     def test_decode_process_output_handles_png_header_byte(self) -> None:
         raw = bytes([0x89]) + b"PNG\r\n"
 
