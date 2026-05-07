@@ -48,7 +48,7 @@ Before writing any new test file:
 Required import structure for Swift test targets with `@testable import`:
 
 ```swift
-import XCTest        // or Testing
+import Testing
 @testable import <ModuleName>
 // plus any Shared/Logger/ModelTrainingCore imports used in the existing test files
 ```

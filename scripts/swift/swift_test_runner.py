@@ -23,6 +23,7 @@ import os
 import re
 import subprocess
 import sys
+import tempfile
 from pathlib import Path
 
 try:
@@ -37,6 +38,8 @@ TEST_FILTER = os.getenv("TEST_FILTER", "")
 TEST_TARGET = os.getenv("TEST_TARGET", "")
 PARALLEL = get_config_int("PARALLEL", 0)
 SWIFT_JOBS = get_config_int("SWIFT_JOBS", 1)
+# Set KILL_STUCK=1 to kill lingering SwiftPM processes before running tests.
+KILL_STUCK = get_config_int("KILL_STUCK", 0)
 _XCTEST_SUMMARY_RE = re.compile(
     r"Executed\s+(?P<total>\d+)\s+tests?,\s+with\s+"
     + r"(?:(?P<skipped>\d+)\s+tests\s+skipped\s+and\s+)?"
@@ -165,26 +168,44 @@ def did_tests_pass(returncode: int, failed_tests: int | None) -> bool:
     return failed_tests == 0
 
 
-def _swift_test_child_environment() -> dict[str, str]:
+def _swift_test_child_environment(isolation_root: Path) -> dict[str, str]:
     """Build environment for the SwiftPM test subprocess.
 
     Returns:
         A copy of ``os.environ`` with MLX defaults adjusted for runner stability.
     """
     env = os.environ.copy()
-    allow_metal = os.getenv("SWIFT_TEST_ALLOW_METAL", "").strip().lower() in (
+    allow_metal = os.getenv("SWIFT_TEST_ALLOW_METAL", "1").strip().lower() in (
+        "",
         "1",
         "true",
         "yes",
     )
     if not allow_metal:
         env["MLX_DISABLE_METAL"] = "1"
+
+    # Isolate filesystem side effects for each test runner invocation.
+    data_dir = isolation_root / "data"
+    tmp_dir = isolation_root / "tmp"
+    data_dir.mkdir(parents=True, exist_ok=True)
+    tmp_dir.mkdir(parents=True, exist_ok=True)
+    env["TRADEWING_DATA_DIR"] = str(data_dir)
+    env["TMPDIR"] = str(tmp_dir)
     return env
 
 
 def main() -> None:
     """Run swift test."""
     project_root = get_project_root(Path(__file__))
+
+    if KILL_STUCK:
+        try:
+            import kill_stuck_swiftpm
+            kill_stuck_swiftpm.kill_stuck_processes()
+            kill_stuck_swiftpm.remove_build_lock(project_root)
+        except Exception as exc:
+            print(f"⚠️  SwiftPM cleanup failed (non-fatal): {exc}", file=sys.stderr)
+
     swift = find_swift()
     cmd = build_test_cmd(swift)
 
@@ -194,46 +215,48 @@ def main() -> None:
     max_attempts = 3
 
     try:
-        for attempt in range(1, max_attempts + 1):
-            result = subprocess.run(
-                cmd,
-                cwd=project_root,
-                capture_output=True,
-                text=False,
-                check=False,
-                timeout=TEST_TIMEOUT,
-                env=_swift_test_child_environment(),
-            )
-
-            stdout = decode_process_output(result.stdout)
-            stderr = decode_process_output(result.stderr)
-
-            if stdout:
-                print(stdout)
-            if stderr:
-                print(stderr, file=sys.stderr)
-
-            combined_output = "\n".join(part for part in [stdout, stderr] if part)
-            total_tests, failed_tests = parse_swift_test_summary(combined_output)
-            normalized_success = did_tests_pass(result.returncode, failed_tests)
-
-            if normalized_success:
-                if total_tests is not None and failed_tests is not None:
-                    print(f"Test summary: total={total_tests}, failed={failed_tests}")
-                print("✅ All tests passed")
-                sys.exit(0)
-
-            if attempt < max_attempts and _transient_swiftpm_failure(
-                result.returncode, failed_tests, combined_output
-            ):
-                print(
-                    f"⚠️ Transient SwiftPM test runner failure (attempt {attempt}/{max_attempts}); retrying...",
-                    file=sys.stderr,
+        with tempfile.TemporaryDirectory(prefix="tradewing-swift-test-") as root:
+            test_isolation_root = Path(root)
+            for attempt in range(1, max_attempts + 1):
+                result = subprocess.run(
+                    cmd,
+                    cwd=project_root,
+                    capture_output=True,
+                    text=False,
+                    check=False,
+                    timeout=TEST_TIMEOUT,
+                    env=_swift_test_child_environment(test_isolation_root),
                 )
-                continue
 
-            print("❌ Tests failed.", file=sys.stderr)
-            sys.exit(1)
+                stdout = decode_process_output(result.stdout)
+                stderr = decode_process_output(result.stderr)
+
+                if stdout:
+                    print(stdout)
+                if stderr:
+                    print(stderr, file=sys.stderr)
+
+                combined_output = "\n".join(part for part in [stdout, stderr] if part)
+                total_tests, failed_tests = parse_swift_test_summary(combined_output)
+                normalized_success = did_tests_pass(result.returncode, failed_tests)
+
+                if normalized_success:
+                    if total_tests is not None and failed_tests is not None:
+                        print(f"Test summary: total={total_tests}, failed={failed_tests}")
+                    print("✅ All tests passed")
+                    sys.exit(0)
+
+                if attempt < max_attempts and _transient_swiftpm_failure(
+                    result.returncode, failed_tests, combined_output
+                ):
+                    print(
+                        f"⚠️ Transient SwiftPM test runner failure (attempt {attempt}/{max_attempts}); retrying...",
+                        file=sys.stderr,
+                    )
+                    continue
+
+                print("❌ Tests failed.", file=sys.stderr)
+                sys.exit(1)
 
     except subprocess.TimeoutExpired:
         print(f"❌ Tests timed out after {TEST_TIMEOUT}s.", file=sys.stderr)

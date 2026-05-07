@@ -32,6 +32,8 @@ alwaysApply: false
 - **NO underscore prefixes** — use descriptive names instead — MANDATORY
 - **Type inference preferred** — omit obvious local types — MANDATORY
 - **Named constants** for repeated scalars (e.g., `percentScale = 100.0`) — MANDATORY
+- **No repeated expression evaluation** — compute repeated values once (e.g., `let errorText = String(describing: error)`) and reuse in conditions/assertions — MANDATORY
+- **Prefer collection-based token matching** — for repeated `contains` checks, use token arrays with predicates (e.g., `["feature", "SQLite"].contains { errorText.contains($0) }`) instead of long `||` chains — MANDATORY
 - **US English** in all identifiers and comments — MANDATORY
 - **lowerCamelCase** for functions and variables — MANDATORY
 - **UpperCamelCase** for types — MANDATORY

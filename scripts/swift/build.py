@@ -26,6 +26,8 @@ except ImportError:
 BUILD_TIMEOUT = get_config_int("BUILD_TIMEOUT", 300)
 SWIFT_COMMAND = os.getenv("SWIFT_COMMAND", "build")
 SWIFT_FLAGS = os.getenv("SWIFT_FLAGS", "")
+# Set KILL_STUCK=1 to kill lingering SwiftPM processes before building.
+KILL_STUCK = get_config_int("KILL_STUCK", 0)
 
 
 def find_swift() -> str:
@@ -58,6 +60,15 @@ def build_cmd(swift: str) -> list[str]:
 def main() -> None:
     """Run swift build."""
     project_root = get_project_root(Path(__file__))
+
+    if KILL_STUCK:
+        try:
+            import kill_stuck_swiftpm
+            kill_stuck_swiftpm.kill_stuck_processes()
+            kill_stuck_swiftpm.remove_build_lock(project_root)
+        except Exception as exc:
+            print(f"⚠️  SwiftPM cleanup failed (non-fatal): {exc}", file=sys.stderr)
+
     if not (project_root / "Package.swift").exists():
         print("✅ No Swift package detected at project root (skipped)")
         sys.exit(0)
