@@ -348,6 +348,8 @@ Use @fix-docs to handle this target. If the subagent is unavailable, run inline:
 2. Align activeContext and progress: ensure completed work in `activeContext.md`, ongoing work in `roadmap.md`.
 3. Fix timestamp and sync issues: read `cortex://validation` resource. Apply targeted fixes.
 4. Re-run docs validation: call `run_docs_gate()`. If not passing, go back to step 1 (max 3 iterations).
+   - If the failure is `DocsMemoryBankToolError` with `roadmap.md does not exist in memory bank`, confirm with `manage_file(operation="metadata", file_name="roadmap.md")`.
+   - When metadata confirms `file_exists: true`, treat this as a known docs-gate bridge mismatch (argument-stripping false-negative). Mark docs as ⚠️ warning for this run, keep timestamps checks blocking, and continue.
 
 `roadmap_progress_consistency` handling rule:
 
@@ -427,8 +429,9 @@ After writing the final report for this fix run, invoke the post-prompt self-imp
 Every ✅ requires `run_quality_gate()` or `run_docs_gate()` to have actually run and returned a passing result. No green status is allowed based on local command substitutes.
 
 | Target | Criteria |
-|--------|----------|
+| -------- | -------- |
 | 📈 coverage ✅ | `@fix-coverage` subagent returned `status: "passed"` with non-empty `tests_added` AND `final_coverage >= coverage_threshold` (measured by `run_quality_gate()`); OR `status: "skipped"` when threshold already met / markdown_only scope |
 | 🛠️ quality ✅ | `run_quality_gate()` returned `preflight_passed: true` — zero type errors, clean formatting/linting, zero markdown errors |
 | 🧪 tests ✅ | `run_quality_gate()` returned `results.tests.success: true` (coverage handled by the 📈 coverage target; skipped when markdown_only) |
 | 📝 docs ✅ | `run_docs_gate()` returned `docs_phase_passed: true`, all sync issues resolved |
+| 📝 docs ⚠️ | `run_docs_gate()` failed only with `DocsMemoryBankToolError` (`roadmap.md` missing) **and** `manage_file(metadata, roadmap.md)` confirmed the file exists; treat as non-blocking bridge mismatch and report warning |

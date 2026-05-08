@@ -286,6 +286,8 @@ Then call `pipeline_handoff()`. **GATE**: check `pipeline_state.phases.verify.st
 1. **Quality**: call `autofix()`, then `run_quality_gate()`. If issues remain, fix inline and retry (max 3 iterations).
 2. **Tests**: if `run_quality_gate()` reports test failures, diagnose and fix them (max 3 iterations).
 3. **Docs**: call `run_docs_gate()`. If timestamps or roadmap_sync fail, fix via `manage_file()` and retry (max 3 iterations).
+   - If `run_docs_gate()` returns `DocsMemoryBankToolError` with `roadmap.md does not exist in memory bank`, run `manage_file(operation="metadata", file_name="roadmap.md")`.
+   - If metadata confirms `file_exists: true`, treat this as a Cursor bridge false-negative for docs gate argument routing. Mark docs as warning/non-blocking for this phase, record the warning text in the phase notes, and continue.
 
 Write result:
 

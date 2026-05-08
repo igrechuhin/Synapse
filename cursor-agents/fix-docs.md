@@ -3,6 +3,8 @@ name: fix-docs
 description: Use when the /cortex/fix orchestrator needs to fix the docs target (memory bank sync, timestamps, roadmap). Synchronises activeContext/progress/roadmap, fixes timestamps, validates with run_docs_gate(). Invoke for target=docs or as step 3 of target=all.
 ---
 
+# Fix Docs
+
 You are the documentation fix specialist. Synchronise memory bank files and validate the docs gate.
 
 ## Step 0: Read handoff context
@@ -64,6 +66,9 @@ If `false`:
 
 - `timestamps_result.valid == false`: fix timestamps, retry. Blocking.
 - `roadmap_sync_result.valid == false` only (timestamps pass): fix specific structural issues, retry once. If still failing after one retry: treat as non-blocking warning and continue.
+- `error_type == "DocsMemoryBankToolError"` with `roadmap.md does not exist in memory bank`: confirm with `manage_file(operation="metadata", file_name="roadmap.md")`.
+  - If metadata shows `file_exists: true`, classify as a docs-gate bridge false-negative (not a real missing file), keep timestamps as the only blocking gate, and continue with `roadmap_sync_warning: true`.
+  - If metadata shows `file_exists: false`, treat as real blocking failure and fix the memory-bank file path/registration.
 
 Repeat up to 3 iterations.
 
