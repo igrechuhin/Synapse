@@ -201,7 +201,8 @@ def main() -> None:
     if KILL_STUCK:
         try:
             import kill_stuck_swiftpm
-            kill_stuck_swiftpm.kill_stuck_processes()
+
+            _ = kill_stuck_swiftpm.kill_stuck_processes()
             kill_stuck_swiftpm.remove_build_lock(project_root)
         except Exception as exc:
             print(f"⚠️  SwiftPM cleanup failed (non-fatal): {exc}", file=sys.stderr)
@@ -242,7 +243,9 @@ def main() -> None:
 
                 if normalized_success:
                     if total_tests is not None and failed_tests is not None:
-                        print(f"Test summary: total={total_tests}, failed={failed_tests}")
+                        print(
+                            f"Test summary: total={total_tests}, failed={failed_tests}"
+                        )
                     print("✅ All tests passed")
                     sys.exit(0)
 

@@ -64,7 +64,8 @@ def main() -> None:
     if KILL_STUCK:
         try:
             import kill_stuck_swiftpm
-            kill_stuck_swiftpm.kill_stuck_processes()
+
+            _ = kill_stuck_swiftpm.kill_stuck_processes()
             kill_stuck_swiftpm.remove_build_lock(project_root)
         except Exception as exc:
             print(f"⚠️  SwiftPM cleanup failed (non-fatal): {exc}", file=sys.stderr)

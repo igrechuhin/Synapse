@@ -83,7 +83,7 @@ def kill_stuck_processes() -> int:
     survivors = [p for p in pids if _swiftpm_pids_contain(p)]
     for pid in survivors:
         print(f"  → PID {pid} still alive, sending KILL")
-        _kill(pid, signal.SIGKILL)
+        _ = _kill(pid, signal.SIGKILL)
 
     print(f"✅ Killed {len(pids)} SwiftPM process(es)")
     return len(pids)
