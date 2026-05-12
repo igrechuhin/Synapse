@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
 """Run the Swift test suite with timeout protection and zero-tolerance policy.
 
-Executes `swift test` for the TradeWing project. Any test failure exits
-with code 1, blocking commits and CI.
+Executes a two-phase ``swift build --build-tests`` then ``swift test --skip-build``
+invocation. The split avoids intermittent SIGBUS crashes observed when SwiftPM
+starts an incremental compile mid-``swift test`` run (for example after Charts
+logging) on Apple Silicon toolchains.
 
 Configuration:
     TEST_TIMEOUT:  Timeout in seconds (default: 2700, matching CI quality workflow)
@@ -11,6 +13,10 @@ Configuration:
     PARALLEL:      Set to 0 to disable parallel test execution (default: 0).
                    Parallel runs have provoked intermittent MLX/SIGBUS failures
                    in the full TradeWing matrix; keep 1 only when stable.
+    SWIFT_TEST_NUM_WORKERS: When >0, adds ``swift test --parallel --num-workers N`` (requires SwiftPM
+                   ``--parallel``). Default ``0`` omits both flags for stable CLI/CI. For Cursor/VS Code,
+                   set ``swift.additionalTestArguments`` to ``--parallel`` / ``--num-workers`` ``1`` in
+                   ``.vscode/settings.json`` to reduce ``Test did not complete`` from worker oversubscription.
     SWIFT_TEST_ALLOW_METAL: Set to 1/true/yes to keep Metal-enabled MLX in the
                    child process. By default Metal is disabled (``MLX_DISABLE_METAL=1``)
                    so ``swift test`` is stable under subprocess output capture on
@@ -38,6 +44,7 @@ TEST_FILTER = os.getenv("TEST_FILTER", "")
 TEST_TARGET = os.getenv("TEST_TARGET", "")
 PARALLEL = get_config_int("PARALLEL", 0)
 SWIFT_JOBS = get_config_int("SWIFT_JOBS", 1)
+SWIFT_TEST_NUM_WORKERS = get_config_int("SWIFT_TEST_NUM_WORKERS", 0)
 # Set KILL_STUCK=1 to kill lingering SwiftPM processes before running tests.
 KILL_STUCK = get_config_int("KILL_STUCK", 0)
 _XCTEST_SUMMARY_RE = re.compile(
@@ -82,15 +89,29 @@ def build_test_cmd(swift: str) -> list[str]:
     Returns:
         List of command parts.
     """
-    cmd = [swift, "test"]
+    cmd = [swift, "test", "--skip-build"]
     if SWIFT_JOBS > 0:
         cmd.extend(["--jobs", str(SWIFT_JOBS)])
     if PARALLEL:
         cmd.append("--parallel")
+        if SWIFT_TEST_NUM_WORKERS > 0:
+            cmd.extend(["--num-workers", str(SWIFT_TEST_NUM_WORKERS)])
+    elif SWIFT_TEST_NUM_WORKERS > 0:
+        # AI: SwiftPM requires `--parallel` with `--num-workers`; one worker limits concurrent
+        # Swift Testing tasks and avoids intermittent SIGBUS seen with Charts under load.
+        cmd.extend(["--parallel", "--num-workers", str(SWIFT_TEST_NUM_WORKERS)])
     if TEST_TARGET:
         cmd.extend(["--target", TEST_TARGET])
     if TEST_FILTER:
         cmd.extend(["--filter", TEST_FILTER])
+    return cmd
+
+
+def build_compile_tests_cmd(swift: str) -> list[str]:
+    """Construct ``swift build --build-tests`` with the same job parallelism as tests."""
+    cmd = [swift, "build", "--build-tests"]
+    if SWIFT_JOBS > 0:
+        cmd.extend(["--jobs", str(SWIFT_JOBS)])
     return cmd
 
 
@@ -146,6 +167,23 @@ def _transient_swiftpm_failure(
         return True
     # Negative exit status: child terminated by signal (e.g. SIGBUS == -10).
     return returncode < 0
+
+
+def _transient_swift_driver_crash_without_test_failures(
+    returncode: int, failed_tests: int | None, output: str
+) -> bool:
+    """Retry when the Swift driver dies mid-run without recording a Swift Testing failure."""
+    if returncode == 0:
+        return False
+    if failed_tests is not None and failed_tests > 0:
+        return False
+    lowered = output.lower()
+    if "unexpected signal" not in lowered:
+        return False
+    # If Swift Testing already recorded a failing test, do not treat as a hard crash retry.
+    if "failed after" in lowered:
+        return False
+    return True
 
 
 def did_tests_pass(returncode: int, failed_tests: int | None) -> bool:
@@ -208,17 +246,40 @@ def main() -> None:
             print(f"⚠️  SwiftPM cleanup failed (non-fatal): {exc}", file=sys.stderr)
 
     swift = find_swift()
+    compile_cmd = build_compile_tests_cmd(swift)
     cmd = build_test_cmd(swift)
 
-    print(f"Running: {' '.join(cmd)}")
+    print(f"Running: {' '.join(compile_cmd)}")
+    print(f"Then: {' '.join(cmd)}")
     print(f"Timeout: {TEST_TIMEOUT}s")
 
-    max_attempts = 3
+    max_attempts = 5
 
     try:
         with tempfile.TemporaryDirectory(prefix="tradewing-swift-test-") as root:
             test_isolation_root = Path(root)
+            env = _swift_test_child_environment(test_isolation_root)
+
             for attempt in range(1, max_attempts + 1):
+                compile_result = subprocess.run(
+                    compile_cmd,
+                    cwd=project_root,
+                    capture_output=True,
+                    text=False,
+                    check=False,
+                    timeout=TEST_TIMEOUT,
+                    env=env,
+                )
+                compile_stdout = decode_process_output(compile_result.stdout)
+                compile_stderr = decode_process_output(compile_result.stderr)
+                if compile_stdout:
+                    print(compile_stdout)
+                if compile_stderr:
+                    print(compile_stderr, file=sys.stderr)
+                if compile_result.returncode != 0:
+                    print("❌ swift build --build-tests failed.", file=sys.stderr)
+                    sys.exit(1)
+
                 result = subprocess.run(
                     cmd,
                     cwd=project_root,
@@ -226,7 +287,7 @@ def main() -> None:
                     text=False,
                     check=False,
                     timeout=TEST_TIMEOUT,
-                    env=_swift_test_child_environment(test_isolation_root),
+                    env=env,
                 )
 
                 stdout = decode_process_output(result.stdout)
@@ -249,11 +310,20 @@ def main() -> None:
                     print("✅ All tests passed")
                     sys.exit(0)
 
-                if attempt < max_attempts and _transient_swiftpm_failure(
+                transient_post_success = _transient_swiftpm_failure(
                     result.returncode, failed_tests, combined_output
-                ):
+                )
+                transient_driver_crash = _transient_swift_driver_crash_without_test_failures(
+                    result.returncode, failed_tests, combined_output
+                )
+                if attempt < max_attempts and (transient_post_success or transient_driver_crash):
+                    reason = (
+                        "post-success SwiftPM signal"
+                        if transient_post_success
+                        else "Swift driver signal without recorded test failures"
+                    )
                     print(
-                        f"⚠️ Transient SwiftPM test runner failure (attempt {attempt}/{max_attempts}); retrying...",
+                        f"⚠️ Transient test runner failure ({reason}, attempt {attempt}/{max_attempts}); rebuilding and retrying...",
                         file=sys.stderr,
                     )
                     continue
