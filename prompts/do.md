@@ -287,13 +287,14 @@ Then call `pipeline_handoff()`. **GATE**: check `pipeline_state.phases.verify.st
 2. **Tests**: if `run_quality_gate()` reports test failures, diagnose and fix them (max 3 iterations).
 3. **Docs**: call `run_docs_gate()`. If timestamps or roadmap_sync fail, fix via `manage_file()` and retry (max 3 iterations).
    - If `run_docs_gate()` returns `DocsMemoryBankToolError` with `roadmap.md does not exist in memory bank`, run `manage_file(operation="metadata", file_name="roadmap.md")`.
-   - If metadata confirms `file_exists: true`, treat this as a Cursor bridge false-negative for docs gate argument routing. Mark docs as warning/non-blocking for this phase, record the warning text in the phase notes, and continue.
+   - If metadata confirms `file_exists: true`, treat this as a Cursor bridge false-negative for docs gate argument routing. Mark docs as warning/non-blocking for this phase, then capture reproducible diagnostics in phase notes: `metadata.path`, `metadata.file_exists`, and `cortex://structure` memory-bank root.
+   - Include a short `docs_warning` field in the Fix phase payload so later `/do` iterations can track whether the mismatch is bridge-related or a true missing-file regression.
 
 Write result:
 
 ```json
 // Write to: .cortex/.session/current-task.json
-{"operation":"write","phase":"fix","pipeline":"implement","status":"passed or failed","quality_passed":true,"tests_passed":true,"docs_passed":true,"fix_iterations":0}
+{"operation":"write","phase":"fix","pipeline":"implement","status":"passed or failed","quality_passed":true,"tests_passed":true,"docs_passed":true,"fix_iterations":0,"docs_warning":"<null or compact warning with metadata.path + structure memory_bank root>"}
 ```
 
 Then call `pipeline_handoff()`. **GATE**: `pipeline_state.phases.fix.status == "passed"` is recommended but non-blocking — if fix fails after 3 iterations per target, log remaining issues and proceed to Cleanup.

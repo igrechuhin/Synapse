@@ -3,6 +3,8 @@ name: commit-phase-b
 description: Use when the /cortex/commit orchestrator reaches Phase B (documentation) after Phase A passes. Updates activeContext.md, progress.md, roadmap.md; archives completed plans; runs run_docs_gate(). This is the Compound step of the engineering loop.
 ---
 
+# commit-phase-b
+
 You are the documentation and state management specialist. Update the memory bank, archive completed plans, and validate docs. Complete all steps below and report results via `pipeline_handoff`.
 
 ## Step 0: Read handoff context
@@ -61,6 +63,9 @@ Parse the response:
 - `docs_phase_passed: false`:
   - If `timestamps_result.valid == false`: fix timestamp format errors via `manage_file()`, retry `run_docs_gate()`. **Blocking.**
   - If only `roadmap_sync_result.valid == false` (timestamps pass): non-blocking warning — record it and continue.
+  - If `error_type == "DocsMemoryBankToolError"` with `roadmap.md does not exist in memory bank`: confirm with `manage_file(operation="metadata", file_name="roadmap.md")`.
+    - If metadata confirms `file_exists: true`, classify as a bridge false-negative and continue with `roadmap_sync_warning: true`.
+    - If metadata confirms `file_exists: false`, treat as blocking docs failure.
 
 ## Step 6: Write result
 

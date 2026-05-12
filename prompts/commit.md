@@ -220,6 +220,9 @@ Use @commit-phase-b to handle this phase. If the subagent is unavailable, run th
 5. Call `run_docs_gate()` — zero-arg MCP tool for Phase B docs/memory-bank validation (includes memory-bank lint checks in regular commit flow).
 6. Parse the response. If `docs_phase_passed: false`:
    - Check `timestamps_result.valid`. If `false`: timestamps have format errors — fix them via `manage_file()` and retry `run_docs_gate()`.
+   - If the failure is `DocsMemoryBankToolError` with `roadmap.md does not exist in memory bank`, confirm with `manage_file(operation="metadata", file_name="roadmap.md")`.
+     - If metadata confirms `file_exists: true`, treat this as a Cursor bridge false-negative (docs gate argument-routing mismatch), set `roadmap_sync_warning: true`, and continue to Phase C without blocking.
+     - If metadata confirms `file_exists: false`, treat as a real docs failure and stop.
    - Check `roadmap_sync_result.valid`. If `false`: inspect `roadmap_sync_result` for specific issues. Fix any simple structural issues (stale plan refs, missing entries) via `manage_file()` and retry once. If roadmap_sync still fails after one retry **and timestamps are valid**, treat it as a **non-blocking warning** — record it and proceed to Phase C without blocking the commit.
 7. Write result:
 
@@ -369,6 +372,7 @@ Then call `pipeline_handoff()`.
 - **Phase A fails due to project build failure** (step 5 exits non-zero): fix compilation/build errors, re-run both `run_quality_gate()` and the language-specific build script. Do NOT create the commit until the build succeeds.
 - **Phase A fails due to markdown lint**: Read `markdown_result.output` for exact violations (file:line, rule code). Call `autofix()` (includes markdown auto-fix for fixable rules). If errors remain (e.g. MD036 is not auto-fixable), apply manual fixes using the violation details. Zero markdown errors required before Phase A can pass.
 - **Phase B timestamps fail**: Fix timestamp format errors via `manage_file()`, retry `run_docs_gate()`. Timestamps failure IS blocking.
+- **Phase B `DocsMemoryBankToolError` (`roadmap.md` missing)**: confirm with `manage_file(operation="metadata", file_name="roadmap.md")`. If `file_exists: true`, classify as non-blocking bridge false-negative and continue with warning; if `false`, treat as blocking docs failure.
 - **Phase B roadmap_sync fails only**: Non-blocking warning — record it, proceed to Phase C.
 - **Phase B memory-bank lint fails**: Run `autofix()` first (required) to apply deterministic housekeeping fixes, then retry `run_docs_gate()`. If unresolved after 3 attempts, stop and report remaining blockers.
 - **Phase C Synapse commit fails** (e.g. merge conflict inside submodule): STOP, block commit, report the submodule error

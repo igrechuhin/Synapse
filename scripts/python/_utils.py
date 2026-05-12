@@ -203,3 +203,37 @@ def get_synapse_scripts_dir(project_root: Path) -> Path:
         return project_root / scripts_dir
 
     return scripts_dir
+
+
+def resolve_memory_bank_root(
+    project_root: Path, structure_memory_bank_path: str | Path | None = None
+) -> Path:
+    """Resolve canonical memory-bank root with structure-aware fallback.
+
+    Preference order:
+    1) Explicit structure memory-bank path (from `cortex://structure`)
+    2) Project-local default `.cortex/memory-bank`
+    """
+    candidate: Path | None = None
+    if structure_memory_bank_path is not None:
+        candidate = Path(structure_memory_bank_path)
+        if not candidate.is_absolute():
+            candidate = project_root / candidate
+        candidate = candidate.resolve()
+        if candidate.exists() and candidate.is_dir():
+            return candidate
+
+    fallback = (project_root / _CORTEX_DIR_NAME / "memory-bank").resolve()
+    return fallback
+
+
+def resolve_memory_bank_file_path(
+    project_root: Path,
+    file_name: str,
+    structure_memory_bank_path: str | Path | None = None,
+) -> Path:
+    """Resolve a memory-bank file path from canonical memory-bank root."""
+    return resolve_memory_bank_root(
+        project_root=project_root,
+        structure_memory_bank_path=structure_memory_bank_path,
+    ) / file_name
