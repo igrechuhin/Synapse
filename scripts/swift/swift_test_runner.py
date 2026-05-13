@@ -17,16 +17,19 @@ Configuration:
                    ``--parallel``). Default ``0`` omits both flags for stable CLI/CI. For Cursor/VS Code,
                    set ``swift.additionalTestArguments`` to ``--parallel`` / ``--num-workers`` ``1`` in
                    ``.vscode/settings.json`` to reduce ``Test did not complete`` from worker oversubscription.
-    SWIFT_TEST_ALLOW_METAL: Set to 1/true/yes to keep Metal-enabled MLX in the
-                   child process. By default Metal is disabled (``MLX_DISABLE_METAL=1``)
-                   so ``swift test`` is stable under subprocess output capture on
-                   Apple Silicon (intermittent SIGBUS otherwise).
+
+    MLX / Metal: This runner does **not** set ``MLX_DISABLE_METAL``. TradeWing tests expect a working
+    MLX default metallib (Apple Silicon, macOS 15+, full Xcode selected via ``xcode-select``). The
+    parent ``test.sh`` exports ``DEVELOPER_DIR`` using ``.cursor/scripts/resolve_developer_dir.sh``.
+    If you see ``Failed to load the default metallib``, fix ``xcode-select`` (not Command Line Tools
+    only), refresh IDE after ``.vscode`` ``swift.path`` (``…/swift-xcode-bridge/swift``), then ``swift package clean`` + rebuild.
 """
 
 from __future__ import annotations
 
 import os
 import re
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -53,8 +56,12 @@ _XCTEST_SUMMARY_RE = re.compile(
     + r"(?P<failed>\d+)\s+failures",
     re.IGNORECASE,
 )
-_SWIFT_TESTING_RUN_RE = re.compile(
+_SWIFT_TESTING_PASSED_RE = re.compile(
     r"Test\s+run\s+with\s+(?P<total>\d+)\s+tests\s+in\s+\d+\s+suites\s+passed",
+    re.IGNORECASE,
+)
+_SWIFT_TESTING_FAILED_RE = re.compile(
+    r"Test\s+run\s+with\s+(?P<total>\d+)\s+tests\s+in\s+\d+\s+suites\s+failed",
     re.IGNORECASE,
 )
 
@@ -68,13 +75,68 @@ def decode_process_output(raw_output: str | bytes | None) -> str:
     return raw_output
 
 
+def _ensure_developer_dir_for_swiftpm(project_root: Path) -> None:
+    """Set ``DEVELOPER_DIR`` to full Xcode when missing or pointing at Command Line Tools only."""
+    if sys.platform != "darwin":
+        return
+    existing = os.environ.get("DEVELOPER_DIR", "")
+    if existing and Path(existing).is_dir():
+        if "CommandLineTools" in existing:
+            print(
+                "DEVELOPER_DIR points at Command Line Tools; MLX needs full Xcode. "
+                "Run: sudo xcode-select -s /Applications/Xcode.app/Contents/Developer",
+                file=sys.stderr,
+            )
+            sys.exit(1)
+        return
+    script = project_root / ".cursor" / "scripts" / "resolve_developer_dir.sh"
+    if not script.is_file():
+        return
+    proc = subprocess.run(
+        ["/bin/bash", str(script)],
+        capture_output=True,
+        text=True,
+        check=False,
+        timeout=60,
+    )
+    if proc.returncode != 0:
+        print(proc.stderr.strip() or proc.stdout.strip(), file=sys.stderr)
+        sys.exit(1)
+    resolved = proc.stdout.strip()
+    if not resolved:
+        print("resolve_developer_dir.sh returned empty path.", file=sys.stderr)
+        sys.exit(1)
+    os.environ["DEVELOPER_DIR"] = resolved
+
+
 def find_swift() -> str:
     """Return path to swift executable.
+
+    Prefers ``xcrun --find swift`` on macOS so the active Xcode toolchain matches ``DEVELOPER_DIR``.
 
     Returns:
         Path to swift binary or 'swift' as fallback.
     """
-    for candidate in ["/usr/bin/swift", "/usr/local/bin/swift"]:
+    if sys.platform == "darwin":
+        try:
+            proc = subprocess.run(
+                ["xcrun", "--find", "swift"],
+                capture_output=True,
+                text=True,
+                check=False,
+                timeout=30,
+                env=os.environ,
+            )
+            if proc.returncode == 0:
+                path = proc.stdout.strip()
+                if path and Path(path).exists():
+                    return path
+        except (OSError, subprocess.SubprocessError):
+            pass
+    which = shutil.which("swift")
+    if which:
+        return which
+    for candidate in ("/usr/bin/swift", "/usr/local/bin/swift"):
         if Path(candidate).exists():
             return candidate
     return "swift"
@@ -125,23 +187,24 @@ def parse_swift_test_summary(output: str) -> tuple[int | None, int | None]:
         Tuple of (total_tests, failed_tests). If no summary is found, both values
         are None.
     """
-    swift_testing = _SWIFT_TESTING_RUN_RE.search(output)
-    swift_testing_total = (
-        int(swift_testing.group("total")) if swift_testing is not None else None
-    )
-    # When Swift Testing emits its aggregate "… passed" line, treat it as canonical.
-    # Full-matrix hybrid runs also stream XCTest per-suite summaries; taking the max
-    # XCTest total can mis-attribute failures from unrelated log noise.
-    if swift_testing is not None:
-        return swift_testing_total, 0
+    # AI: Prefer the chronologically last Swift Testing summary. Incremental SwiftPM
+    # output can interleave stale fragments; first-match-wins falsely marks failure.
+    swift_events: list[tuple[int, int, int]] = []
+    for m in _SWIFT_TESTING_FAILED_RE.finditer(output):
+        swift_events.append((m.start(), int(m.group("total")), 1))
+    for m in _SWIFT_TESTING_PASSED_RE.finditer(output):
+        swift_events.append((m.start(), int(m.group("total")), 0))
+    if swift_events:
+        swift_events.sort(key=lambda item: item[0])
+        _, total, failed_flag = swift_events[-1]
+        return total, failed_flag
 
     matches = list(_XCTEST_SUMMARY_RE.finditer(output))
     if matches:
-        best = max(matches, key=lambda m: int(m.group("total")))
-        xctest_total = int(best.group("total"))
-        xctest_failed = int(best.group("failed"))
-
-        return xctest_total, xctest_failed
+        # AI: Use the last XCTest summary; max-by-total picked unrelated high counts
+        # when logs contained multiple "Executed …" lines from nested tools.
+        last = matches[-1]
+        return int(last.group("total")), int(last.group("failed"))
 
     return None, None
 
@@ -158,7 +221,7 @@ def _transient_swiftpm_failure(
     """
     if failed_tests is not None and failed_tests > 0:
         return False
-    if _SWIFT_TESTING_RUN_RE.search(output) is None:
+    if _SWIFT_TESTING_PASSED_RE.search(output) is None:
         return False
     if returncode == 0:
         return False
@@ -210,17 +273,9 @@ def _swift_test_child_environment(isolation_root: Path) -> dict[str, str]:
     """Build environment for the SwiftPM test subprocess.
 
     Returns:
-        A copy of ``os.environ`` with MLX defaults adjusted for runner stability.
+        A copy of ``os.environ`` with TradeWing test isolation paths applied.
     """
     env = os.environ.copy()
-    allow_metal = os.getenv("SWIFT_TEST_ALLOW_METAL", "1").strip().lower() in (
-        "",
-        "1",
-        "true",
-        "yes",
-    )
-    if not allow_metal:
-        env["MLX_DISABLE_METAL"] = "1"
 
     # Isolate filesystem side effects for each test runner invocation.
     data_dir = isolation_root / "data"
@@ -235,6 +290,7 @@ def _swift_test_child_environment(isolation_root: Path) -> dict[str, str]:
 def main() -> None:
     """Run swift test."""
     project_root = get_project_root(Path(__file__))
+    _ensure_developer_dir_for_swiftpm(project_root)
 
     if KILL_STUCK:
         try:

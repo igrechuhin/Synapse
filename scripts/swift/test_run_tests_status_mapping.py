@@ -45,6 +45,31 @@ class SwiftRunTestsStatusMappingTests(unittest.TestCase):
         self.assertEqual(total, 4357)
         self.assertEqual(failed, 0)
 
+    def test_parse_summary_prefers_last_swift_testing_outcome_over_earlier_failed(
+        self,
+    ) -> None:
+        """Stale failed summary before final pass must not flip the run to failed."""
+        output = (
+            "Test run with 3 tests in 1 suites failed after 0.1 seconds.\n"
+            "Test run with 6688 tests in 500 suites passed after 200.0 seconds.\n"
+        )
+
+        total, failed = parse_swift_test_summary(output)
+
+        self.assertEqual(total, 6688)
+        self.assertEqual(failed, 0)
+
+    def test_parse_summary_uses_last_xctest_block_not_max_total(self) -> None:
+        output = (
+            "Executed 5 tests, with 0 failures (0 unexpected) in 1.0 seconds\n"
+            "Executed 2 tests, with 1 failures (0 unexpected) in 2.0 seconds\n"
+        )
+
+        total, failed = parse_swift_test_summary(output)
+
+        self.assertEqual(total, 2)
+        self.assertEqual(failed, 1)
+
     def test_decode_process_output_handles_png_header_byte(self) -> None:
         raw = bytes([0x89]) + b"PNG\r\n"
 
