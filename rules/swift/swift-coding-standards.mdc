@@ -16,6 +16,11 @@ alwaysApply: false
 - **Error Handling**: NO `fatalError` in production logic (only for unimplemented stubs) — MANDATORY
 - **Type Safety**: Use typed wrappers over primitives for domain concepts — MANDATORY
 
+## GRDB persistence (ENFORCED)
+
+- **Wall-clock instants**: On `FetchableRecord` / `PersistableRecord` types, use `Date` for persisted timestamps that represent an instant in time. GRDB maps `Date` to SQLite `REAL` using the active database configuration (same wire shape as epoch seconds where configured). Do **not** model these fields as raw `Double` unix seconds on the record type unless you are at an FFI boundary that cannot use `Date`.
+- **Column naming**: Prefer a single Swift property name and matching SQL column name (e.g. `createdAt`) unless a legacy migration requires an explicit rename step.
+
 ## Formatting (ENFORCED via SwiftFormat)
 
 - **4-space indentation** (including multi-line strings) — MANDATORY
