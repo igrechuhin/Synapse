@@ -111,7 +111,7 @@ Use @commit-phase-a to handle this phase. If the subagent is unavailable, run th
    - Coverage is optional and language-dependent. SwiftPM runs may populate a numeric fraction when ``swift test --enable-code-coverage`` produced artifacts and Cortex parsed them; the same configured threshold applies as for Python when a numeric value is present.
    - If coverage is unavailable (no parseable value), carry `coverage: null` in pipeline state and report coverage as `N/A` (do not coerce to `0.0`).
 3. If `preflight_passed: false`: call `autofix()`, then call `run_quality_gate()` again. Repeat up to 3 times.
-4. **CI parity checks (mandatory before passing Phase A)**: even when `preflight_passed: true`, run parity scripts in two passes.
+4. **CI parity checks (mandatory before passing Phase A)**: even when `preflight_passed: true`, run parity scripts in two passes **plus** the public DocC gate from `.github/workflows/quality.yml`.
 
    ⛔ **HARD GATE**: Run scripts as actual subprocesses and check exit codes. A glob fallback or manual inspection is not valid.
 
@@ -131,6 +131,18 @@ Use @commit-phase-a to handle this phase. If the subagent is unavailable, run th
    find .cortex/synapse/scripts -mindepth 2 -maxdepth 2 -name "check_file_sizes.py" | sort | \
     while read -r s; do .venv/bin/python "$s" || exit 1; done
    ```
+
+   **Pass 3 — public API DocC count** (same command as the `Check public API DocC coverage` step in `.github/workflows/quality.yml`; must run from repository root):
+
+   ```bash
+   DOCC_PUBLIC_THRESHOLD="${DOCC_PUBLIC_THRESHOLD:-439}"
+   if ! python3 .cortex/synapse/scripts/swift/check_public_docs.py Sources --threshold "${DOCC_PUBLIC_THRESHOLD}" --quiet; then
+     echo "DocC parity failed: undocumented public/open count exceeds threshold (see workflow DOCC_PUBLIC_THRESHOLD)." >&2
+     exit 1
+   fi
+   ```
+
+   Use `uv run python` instead of `python3` when the host has no system `python3` but the project venv is available — the important part is invoking the script path above with a working interpreter.
 
    Each script's `_get_files_from_env()` filters by its own extension (`.py`, `.swift`, `.ts`, …). When `FILES` contains no files matching the script's language it exits 0 immediately — no directory-scan fallback is triggered.
 
@@ -308,7 +320,7 @@ Then call `pipeline_handoff()`. **GATE**: check `pipeline_state.phases.final-gat
 - If any critical check fails or is skipped in this final run, Step 12 is **failed** and you must **block commit creation**.
 - Skipped-clean checks are NOT failures — they are optimizations where a check is trusted from Phase A.
 - **Timeout-only test failures** (when only `.cortex/` markdown changed, not `src/`/`tests/`): if Step 12 fails exclusively due to pytest timeouts and all non-test checks (format, lint, types, markdown) pass, Step 12 **passes**. Rationale: Phase A already proved tests are green; timeouts in the detached subprocess are caused by resource contention with the MCP server, not code bugs.
-- **Structural-check mismatch rule**: if `run_quality_gate()` reports pass but `check_file_sizes.py`, `check_function_lengths.py`, or the language-specific build script (Phase A step 5) fails, treat the gate as stale/partial and block commit creation until all parity checks pass.
+- **Structural-check mismatch rule**: if `run_quality_gate()` reports pass but `check_file_sizes.py`, `check_function_lengths.py`, the language-specific build script (Phase A step 4), or **`check_public_docs.py` (Pass 3)** fails, treat the gate as stale/partial and block commit creation until all parity checks pass.
 
 ---
 
