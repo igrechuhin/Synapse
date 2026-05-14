@@ -58,12 +58,13 @@ _XCTEST_SUMMARY_RE = re.compile(
 )
 # AI: Require the Swift Testing terminal rollup shape (`… passed after` / `… failed after`) so
 # unrelated log lines that contain `suites` + `failed` as substrings cannot flip the parser.
+# AI: Swift prints `N suite` (singular) when N==1 and `N suites` otherwise — require `suites?`.
 _SWIFT_TESTING_PASSED_RE = re.compile(
-    r"Test\s+run\s+with\s+(?P<total>\d+)\s+tests\s+in\s+\d+\s+suites\s+passed\s+after",
+    r"Test\s+run\s+with\s+(?P<total>\d+)\s+tests\s+in\s+\d+\s+suites?\s+passed\s+after",
     re.IGNORECASE,
 )
 _SWIFT_TESTING_FAILED_RE = re.compile(
-    r"Test\s+run\s+with\s+(?P<total>\d+)\s+tests\s+in\s+\d+\s+suites\s+failed\s+after",
+    r"Test\s+run\s+with\s+(?P<total>\d+)\s+tests\s+in\s+\d+\s+suites?\s+failed\s+after",
     re.IGNORECASE,
 )
 

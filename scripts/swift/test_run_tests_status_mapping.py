@@ -45,6 +45,18 @@ class SwiftRunTestsStatusMappingTests(unittest.TestCase):
         self.assertEqual(total, 4357)
         self.assertEqual(failed, 0)
 
+    def test_parse_summary_accepts_swift_testing_singular_suite_word(self) -> None:
+        """Swift CLI uses `1 suite` (singular) for a single top-level suite."""
+        output = (
+            "Executed 0 tests, with 0 failures (0 unexpected) in 0.0 seconds\n"
+            "Test run with 11 tests in 1 suite passed after 4.872 seconds.\n"
+        )
+
+        total, failed = parse_swift_test_summary(output)
+
+        self.assertEqual(total, 11)
+        self.assertEqual(failed, 0)
+
     def test_parse_summary_prefers_last_swift_testing_outcome_over_earlier_failed(
         self,
     ) -> None:
