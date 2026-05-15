@@ -155,7 +155,14 @@ def main() -> None:
             ("DocC coverage", "check_docc.py"),
         ]
 
+    # AI: When COVERAGE_THRESHOLD is set, swift_test_runner.py enables --enable-code-coverage
+    # and gates on the threshold after tests pass — both checks fold into one test run so the
+    # suite is never compiled twice.  When not set, a separate coverage_check.py step follows.
+    import os as _os
+    _cov_threshold = _os.getenv("COVERAGE_THRESHOLD", "")
     checks.append(("Test suite", "swift_test_runner.py"))
+    if not _cov_threshold.strip():
+        checks.append(("Coverage gate (≥90%)", "coverage_check.py"))
 
     passed = failed = 0
     for name, script_name in checks:
