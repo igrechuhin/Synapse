@@ -308,8 +308,11 @@ def main() -> None:
 
                 if normalized_success:
                     if total_tests is not None and failed_tests is not None:
+                        # AI: Avoid the token ``failed=`` here — Cortex's Swift Testing
+                        # failure regex is DOTALL and would match this line after the
+                        # real ``… passed after`` summary when stdout is concatenated.
                         print(
-                            f"Test summary: total={total_tests}, failed={failed_tests}"
+                            f"Test summary: total={total_tests}, failures={failed_tests}"
                         )
                     print("✅ All tests passed")
                     sys.exit(0)
