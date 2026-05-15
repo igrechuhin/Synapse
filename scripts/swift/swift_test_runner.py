@@ -35,11 +35,18 @@ import sys
 import tempfile
 from pathlib import Path
 
+_SCRIPT_DIR = Path(__file__).resolve().parent
+if str(_SCRIPT_DIR) not in sys.path:
+    sys.path.insert(0, str(_SCRIPT_DIR))
+
 try:
     from _utils import get_config_int, get_project_root
 except ImportError:
-    sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "python"))
+    sys.path.insert(0, str(_SCRIPT_DIR.parent / "python"))
     from _utils import get_config_int, get_project_root
+
+from ensure_mlx_metallib import ensure_default_metallib
+from swift_toolchain import ensure_developer_dir_for_swiftpm, find_swift
 
 
 TEST_TIMEOUT = get_config_int("TEST_TIMEOUT", 2700)
@@ -76,73 +83,6 @@ def decode_process_output(raw_output: str | bytes | None) -> str:
     if isinstance(raw_output, bytes):
         return raw_output.decode("utf-8", errors="replace")
     return raw_output
-
-
-def _ensure_developer_dir_for_swiftpm(project_root: Path) -> None:
-    """Set ``DEVELOPER_DIR`` to full Xcode when missing or pointing at Command Line Tools only."""
-    if sys.platform != "darwin":
-        return
-    existing = os.environ.get("DEVELOPER_DIR", "")
-    if existing and Path(existing).is_dir():
-        if "CommandLineTools" in existing:
-            print(
-                "DEVELOPER_DIR points at Command Line Tools; MLX needs full Xcode. "
-                "Run: sudo xcode-select -s /Applications/Xcode.app/Contents/Developer",
-                file=sys.stderr,
-            )
-            sys.exit(1)
-        return
-    script = project_root / ".cursor" / "scripts" / "resolve_developer_dir.sh"
-    if not script.is_file():
-        return
-    proc = subprocess.run(
-        ["/bin/bash", str(script)],
-        capture_output=True,
-        text=True,
-        check=False,
-        timeout=60,
-    )
-    if proc.returncode != 0:
-        print(proc.stderr.strip() or proc.stdout.strip(), file=sys.stderr)
-        sys.exit(1)
-    resolved = proc.stdout.strip()
-    if not resolved:
-        print("resolve_developer_dir.sh returned empty path.", file=sys.stderr)
-        sys.exit(1)
-    os.environ["DEVELOPER_DIR"] = resolved
-
-
-def find_swift() -> str:
-    """Return path to swift executable.
-
-    Prefers ``xcrun --find swift`` on macOS so the active Xcode toolchain matches ``DEVELOPER_DIR``.
-
-    Returns:
-        Path to swift binary or 'swift' as fallback.
-    """
-    if sys.platform == "darwin":
-        try:
-            proc = subprocess.run(
-                ["xcrun", "--find", "swift"],
-                capture_output=True,
-                text=True,
-                check=False,
-                timeout=30,
-                env=os.environ,
-            )
-            if proc.returncode == 0:
-                path = proc.stdout.strip()
-                if path and Path(path).exists():
-                    return path
-        except (OSError, subprocess.SubprocessError):
-            pass
-    which = shutil.which("swift")
-    if which:
-        return which
-    for candidate in ("/usr/bin/swift", "/usr/local/bin/swift"):
-        if Path(candidate).exists():
-            return candidate
-    return "swift"
 
 
 def build_test_cmd(swift: str) -> list[str]:
@@ -293,7 +233,7 @@ def _swift_test_child_environment(isolation_root: Path) -> dict[str, str]:
 def main() -> None:
     """Run swift test."""
     project_root = get_project_root(Path(__file__))
-    _ensure_developer_dir_for_swiftpm(project_root)
+    ensure_developer_dir_for_swiftpm(project_root)
 
     if KILL_STUCK:
         try:
@@ -305,6 +245,7 @@ def main() -> None:
             print(f"⚠️  SwiftPM cleanup failed (non-fatal): {exc}", file=sys.stderr)
 
     swift = find_swift()
+    ensure_default_metallib(project_root, swift=swift)
     compile_cmd = build_compile_tests_cmd(swift)
     cmd = build_test_cmd(swift)
 
@@ -338,6 +279,10 @@ def main() -> None:
                 if compile_result.returncode != 0:
                     print("❌ swift build --build-tests failed.", file=sys.stderr)
                     sys.exit(1)
+
+                # AI: SwiftPM creates/updates *.xctest hosts during --build-tests; refresh colocated
+                # mlx.metallib beside the test binary after tests change cwd mid-run.
+                ensure_default_metallib(project_root, swift=swift)
 
                 result = subprocess.run(
                     cmd,

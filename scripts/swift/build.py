@@ -16,30 +16,24 @@ import subprocess
 import sys
 from pathlib import Path
 
+_SCRIPT_DIR = Path(__file__).resolve().parent
+if str(_SCRIPT_DIR) not in sys.path:
+    sys.path.insert(0, str(_SCRIPT_DIR))
+
 try:
     from _utils import get_config_int, get_project_root
 except ImportError:
-    sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "python"))
+    sys.path.insert(0, str(_SCRIPT_DIR.parent / "python"))
     from _utils import get_config_int, get_project_root
 
+from ensure_mlx_metallib import ensure_default_metallib
+from swift_toolchain import ensure_developer_dir_for_swiftpm, find_swift
 
 BUILD_TIMEOUT = get_config_int("BUILD_TIMEOUT", 300)
 SWIFT_COMMAND = os.getenv("SWIFT_COMMAND", "build")
 SWIFT_FLAGS = os.getenv("SWIFT_FLAGS", "")
 # Set KILL_STUCK=1 to kill lingering SwiftPM processes before building.
 KILL_STUCK = get_config_int("KILL_STUCK", 0)
-
-
-def find_swift() -> str:
-    """Return path to swift executable.
-
-    Returns:
-        Path to swift binary or 'swift' as fallback.
-    """
-    for candidate in ["/usr/bin/swift", "/usr/local/bin/swift"]:
-        if Path(candidate).exists():
-            return candidate
-    return "swift"
 
 
 def build_cmd(swift: str) -> list[str]:
@@ -60,6 +54,7 @@ def build_cmd(swift: str) -> list[str]:
 def main() -> None:
     """Run swift build."""
     project_root = get_project_root(Path(__file__))
+    ensure_developer_dir_for_swiftpm(project_root)
 
     if KILL_STUCK:
         try:
@@ -75,6 +70,7 @@ def main() -> None:
         sys.exit(0)
 
     swift = find_swift()
+    ensure_default_metallib(project_root, swift=swift)
     cmd = build_cmd(swift)
 
     print(f"Running: {' '.join(cmd)}")
