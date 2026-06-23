@@ -77,14 +77,14 @@ def _resolve_mlx_checkout(project_root: Path, swift: str) -> Path:
     return mlx_root
 
 
-def _copy_is_fresh(target: Path, built_metallib: Path) -> bool:
+def copy_is_fresh(target: Path, built_metallib: Path) -> bool:
     """Return whether ``target`` exists and is at least as new as ``built_metallib``."""
     if not target.is_file() or not built_metallib.is_file():
         return False
     return target.stat().st_mtime >= built_metallib.stat().st_mtime
 
 
-def _colocated_metallib_dirs(project_root: Path) -> list[Path]:
+def colocated_metallib_dirs(project_root: Path) -> list[Path]:
     """Return MacOS directories for SwiftPM test bundles that may load MLX."""
     build_root = project_root / ".build"
     if not build_root.is_dir():
@@ -99,10 +99,10 @@ def _colocated_metallib_dirs(project_root: Path) -> list[Path]:
 
 def _install_metallib_copy(built_metallib: Path, target: Path) -> None:
     """Copy ``built_metallib`` to ``target`` when stale or missing."""
-    if _copy_is_fresh(target, built_metallib):
+    if copy_is_fresh(target, built_metallib):
         return
     target.parent.mkdir(parents=True, exist_ok=True)
-    shutil.copy2(built_metallib, target)
+    _ = shutil.copy2(built_metallib, target)
 
 
 def _sync_metallib_installs(project_root: Path, built_metallib: Path) -> None:
@@ -111,7 +111,7 @@ def _sync_metallib_installs(project_root: Path, built_metallib: Path) -> None:
     _install_metallib_copy(built_metallib, root_default)
     print(f"✅ Installed MLX default metallib at {root_default}")
 
-    for macos_dir in _colocated_metallib_dirs(project_root):
+    for macos_dir in colocated_metallib_dirs(project_root):
         colocated_mlx = macos_dir / "mlx.metallib"
         _install_metallib_copy(built_metallib, colocated_mlx)
         print(f"✅ Installed MLX colocated metallib at {colocated_mlx}")
@@ -127,7 +127,7 @@ def _run_cmake_metallib_build(mlx_root: Path, build_dir: Path) -> Path:
         "-DMLX_BUILD_METAL=ON",
     ]
     print(f"Running: {' '.join(configure)}", file=sys.stderr)
-    subprocess.run(
+    _ = subprocess.run(
         configure,
         cwd=build_dir,
         check=True,
@@ -144,7 +144,7 @@ def _run_cmake_metallib_build(mlx_root: Path, build_dir: Path) -> Path:
         str(os.cpu_count() or 4),
     ]
     print(f"Running: {' '.join(build)}", file=sys.stderr)
-    subprocess.run(
+    _ = subprocess.run(
         build,
         cwd=build_dir,
         check=True,
@@ -187,11 +187,11 @@ def ensure_default_metallib(project_root: Path, swift: str | None = None) -> Non
     root_default = project_root / "default.metallib"
     colocated_targets = [
         macos_dir / "mlx.metallib"
-        for macos_dir in _colocated_metallib_dirs(project_root)
+        for macos_dir in colocated_metallib_dirs(project_root)
     ]
     all_targets = [root_default, *colocated_targets]
     if all_targets and all(
-        _copy_is_fresh(target, built_metallib) for target in all_targets
+        copy_is_fresh(target, built_metallib) for target in all_targets
     ):
         print("✅ MLX metallib installs are up to date")
         return

@@ -476,20 +476,17 @@ def main() -> None:
                             )
                             sys.exit(1)
                         print(
-                            f"Coverage: {coverage_pct:.2f}%  "
-                            f"(threshold: {COVERAGE_THRESHOLD:.1f}%)"
+                            f"Coverage: {coverage_pct:.2f}%  (threshold: {COVERAGE_THRESHOLD:.1f}%)"
                         )
                         if COVERAGE_THRESHOLD > 0 and coverage_pct < COVERAGE_THRESHOLD:
                             delta = COVERAGE_THRESHOLD - coverage_pct
                             print(
-                                f"❌ Coverage {coverage_pct:.2f}% is below threshold "
-                                f"{COVERAGE_THRESHOLD:.1f}% (gap: {delta:.2f}pp)",
+                                f"❌ Coverage {coverage_pct:.2f}% is below threshold {COVERAGE_THRESHOLD:.1f}% (gap: {delta:.2f}pp)",
                                 file=sys.stderr,
                             )
                             sys.exit(1)
                         print(
-                            f"✅ Coverage gate passed: {coverage_pct:.2f}%"
-                            f" ≥ {COVERAGE_THRESHOLD:.1f}%"
+                            f"✅ Coverage gate passed: {coverage_pct:.2f}% ≥ {COVERAGE_THRESHOLD:.1f}%"
                         )
 
                     sys.exit(0)

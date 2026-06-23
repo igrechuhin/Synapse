@@ -77,7 +77,7 @@ class MemoryBankResolutionTests(unittest.TestCase):
             structure_root = project_root / ".cortex" / "memory-bank"
             structure_root.mkdir(parents=True)
             roadmap_file = structure_root / "roadmap.md"
-            roadmap_file.write_text("# Roadmap\n", encoding="utf-8")
+            _ = roadmap_file.write_text("# Roadmap\n", encoding="utf-8")
 
             report = build_resolution_report(
                 project_root=project_root,

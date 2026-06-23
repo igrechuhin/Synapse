@@ -17,11 +17,8 @@ def ensure_developer_dir_for_swiftpm(project_root: Path) -> None:
     existing = os.environ.get("DEVELOPER_DIR", "")
     if existing and Path(existing).is_dir():
         if "CommandLineTools" in existing:
-            print(
-                "DEVELOPER_DIR points at Command Line Tools; MLX needs full Xcode. "
-                "Run: sudo xcode-select -s /Applications/Xcode.app/Contents/Developer",
-                file=sys.stderr,
-            )
+            msg = "DEVELOPER_DIR points at Command Line Tools; MLX needs full Xcode. Run: sudo xcode-select -s /Applications/Xcode.app/Contents/Developer"  # noqa: E501
+            print(msg, file=sys.stderr)
             sys.exit(1)
         return
     script = project_root / ".cursor" / "scripts" / "resolve_developer_dir.sh"

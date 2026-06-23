@@ -53,8 +53,11 @@ COVERAGE_SOURCES: list[str] = [s.strip() for s in _RAW_SOURCES.split(",") if s.s
 
 
 def _run(
-    cmd: list[str], cwd: Path, timeout: int, env: dict | None = None
-) -> subprocess.CompletedProcess:
+    cmd: list[str],
+    cwd: Path,
+    timeout: int,
+    env: dict[str, str] | None = None,
+) -> subprocess.CompletedProcess[bytes]:
     return subprocess.run(
         cmd,
         cwd=cwd,
@@ -74,19 +77,6 @@ def _decode(raw: bytes | str | None) -> str:
     return raw
 
 
-def _find_xctest_bundle(build_dir: Path) -> Path | None:
-    """Return the first .xctest bundle found under build_dir (arm64 debug)."""
-    for candidate in build_dir.rglob("*.xctest"):
-        binary = candidate / "Contents" / "MacOS" / candidate.stem
-        if binary.exists():
-            return binary
-        # Flat layout (Linux / SwiftPM 5.10+)
-        flat = candidate / candidate.stem
-        if flat.exists():
-            return flat
-    return None
-
-
 def _find_xctest_binaries(build_dir: Path) -> list[Path]:
     """Collect all xctest executable binaries under build_dir."""
     binaries: list[Path] = []
@@ -101,23 +91,6 @@ def _find_xctest_binaries(build_dir: Path) -> list[Path]:
     return binaries
 
 
-def _merge_profraw(
-    profraw_files: list[Path], output_profdata: Path, llvm_profdata: str
-) -> bool:
-    """Merge raw profile files into a single .profdata.  Returns True on success."""
-    if not profraw_files:
-        print("⚠️  No .profraw files found; coverage data unavailable.", file=sys.stderr)
-        return False
-    cmd = [llvm_profdata, "merge", "-sparse", "-o", str(output_profdata)] + [
-        str(p) for p in profraw_files
-    ]
-    result = subprocess.run(cmd, capture_output=True, text=True, check=False)
-    if result.returncode != 0:
-        print(f"❌ llvm-profdata merge failed:\n{result.stderr}", file=sys.stderr)
-        return False
-    return True
-
-
 # ---------------------------------------------------------------------------
 # Coverage parsing
 # ---------------------------------------------------------------------------
@@ -125,11 +98,13 @@ def _merge_profraw(
 _TOTAL_LINE_RE = re.compile(r"TOTAL\s+\d+\s+\d+\s+\d+\s+\d+\s+(?P<line_pct>[\d.]+)%")
 
 
-def _parse_coverage_from_report(report_text: str) -> tuple[float | None, list[dict]]:
+def _parse_coverage_from_report(
+    report_text: str,
+) -> tuple[float | None, list[dict[str, str | int | float]]]:
     """Extract aggregate line coverage % and per-file gap list from llvm-cov report output."""
     lines = report_text.splitlines()
     aggregate: float | None = None
-    gaps: list[dict] = []
+    gaps: list[dict[str, str | int | float]] = []
 
     for line in lines:
         if line.strip().startswith("TOTAL"):
@@ -237,7 +212,7 @@ def main() -> None:
         # ------------------------------------------------------------------
         # SwiftPM writes profdata to .build/<arch>/<config>/codecov/default.profdata
         codecov_dirs = list((project_root / ".build").rglob("codecov"))
-        profdata_candidates = []
+        profdata_candidates: list[Path] = []
         for d in codecov_dirs:
             pd = d / "default.profdata"
             if pd.exists():
@@ -410,8 +385,7 @@ def main() -> None:
         if aggregate_pct < COVERAGE_THRESHOLD:
             delta = COVERAGE_THRESHOLD - aggregate_pct
             print(
-                f"\n❌ Coverage {aggregate_pct:.2f}% is below threshold {COVERAGE_THRESHOLD:.1f}%"
-                f" (gap: {delta:.2f}pp)",
+                f"\n❌ Coverage {aggregate_pct:.2f}% is below threshold {COVERAGE_THRESHOLD:.1f}% (gap: {delta:.2f}pp)",  # noqa: E501
                 file=sys.stderr,
             )
             sys.exit(1)

@@ -7,7 +7,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from ensure_mlx_metallib import _colocated_metallib_dirs, _copy_is_fresh
+from ensure_mlx_metallib import colocated_metallib_dirs, copy_is_fresh
 
 
 class EnsureMlxMetallibTests(unittest.TestCase):
@@ -27,7 +27,7 @@ class EnsureMlxMetallibTests(unittest.TestCase):
             )
             macos_dir.mkdir(parents=True)
 
-            found = _colocated_metallib_dirs(root)
+            found = colocated_metallib_dirs(root)
 
             self.assertEqual(found, [macos_dir])
 
@@ -35,10 +35,10 @@ class EnsureMlxMetallibTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as root_name:
             root = Path(root_name)
             built = root / "built.metallib"
-            built.write_bytes(b"metal")
+            _ = built.write_bytes(b"metal")
 
-            self.assertFalse(_copy_is_fresh(root / "missing.metallib", built))
+            self.assertFalse(copy_is_fresh(root / "missing.metallib", built))
 
 
 if __name__ == "__main__":
-    unittest.main()
+    _ = unittest.main()

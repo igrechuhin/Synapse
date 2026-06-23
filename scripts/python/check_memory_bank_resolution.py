@@ -43,7 +43,7 @@ def parse_args() -> argparse.Namespace:
             "Diagnose memory-bank root resolution for docs/manage_file alignment."
         )
     )
-    parser.add_argument(
+    _ = parser.add_argument(
         "--structure-memory-bank-path",
         default=None,
         help="Optional memory-bank path from cortex://structure for alignment checks.",
