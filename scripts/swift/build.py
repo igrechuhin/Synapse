@@ -26,8 +26,8 @@ except ImportError:
     sys.path.insert(0, str(_SCRIPT_DIR.parent / "python"))
     from _utils import get_config_int, get_project_root
 
-from ensure_mlx_metallib import ensure_default_metallib
-from swift_toolchain import ensure_developer_dir_for_swiftpm, find_swift
+from ensure_mlx_metallib import ensure_default_metallib  # noqa: E402
+from swift_toolchain import ensure_developer_dir_for_swiftpm, find_swift  # noqa: E402
 
 BUILD_TIMEOUT = get_config_int("BUILD_TIMEOUT", 300)
 SWIFT_COMMAND = os.getenv("SWIFT_COMMAND", "build")

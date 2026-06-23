@@ -34,7 +34,6 @@ from __future__ import annotations
 import json
 import os
 import re
-import shutil
 import subprocess
 import sys
 import tempfile
@@ -50,8 +49,8 @@ except ImportError:
     sys.path.insert(0, str(_SCRIPT_DIR.parent / "python"))
     from _utils import get_config_int, get_project_root
 
-from ensure_mlx_metallib import ensure_default_metallib
-from swift_toolchain import ensure_developer_dir_for_swiftpm, find_swift
+from ensure_mlx_metallib import ensure_default_metallib  # noqa: E402
+from swift_toolchain import ensure_developer_dir_for_swiftpm, find_swift  # noqa: E402
 
 
 TEST_TIMEOUT = get_config_int("TEST_TIMEOUT", 2700)

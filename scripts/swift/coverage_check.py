@@ -36,8 +36,8 @@ except ImportError:
     sys.path.insert(0, str(_SCRIPT_DIR.parent / "python"))
     from _utils import get_config_int, get_project_root
 
-from ensure_mlx_metallib import ensure_default_metallib
-from swift_toolchain import ensure_developer_dir_for_swiftpm, find_swift
+from ensure_mlx_metallib import ensure_default_metallib  # noqa: E402
+from swift_toolchain import ensure_developer_dir_for_swiftpm, find_swift  # noqa: E402
 
 COVERAGE_THRESHOLD: float = float(os.getenv("COVERAGE_THRESHOLD", "90.0"))
 TEST_TIMEOUT: int = get_config_int("TEST_TIMEOUT", 2700)
@@ -169,9 +169,6 @@ def main() -> None:
 
     swift = find_swift()
     ensure_default_metallib(project_root, swift=swift)
-
-    llvm_profdata = shutil.which("xcrun") and "xcrun llvm-profdata" or "llvm-profdata"
-    llvm_cov = "xcrun llvm-cov" if shutil.which("xcrun") else "llvm-cov"
 
     # ------------------------------------------------------------------
     # Phase 1: build with coverage instrumentation
