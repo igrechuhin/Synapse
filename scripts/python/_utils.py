@@ -233,7 +233,10 @@ def resolve_memory_bank_file_path(
     structure_memory_bank_path: str | Path | None = None,
 ) -> Path:
     """Resolve a memory-bank file path from canonical memory-bank root."""
-    return resolve_memory_bank_root(
-        project_root=project_root,
-        structure_memory_bank_path=structure_memory_bank_path,
-    ) / file_name
+    return (
+        resolve_memory_bank_root(
+            project_root=project_root,
+            structure_memory_bank_path=structure_memory_bank_path,
+        )
+        / file_name
+    )

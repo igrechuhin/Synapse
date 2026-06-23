@@ -65,9 +65,13 @@ KILL_STUCK = get_config_int("KILL_STUCK", 0)
 # When set, enables --enable-code-coverage and gates on aggregate line coverage >= threshold.
 # Empty string disables coverage gating entirely.
 _COVERAGE_THRESHOLD_RAW = os.getenv("COVERAGE_THRESHOLD", "")
-COVERAGE_THRESHOLD: float | None = float(_COVERAGE_THRESHOLD_RAW) if _COVERAGE_THRESHOLD_RAW.strip() else None
+COVERAGE_THRESHOLD: float | None = (
+    float(_COVERAGE_THRESHOLD_RAW) if _COVERAGE_THRESHOLD_RAW.strip() else None
+)
 _RAW_COVERAGE_SOURCES = os.getenv("COVERAGE_SOURCES", "Sources")
-COVERAGE_SOURCES: list[str] = [s.strip() for s in _RAW_COVERAGE_SOURCES.split(",") if s.strip()]
+COVERAGE_SOURCES: list[str] = [
+    s.strip() for s in _RAW_COVERAGE_SOURCES.split(",") if s.strip()
+]
 _XCTEST_SUMMARY_RE = re.compile(
     r"Executed\s+(?P<total>\d+)\s+tests?,\s+with\s+"
     + r"(?:(?P<skipped>\d+)\s+tests\s+skipped\s+and\s+)?"
@@ -232,7 +236,10 @@ def did_tests_pass(
     # exits non-zero after Swift Testing finishes successfully (SIGBUS / post-test resource
     # cleanup). Accept the run as passed when the Swift Testing terminal summary explicitly
     # says "passed after" and there are no recorded test failures.
-    if _SWIFT_TESTING_PASSED_RE.search(combined_output) and "failed after" not in combined_output.lower():
+    if (
+        _SWIFT_TESTING_PASSED_RE.search(combined_output)
+        and "failed after" not in combined_output.lower()
+    ):
         return True
 
     return False
@@ -305,7 +312,10 @@ def _measure_coverage(project_root: Path) -> float | None:
         src_path = project_root / src_dir
         if src_path.exists():
             for sf in src_path.rglob("*.swift"):
-                if not any(sf.name.endswith(s) for s in (".pb.swift", ".grpc.swift", ".generated.swift")):
+                if not any(
+                    sf.name.endswith(s)
+                    for s in (".pb.swift", ".grpc.swift", ".generated.swift")
+                ):
                     source_files.append(str(sf))
     if not source_files:
         print("⚠️  No source files found for coverage measurement.", file=sys.stderr)
@@ -313,7 +323,9 @@ def _measure_coverage(project_root: Path) -> float | None:
 
     primary = xctest_binaries[0]
     report_cmd = [
-        "xcrun", "llvm-cov", "report",
+        "xcrun",
+        "llvm-cov",
+        "report",
         str(primary),
         f"--instr-profile={profdata}",
         "--ignore-filename-regex=\\.build|Tests/|Plugins/|.*\\.pb\\.swift|.*\\.grpc\\.swift",
@@ -334,7 +346,9 @@ def _measure_coverage(project_root: Path) -> float | None:
 
     # Fallback: llvm-cov export --summary-only JSON.
     export_cmd = [
-        "xcrun", "llvm-cov", "export",
+        "xcrun",
+        "llvm-cov",
+        "export",
         str(primary),
         f"--instr-profile={profdata}",
         "--summary-only",
@@ -343,7 +357,9 @@ def _measure_coverage(project_root: Path) -> float | None:
     for extra in xctest_binaries[1:]:
         export_cmd.extend(["-object", str(extra)])
     export_cmd.extend(source_files)
-    ex = subprocess.run(export_cmd, capture_output=True, text=True, check=False, cwd=project_root)
+    ex = subprocess.run(
+        export_cmd, capture_output=True, text=True, check=False, cwd=project_root
+    )
     if ex.returncode == 0:
         try:
             data = json.loads(ex.stdout)
@@ -356,7 +372,9 @@ def _measure_coverage(project_root: Path) -> float | None:
         except (json.JSONDecodeError, KeyError, ZeroDivisionError, IndexError):
             pass
 
-    print("⚠️  Could not parse coverage percentage from llvm-cov output.", file=sys.stderr)
+    print(
+        "⚠️  Could not parse coverage percentage from llvm-cov output.", file=sys.stderr
+    )
     if report_text.strip():
         print(report_text[:1000], file=sys.stderr)
     return None
@@ -436,7 +454,9 @@ def main() -> None:
 
                 combined_output = "\n".join(part for part in [stdout, stderr] if part)
                 total_tests, failed_tests = parse_swift_test_summary(combined_output)
-                normalized_success = did_tests_pass(result.returncode, failed_tests, combined_output)
+                normalized_success = did_tests_pass(
+                    result.returncode, failed_tests, combined_output
+                )
 
                 if normalized_success:
                     if total_tests is not None and failed_tests is not None:
@@ -478,10 +498,14 @@ def main() -> None:
                 transient_post_success = _transient_swiftpm_failure(
                     result.returncode, failed_tests, combined_output
                 )
-                transient_driver_crash = _transient_swift_driver_crash_without_test_failures(
-                    result.returncode, failed_tests, combined_output
+                transient_driver_crash = (
+                    _transient_swift_driver_crash_without_test_failures(
+                        result.returncode, failed_tests, combined_output
+                    )
                 )
-                if attempt < max_attempts and (transient_post_success or transient_driver_crash):
+                if attempt < max_attempts and (
+                    transient_post_success or transient_driver_crash
+                ):
                     reason = (
                         "post-success SwiftPM signal"
                         if transient_post_success

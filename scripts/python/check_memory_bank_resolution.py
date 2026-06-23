@@ -7,7 +7,11 @@ import argparse
 import json
 from pathlib import Path
 
-from _utils import get_project_root, resolve_memory_bank_file_path, resolve_memory_bank_root
+from _utils import (
+    get_project_root,
+    resolve_memory_bank_file_path,
+    resolve_memory_bank_root,
+)
 
 
 def build_resolution_report(

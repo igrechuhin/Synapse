@@ -55,7 +55,9 @@ def _resolve_mlx_checkout(project_root: Path, swift: str) -> Path:
     mlx_root = _mlx_source_root(project_root)
     if (mlx_root / "CMakeLists.txt").is_file():
         return mlx_root
-    print("mlx-swift checkout missing; running swift package resolve...", file=sys.stderr)
+    print(
+        "mlx-swift checkout missing; running swift package resolve...", file=sys.stderr
+    )
     proc = subprocess.run(
         [swift, "package", "resolve"],
         cwd=project_root,
@@ -64,7 +66,10 @@ def _resolve_mlx_checkout(project_root: Path, swift: str) -> Path:
         env=os.environ,
     )
     if proc.returncode != 0:
-        print("❌ swift package resolve failed (required for MLX metallib).", file=sys.stderr)
+        print(
+            "❌ swift package resolve failed (required for MLX metallib).",
+            file=sys.stderr,
+        )
         sys.exit(1)
     if not (mlx_root / "CMakeLists.txt").is_file():
         print(f"❌ MLX source not found at {mlx_root}", file=sys.stderr)
@@ -129,7 +134,15 @@ def _run_cmake_metallib_build(mlx_root: Path, build_dir: Path) -> Path:
         timeout=METALLIB_BUILD_TIMEOUT,
         env=os.environ,
     )
-    build = ["cmake", "--build", ".", "--target", "mlx-metallib", "-j", str(os.cpu_count() or 4)]
+    build = [
+        "cmake",
+        "--build",
+        ".",
+        "--target",
+        "mlx-metallib",
+        "-j",
+        str(os.cpu_count() or 4),
+    ]
     print(f"Running: {' '.join(build)}", file=sys.stderr)
     subprocess.run(
         build,
@@ -151,7 +164,10 @@ def ensure_default_metallib(project_root: Path, swift: str | None = None) -> Non
         return
     ensure_developer_dir_for_swiftpm(project_root)
     if shutil.which("cmake") is None:
-        print("❌ cmake not found; required to build MLX default.metallib.", file=sys.stderr)
+        print(
+            "❌ cmake not found; required to build MLX default.metallib.",
+            file=sys.stderr,
+        )
         sys.exit(1)
 
     if swift is None:
@@ -170,10 +186,13 @@ def ensure_default_metallib(project_root: Path, swift: str | None = None) -> Non
 
     root_default = project_root / "default.metallib"
     colocated_targets = [
-        macos_dir / "mlx.metallib" for macos_dir in _colocated_metallib_dirs(project_root)
+        macos_dir / "mlx.metallib"
+        for macos_dir in _colocated_metallib_dirs(project_root)
     ]
     all_targets = [root_default, *colocated_targets]
-    if all_targets and all(_copy_is_fresh(target, built_metallib) for target in all_targets):
+    if all_targets and all(
+        _copy_is_fresh(target, built_metallib) for target in all_targets
+    ):
         print("✅ MLX metallib installs are up to date")
         return
 

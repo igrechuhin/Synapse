@@ -52,7 +52,9 @@ COVERAGE_SOURCES: list[str] = [s.strip() for s in _RAW_SOURCES.split(",") if s.s
 # ---------------------------------------------------------------------------
 
 
-def _run(cmd: list[str], cwd: Path, timeout: int, env: dict | None = None) -> subprocess.CompletedProcess:
+def _run(
+    cmd: list[str], cwd: Path, timeout: int, env: dict | None = None
+) -> subprocess.CompletedProcess:
     return subprocess.run(
         cmd,
         cwd=cwd,
@@ -99,7 +101,9 @@ def _find_xctest_binaries(build_dir: Path) -> list[Path]:
     return binaries
 
 
-def _merge_profraw(profraw_files: list[Path], output_profdata: Path, llvm_profdata: str) -> bool:
+def _merge_profraw(
+    profraw_files: list[Path], output_profdata: Path, llvm_profdata: str
+) -> bool:
     """Merge raw profile files into a single .profdata.  Returns True on success."""
     if not profraw_files:
         print("⚠️  No .profraw files found; coverage data unavailable.", file=sys.stderr)
@@ -118,9 +122,7 @@ def _merge_profraw(profraw_files: list[Path], output_profdata: Path, llvm_profda
 # Coverage parsing
 # ---------------------------------------------------------------------------
 
-_TOTAL_LINE_RE = re.compile(
-    r"TOTAL\s+\d+\s+\d+\s+\d+\s+\d+\s+(?P<line_pct>[\d.]+)%"
-)
+_TOTAL_LINE_RE = re.compile(r"TOTAL\s+\d+\s+\d+\s+\d+\s+\d+\s+(?P<line_pct>[\d.]+)%")
 
 
 def _parse_coverage_from_report(report_text: str) -> tuple[float | None, list[dict]]:
@@ -144,7 +146,11 @@ def _parse_coverage_from_report(report_text: str) -> tuple[float | None, list[di
                     line_pct = float(parts[7].rstrip("%"))
                     if lines_missed > 0:
                         gaps.append(
-                            {"file": fname, "lines_missed": lines_missed, "line_pct": line_pct}
+                            {
+                                "file": fname,
+                                "lines_missed": lines_missed,
+                                "line_pct": line_pct,
+                            }
                         )
                 except (ValueError, IndexError):
                     pass
@@ -216,13 +222,18 @@ def main() -> None:
             # AI: A non-zero exit can be a post-test SwiftPM signal (SIGBUS on Apple Silicon);
             # check for a "passed after" summary before declaring failure.
             combined = t_out + t_err
-            if "passed after" not in combined.lower() and "failed after" not in combined.lower():
+            if (
+                "passed after" not in combined.lower()
+                and "failed after" not in combined.lower()
+            ):
                 print("❌ Tests failed — aborting coverage check.", file=sys.stderr)
                 sys.exit(1)
             if "failed after" in combined.lower():
                 print("❌ Tests failed — aborting coverage check.", file=sys.stderr)
                 sys.exit(1)
-            print("⚠️  Non-zero exit after passed summary (transient SwiftPM signal) — continuing.")
+            print(
+                "⚠️  Non-zero exit after passed summary (transient SwiftPM signal) — continuing."
+            )
 
         # ------------------------------------------------------------------
         # Phase 3: locate profdata produced by SwiftPM
@@ -241,9 +252,14 @@ def main() -> None:
             merged = project_root / ".build" / "coverage-merged.profdata"
             llvm_profdata_bin = "xcrun" if shutil.which("xcrun") else None
             if llvm_profdata_bin:
-                merge_cmd = ["xcrun", "llvm-profdata", "merge", "-sparse", "-o", str(merged)] + [
-                    str(p) for p in profraw_files
-                ]
+                merge_cmd = [
+                    "xcrun",
+                    "llvm-profdata",
+                    "merge",
+                    "-sparse",
+                    "-o",
+                    str(merged),
+                ] + [str(p) for p in profraw_files]
             else:
                 merge_cmd = ["llvm-profdata", "merge", "-sparse", "-o", str(merged)] + [
                     str(p) for p in profraw_files
@@ -252,7 +268,10 @@ def main() -> None:
             if mr.returncode == 0 and merged.exists():
                 profdata_candidates = [merged]
             else:
-                print("❌ Cannot locate or build profdata — coverage unavailable.", file=sys.stderr)
+                print(
+                    "❌ Cannot locate or build profdata — coverage unavailable.",
+                    file=sys.stderr,
+                )
                 sys.exit(1)
 
         # Use the most-recently modified profdata (parallel builds may produce several)
@@ -276,7 +295,9 @@ def main() -> None:
                     break
 
         if not xctest_binaries:
-            print("❌ No .xctest binaries found — cannot run llvm-cov.", file=sys.stderr)
+            print(
+                "❌ No .xctest binaries found — cannot run llvm-cov.", file=sys.stderr
+            )
             sys.exit(1)
 
         print(f"✔ Found {len(xctest_binaries)} xctest binary/ies")
@@ -287,7 +308,10 @@ def main() -> None:
             src_path = project_root / src_dir
             if src_path.exists():
                 for sf in src_path.rglob("*.swift"):
-                    if not any(sf.name.endswith(s) for s in (".pb.swift", ".grpc.swift", ".generated.swift")):
+                    if not any(
+                        sf.name.endswith(s)
+                        for s in (".pb.swift", ".grpc.swift", ".generated.swift")
+                    ):
                         source_files.append(str(sf))
 
         if not source_files:
@@ -301,10 +325,14 @@ def main() -> None:
         # ------------------------------------------------------------------
         # Use the first xctest binary as the object; add the rest with -object
         primary = xctest_binaries[0]
-        report_cmd = ["xcrun", "llvm-cov", "report",
-                      str(primary),
-                      f"--instr-profile={profdata}",
-                      "--ignore-filename-regex=\\.build|Tests/|Plugins/|.*\\.pb\\.swift|.*\\.grpc\\.swift"]
+        report_cmd = [
+            "xcrun",
+            "llvm-cov",
+            "report",
+            str(primary),
+            f"--instr-profile={profdata}",
+            "--ignore-filename-regex=\\.build|Tests/|Plugins/|.*\\.pb\\.swift|.*\\.grpc\\.swift",
+        ]
         for extra in xctest_binaries[1:]:
             report_cmd.extend(["-object", str(extra)])
         report_cmd.extend(source_files)
@@ -329,16 +357,26 @@ def main() -> None:
 
         if aggregate_pct is None:
             # Fallback: try llvm-cov export --summary-only for JSON parsing
-            export_cmd = ["xcrun", "llvm-cov", "export",
-                          str(primary),
-                          f"--instr-profile={profdata}",
-                          "--summary-only",
-                          "--ignore-filename-regex=\\.build|Tests/|Plugins/|.*\\.pb\\.swift|.*\\.grpc\\.swift",
-                          "--format=text"]
+            export_cmd = [
+                "xcrun",
+                "llvm-cov",
+                "export",
+                str(primary),
+                f"--instr-profile={profdata}",
+                "--summary-only",
+                "--ignore-filename-regex=\\.build|Tests/|Plugins/|.*\\.pb\\.swift|.*\\.grpc\\.swift",
+                "--format=text",
+            ]
             for extra in xctest_binaries[1:]:
                 export_cmd.extend(["-object", str(extra)])
             export_cmd.extend(source_files)
-            ex = subprocess.run(export_cmd, capture_output=True, text=True, check=False, cwd=project_root)
+            ex = subprocess.run(
+                export_cmd,
+                capture_output=True,
+                text=True,
+                check=False,
+                cwd=project_root,
+            )
             if ex.returncode == 0:
                 try:
                     data = json.loads(ex.stdout)
@@ -352,18 +390,25 @@ def main() -> None:
                     pass
 
         if aggregate_pct is None:
-            print("❌ Could not parse aggregate coverage from llvm-cov output.", file=sys.stderr)
+            print(
+                "❌ Could not parse aggregate coverage from llvm-cov output.",
+                file=sys.stderr,
+            )
             print("Raw llvm-cov output:\n" + report_out[:2000], file=sys.stderr)
             sys.exit(1)
 
         print(f"\n{'─' * 60}")
-        print(f"  Aggregate line coverage: {aggregate_pct:.2f}%  (threshold: {COVERAGE_THRESHOLD:.1f}%)")
+        print(
+            f"  Aggregate line coverage: {aggregate_pct:.2f}%  (threshold: {COVERAGE_THRESHOLD:.1f}%)"
+        )
         print(f"{'─' * 60}")
 
         if SHOW_GAPS and gaps:
             print(f"\nTop coverage gaps ({len(gaps)} files below 100%):")
             for g in gaps[:20]:
-                print(f"  {g['line_pct']:5.1f}%  -{g['lines_missed']:4d} lines  {g['file']}")
+                print(
+                    f"  {g['line_pct']:5.1f}%  -{g['lines_missed']:4d} lines  {g['file']}"
+                )
 
         if aggregate_pct < COVERAGE_THRESHOLD:
             delta = COVERAGE_THRESHOLD - aggregate_pct
@@ -374,7 +419,9 @@ def main() -> None:
             )
             sys.exit(1)
 
-        print(f"\n✅ Coverage gate passed: {aggregate_pct:.2f}% ≥ {COVERAGE_THRESHOLD:.1f}%")
+        print(
+            f"\n✅ Coverage gate passed: {aggregate_pct:.2f}% ≥ {COVERAGE_THRESHOLD:.1f}%"
+        )
         sys.exit(0)
 
 
