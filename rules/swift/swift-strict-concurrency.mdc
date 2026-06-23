@@ -1,0 +1,15 @@
+---
+description: Swift 6 strict concurrency rules for EPD-iOS
+globs: ["**/*.swift"]
+alwaysApply: true
+---
+
+# Swift 6 Strict Concurrency
+
+- All Swift code must compile without warnings under `SWIFT_STRICT_CONCURRENCY = complete`
+- Use `actor` for shared mutable state accessed from multiple concurrency domains
+- Mark `@MainActor` on all SwiftUI ViewModels and views that update UI state
+- Use `Sendable` conformance for types crossing actor boundaries
+- Prefer `async/await` over completion handlers
+- Use `Task.detached` only when truly needed; prefer `Task {}` within actors
+- `@Observable` classes are MainActor-bound by default in SwiftUI context
