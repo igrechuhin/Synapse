@@ -1,0 +1,20 @@
+---
+description: Shell script to create auth flow Swift files
+globs: []
+alwaysApply: false
+---
+
+Run this script to create all auth flow files:
+
+```bash
+#!/bin/zsh
+BASE="/Users/i.grechukhin/Repo/EPD-iOS"
+
+mkdir -p "$BASE/EPD/Presentation/Screens/Onboarding"
+mkdir -p "$BASE/EPD/Presentation/Screens/Login"
+mkdir -p "$BASE/EPD/Presentation/Screens/Registration"
+mkdir -p "$BASE/EPD/Presentation/Screens/ConfirmCode"
+mkdir -p "$BASE/EPDTests/Presentation/Auth"
+
+echo "Directories created"
+```
