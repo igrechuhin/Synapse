@@ -4,25 +4,27 @@
 from __future__ import annotations
 
 import unittest
-from typing import Any
 from unittest.mock import AsyncMock, patch
 
+from cortex.core.context_logging import MCPContext
+from cortex.core.models import ModelDict
 from cortex.tools.execution.pre_commit_docs_memory_helpers import (
     run_docs_and_memory_bank_sync_impl,
 )
+from cortex.tools.validation.operations import ValidateCheckTypeName
 
 
 class DocsGateMemoryBankAlignmentTests(unittest.IsolatedAsyncioTestCase):
     """Validate docs-gate behavior when roadmap lookup diagnostics disagree."""
 
     async def test_run_docs_gate_downgrades_false_missing_roadmap_error(self) -> None:
-        timestamps_result = {"status": "success", "valid": True}
-        roadmap_error = {
+        timestamps_result: ModelDict = {"status": "success", "valid": True}
+        roadmap_error: ModelDict = {
             "status": "error",
             "check_type": "roadmap_sync",
             "error": "roadmap.md does not exist in memory bank",
         }
-        diagnostics = {
+        diagnostics: ModelDict = {
             "project_root": "/tmp/project",
             "memory_bank_root": "/tmp/project/.cortex/memory-bank",
             "roadmap_lookup_path": "/tmp/project/.cortex/memory-bank/roadmap.md",
@@ -30,8 +32,8 @@ class DocsGateMemoryBankAlignmentTests(unittest.IsolatedAsyncioTestCase):
         }
 
         async def fake_run_single_validation(
-            check_type_name: Any, _ctx: Any
-        ) -> dict[str, Any]:
+            check_type_name: ValidateCheckTypeName, _ctx: MCPContext | None
+        ) -> ModelDict:
             check_name = str(getattr(check_type_name, "value", check_type_name))
             if check_name == "timestamps":
                 return timestamps_result
@@ -56,7 +58,7 @@ class DocsGateMemoryBankAlignmentTests(unittest.IsolatedAsyncioTestCase):
         self.assertNotIn("error_type", result)
         roadmap_result_raw = result["roadmap_sync_result"]
         assert isinstance(roadmap_result_raw, dict)
-        roadmap_result: dict[str, Any] = roadmap_result_raw
+        roadmap_result: ModelDict = roadmap_result_raw
         self.assertEqual(roadmap_result["status"], "success")
         self.assertFalse(roadmap_result["valid"])
         memory_bank_resolution_raw = roadmap_result["memory_bank_resolution"]
@@ -67,13 +69,13 @@ class DocsGateMemoryBankAlignmentTests(unittest.IsolatedAsyncioTestCase):
         )
 
     async def test_run_docs_gate_keeps_tool_error_when_roadmap_absent(self) -> None:
-        timestamps_result = {"status": "success", "valid": True}
-        roadmap_error = {
+        timestamps_result: ModelDict = {"status": "success", "valid": True}
+        roadmap_error: ModelDict = {
             "status": "error",
             "check_type": "roadmap_sync",
             "error": "roadmap.md does not exist in memory bank",
         }
-        diagnostics = {
+        diagnostics: ModelDict = {
             "project_root": "/tmp/project",
             "memory_bank_root": "/tmp/project/.cortex/memory-bank",
             "roadmap_lookup_path": "/tmp/project/.cortex/memory-bank/roadmap.md",
@@ -81,8 +83,8 @@ class DocsGateMemoryBankAlignmentTests(unittest.IsolatedAsyncioTestCase):
         }
 
         async def fake_run_single_validation(
-            check_type_name: Any, _ctx: Any
-        ) -> dict[str, Any]:
+            check_type_name: ValidateCheckTypeName, _ctx: MCPContext | None
+        ) -> ModelDict:
             check_name = str(getattr(check_type_name, "value", check_type_name))
             if check_name == "timestamps":
                 return timestamps_result
