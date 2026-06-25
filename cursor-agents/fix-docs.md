@@ -4,13 +4,7 @@ description: Use when the /cortex/fix orchestrator needs to fix the docs target 
 tools: mcp__cortex__*, Bash, Read, Edit, Grep
 ---
 
-# Fix Docs
-
-You are the documentation fix specialist. Synchronise memory bank files and validate the docs gate.
-
-## Step 0: Read handoff context
-
-Call `pipeline_handoff(operation="read", pipeline="fix", phase="docs")`.
+Sync memory bank, fix timestamps, run docs gate; write result.
 
 ## Resume Check (required)
 
@@ -22,76 +16,18 @@ Before Step 1, call `pipeline_handoff(operation="status", pipeline="fix")`.
 
 Immediately before Step 1, call `pipeline_handoff(operation="mark_running", pipeline="fix", phase="docs")`.
 
-## Step 1: Analyse roadmap and plans
-
-Read current state:
-
-- `manage_file(file_name="roadmap.md", operation="read")` (or read `.cortex/memory-bank/roadmap.md` directly if args stripped)
-- `manage_file(file_name="activeContext.md", operation="read")`
-- `manage_file(file_name="progress.md", operation="read")`
-
-`Glob` on `.cortex/plans/*.md` — cross-check plan files against roadmap entries.
-
-## Step 2: Align docs
-
-Ensure:
-
-- `activeContext.md`: reflects completed work for the current session (not future work)
-- `roadmap.md`: contains future work only (no completed items)
-- `progress.md`: up-to-date recent activity
-
-Write via `manage_file(file_name="...", operation="write", content="...", change_description="...")`. **Never truncate** — new content must be at least as long as content as read.
-
-Fix roadmap-plan mismatches:
-
-- Stale plan refs (plan file deleted/renamed): update roadmap entry
-- Plans with `status: COMPLETE` not archived: call `plan(operation="archive_completed")`
-- Roadmap entries pointing to non-existent plan files: remove or correct
-
-## Step 3: Fix timestamps
-
-Read `cortex://validation` resource (runs both timestamp and roadmap_sync checks). If timestamps invalid:
-
-- Fix format errors in memory bank files (all timestamps must be `YYYY-MM-DD`)
-- Re-read `cortex://validation` to confirm fixed
-
-Timestamps failure is **blocking**.
-
-**roadmap_progress_consistency rule**: do NOT create generic placeholder `PENDING` bullets. Only add a `PENDING` entry when you can point to a concrete unfinished deliverable with implementation-ready wording.
-
-## Step 4: Run docs gate
-
-Call `run_docs_gate()`. Parse `docs_phase_passed`.
-
-If `false`:
-
-- `timestamps_result.valid == false`: fix timestamps, retry. Blocking.
-- `roadmap_sync_result.valid == false` only (timestamps pass): fix specific structural issues, retry once. If still failing after one retry: treat as non-blocking warning and continue.
-- `error_type == "DocsMemoryBankToolError"` with `roadmap.md does not exist in memory bank`: confirm with `manage_file(operation="metadata", file_name="roadmap.md")`.
-  - If metadata shows `file_exists: true`, classify as a docs-gate bridge false-negative (not a real missing file), keep timestamps as the only blocking gate, and continue with `roadmap_sync_warning: true`.
-  - If metadata shows `file_exists: false`, treat as real blocking failure and fix the memory-bank file path/registration.
-
-Repeat up to 3 iterations.
-
-## Step 5: Write result
+1. **Read state**: read `.cortex/memory-bank/roadmap.md`, `activeContext.md`, `progress.md`. List `.cortex/plans/*.md` and cross-check against roadmap entries.
+2. **Align**: ensure activeContext has completed work (not future); roadmap has future work only; progress is current. Write via `manage_file()` — never truncate. Fix mismatches: stale refs → update; `status:COMPLETE` plans not archived → call `plan(operation="archive_completed")`; missing plan files → correct entry.
+3. **Timestamps**: read `cortex://validation` resource. If `timestamps_result.valid == false`, fix `YYYY-MM-DD` format errors in memory bank files and retry. Blocking.
+4. **Docs gate**: call `run_docs_gate()` (max 3 iterations).
+   - `docs_phase_passed: true` → write result.
+   - `timestamps_result.valid == false` → fix and retry. Blocking.
+   - `roadmap_sync_result.valid == false` only → fix, retry once. If still failing: non-blocking, set `roadmap_sync_warning:true`.
+   - `DocsMemoryBankToolError "roadmap.md does not exist"` → check `manage_file(operation="metadata", file_name="roadmap.md")`. If `file_exists:true`, bridge false-negative, continue. If `false`, blocking.
+5. **Write result** to `.cortex/.session/current-task.json` then call `pipeline_handoff()`:
 
 ```json
 {"operation":"write","phase":"docs","pipeline":"fix","status":"passed or failed","fix_iterations":<n>,"docs_phase_passed":<bool>,"roadmap_sync_warning":<bool>}
 ```
 
-Write to `.cortex/.session/current-task.json`, then call `pipeline_handoff()`.
-
-## Report
-
-```text
-## Docs Fix
-
-Docs gate: ✅ passed / ⚠️ roadmap_sync warning / ❌ failed
-Fix iterations: <n>
-
-Changes:
-- file — what changed
-
-Warnings (non-blocking):
-- <roadmap_sync issue if any>
-```
+Report: Docs gate ✅/⚠️/❌ · Fix iterations `<n>` · Changes: list

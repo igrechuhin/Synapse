@@ -175,6 +175,10 @@ const GATE_SCHEMA = {
   while (iterations < MAX_PHASE_A_ITERATIONS) {
     phaseA = await agent(
       `Run Phase A quality gate (attempt ${iterations + 1}/${MAX_PHASE_A_ITERATIONS}): ` +
+        // AI: preflight context injected here so Phase A agent skips re-checking git status
+        // and stash — it already knows what's staged and where the snapshot lives.
+        `Preflight context: snapshot_ref=${preflight.snapshot_ref ?? "N/A"}, ` +
+        `staged_count=${preflight.staged_count ?? "?"} files staged. ` +
         "call run_quality_gate(); if failed call autofix() and retry. Also run CI parity " +
         "checks (check_file_sizes.py, check_function_lengths.py, build.py, " +
         "check_public_docs.py). Handle markdown lint and submodule hygiene failures inline.",
@@ -241,7 +245,11 @@ const GATE_SCHEMA = {
     "Run Phase B documentation sync: update activeContext, progress, roadmap via " +
       "update_memory_bank(); archive completed plans via plan(operation='archive_completed'); " +
       "call autofix() then run_docs_gate(). Non-blocking if roadmap_sync fails but " +
-      "timestamps pass (set roadmap_sync_warning=true and continue).",
+      "timestamps pass (set roadmap_sync_warning=true and continue). " +
+      // AI: Phase A summary injected so Phase B knows which files were changed and
+      // what coverage is — avoids redundant git-diff calls and gate re-runs in Phase B.
+      `Phase A summary: scope=${phaseA.scope ?? "unknown"}, ` +
+      `coverage=${phaseA.coverage != null ? phaseA.coverage : "N/A"}.`,
     { agentType: "commit-phase-b", schema: PHASE_B_SCHEMA }
   );
   // AI: docs_phase_passed: false is only blocking for timestamp failures.

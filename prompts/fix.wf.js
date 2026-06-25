@@ -95,6 +95,10 @@ const COVERAGE_SCHEMA = {
     tests_added: { type: "integer" },
     blocker_reason: { type: ["string", "null"] },
     iterations: { type: "integer" },
+    // AI: prior_errors carries the first 20 lines of type/lint/test errors from the
+    // coverage pre-flight gate so downstream quality and tests agents can skip their
+    // first gate call — they already know what's failing.
+    prior_errors: { type: ["string", "null"] },
     error: { type: "string" }
   },
   required: ["status"],
@@ -112,6 +116,9 @@ const QUALITY_SCHEMA = {
       type: "string",
       enum: ["markdown_only", "source_changed", "mixed"]
     },
+    // AI: prior_failures echoes back the prior_errors injected into this agent's prompt,
+    // confirming the agent received and acted on the pre-flight gate context.
+    prior_failures: { type: ["string", "null"] },
     error: { type: "string" }
   },
   required: ["passed"],
@@ -129,6 +136,9 @@ const TESTS_SCHEMA = {
       type: "string",
       enum: ["assertion_failures", "build_error", "skipped", "unknown"]
     },
+    // AI: prior_failures echoes back the prior_errors injected into this agent's prompt,
+    // confirming the agent received and acted on the pre-flight gate context.
+    prior_failures: { type: ["string", "null"] },
     error: { type: "string" }
   },
   required: ["passed"],
@@ -216,6 +226,9 @@ const DOCS_SCHEMA = {
   let runQuality = diagnosis.targets.includes("quality");
   let runTests = diagnosis.targets.includes("tests");
   let coverageResult = null;
+  // AI: priorErrors is populated from the coverage pre-flight gate result so that quality
+  // and tests agents receive known failures upfront, skipping their first gate call.
+  let priorErrors = null;
 
   if (diagnosis.targets.includes("coverage")) {
     phase("Coverage");
@@ -230,12 +243,19 @@ const DOCS_SCHEMA = {
         "tests_failed. Write to pipeline_handoff(phase='coverage', pipeline='fix'). " +
         "3. Run @fix-coverage subagent. Wait for it to complete. " +
         "4. Read its result from pipeline_handoff(phase='coverage', pipeline='fix'). " +
-        "5. Return that result as your schema output (status, final_coverage, tests_added, etc.).",
+        "5. Build prior_errors: concatenate the first 20 lines from results.type_check.errors, " +
+        "results.quality.errors, and results.tests.errors (each up to 20 lines, joined by newline). " +
+        "Return prior_errors as a single string (null if gate passed or no errors). " +
+        "6. Return that result as your schema output (status, final_coverage, tests_added, prior_errors, etc.).",
       {
         agentType: "fix-coverage",
         schema: COVERAGE_SCHEMA
       }
     );
+
+    // AI: priorErrors carries the raw gate output from the coverage pre-flight so quality
+    // and tests agents can skip their first gate call — they already know what's failing.
+    priorErrors = cov.prior_errors ?? null;
 
     coverageResult = cov;
     log(
@@ -312,6 +332,13 @@ const DOCS_SCHEMA = {
       const quality = await agent(
         `Fix quality issues (attempt ${iterations + 1}/${MAX_TARGET_ITERATIONS}): ` +
           `change_scope=${diagnosis.change_scope}. ` +
+          // AI: inject prior gate output so quality agent skips the first gate call when
+          // the error set is already known from the coverage pre-flight. Re-run gate only
+          // if autofix may have changed the error set (i.e., after applying fixes).
+          (priorErrors
+            ? `Prior gate output (skip re-running gate if these are the only failures — ` +
+              `re-run after applying autofix):\n${priorErrors}\n`
+            : "") +
           (diagnosis.change_scope === "markdown_only"
             ? "Path A (markdown_only): call autofix(), then run_quality_gate(). " +
               "Fix markdown lint errors manually per rule code. Retry (max 3 iterations). "
@@ -368,6 +395,13 @@ const DOCS_SCHEMA = {
       while (iterations < MAX_TARGET_ITERATIONS && !testsPassed) {
         const tests = await agent(
           `Fix test failures (attempt ${iterations + 1}/${MAX_TARGET_ITERATIONS}): ` +
+            // AI: inject prior gate output so tests agent skips the first gate call when
+            // failing tests are already known from the coverage pre-flight. Re-run gate
+            // only after applying fixes to confirm they resolved the failures.
+            (priorErrors
+              ? `Prior gate output (skip re-running gate if these are the only failures — ` +
+                `re-run after applying fixes):\n${priorErrors}\n`
+              : "") +
             "1. Call run_quality_gate() to get test results. " +
             "2. Choose branch based on tests_failed: " +
             "Branch A (tests_failed > 0): locate failing tests, debug root cause, " +
