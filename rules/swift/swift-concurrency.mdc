@@ -18,6 +18,7 @@ alwaysApply: false
 - **Locking**: Prefer actors — MANDATORY. If locking is necessary, use well-reviewed wrappers (e.g., `NSLocking` additions) — MANDATORY. Keep critical sections minimal — MANDATORY
 - **NO DetachedTask** without explicit isolation justification — MANDATORY
 - **NO DispatchQueue** unless bridging legacy code — MANDATORY
+- **`async let` initialization order**: Do NOT use `async let` when results must be applied in a specific order or when each call depends on side-effects from the previous one. Use sequential `await` instead. `async let` starts all tasks concurrently; sequential `await` ensures correct ordering for initialization flows (e.g., setting `activeCounterparty` before running downstream checks) — MANDATORY
 
 ## Swift 6 Strict Concurrency (ENFORCED)
 
