@@ -8,13 +8,15 @@
           "file": "commit.md",
           "name": "Commit",
           "description": "Execute the mandatory commit procedure with all required pre-commit checks",
-          "keywords": ["commit", "git", "pre-commit", "testing", "formatting"]
+          "keywords": ["commit", "git", "pre-commit", "testing", "formatting"],
+          "superseded_by": "commit.wf.js"
         },
         {
           "file": "fix.md",
           "name": "Fix",
           "description": "Unified helper for fixing quality issues, test failures, or documentation sync. Accepts target parameter: quality | tests | docs",
-          "keywords": ["fix", "quality", "tests", "docs", "lint", "format", "coverage", "sync", "memory-bank"]
+          "keywords": ["fix", "quality", "tests", "docs", "lint", "format", "coverage", "sync", "memory-bank"],
+          "superseded_by": "fix.wf.js"
         },
         {
           "file": "review.md",
@@ -27,7 +29,8 @@
           "name": "Do Single Step",
           "description": "Read the roadmap, identify the next pending step, and implement it completely",
           "internal": true,
-          "keywords": ["roadmap", "implementation", "tasks", "planning", "progress"]
+          "keywords": ["roadmap", "implementation", "tasks", "planning", "progress"],
+          "superseded_by": "do.wf.js"
         },
         {
           "file": "do-loop.md",
