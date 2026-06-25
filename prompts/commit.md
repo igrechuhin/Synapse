@@ -110,7 +110,7 @@ Use @commit-phase-a to handle this phase. If the subagent is unavailable, run th
 2. Parse the result: check `preflight_passed` (bool) and extract coverage from `results.tests.coverage` when present.
    - Coverage is optional and language-dependent. SwiftPM runs may populate a numeric fraction when ``swift test --enable-code-coverage`` produced artifacts and Cortex parsed them; the same configured threshold applies as for Python when a numeric value is present.
    - If coverage is unavailable (no parseable value), carry `coverage: null` in pipeline state and report coverage as `N/A` (do not coerce to `0.0`).
-3. If `preflight_passed: false`: call `autofix()`, then call `run_quality_gate()` again. Repeat up to 3 times.
+3. If `preflight_passed: false`: **delegate to the fix workflow** — invoke `@fix-quality` subagent (or run `/cortex/fix quality` inline from `fix.md` if unavailable). Do NOT call `autofix()` and retry inline. After the fix workflow completes, call `run_quality_gate()` once to confirm. Repeat delegation up to 3 times if the gate still fails.
 4. **CI parity checks (mandatory before passing Phase A)**: even when `preflight_passed: true`, run parity scripts in two passes **plus** the public DocC gate from `.github/workflows/quality.yml`.
 
    ⛔ **HARD GATE**: Run scripts as actual subprocesses and check exit codes. A glob fallback or manual inspection is not valid.
@@ -292,7 +292,7 @@ Use @commit-final-gate to handle this phase. If the subagent is unavailable, run
 
    Then call `pipeline_handoff()` and `run_quality_gate()`.
 
-   Full re-run including tests, types, lint, format, markdown. If any check fails: call `autofix()` and retry (max 3 iterations).
+   Full re-run including tests, types, lint, format, markdown. If any check fails: **delegate to the fix workflow** — spawn `@fix-quality` (or `@fix-tests` for test failures) rather than fixing inline. After the fix workflow completes, confirm with `run_quality_gate()` (max 3 total fix-workflow invocations).
    After a green result, re-run CI parity checks (same discovery as Phase A step 4). If any fails, Step 12 is failed (do not commit).
 3. **If only `markdown_changed`** (no source changes): run `autofix()` to auto-fix any remaining markdown lint. Then verify:
 
@@ -380,13 +380,13 @@ Then call `pipeline_handoff()`.
 - **Preflight fails (MCP unhealthy)**: STOP — MCP required for all phases
 - **Preflight fails (no changes)**: STOP — nothing to commit
 - **Preflight `git stash create` fails with "beyond a symbolic link"**: Non-blocking — use `snapshot_ref = "HEAD"` and continue. This is expected in TradeWing because `.cortex/memory-bank` and `.cortex/plans` may be symlinked in local workflows.
-- **Phase A fails after 3 fix iterations**: STOP, report unresolvable issues
+- **Phase A fails after 3 fix-workflow delegations**: STOP, report unresolvable issues
 - **Phase A fails due to project build failure** (step 5 exits non-zero): fix compilation/build errors, re-run both `run_quality_gate()` and the language-specific build script. Do NOT create the commit until the build succeeds.
-- **Phase A fails due to markdown lint**: Read `markdown_result.output` for exact violations (file:line, rule code). Call `autofix()` (includes markdown auto-fix for fixable rules). If errors remain (e.g. MD036 is not auto-fixable), apply manual fixes using the violation details. Zero markdown errors required before Phase A can pass.
+- **Phase A fails due to markdown lint**: Delegate to `@fix-quality` subagent (which calls `autofix()` and handles manual fixes per rule code). Do NOT fix inline. Zero markdown errors required before Phase A can pass.
 - **Phase B timestamps fail**: Fix timestamp format errors via `manage_file()`, retry `run_docs_gate()`. Timestamps failure IS blocking.
 - **Phase B `DocsMemoryBankToolError` (`roadmap.md` missing)**: confirm with `manage_file(operation="metadata", file_name="roadmap.md")`. If `file_exists: true`, classify as non-blocking bridge false-negative and continue with warning; if `false`, treat as blocking docs failure.
 - **Phase B roadmap_sync fails only**: Non-blocking warning — record it, proceed to Phase C.
-- **Phase B memory-bank lint fails**: Run `autofix()` first (required) to apply deterministic housekeeping fixes, then retry `run_docs_gate()`. If unresolved after 3 attempts, stop and report remaining blockers.
+- **Phase B memory-bank lint fails**: Delegate to `@fix-docs` subagent (which runs `autofix()` and housekeeping fixes), then retry `run_docs_gate()`. If unresolved after 3 fix-workflow delegations, stop and report remaining blockers.
 - **Phase C Synapse commit fails** (e.g. merge conflict inside submodule): STOP, block commit, report the submodule error
 - **Phase C Synapse push fails** (auth/network/SSL): Non-blocking — record the error and `synapse_push_succeeded: false` in pipeline state. Step 14 will retry the push as a safety net. Provide the manual push command to the user.
 - **Step 12 fails after 3 iterations**: Block commit — unless failures are exclusively pytest timeouts and no source code (`src/`/`tests/`) changed since Phase A (see timeout-only rule above)

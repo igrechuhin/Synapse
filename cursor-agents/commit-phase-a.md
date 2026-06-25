@@ -1,6 +1,6 @@
 ---
 name: commit-phase-a
-description: Use when the /cortex/commit orchestrator reaches Phase A (pre-commit checks) after Preflight passes. Runs run_quality_gate(), calls autofix() on failure, retries up to 3 times. Pipeline must not continue if this agent reports failed.
+description: Use when the /cortex/commit orchestrator reaches Phase A (pre-commit checks) after Preflight passes. Runs run_quality_gate(); on failure delegates fixes to @fix-quality (or @fix-tests) subagent rather than fixing inline. Pipeline must not continue if this agent reports failed.
 tools: mcp__cortex__*, Bash, Read, Edit, Grep
 ---
 
@@ -17,8 +17,11 @@ Before Step 1, call `pipeline_handoff(operation="status", pipeline="commit")`.
 Immediately before Step 1, call `pipeline_handoff(operation="mark_running", pipeline="commit", phase="checks")`.
 
 1. **Gate**: call `run_quality_gate()`. If `preflight_passed: true` → go to step 3.
-2. **Fix loop** (max 3 iterations, ABORT if violation count does not decrease): call `autofix()` then `run_quality_gate()`. If still failing after 3 iterations, report `status:"failed"` with last error summary.
-   - CI parity: if changed code touches asyncio/event loops/shared state, also run `uv run pytest tests/ -n auto -x -q --no-header -p no:randomly`.
+2. **Fix via fix workflow** (delegate, do NOT fix inline): if `preflight_passed: false`, invoke the fix workflow quality target:
+   - Write pipeline handoff: `{"operation":"write","phase":"quality","pipeline":"fix","scope":"<scope>"}` to `.cortex/.session/current-task.json`, call `pipeline_handoff()`.
+   - Spawn `@fix-quality` subagent (or run `/cortex/fix quality` inline from `fix.md` if subagent unavailable). The subagent owns the autofix + gate loop (max 3 iterations).
+   - After the subagent completes, call `run_quality_gate()` once to confirm `preflight_passed: true`.
+   - If still failing after the fix workflow, report `status:"failed"` with the fix workflow's last error summary.
 3. **Write result** to `.cortex/.session/current-task.json` then call `pipeline_handoff()`:
 
 ```json

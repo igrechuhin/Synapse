@@ -21,8 +21,8 @@ Immediately before Step 1, call `pipeline_handoff(operation="mark_running", pipe
    - `markdown_changed`: any `.md`/`.mdc` written by B/C (Phase B always touches memory-bank, so usually `true`).
    - `nothing`: no files written.
 2. **Run gate**:
-   - `source_changed`: write `{"operation":"write","phase":"checks","pipeline":"commit","force_fresh":true,"test_timeout":600}` to `.cortex/.session/current-task.json`, call `pipeline_handoff()`, then `run_quality_gate()`. Fix failures with `autofix()` + retry, max 3 iterations.
-   - `markdown_changed` only: same config write + `pipeline_handoff()` + `run_quality_gate()`. Timeout-only test failures pass if all non-test checks pass (Phase A proved tests green).
+   - `source_changed`: write `{"operation":"write","phase":"checks","pipeline":"commit","force_fresh":true,"test_timeout":600}` to `.cortex/.session/current-task.json`, call `pipeline_handoff()`, then `run_quality_gate()`. If gate fails, delegate fixes to the fix workflow: spawn `@fix-quality` (or `@fix-tests` for test failures) rather than fixing inline. After fix workflow completes, confirm with `run_quality_gate()`. Max 3 total fix-workflow invocations.
+   - `markdown_changed` only: same config write + `pipeline_handoff()` + `run_quality_gate()`. If markdown lint fails, spawn `@fix-quality` to fix. Timeout-only test failures pass if all non-test checks pass (Phase A proved tests green).
    - `nothing`: skip, set `skipped_checks:["all"]`.
 3. **Write result** to `.cortex/.session/current-task.json` then call `pipeline_handoff()`:
 
