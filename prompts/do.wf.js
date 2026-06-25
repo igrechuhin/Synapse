@@ -16,6 +16,46 @@
  *   @implement-code
  */
 
+export const meta = {
+  name: "cortex-do",
+  description:
+    "Cortex implement pipeline: select → implementation loop → review gate → finalize → verify → fix → cleanup",
+  phases: [
+    {
+      title: "Selection",
+      detail: "identify next roadmap step, read plan, check gate_feedback, load context"
+    },
+    {
+      title: "Implementation",
+      detail: "loop until step_fully_complete=true, max 5 iterations; parallel [P] steps via pipeline()"
+    },
+    {
+      title: "Review Gate",
+      detail: "inline review of files_changed; branches on needs_review flag"
+    },
+    {
+      title: "Finalize",
+      detail: "plan(complete) or partial update; Partial Progress Log; anti-scrap guardrail"
+    },
+    {
+      title: "Verify",
+      detail: "roadmap + progress.md read-only checks; archive completed plans"
+    },
+    {
+      title: "Fix",
+      detail: "autofix + quality gate + docs gate; max 3 iterations each target"
+    },
+    {
+      title: "Cleanup",
+      detail: "clear implement pipeline state"
+    },
+    {
+      title: "Post-Prompt Hook",
+      detail: "self-improvement hook (non-blocking)"
+    }
+  ]
+};
+
 // AI: JSON Schema objects for structured subagent returns — loose schemas with
 // additionalProperties: true allow current free-text phase outputs while providing
 // typed access to the key fields the orchestrator branches on. Tighten after smoke-testing.
@@ -105,47 +145,7 @@ function mergeParallelResults(results) {
   };
 }
 
-export const meta = {
-  name: "cortex-do",
-  description:
-    "Cortex implement pipeline: select → implementation loop → review gate → finalize → verify → fix → cleanup",
-  phases: [
-    {
-      title: "Selection",
-      detail: "identify next roadmap step, read plan, check gate_feedback, load context"
-    },
-    {
-      title: "Implementation",
-      detail: "loop until step_fully_complete=true, max 5 iterations; parallel [P] steps via pipeline()"
-    },
-    {
-      title: "Review Gate",
-      detail: "inline review of files_changed; branches on needs_review flag"
-    },
-    {
-      title: "Finalize",
-      detail: "plan(complete) or partial update; Partial Progress Log; anti-scrap guardrail"
-    },
-    {
-      title: "Verify",
-      detail: "roadmap + progress.md read-only checks; archive completed plans"
-    },
-    {
-      title: "Fix",
-      detail: "autofix + quality gate + docs gate; max 3 iterations each target"
-    },
-    {
-      title: "Cleanup",
-      detail: "clear implement pipeline state"
-    },
-    {
-      title: "Post-Prompt Hook",
-      detail: "self-improvement hook (non-blocking)"
-    }
-  ]
-};
 
-export default async function doPipeline({ phase, agent, log, pipeline }) {
   // ── Selection ──────────────────────────────────────────────────────────────
   phase("Selection");
   // AI: Selection is inline (no subagent) per do.md spec. Here we use an implement-code
@@ -472,4 +472,4 @@ export default async function doPipeline({ phase, agent, log, pipeline }) {
     fix_passed: fix.status === "passed",
     parallel_execution: canParallelize
   };
-}
+

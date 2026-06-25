@@ -19,6 +19,38 @@
  *   @fix-coverage, @fix-quality, @fix-tests, @fix-docs
  */
 
+export const meta = {
+  name: "cortex-fix",
+  description:
+    "Cortex fix pipeline: PHASE 0 diagnosis → coverage → quality → tests → docs",
+  phases: [
+    {
+      title: "Diagnosis",
+      detail: "PHASE 0: MCP probe, change-scope assessment, submodule routing, target selection"
+    },
+    {
+      title: "Coverage",
+      detail: "preflight gate + conditional @fix-coverage execution"
+    },
+    {
+      title: "Quality",
+      detail: "@fix-quality autofix retry loop (max 3), scope-routed (markdown_only vs source)"
+    },
+    {
+      title: "Tests",
+      detail: "@fix-tests assertion-failure retry loop (max 3)"
+    },
+    {
+      title: "Docs",
+      detail: "@fix-docs docs-gate retry loop (max 3)"
+    },
+    {
+      title: "Post-Prompt Hook",
+      detail: "self-improvement hook (non-blocking)"
+    }
+  ]
+};
+
 const MAX_TARGET_ITERATIONS = 3;
 
 // AI: DIAGNOSIS_SCHEMA captures the PHASE 0 output that gates all subsequent work.
@@ -127,39 +159,7 @@ const DOCS_SCHEMA = {
 // accumulator only. In the JS Workflow runtime, all async is at the top-level pipeline
 // function; helpers that accept async callbacks pattern-match to this approach.
 
-export const meta = {
-  name: "cortex-fix",
-  description:
-    "Cortex fix pipeline: PHASE 0 diagnosis → coverage → quality → tests → docs",
-  phases: [
-    {
-      title: "Diagnosis",
-      detail: "PHASE 0: MCP probe, change-scope assessment, submodule routing, target selection"
-    },
-    {
-      title: "Coverage",
-      detail: "preflight gate + conditional @fix-coverage execution"
-    },
-    {
-      title: "Quality",
-      detail: "@fix-quality autofix retry loop (max 3), scope-routed (markdown_only vs source)"
-    },
-    {
-      title: "Tests",
-      detail: "@fix-tests assertion-failure retry loop (max 3)"
-    },
-    {
-      title: "Docs",
-      detail: "@fix-docs docs-gate retry loop (max 3)"
-    },
-    {
-      title: "Post-Prompt Hook",
-      detail: "self-improvement hook (non-blocking)"
-    }
-  ]
-};
 
-export default async function fixPipeline({ phase, agent, log }) {
   // ── PHASE 0: Diagnosis ─────────────────────────────────────────────────────
   // AI: Diagnosis is the FIRST await agent() call by construction — no target agent
   // can run before it returns. This encodes the fix.md PHASE 0 hard gate deterministically.
@@ -407,7 +407,7 @@ export default async function fixPipeline({ phase, agent, log }) {
   // ── Docs ───────────────────────────────────────────────────────────────────
   let docsPassed = false;
   let docsResult = null;
-  let docsWarning: string | null = null;
+  let docsWarning = null;
 
   if (diagnosis.targets.includes("docs")) {
     phase("Docs");
@@ -504,4 +504,4 @@ export default async function fixPipeline({ phase, agent, log }) {
     docs_warning: docsWarning,
     final_coverage: coverageResult?.final_coverage ?? null
   };
-}
+

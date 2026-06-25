@@ -13,6 +13,54 @@
  *   @commit-preflight, @commit-phase-a, @commit-phase-b, @commit-phase-c, @commit-final-gate
  */
 
+export const meta = {
+  name: "cortex-commit",
+  description:
+    "Cortex commit pipeline: preflight → A (retry ≤3) → wiki-ingest → B → C → gate → commit → push → cleanup",
+  phases: [
+    {
+      title: "Preflight",
+      detail: "MCP health, git status, stash snapshot, synapse pre-stage"
+    },
+    {
+      title: "Phase A",
+      detail: "quality gate + autofix retry loop (max 3 iterations)"
+    },
+    {
+      title: "Wiki Ingest",
+      detail: "staged docs ingest (inline, runs after Phase A passes)"
+    },
+    {
+      title: "Phase B",
+      detail: "docs sync: activeContext, progress, roadmap, archive plans"
+    },
+    {
+      title: "Phase C",
+      detail: "validate timestamps + roadmap_sync, synapse submodule commit/push"
+    },
+    {
+      title: "Final Gate",
+      detail: "Step 12: scope-routed final quality gate"
+    },
+    {
+      title: "Commit",
+      detail: "Step 13: selective git add + content-descriptive git commit"
+    },
+    {
+      title: "Push",
+      detail: "Step 14: git push superproject (non-blocking on failure)"
+    },
+    {
+      title: "Cleanup",
+      detail: "Step 15: clear commit pipeline state"
+    },
+    {
+      title: "Post-Prompt Hook",
+      detail: "Step 16: self-improvement hook (non-blocking)"
+    }
+  ]
+};
+
 // AI: JSON Schema objects for structured subagent returns — loose schemas with
 // additionalProperties: true allow current free-text phase outputs while providing
 // typed access to the key fields the orchestrator branches on. Tighten after smoke-testing.
@@ -93,55 +141,7 @@ const GATE_SCHEMA = {
   additionalProperties: true
 };
 
-export const meta = {
-  name: "cortex-commit",
-  description:
-    "Cortex commit pipeline: preflight → A (retry ≤3) → wiki-ingest → B → C → gate → commit → push → cleanup",
-  phases: [
-    {
-      title: "Preflight",
-      detail: "MCP health, git status, stash snapshot, synapse pre-stage"
-    },
-    {
-      title: "Phase A",
-      detail: "quality gate + autofix retry loop (max 3 iterations)"
-    },
-    {
-      title: "Wiki Ingest",
-      detail: "staged docs ingest (inline, runs after Phase A passes)"
-    },
-    {
-      title: "Phase B",
-      detail: "docs sync: activeContext, progress, roadmap, archive plans"
-    },
-    {
-      title: "Phase C",
-      detail: "validate timestamps + roadmap_sync, synapse submodule commit/push"
-    },
-    {
-      title: "Final Gate",
-      detail: "Step 12: scope-routed final quality gate"
-    },
-    {
-      title: "Commit",
-      detail: "Step 13: selective git add + content-descriptive git commit"
-    },
-    {
-      title: "Push",
-      detail: "Step 14: git push superproject (non-blocking on failure)"
-    },
-    {
-      title: "Cleanup",
-      detail: "Step 15: clear commit pipeline state"
-    },
-    {
-      title: "Post-Prompt Hook",
-      detail: "Step 16: self-improvement hook (non-blocking)"
-    }
-  ]
-};
 
-export default async function commitPipeline({ phase, agent, log, pipeline }) {
   // ── Preflight ──────────────────────────────────────────────────────────────
   phase("Preflight");
   const preflight = await agent(
@@ -441,4 +441,4 @@ export default async function commitPipeline({ phase, agent, log, pipeline }) {
     coverage: finalGate.coverage ?? phaseA.coverage,
     scope
   };
-}
+

@@ -1,6 +1,7 @@
 ---
 name: commit-preflight
 description: Use when the /cortex/commit orchestrator starts and needs to run Preflight. Verifies MCP health, loads rules, confirms staged changes exist, pre-stages the Synapse submodule, and creates a rollback snapshot. Invoke as the first phase of the commit pipeline before Phase A.
+tools: mcp__cortex__*, Bash, Read, Edit, Grep
 ---
 
 You are the commit pipeline preflight specialist. Complete all steps below and report results via `pipeline_handoff`.

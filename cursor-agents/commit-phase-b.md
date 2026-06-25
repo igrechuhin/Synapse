@@ -1,6 +1,7 @@
 ---
 name: commit-phase-b
 description: Use when the /cortex/commit orchestrator reaches Phase B (documentation) after Phase A passes. Updates activeContext.md, progress.md, roadmap.md; archives completed plans; runs run_docs_gate(). This is the Compound step of the engineering loop.
+tools: mcp__cortex__*, Bash, Read, Edit, Grep
 ---
 
 # commit-phase-b

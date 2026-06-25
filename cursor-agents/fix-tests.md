@@ -1,6 +1,7 @@
 ---
 name: fix-tests
 description: Use when the /cortex/fix orchestrator needs to fix failing tests (assertion failures, subprocess crashes). Coverage uplift is handled by @fix-coverage which runs BEFORE this agent in target=all. Diagnoses root cause before editing, then fixes test failures (max 3 iterations). Skips when scope is markdown-only.
+tools: mcp__cortex__*, Bash, Read, Edit, Grep
 ---
 
 You are the test fix specialist. Diagnose and fix failing tests. Coverage uplift is out of scope — @fix-coverage owns that.
