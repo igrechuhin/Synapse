@@ -1,0 +1,43 @@
+---
+description: Classify and place Cortex rules correctly — project-specific to .cortex/rules/, generic to synapse. Prevents cross-project contamination.
+alwaysApply: false
+created_by: analyze-feedback-loop
+---
+
+# Cortex Rule Placement Strategy
+
+## Classification Decision (REQUIRED before writing any rule)
+
+Before writing a rule, answer: "Would this rule apply verbatim to a completely different codebase?"
+
+| Answer | Rule type | Destination | Tool |
+|--------|-----------|-------------|------|
+| **No** — references THIS project's classes, views, patterns, or architecture | Project-specific | `.cortex/rules/<name>.mdc` | `Write` tool |
+| **Yes** — applies to any project in the same language/domain with no modification | Generic / cross-project | `.cortex/synapse/rules/<lang>/<name>.mdc` | `write_artifact(artifact_type="rule")` |
+
+## Project-specific indicators (route to `.cortex/rules/`)
+
+A rule is project-specific if it references:
+
+- A class, view, ViewModel, or module implemented in this codebase
+- This project's architectural patterns (e.g. a specific Router, NavigationStack, StateStore)
+- A UI component or workflow invented or refined during this project's development
+- Any file path, API endpoint, or naming convention unique to this repo
+
+## Generic indicators (route to synapse)
+
+A rule is generic only if it:
+
+- Applies verbatim to any project using the same language, framework, or tool
+- Contains no references to project-specific class names, file paths, or conventions
+- Would be committed unchanged to the shared synapse submodule
+
+## Violation examples (BLOCKED)
+
+- Writing a project-specific SwiftUI component pattern to `synapse/rules/swift/` — contamination
+- Writing a general testing standard to `.cortex/rules/` — loses cross-project benefit
+- Using `write_artifact` for a rule that references project-specific views — places wrong-project content in shared submodule
+
+## Enforcement
+
+When uncertain, prefer `.cortex/rules/` (project-specific). It is always safe to keep rules local; placing a project-specific rule in synapse pollutes ALL projects sharing that submodule.
