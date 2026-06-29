@@ -1,0 +1,25 @@
+---
+description: "Commit pipelines must include hook-generated review/analysis files in staged sets so they are not left as perpetually untracked artifacts"
+alwaysApply: false
+created_by: analyze-feedback-loop
+---
+
+# Stage Hook-Generated Review Files in Commit Pipelines
+
+## Problem
+
+Post-prompt hooks and analysis agents write ephemeral review files (e.g., `.cortex/reviews/post-prompt-analysis-*.md`) during or after pipeline execution. Because the commit pipeline stages only pre-known file paths, these files accumulate as untracked artifacts across multiple sessions.
+
+## Rule
+
+When a commit pipeline runs and a hook has produced new files under `.cortex/reviews/` (or a designated ephemeral output directory), **include those files in the commit stage** before the snapshot step.
+
+## Implementation
+
+1. After any hook that writes review/analysis files, record the file paths in the pipeline handoff data (e.g., `{"hook_review_files": [".cortex/reviews/..."]}`).
+2. The preflight or staging step reads this list and `git add`s the files before creating the snapshot.
+3. If no hook-produced files exist, this step is a no-op.
+
+## Why
+
+Leaving hook-generated files untracked degrades repo hygiene over time and causes false positives in `git status` checks that guard the commit pipeline ("changes detected but not committed").
