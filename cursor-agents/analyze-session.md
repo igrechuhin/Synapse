@@ -11,7 +11,28 @@ Call `pipeline_handoff(operation="read", pipeline="analyze", phase="session")`. 
 
 ## Step 1: Gather session signals
 
-**Primary signals** (always available):
+**Graph evidence first (primary, higher-confidence)**: call
+`pipeline_handoff(operation="preference_pairs", pipeline="analyze", data={"session_id": "<current session id>"})`
+and `pipeline_handoff(operation="repeated_failures", pipeline="analyze", data={"session_id": "<current session id>"})`
+as the FIRST evidence source. Each returns sibling-node pairs/clusters
+(same parent, divergent `COMPLETED`/`FAILED` status) from the experience
+store — a graph pattern match, not a transcript scrape.
+
+- If the response has `"status": "no_coverage"` or `"coverage": false`, the
+  store has no data for this session — fall back to the transcript-scraping
+  primary signals below, and mark any resulting findings
+  `confidence_source: transcript` (lower-confidence).
+- If `"coverage": true`, use the returned `pairs`/`clusters` as primary,
+  higher-confidence evidence for mistake patterns in Step 2 — each pair's
+  `failed_node.id` and `parent_id` become the evidence citation carried
+  through Steps 3–4 (`confidence_source: graph`). Also call
+  `pipeline_handoff(operation="refresh_rule_matches", pipeline="analyze", data={"session_id": "<current session id>"})`
+  so any existing rule citing one of this session's recurring failure
+  classes gets its `last_matched` bumped (keeps the pruning-candidate
+  report in analyze-compact accurate).
+
+**Primary signals** (always available; used when graph coverage is
+false or absent, or to corroborate graph findings):
 
 - Memory bank files: read `manage_file(file_name="activeContext.md", operation="read")`, `manage_file(file_name="progress.md", operation="read")`. If args stripped, read `.cortex/memory-bank/` directly.
 - Recent commits: `git log --oneline -5 --name-only`
@@ -44,10 +65,28 @@ Prioritized recommendations for Synapse prompts/rules:
 - Rule improvements: target file/section, expected impact
 - Process improvements: workflow changes, expected impact
 
+**Evidence citation (required for graph-sourced recommendations)**: any
+recommendation derived from `preference_pairs`/`repeated_failures` graph
+evidence (Step 1) must include an
+`Evidence: node <failed_node.id> (parent <parent_id>)` citation in its
+recommendation line. Transcript-derived recommendations stay uncited or are
+marked `(transcript, lower-confidence)`.
+
+**Failure class**: for each graph-sourced recommendation, note the
+originating failure class (the cited `failed_node.label`, or the
+`repeated_failures` cluster `label`) alongside the citation — the
+report-assembly phase needs it to record rule provenance if the
+recommendation is accepted as a Synapse rule.
+
 ## Step 4: Write result
 
+Include an `evidence_citations` array (one
+`{"node_id":..., "parent_id":..., "failure_class":...}` entry per
+graph-sourced recommendation from Step 3) so citations survive the handoff
+to the compact/report-assembly phase:
+
 ```json
-{"operation":"write","phase":"session","pipeline":"analyze","status":"complete","patterns_found":<n>,"recommendations":<n>}
+{"operation":"write","phase":"session","pipeline":"analyze","status":"complete","patterns_found":<n>,"recommendations":<n>,"evidence_citations":[{"node_id":"<failed_node.id>","parent_id":"<parent_id>","failure_class":"<failed_node.label>"}]}
 ```
 
 Write to `.cortex/.session/current-task.json`, then call `pipeline_handoff()`.

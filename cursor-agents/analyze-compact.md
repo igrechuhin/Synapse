@@ -45,7 +45,11 @@ Combine findings from all prior phases into the final report:
 
 ### Optimization Recommendations
 
-<prioritized list from session phase>
+<prioritized list from session phase; for each recommendation backed by
+`evidence_citations` from the session phase handoff, show the citation
+next to it: `- [High] <target> — <change> — Evidence: node <node_id>
+(parent <parent_id>)`; recommendations without a matching citation are
+transcript-derived and stay uncited>
 
 ### Session Scope
 
@@ -54,6 +58,14 @@ Combine findings from all prior phases into the final report:
 ### Tools Optimization
 
 <from tools phase — budget, dead tools, duplicates, consolidation candidates>
+
+### Rule Provenance & Pruning Candidates
+
+<call `pipeline_handoff(operation="pruning_candidates", pipeline="analyze")`;
+list each returned candidate as `- <rule_id> — failure class "<failure_class>", last matched <last_matched> (<days_since_match> days ago)`.
+If `status` is `no_coverage` or `candidates` is empty, write "No pruning
+candidates — all cited rules have recent matches." Pruning stays a human
+decision; never delete or edit rule files from this report>
 
 ### Report Location
 
@@ -88,7 +100,21 @@ Read `cortex://analysis` and parse the JSON field `token_budget` (especially `to
   ---
   ```
 
+  When the rule is derived from graph evidence (`evidence_citations` in the
+  Step 0 handoff read of the session phase), include the citation(s) near
+  the top of the rule body so graph-sourced rules stay traceable to the
+  originating node pair:
+
+  ```markdown
+  Evidence: node <node_id> (parent <parent_id>)
+  ```
+
   Path: `.cortex/synapse/rules/<general|python|...>/<slug>.mdc`
+
+  After writing a graph-sourced rule, persist its evidence citation so the
+  rule stays traceable and eligible for staleness detection:
+  `pipeline_handoff(operation="record_rule_provenance", pipeline="analyze", data={"session_id": "<current session id>", "rule_id": "<general|python|...>/<slug>", "failure_class": "<failure_class from the evidence_citations entry>", "pair_ids": ["<node_id>", ...]})`.
+  Skip this call for transcript-derived rules (no `evidence_citations` entry).
 
 Only act on each router if actionable findings exist for that category.
 
