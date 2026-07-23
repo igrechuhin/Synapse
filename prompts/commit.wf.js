@@ -151,9 +151,9 @@ const GATE_SCHEMA = {
     { agentType: "commit-preflight", schema: PREFLIGHT_SCHEMA }
   );
 
-  if (!preflight.passed) {
-    log(`Preflight failed: ${preflight.error ?? "unknown error"}`);
-    return { success: false, phase: "preflight", error: preflight.error };
+  if (!preflight || !preflight.passed) {
+    log(`Preflight failed: ${preflight?.error ?? "agent returned no result"}`);
+    return { success: false, phase: "preflight", error: preflight?.error ?? "agent_returned_null" };
   }
   if (!preflight.changes_detected) {
     log("Preflight: no changes detected — nothing to commit.");
@@ -185,23 +185,24 @@ const GATE_SCHEMA = {
       { agentType: "commit-phase-a", schema: PHASE_A_SCHEMA }
     );
     iterations++;
-    if (phaseA.passed) break;
+    if (phaseA && phaseA.passed) break;
     if (iterations < MAX_PHASE_A_ITERATIONS) {
       log(
-        `Phase A failed (attempt ${iterations}/${MAX_PHASE_A_ITERATIONS}), retrying with autofix...`
+        `Phase A ${phaseA ? "failed" : "agent returned no result"} ` +
+          `(attempt ${iterations}/${MAX_PHASE_A_ITERATIONS}), retrying with autofix...`
       );
     }
   }
 
-  if (!phaseA.passed) {
+  if (!phaseA || !phaseA.passed) {
     log(
-      `Phase A failed after ${MAX_PHASE_A_ITERATIONS} attempts. Last error: ${phaseA.error ?? "unknown"}`
+      `Phase A failed after ${MAX_PHASE_A_ITERATIONS} attempts. Last error: ${phaseA?.error ?? "agent returned no result"}`
     );
     return {
       success: false,
       phase: "phase_a",
       iterations,
-      error: phaseA.error
+      error: phaseA?.error ?? "agent_returned_null"
     };
   }
   log(
@@ -257,12 +258,12 @@ const GATE_SCHEMA = {
   );
   // AI: docs_phase_passed: false is only blocking for timestamp failures.
   // roadmap_sync-only failures are recorded as a warning and do not block the commit.
-  if (!phaseB.docs_phase_passed && !phaseB.roadmap_sync_warning) {
-    log(`Phase B failed: ${phaseB.error ?? "docs gate did not pass"}`);
+  if (!phaseB || (!phaseB.docs_phase_passed && !phaseB.roadmap_sync_warning)) {
+    log(`Phase B failed: ${phaseB?.error ?? "agent returned no result"}`);
     return {
       success: false,
       phase: "phase_b",
-      error: phaseB.error
+      error: phaseB?.error ?? "agent_returned_null"
     };
   }
   if (phaseB.roadmap_sync_warning) {
@@ -281,12 +282,12 @@ const GATE_SCHEMA = {
       "then push (push failure is non-blocking). Stage the updated gitlink in the superproject.",
     { agentType: "commit-phase-c", schema: PHASE_C_SCHEMA }
   );
-  if (!phaseC.timestamps_valid) {
-    log(`Phase C failed: timestamps invalid — ${phaseC.error ?? "check timestamp format"}`);
+  if (!phaseC || !phaseC.timestamps_valid) {
+    log(`Phase C failed: timestamps invalid — ${phaseC?.error ?? "agent returned no result"}`);
     return {
       success: false,
       phase: "phase_c",
-      error: "timestamps_invalid"
+      error: phaseC ? "timestamps_invalid" : "agent_returned_null"
     };
   }
   log(
@@ -330,13 +331,13 @@ const GATE_SCHEMA = {
     );
   }
 
-  if (!finalGate.passed) {
-    log(`Step 12 final gate failed: ${finalGate.error ?? "quality checks did not pass"}`);
+  if (!finalGate || !finalGate.passed) {
+    log(`Step 12 final gate failed: ${finalGate?.error ?? "agent returned no result"}`);
     return {
       success: false,
       phase: "final_gate",
       scope,
-      error: finalGate.error
+      error: finalGate?.error ?? "agent_returned_null"
     };
   }
   log(
@@ -366,9 +367,9 @@ const GATE_SCHEMA = {
       }
     }
   );
-  if (!commit.committed) {
-    log(`Step 13 commit failed: ${commit.error ?? "commit was not created"}`);
-    return { success: false, phase: "commit", error: commit.error };
+  if (!commit || !commit.committed) {
+    log(`Step 13 commit failed: ${commit?.error ?? "agent returned no result"}`);
+    return { success: false, phase: "commit", error: commit?.error ?? "agent_returned_null" };
   }
   log(`Step 13 committed: sha=${commit.commit_sha ?? "unknown"}`);
 
@@ -395,9 +396,9 @@ const GATE_SCHEMA = {
       }
     }
   );
-  if (!push.pushed) {
+  if (!push || !push.pushed) {
     // AI: Non-blocking — pipeline continues to cleanup regardless of push outcome.
-    log(`Step 14 push failed (non-blocking): ${push.error ?? "unknown push error"}`);
+    log(`Step 14 push failed (non-blocking): ${push?.error ?? "agent returned no result"}`);
   } else {
     log(`Step 14 pushed to ${push.remote ?? "remote"}.`);
   }
