@@ -1,4 +1,5 @@
 ---
+description: Phase-based commit pipeline usage, zero-errors policy, manual Workflow-tool fallback, and single-goal batch scope check.
 alwaysApply: false
 ---
 
@@ -25,3 +26,20 @@ alwaysApply: false
 ## Memory bank and roadmap
 
 - Follow memory-bank-workflow.mdc for updates. Use `manage_file()` for memory bank files; use dedicated MCP tools (`roadmap(operation="remove_entry"|"add_entry"|"remove_section")`, `append_progress_entry`, `append_active_context_entry`, `plan(operation="complete")`) for safe single-entry updates to roadmap, progress, and activeContext.
+
+## Manual fallback when the Workflow tool is unavailable
+
+If the host does not expose a Workflow tool (so `commit.wf.js` cannot be executed directly as deterministic JS), replicate its phase sequence manually instead of skipping phases:
+
+- Invoke each phase's subagent directly, in the same order the `.wf.js` defines: `commit-preflight` → `commit-phase-a` → `commit-phase-b` → `commit-phase-c` → `commit-final-gate`.
+- Before each phase, call `pipeline_handoff(operation="status", pipeline="commit")` and skip phases already `completed`; re-run phases that are `failed` or `running`; treat `pending`/missing as normal continuation — this mirrors the `.wf.js` resume logic.
+- Call `pipeline_handoff(operation="mark_running", ...)` immediately before invoking a phase's subagent so state matches what the `.wf.js` would have set.
+- Verify each subagent actually wrote its own `pipeline_handoff(operation="write", ...)` result before proceeding to the next phase — do not advance on a subagent's prose claim alone; an unwritten result silently breaks the next phase's resume check.
+- On a phase failure, stop and surface it (fix path) rather than continuing to the next phase, mirroring the `.wf.js` frontier-phase behavior.
+
+## Single-goal batch check before staging (pre-commit)
+
+Before staging/committing, scan the pending change set for unrelated objective clusters (for example: infra/tooling fixes mixed with new feature implementation, or docs rewrites mixed with unrelated code changes).
+
+- If the batch spans multiple unrelated goals, treat it as a session-scope risk: prefer splitting into separate commits/sessions rather than committing everything in one pass, even if the mechanical commit would otherwise succeed.
+- A single combined commit is acceptable when the user explicitly requests batching prior work, but still note the scope breadth in the commit pipeline's final report so the risk is visible.
