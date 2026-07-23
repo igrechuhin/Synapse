@@ -218,9 +218,10 @@ const GATE_SCHEMA = {
   const wikiIngest = await agent(
     "Run wiki staged ingest. Steps: " +
       "1. Run `git diff --cached --name-only` to list staged paths. " +
-      "2. If any staged paths are under .cortex/wiki/ or docs/, run: " +
-      "   cd /Users/i.grechukhin/Repo/EPD-iOS && .venv/bin/python -m cortex.tools.wiki.staged_ingest " +
-      "   or equivalent wiki_ingest_staged_docs call. " +
+      "2. If any staged paths are under .cortex/wiki/ or docs/, invoke " +
+      "   wiki_ingest_staged_docs(staged_files=<staged paths>, project_root=<current repository root>) " +
+      "   from cortex.tools.wiki.staged_ingest, run in-process from the current repository root — " +
+      "   never `cd` into a different repository or project. " +
       "3. Run `git add` on any written wiki files. " +
       "4. Return {errors: [], wiki_files_written: []} — never return blocking errors; " +
       "   if ingest fails or no wiki files are staged, return empty arrays and continue.",
