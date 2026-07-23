@@ -21,6 +21,7 @@ Immediately before Step 1, call `pipeline_handoff(operation="mark_running", pipe
    - Call `autofix()` then `run_quality_gate()`.
    - Fix remaining errors at reported `file:line`: type errors (fix annotation/cast/import); file >400 lines (split); function >30 lines (extract); markdown (fix per rule code).
    - Note: for `markdown_only` scope use `run_quality_gate()` (not `run_docs_gate()`) — it catches markdown lint that commit Phase A checks.
+   - **No-progress check** (before each retry): append `{"target":"<file:line or rule-code>","outcome_signature":"<error type + message shape, no line numbers/timestamps>","attempt_number":<n>}` to this phase's `attempt_history` list (read prior list via `pipeline_handoff(operation="read", pipeline="fix", phase="quality")`, append, write full list back via `operation="write"`). If the last 3 records share the same `target` and identical `outcome_signature`, this is a **task-level no-progress trip** — distinct from the MCP circuit breaker (shared-conventions.md): STOP retrying, write `status:"BLOCKED"`, `blocker_reason:"no_progress_monitor_tripped"`, and report: "No-progress monitor tripped after 3 consecutive attempts with identical outcome on target '<target>'. Pausing for orchestrator re-plan/human check-in." Do not attempt a 4th iteration.
 3. **Write result** to `.cortex/.session/current-task.json` then call `pipeline_handoff()`:
 
 ```json

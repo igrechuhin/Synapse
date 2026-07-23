@@ -85,6 +85,31 @@ When **3 consecutive MCP tool calls fail** (across any steps in the current pipe
 
 **Staleness guard**: Pipeline state files include a `started_at` timestamp. Ignore state files older than 1 hour when resuming.
 
+## Task-Level No-Progress Monitor (distinct from the MCP Circuit Breaker)
+
+This is a **second, independent** signal from the Circuit-Breaker Pattern above. Do not conflate the two — they have different trigger conditions and different report wording.
+
+| | MCP Circuit Breaker | No-Progress Monitor |
+|---|---|---|
+| **Trigger** | 3 consecutive MCP **tool-call failures** (transport/connection errors) | 3 consecutive **successful** fix/implement attempts against the same target with an **identical outcome signature** (no change in the underlying failure) |
+| **Scope** | Any MCP tool call, any pipeline step | Fix/implement subagents only (`fix-tests`, `fix-quality`, `implement-code`) |
+| **Detects** | Infra instability (server unreachable, timeouts) | An agent looping on the same unproductive fix — tool calls succeed, but the problem never changes |
+| **Data source** | In-process `MCPConnectionState` (`mcp_stability_retry.py`) | `attempt_history` list written into the subagent's own `pipeline_handoff` phase payload — no new schema or storage |
+
+**Mechanics** (reuses the same checkpoint/report/resume UX as the circuit breaker):
+
+1. After each fix/implement attempt, the subagent appends `{"target": "<file/test/task-specific key>", "outcome_signature": "<error type + assertion-message shape, excluding line numbers/timestamps>", "attempt_number": <n>}` to its phase's `attempt_history` list and writes the full list back via `pipeline_handoff(operation="write", ...)`.
+2. Before retrying, the subagent compares the last 3 records: same `target` AND identical `outcome_signature` across all 3 means no progress is being made.
+3. On trip: STOP retrying (do not attempt a 4th iteration), write `status:"BLOCKED"` (fix-*) or `status:"failed"` with `step_fully_complete:false` (implement-code), and report: "No-progress monitor tripped after 3 consecutive attempts with identical outcome on target '<target>'. Pausing for orchestrator re-plan/human check-in."
+4. **Do NOT** automatically reroute to a different agent or strategy — pause-and-report only, matching the circuit breaker's behavior for this first slice.
+
+**Reset conditions** (must NOT false-positive):
+
+- **Target changes** (different file/test): only the most recent 3 records count, so a switch to a new target starts a fresh streak.
+- **Outcome changes** on the same target (the fix had some effect, even if incomplete): this is progress, not a stuck loop, and does not trip.
+
+See `src/cortex/core/no_progress_monitor.py` (`AttemptRecord`, `detect_no_progress`) for the reference model and comparison logic.
+
 ## Memory Bank Contract
 
 See `memory-bank-contract.md` for the complete write discipline. Key rules:

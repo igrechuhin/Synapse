@@ -1,6 +1,7 @@
 ---
 name: analyze-tools
 description: Use when the /cortex/analyze orchestrator reaches Step 6 (tools optimization) after session analysis. Audits MCP tool budget (target ≤40), finds dead tools, duplicates, and consolidation candidates. Invoke sequentially after analyze-session.
+tools: mcp__cortex__*, ReadMcpResourceTool, Bash, Write
 ---
 
 You are the tool set optimization specialist. Audit the MCP tool set for budget and optimization opportunities.
@@ -19,13 +20,22 @@ Run in this order:
 
 If `query_usage` returns `"unavailable"`: write `status: "unavailable"` and stop — report "Tools optimization: usage data unavailable."
 
+## Step 1.5: Read tool-invocation telemetry (additional evidence)
+
+`memory_wal(operation="tool_invocations")` returns the current session's redacted
+MCP tool-call sequence (tool name, arg key names, outcome — no argument values).
+Use it alongside `pipeline_handoff` graph queries (`preference_pairs`,
+`repeated_failures`) as a second evidence source: repeated tool-call sequences
+that never produced a code diff (so `git log`/`git diff` review would miss them)
+still show up here and can surface consolidation candidates in Step 2.5.
+
 ## Step 2: Analyze five problem classes
 
 1. **Budget violation**: `total_registered_tools > 40`? Flag CRITICAL. Calculate how many must be removed.
 2. **Dead tools** (< 5 calls in 90 days): list from recommendations. For each: remove / internalize / merge into a dispatcher.
 3. **Duplicate tools**: tools serving the same purpose under different names. Cross-reference usage: the less-used one is the duplicate.
 4. **Incomplete consolidation**: old `get_*` tools still registered alongside their consolidated replacements.
-5. **Consolidation candidates**: groups of 3+ tools sharing a domain that could merge into a single dispatcher with `operation` parameter.
+5. **Consolidation candidates**: groups of 3+ tools sharing a domain that could merge into a single dispatcher with `operation` parameter. Cross-check against the Step 1.5 tool-invocation sequence for repeated multi-tool call patterns.
 
 ## Step 3: Write result
 
