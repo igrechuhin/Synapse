@@ -1,6 +1,6 @@
 {
   "version": "1.0",
-  "description": "Cursor-invocable subagents. Each file is synced to .cursor/agents/ and (with mcp__ prefix transform) to .claude/agents/. Orchestrator prompts invoke these via @agent-name mentions.",
+  "description": "Claude Code subagents. Each file is synced (with mcp__ prefix transform) to .claude/agents/. Orchestrator prompts invoke these via @agent-name mentions.",
   "pipelines": {
     "implement": {
       "orchestrator": "prompts/do.md",
