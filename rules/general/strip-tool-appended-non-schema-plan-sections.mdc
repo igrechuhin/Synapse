@@ -1,0 +1,41 @@
+---
+description: After plan(operation="create"), verify the generated file against the prompt's section schema and strip tool-appended sections the prompt forbids.
+alwaysApply: false
+created_by: analyze-feedback-loop
+---
+
+# Strip Tool-Appended Non-Schema Plan Sections
+
+## Rule
+
+After any `plan(operation="create")` call, read the generated file back and diff its
+`^## ` headers against the section schema the calling prompt mandates. Remove any section
+the tool appended that the prompt does not list, before reporting success.
+
+## Why
+
+The plan-creation tool writes its own file template, which can include sections the
+calling prompt explicitly forbids. When the prompt says "Non-schema sections are
+forbidden" and the tool appends one anyway, the schema violation is in the artifact even
+though the agent followed instructions. The read-back is the only place this is caught.
+
+Observed: a `## Change History` section containing placeholder text
+("_No revisions recorded yet_") was appended to every created plan, while the calling
+prompt listed exactly ten permitted sections and named "Change History" as an example of
+a forbidden extra.
+
+## How to apply
+
+1. Call `plan(operation="create", ...)`.
+2. `grep -n "^## " <plan_file>` and compare against the prompt's required section list.
+3. Delete any section not on that list, including its placeholder body.
+4. Re-run the grep to confirm the header set now matches exactly, then report success.
+
+Do not skip the read-back because the tool returned `status: success` — success means the
+file was written, not that it matches the prompt's schema.
+
+## Scope note
+
+This is a verification step, not a fix to the tool. If the same non-schema section recurs
+across sessions, the durable fix is to correct the plan-creation template at its source;
+until then, the read-back-and-strip step is mandatory.
