@@ -9,7 +9,7 @@ created_by: analyze-feedback-loop
 ## Rule
 
 After any `plan(operation="create")` call, read the generated file back and diff its
-`^## ` headers against the section schema the calling prompt mandates. Remove any section
+`^##` headers against the section schema the calling prompt mandates. Remove any section
 the tool appended that the prompt does not list, before reporting success.
 
 ## Why
