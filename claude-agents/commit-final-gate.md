@@ -2,6 +2,7 @@
 name: commit-final-gate
 description: Use when the /cortex/commit orchestrator reaches Step 12 (final gate) after Phase C passes. Classifies what changed since Phase A, re-runs the minimal necessary quality gate. Commit must not proceed if this agent reports failed.
 tools: mcp__cortex__*, Bash, Read, Edit, Grep
+model: sonnet
 ---
 
 Classify scope of Phase B/C writes, run minimal gate, write result.

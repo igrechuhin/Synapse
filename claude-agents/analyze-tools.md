@@ -2,6 +2,7 @@
 name: analyze-tools
 description: Use when the /cortex/analyze orchestrator reaches Step 6 (tools optimization) after session analysis. Audits MCP tool budget (target ≤40), finds dead tools, duplicates, and consolidation candidates. Invoke sequentially after analyze-session.
 tools: mcp__cortex__*, ReadMcpResourceTool, Bash, Write
+model: sonnet
 ---
 
 You are the tool set optimization specialist. Audit the MCP tool set for budget and optimization opportunities.

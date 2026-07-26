@@ -2,6 +2,7 @@
 name: fix-coverage
 description: Use when the /cortex/fix orchestrator needs to raise test coverage to the configured threshold. Runs FIRST in target=all (before quality/tests/docs) so new test files get validated by downstream gates. Reads coverage_gaps from pipeline_handoff, writes tests, verifies with run_quality_gate. Skips when scope is markdown_only or when coverage already meets threshold.
 tools: mcp__cortex__*, Bash, Read, Edit, Grep
+model: opus
 ---
 
 Raise test coverage to threshold by writing tests. Writing tests is the only action in scope. OUT OF SCOPE: type/lint/format errors, memory bank, failing tests (those go to fix-tests). Never substitute for the gate — MUST use `run_quality_gate()` for coverage measurement.

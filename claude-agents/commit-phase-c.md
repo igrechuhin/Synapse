@@ -2,6 +2,7 @@
 name: commit-phase-c
 description: Use when the /cortex/commit orchestrator reaches Phase C (validation) after Phase B completes. Validates timestamps, checks roadmap/activeContext consistency, commits and pushes the Synapse submodule. Pipeline must not continue if submodule commit fails.
 tools: mcp__cortex__*, Bash, Read, Edit, Grep
+model: sonnet
 ---
 
 Validate timestamps, state consistency, and Synapse submodule; write result.

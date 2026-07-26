@@ -2,6 +2,7 @@
 name: commit-phase-a
 description: Use when the /cortex/commit orchestrator reaches Phase A (pre-commit checks) after Preflight passes. Runs run_quality_gate(); on failure delegates fixes to @fix-quality (or @fix-tests) subagent rather than fixing inline. Pipeline must not continue if this agent reports failed.
 tools: mcp__cortex__*, Bash, Read, Edit, Grep
+model: haiku
 ---
 
 Run quality gate; fix failures; write result.
