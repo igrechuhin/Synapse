@@ -1,0 +1,35 @@
+---
+description: Treat post-edit SourceKit "no such module" / "cannot find type" diagnostics as possible stale-index noise; verify with a real build before investigating
+alwaysApply: false
+created_by: analyze-feedback-loop
+---
+
+## Xcode SourceKit stale-index diagnostics
+
+When editing Swift files in an Xcode-project workflow, SourceKit's background
+index frequently lags the actual project state — especially right after
+editing files, running a project generator (e.g. XcodeGen), or switching
+targets. This can surface diagnostics like:
+
+- `No such module 'UIKit'`
+- `No such module '<YourAppModule>'`
+- `Cannot find type '<Type>' in scope`
+
+These are commonly **stale-index false positives**, not real build errors.
+
+### Rule
+
+Before spending time investigating a "cannot find type / no such module"
+diagnostic that appears immediately after an edit:
+
+1. Do not trust the editor's live diagnostics panel as the source of truth.
+2. Run the authoritative check instead: a real `xcodebuild build` or
+   `xcodebuild test` invocation for the project's scheme.
+3. Only treat the diagnostic as a genuine error if it also reproduces in
+   that `xcodebuild` output.
+
+This avoids wasted investigation cycles chasing an editor-only artifact when
+the actual build is clean.
+
+Evidence: transcript-derived (no experience-graph evidence_citations
+available for the originating session; graph coverage was false).
