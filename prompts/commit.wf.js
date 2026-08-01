@@ -48,7 +48,8 @@ export const meta = {
     },
     {
       title: "Push",
-      detail: "Step 14: git push superproject (non-blocking on failure)"
+      detail: "Step 14: git push superproject (non-blocking on failure)",
+      model: "haiku"
     },
     {
       title: "Cleanup",
@@ -385,6 +386,9 @@ const GATE_SCHEMA = {
       "Push failures are non-blocking — record the error and continue.",
     {
       agentType: "commit-phase-c",
+      // AI: Mechanical git work (check, push, retry) — no diff comprehension, so Haiku.
+      // Step 13's commit-message authoring stays on the agent's default Sonnet.
+      model: "haiku",
       schema: {
         type: "object",
         properties: {
