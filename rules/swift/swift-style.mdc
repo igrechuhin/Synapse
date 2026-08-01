@@ -72,6 +72,13 @@ Consistent initialiser parameter ordering by category:
 4. **Environment** — cross-cutting environment parameters (e.g., `logger`)
 5. **Cross-cutting** — other infrastructure (e.g., metrics, tracing)
 
+## Structs over Tuples (ENFORCED)
+
+- **NO tuples for return types or stored properties** — declare a named `struct` instead — MANDATORY
+- **NO tuples as function parameters** grouping more than 2 related values — use a `struct` — MANDATORY
+- **Exception**: ad-hoc, unnamed 2-value groupings fully local to one expression (e.g. `zip`, a single `map` closure's inline destructuring) MAY stay a tuple — anything crossing a function boundary or reused more than once MUST be a named type
+- **Rationale**: tuples expose positional `.0`/`.1` access and unlabeled members at call sites, which reads worse than a struct's named properties and loses Xcode's argument-label autocomplete
+
 ## No .pb.swift Modification (ENFORCED)
 
 - **NEVER modify `*.pb.swift` files** — they are generated from `.proto` definitions — MANDATORY
@@ -86,6 +93,7 @@ Consistent initialiser parameter ordering by category:
 - ❌ Underscore-prefixed names
 - ❌ `type(of:)` for property access
 - ❌ Nested loops
+- ❌ Tuples for return types, stored properties, or 3+ param groupings (use a struct)
 - ❌ Hardcoded configuration values
 - ❌ Manual `.pb.swift` edits
 
