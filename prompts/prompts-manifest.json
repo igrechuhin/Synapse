@@ -46,6 +46,13 @@
           "keywords": ["explore", "brainstorm", "options", "trade-offs", "decision", "pre-plan"]
         },
         {
+          "file": "shape.md",
+          "name": "Shape",
+          "description": "Interview the user one question at a time to resolve unknown requirements before planning. Produces an ephemeral shaping record without creating formal plan or roadmap entries.",
+          "internal": true,
+          "keywords": ["shape", "shaping", "requirements", "interview", "decisions", "constraints", "pre-plan"]
+        },
+        {
           "file": "plan.md",
           "name": "Plan",
           "description": "Create a development plan based on user description, add it to plans directory, and update roadmap",

@@ -42,24 +42,40 @@ Before creating a plan in Step 7, choose how much to generate in one pass:
 
 ---
 
-## Step 4: Explore Gate
+## Step 4: Pre-Plan Gate (shape / explore / both / neither)
 
-Before creating any plan, decide whether an explore phase is needed.
+Before creating any plan, choose exactly one of four routes. The two axes are independent:
 
-**Run `/cortex/explore` first if ANY of these are true:**
+- **Shape** resolves *unknown requirements* — what the user wants, which only the user knows.
+- **Explore** compares *known approaches* — how to build it, which the agent can generate.
+
+**Route A — shape only.** Run `/cortex/shape` when ANY of these hold and the approach is not in question:
+
+- Requirements, constraints, or acceptance criteria are under-specified
+- Success conditions or edge-case boundaries are not written down anywhere
+- A plan written now would encode guesses about what the user actually wants
+
+**Route B — explore only.** Run `/cortex/explore` when ANY of these hold and the requirements are already clear:
 
 - Multiple valid approaches exist with non-obvious trade-offs (e.g. different architectures, libraries, or design patterns)
 - The task is novel — no prior plan or roadmap entry covers this area
-- The request is ambiguous about scope, tech choice, or design direction
 - Complexity or risk is unclear and requires deliberation
 
-**Skip explore and proceed directly to Step 5 if ALL of these are true:**
+**Route C — both.** When requirements are unknown *and* multiple approaches exist, run `/cortex/shape` **first**, then `/cortex/explore`, so exploration is bounded by resolved constraints. Pass both log paths in Step 7.
 
-- The approach is already agreed upon or obvious from context
-- A prior explore log exists for this topic (check `.cortex/plans/explore/`)
+**Route D — neither.** Proceed directly to Step 5 if ALL of these are true:
+
+- The requirements are explicit, and the approach is already agreed upon or obvious from context
+- A prior shaping record or explore log exists for this topic (check `.cortex/plans/shape/` and `.cortex/plans/explore/`)
 - The request is a straightforward addition to an existing plan
 
-If explore is needed: run `/cortex/explore`, wait for the user to select an option, then return here with `explore_log_path` set to the generated log. Pass `explore_log_path` to `plan(operation="create")` in Step 7.
+Ambiguity about *scope* routes to shape; ambiguity about *tech choice or design direction* routes to explore.
+
+If shape is needed: run `/cortex/shape` (or @shape-interviewer), let the interview reach its termination condition, then return here with `shape_log_path` set to the generated record.
+
+If explore is needed: run `/cortex/explore`, wait for the user to select an option, then return here with `explore_log_path` set to the generated log.
+
+Pass whichever of `shape_log_path` and `explore_log_path` were produced to `plan(operation="create")` in Step 7. Resolved shaping decisions are injected as fixed constraints and must not be re-derived.
 
 ---
 
@@ -151,6 +167,29 @@ When planning implementation work, note that agents should use `# AI:` comments 
 
 **If enriching existing**: Read the existing plan, merge new requirements, update steps and priorities. Write back using `Write` or `Edit`.
 
+### Terminology check (ADVISORY — never blocks)
+
+After the plan body is written and **before** Step 8 registration, check the plan's vocabulary against the canonical domain glossary at `.cortex/wiki/glossary.md`.
+
+`plan(operation="create")` runs this automatically and returns two fields:
+
+- `terminology_findings` — a list of `{case, term, canonical_term, suggestion}`
+- `terminology_summary` — the one-line value for the final report's Terminology row
+
+Three cases are reported, and only these three:
+
+| Case | Meaning |
+|------|---------|
+| `declared_alias` | The plan uses a wording declared as an alias of a canonical term — rewrite to the canonical form |
+| `possible_synonym` | The plan uses a near-match of a canonical term that is not a declared alias — possible unintended synonym |
+| `confusable_pair` | The plan uses two terms in one sentence that the glossary marks as easily confused — confirm each names the intended concept |
+
+**GATE — advisory only, VIOLATION IF BROKEN**: findings NEVER abort plan creation or registration. The plan file is written before the check runs, and `status` stays `success` regardless of what is found. Report the findings in your narrative, optionally rewrite the wording, then continue to Step 8. Do not treat a finding as an error, and do not re-run creation because of one.
+
+When no glossary exists the check reports `Not checked (no glossary)` and is silently skipped.
+
+If you wrote the plan via the `Write` fallback rather than `plan(operation="create")`, read `.cortex/wiki/glossary.md` directly and apply the same three cases by inspection; skip the check if the file is absent.
+
 ## Step 8: Register Plan in Roadmap
 
 Registering the plan in the roadmap is **REQUIRED** — every new or enriched plan MUST be registered.
@@ -211,6 +250,7 @@ After writing the final report for this plan-creation run, invoke the post-promp
 | Path | `.cortex/plans/<filename>.md` |
 | Roadmap | Added to "<section>" |
 | Status | PENDING |
+| Terminology | <terminology_summary: "No collisions", the findings, or "Not checked (no glossary)"> |
 
 ## Next
 
@@ -220,11 +260,13 @@ After writing the final report for this plan-creation run, invoke the post-promp
 **Rules**:
 
 - Roadmap field: section name where registered, or "Not registered" if skipped
+- Terminology field: echo `terminology_summary` verbatim; the row is always present even when there are no findings
 - Next: always include do command for new plans
 
 ## Success Criteria
 
 - Plan file created with ALL required sections: YAML frontmatter, Goal, Context, Scope (in_scope + out_of_scope), Approach, Implementation Steps, Verification Checklist, Dependencies, Success Criteria, Testing Strategy (95% target), Risks and Mitigation
 - Self-verify read-back passed — all 10 section headers confirmed present before reporting success
+- Advisory terminology check ran and its result appears in the Terminology report row; plan creation succeeded regardless of findings
 - Plan registered in roadmap
 - All paths obtained dynamically via MCP tools

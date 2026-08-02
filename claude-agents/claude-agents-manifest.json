@@ -145,6 +145,12 @@
       "orchestrator": "prompts/plan.md",
       "agents": [
         {
+          "file": "shape-interviewer.md",
+          "name": "shape-interviewer",
+          "description": "Interview the user one question at a time to resolve unknown requirements, then write a shaping record for plan creation.",
+          "phase": "shape"
+        },
+        {
           "file": "plan-creator.md",
           "name": "plan-creator",
           "description": "Create plan file with all required sections and YAML frontmatter, register in roadmap.",

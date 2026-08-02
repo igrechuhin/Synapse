@@ -102,6 +102,19 @@ Every plan MUST include ALL of these sections:
 3. Optionally add dated sub-section: `### New Input (YYYY-MM-DD)`
 4. `Write` in-place (same path, no new file)
 
+## Phase 4.5: Terminology Check (ADVISORY)
+
+`plan(operation="create")` checks the plan body against `.cortex/wiki/glossary.md` and
+returns `terminology_findings` and `terminology_summary`. Three cases are reported:
+`declared_alias`, `possible_synonym`, and `confusable_pair`.
+
+**GATE — advisory only**: findings NEVER fail plan creation or block registration. The
+plan file is written before the check runs and `status` stays `success`. Surface the
+findings to the orchestrator, optionally rewrite the wording, and continue.
+
+If you used the `Write` fallback instead of the MCP tool, read the glossary directly and
+apply the same three cases by inspection; skip the check when the file is absent.
+
 ## Phase 5: Validate
 
 - Verify file created/updated successfully
@@ -120,6 +133,7 @@ Report to orchestrator using **PlanCreatorResult** schema:
   "plan_title": "Phase XX: description",
   "plan_reused": false,
   "enriched_existing": false,
+  "terminology_summary": "No collisions",
   "error": null
 }
 ```
