@@ -1,0 +1,34 @@
+---
+globs: "*.php"
+alwaysApply: false
+---
+
+# PHP Coding Standards (MANDATORY)
+
+**ENFORCEMENT**: Pint and PHPStan run in CI. CI MUST fail on violations. NO exceptions.
+
+## Declaration and Typing (ENFORCED)
+
+- **`declare(strict_types=1);`** — required as the first statement in every PHP file — MANDATORY
+- **Typed parameters and return types** — every function and method MUST declare both — MANDATORY
+- **Typed properties** — every class property MUST declare a type — MANDATORY
+- **Avoid `mixed`** — narrow to a union or a concrete type wherever possible — MANDATORY
+- **Constructor property promotion** — prefer it over manual assignment in constructors
+
+## Style (ENFORCED)
+
+- **PSR-12** — enforced by Pint; do not hand-format against it
+- **No `@` error suppression** — handle the error or let it surface — MANDATORY
+- **No `eval()`** — MANDATORY
+- **Strict comparison** — use `===` and `!==` unless loose comparison is deliberate and commented
+
+## Size Limits (ENFORCED)
+
+- **Files MUST NOT exceed 400 logical lines** — enforced by `check_file_sizes.py`
+- **Functions MUST NOT exceed 30 logical lines** — enforced by `check_function_lengths.py`
+- **One class per file** — the filename MUST match the class name
+
+## Rationale
+
+- Strict types catch coercion bugs at the boundary rather than deep in business logic.
+- Size limits keep units reviewable and testable in isolation.

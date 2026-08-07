@@ -1,0 +1,31 @@
+---
+globs: "*.php"
+alwaysApply: false
+---
+
+# PHP Security Rules (MANDATORY)
+
+**ENFORCEMENT**: Security violations block merge. NO exceptions.
+
+## Database Access (ENFORCED)
+
+- **No string concatenation in queries** — use parameter binding or the query builder — MANDATORY
+- **No raw user input in `DB::raw()`** — bind parameters explicitly — MANDATORY
+- **Guard mass assignment** — every model MUST declare `$fillable` or `$guarded` — MANDATORY
+
+## Secrets (ENFORCED)
+
+- **No secrets in source** — read them from environment configuration — MANDATORY
+- **No secrets in committed config files** — `.env` MUST stay untracked — MANDATORY
+- **No secrets in logs** — redact tokens and credentials before logging — MANDATORY
+
+## Output and Input (ENFORCED)
+
+- **Escape output** — use `{{ }}` in Blade; `{!! !!}` requires a comment justifying it — MANDATORY
+- **Validate at the boundary** — every request MUST be validated before use — MANDATORY
+- **No `unserialize()` on user input** — use JSON decoding instead — MANDATORY
+
+## Rationale
+
+- Parameter binding is the only reliable defense against SQL injection.
+- Escaping by default means an omission is visible in review rather than silent.
