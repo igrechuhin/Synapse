@@ -1,3 +1,6 @@
 __pycache__
 .cache/
 .DS_Store
+
+# Local superpowers artifacts (design specs, plans) - not shared via the submodule
+docs/superpowers/

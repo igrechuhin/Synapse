@@ -119,6 +119,29 @@
         }
       ]
     },
+    "php": {
+      "description": "PHP 8.1+ coding rules for Laravel and PSR-4 projects",
+      "rules": [
+        {
+          "file": "php-coding-standards.mdc",
+          "priority": 90,
+          "keywords": ["php", "coding-standards", "psr-12", "strict-types", "pint", "file-organization"],
+          "description": "PHP coding standards: PSR-12, strict types, typed properties, 400/30-line limits"
+        },
+        {
+          "file": "php-security.mdc",
+          "priority": 90,
+          "keywords": ["php", "security", "sql-injection", "mass-assignment", "secrets", "escaping", "validation"],
+          "description": "PHP security: parameter binding, mass-assignment guards, no secrets in source, escaped output"
+        },
+        {
+          "file": "php-testing-standards.mdc",
+          "priority": 85,
+          "keywords": ["php", "testing", "pest", "phpunit", "AAA", "factories", "no-skipping"],
+          "description": "PHP testing: Pest preferred, PHPUnit acceptable, AAA, factories, no skipped tests"
+        }
+      ]
+    },
     "markdown": {
       "description": "Markdown formatting and documentation rules",
       "rules": [

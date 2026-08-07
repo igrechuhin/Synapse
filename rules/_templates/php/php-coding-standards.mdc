@@ -1,0 +1,16 @@
+---
+alwaysApply: true
+---
+
+# PHP Coding Standards (Template)
+
+- Declare `strict_types=1` and type every parameter, return, and property.
+- Validate external inputs at boundaries before internal use.
+- Keep files under 400 lines and functions under 30 lines.
+- Bind query parameters; never concatenate user input into SQL.
+
+## Project-Specific TODOs
+
+- TODO: Record the formatter this repository uses (Pint or PHP-CS-Fixer).
+- TODO: Record the PHPStan level this repository targets.
+- TODO: Add framework-specific guidance (Laravel, Symfony) if needed.

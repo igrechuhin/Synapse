@@ -1,0 +1,34 @@
+---
+globs: "*.php"
+alwaysApply: false
+---
+
+# PHP Testing Standards (MANDATORY)
+
+**ENFORCEMENT**: CI MUST fail on violations. NO exceptions.
+
+## Framework (ENFORCED)
+
+- **Pest preferred, PHPUnit acceptable** — do not mix styles within one file
+- **Test files MUST end in `Test.php`** — enforced by `check_test_naming.py`
+- **Test methods** — MUST start with `test`, carry `#[Test]`, or use `@test` — MANDATORY
+
+## Structure (ENFORCED)
+
+- **AAA structure** — Arrange, Act, Assert, separated by blank lines — MANDATORY
+- **One behavior per test** — a test asserting several unrelated behaviors MUST be split
+- **Factories over fixtures** — use model factories rather than committed fixture files
+- **No shared mutable state between tests** — each test MUST pass when run in isolation
+
+## Prohibitions (ENFORCED)
+
+- **No skipped tests** — `markTestSkipped()` and `markTestIncomplete()` are PROHIBITED in committed code — MANDATORY
+- **No `sleep()` in tests** — use time travel helpers or fakes — MANDATORY
+- **No live network calls** — fake the HTTP client — MANDATORY
+
+See also `rules/general/no-test-skipping.mdc`.
+
+## Rationale
+
+- A skipped test is an untested code path that reads as covered.
+- Isolation means a failure points at one behavior instead of an ordering artifact.
