@@ -144,5 +144,59 @@ class LintGateTests(unittest.TestCase):
         self.assertIn("❌", result.stderr)
 
 
+class FormattingGateTests(unittest.TestCase):
+    """check_formatting.py skip behavior and command construction."""
+
+    def setUp(self) -> None:
+        self._tmp = tempfile.TemporaryDirectory()
+        self.root = Path(self._tmp.name)
+        self.addCleanup(self._tmp.cleanup)
+        (self.root / "app").mkdir()
+
+    def test_skips_with_exit_zero_when_no_formatter(self) -> None:
+        target = self.root / "app" / "A.php"
+        target.write_text("<?php\n$a = 1;\n")
+
+        result = run_gate(
+            "check_formatting.py",
+            self.root,
+            {"FILES": str(target), "PHP_FORMATTER": "/nonexistent/pint"},
+        )
+
+        self.assertEqual(result.returncode, 0)
+        self.assertIn("⚠️", result.stdout)
+        self.assertIn("composer require", result.stdout)
+
+
+class BuildFormatCmdTests(unittest.TestCase):
+    """Formatter command construction."""
+
+    def setUp(self) -> None:
+        sys.path.insert(0, str(SCRIPTS_DIR))
+
+    def test_pint_check_mode_uses_test_flag(self) -> None:
+        from check_formatting import build_format_cmd
+
+        cmd = build_format_cmd("/v/bin/pint", ["app"], write=False)
+
+        self.assertEqual(cmd, ["/v/bin/pint", "app", "--test"])
+
+    def test_pint_write_mode_omits_test_flag(self) -> None:
+        from check_formatting import build_format_cmd
+
+        cmd = build_format_cmd("/v/bin/pint", ["app"], write=True)
+
+        self.assertEqual(cmd, ["/v/bin/pint", "app"])
+
+    def test_php_cs_fixer_check_mode_uses_dry_run(self) -> None:
+        from check_formatting import build_format_cmd
+
+        cmd = build_format_cmd("/v/bin/php-cs-fixer", ["app"], write=False)
+
+        self.assertEqual(
+            cmd, ["/v/bin/php-cs-fixer", "fix", "app", "--dry-run", "--diff"]
+        )
+
+
 if __name__ == "__main__":
     unittest.main()
