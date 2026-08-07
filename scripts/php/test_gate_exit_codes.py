@@ -103,5 +103,46 @@ class FunctionLengthGateTests(unittest.TestCase):
         self.assertIn("❌", result.stderr)
 
 
+class LintGateTests(unittest.TestCase):
+    """check_linting.py exit codes."""
+
+    def setUp(self) -> None:
+        self._tmp = tempfile.TemporaryDirectory()
+        self.root = Path(self._tmp.name)
+        self.addCleanup(self._tmp.cleanup)
+        (self.root / "app").mkdir()
+
+    def test_exits_zero_for_valid_syntax(self) -> None:
+        target = self.root / "app" / "Valid.php"
+        target.write_text("<?php\n$a = 1;\n")
+
+        result = run_gate("check_linting.py", self.root, {"FILES": str(target)})
+
+        self.assertEqual(result.returncode, 0)
+        self.assertIn("✅", result.stdout)
+
+    def test_exits_one_for_syntax_error(self) -> None:
+        target = self.root / "app" / "Broken.php"
+        target.write_text("<?php\n$a = ;\n")
+
+        result = run_gate("check_linting.py", self.root, {"FILES": str(target)})
+
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("❌", result.stderr)
+
+    def test_exits_one_when_php_binary_missing(self) -> None:
+        target = self.root / "app" / "Valid.php"
+        target.write_text("<?php\n$a = 1;\n")
+
+        result = run_gate(
+            "check_linting.py",
+            self.root,
+            {"FILES": str(target), "PHP_BINARY": "/nonexistent/php"},
+        )
+
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("❌", result.stderr)
+
+
 if __name__ == "__main__":
     unittest.main()
