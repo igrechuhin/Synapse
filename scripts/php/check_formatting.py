@@ -103,11 +103,12 @@ def run_formatter(write: bool) -> None:
             print(result.stdout, file=sys.stderr)
         if result.stderr:
             print(result.stderr, file=sys.stderr)
-        action = "apply formatting" if write else "run fix_formatting.py"
-        print(
-            f"\n❌ Formatting issues detected. Run {action} to fix.",
-            file=sys.stderr,
+        hint = (
+            "Formatter could not apply all changes."
+            if write
+            else "Run fix_formatting.py to fix."
         )
+        print(f"\n❌ Formatting issues detected. {hint}", file=sys.stderr)
         sys.exit(1)
 
     if result.stdout:

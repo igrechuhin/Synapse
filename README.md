@@ -19,6 +19,7 @@ Synapse is a git submodule that provides shared development resources across pro
 │   ├── general/                # Language-agnostic rules
 │   ├── swift/                  # Swift-specific rules (used by TradeWing)
 │   ├── python/                 # Python-specific rules
+│   ├── php/                    # PHP-specific rules (used by aFactura)
 │   ├── markdown/               # Markdown formatting rules
 │   └── rules-manifest.json     # Rules registry
 ├── cursor-agents/              # ACTIVE: pipeline subagents (synced to .cursor/agents/ and .claude/agents/)
@@ -33,7 +34,9 @@ Synapse is a git submodule that provides shared development resources across pro
 ├── agents/                     # DEPRECATED: legacy agent definitions (not synced, not invoked)
 │   └── ...                     # Retained for historical reference only
 └── scripts/                    # Language-SPECIFIC quality gate scripts
-    └── python/                 # Python scripts (ruff, black, pyright, pytest)
+    ├── python/                 # Python scripts (ruff, black, pyright, pytest)
+    ├── swift/                  # Swift scripts (swiftformat, swift build/test)
+    └── php/                    # PHP scripts (pint, phpstan, pest/phpunit)
 ```
 
 **TradeWing note**: TradeWing is Swift, not Python. The `scripts/python/` quality gate
@@ -92,6 +95,28 @@ Rules in `rules/` directory can be:
 | `check_function_lengths.py` | Verify functions ≤ 30 lines |
 | `check_test_naming.py` | Verify test functions follow `test_<name>` pattern |
 | `run_tests.py` | Run test suite with coverage |
+
+## Available Scripts (PHP)
+
+| Script | Purpose |
+|--------|---------|
+| `check_formatting.py` | Verify formatting (Pint `--test`, or PHP-CS-Fixer `--dry-run`) |
+| `fix_formatting.py` | Auto-fix formatting (Pint, or PHP-CS-Fixer) |
+| `check_linting.py` | Syntax check (`php -l`) |
+| `check_types.py` | Static analysis (PHPStan, or Psalm) |
+| `check_file_sizes.py` | Verify files ≤ 400 logical lines |
+| `check_function_lengths.py` | Verify functions ≤ 30 logical lines |
+| `check_test_naming.py` | Verify Pest `it()`/`test()` or PHPUnit `test*`/`#[Test]` |
+| `run_tests.py` | Run test suite (Pest, or PHPUnit) |
+
+PHP tools are resolved from `vendor/bin/` (Composer) before the system PATH, so a
+project's pinned version always wins. When a tool is absent the gate exits 0 with
+a `⚠️` notice naming the `composer require --dev` command that installs it — a
+missing tool is a configuration gap, not a code defect. A missing `php`
+interpreter is the one exception and fails with exit 1.
+
+PHPStan's analysis level is read from `phpstan.neon` or `phpstan.neon.dist`, never
+forced. Set `PHPSTAN_LEVEL` to override.
 
 ## Adding Support for New Languages
 
