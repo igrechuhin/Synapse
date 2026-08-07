@@ -198,5 +198,69 @@ class BuildFormatCmdTests(unittest.TestCase):
         )
 
 
+class TypesGateTests(unittest.TestCase):
+    """check_types.py skip behavior."""
+
+    def setUp(self) -> None:
+        self._tmp = tempfile.TemporaryDirectory()
+        self.root = Path(self._tmp.name)
+        self.addCleanup(self._tmp.cleanup)
+        (self.root / "app").mkdir()
+
+    def test_skips_with_exit_zero_when_no_analyzer(self) -> None:
+        target = self.root / "app" / "A.php"
+        target.write_text("<?php\n$a = 1;\n")
+
+        result = run_gate(
+            "check_types.py",
+            self.root,
+            {"FILES": str(target), "PHP_ANALYZER": "/nonexistent/phpstan"},
+        )
+
+        self.assertEqual(result.returncode, 0)
+        self.assertIn("⚠️", result.stdout)
+        self.assertIn("composer require", result.stdout)
+
+
+class BuildAnalyzeCmdTests(unittest.TestCase):
+    """Analyzer command construction."""
+
+    def setUp(self) -> None:
+        sys.path.insert(0, str(SCRIPTS_DIR))
+
+    def test_phpstan_omits_level_when_unset(self) -> None:
+        from check_types import build_analyze_cmd
+
+        cmd = build_analyze_cmd("/v/bin/phpstan", [], None)
+
+        self.assertEqual(cmd, ["/v/bin/phpstan", "analyse", "--no-progress"])
+
+    def test_phpstan_includes_level_when_set(self) -> None:
+        from check_types import build_analyze_cmd
+
+        cmd = build_analyze_cmd("/v/bin/phpstan", [], "6")
+
+        self.assertEqual(
+            cmd, ["/v/bin/phpstan", "analyse", "--no-progress", "--level=6"]
+        )
+
+    def test_phpstan_appends_paths_when_given(self) -> None:
+        from check_types import build_analyze_cmd
+
+        cmd = build_analyze_cmd("/v/bin/phpstan", ["app/User.php"], None)
+
+        self.assertEqual(
+            cmd,
+            ["/v/bin/phpstan", "analyse", "--no-progress", "app/User.php"],
+        )
+
+    def test_psalm_uses_its_own_flags(self) -> None:
+        from check_types import build_analyze_cmd
+
+        cmd = build_analyze_cmd("/v/bin/psalm", [], None)
+
+        self.assertEqual(cmd, ["/v/bin/psalm", "--no-progress"])
+
+
 if __name__ == "__main__":
     unittest.main()
