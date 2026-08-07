@@ -262,5 +262,53 @@ class BuildAnalyzeCmdTests(unittest.TestCase):
         self.assertEqual(cmd, ["/v/bin/psalm", "--no-progress"])
 
 
+class RunTestsGateTests(unittest.TestCase):
+    """run_tests.py skip behavior."""
+
+    def setUp(self) -> None:
+        self._tmp = tempfile.TemporaryDirectory()
+        self.root = Path(self._tmp.name)
+        self.addCleanup(self._tmp.cleanup)
+
+    def test_skips_with_exit_zero_when_no_runner(self) -> None:
+        result = run_gate(
+            "run_tests.py",
+            self.root,
+            {"PHP_TEST_RUNNER": "/nonexistent/pest"},
+        )
+
+        self.assertEqual(result.returncode, 0)
+        self.assertIn("⚠️", result.stdout)
+        self.assertIn("composer require", result.stdout)
+
+
+class BuildTestCmdTests(unittest.TestCase):
+    """Test runner command construction."""
+
+    def setUp(self) -> None:
+        sys.path.insert(0, str(SCRIPTS_DIR))
+
+    def test_pest_without_coverage(self) -> None:
+        from run_tests import build_test_cmd
+
+        cmd = build_test_cmd("/v/bin/pest", coverage=False)
+
+        self.assertEqual(cmd, ["/v/bin/pest"])
+
+    def test_pest_with_coverage(self) -> None:
+        from run_tests import build_test_cmd
+
+        cmd = build_test_cmd("/v/bin/pest", coverage=True)
+
+        self.assertEqual(cmd, ["/v/bin/pest", "--coverage"])
+
+    def test_phpunit_with_coverage_uses_text_reporter(self) -> None:
+        from run_tests import build_test_cmd
+
+        cmd = build_test_cmd("/v/bin/phpunit", coverage=True)
+
+        self.assertEqual(cmd, ["/v/bin/phpunit", "--coverage-text"])
+
+
 if __name__ == "__main__":
     unittest.main()
