@@ -195,6 +195,10 @@ const DOCS_SCHEMA = {
       "selected hypothesis, minimal fix plan. " +
       "6. Select fix targets based on scope and active issues. Return targets array with the " +
       "applicable subset of [coverage, quality, tests, docs]. " +
+      "Language coverage is NOT a reason to drop a target: if the Cortex gate does not " +
+      "support the changed language (e.g. Swift), still select quality and tests — the " +
+      "target agents verify those natively (swift build / swift test). Only omit quality " +
+      "and tests when no source file changed at all (markdown_only). " +
       "Write diagnosis result to pipeline_handoff(phase='diagnosis', pipeline='fix').",
     {
       agentType: "fix-quality",
@@ -391,9 +395,16 @@ const DOCS_SCHEMA = {
             : "Path B (source_changed/mixed): call autofix(), then run_quality_gate(). " +
               "Run CI parity scripts (check_file_sizes.py, check_function_lengths.py, build.py). " +
               "Fix type errors, file/function length violations, format issues inline. " +
-              "Apply Post-fix validation (py_compile + import check) for Python files. ") +
+              "Apply Post-fix validation (py_compile + import check) for Python files. " +
+              "SWIFT: run_quality_gate()/autofix() do NOT cover .swift files. If any changed " +
+              "file is .swift, you MUST additionally verify them natively via Bash: " +
+              "`swift build 2>&1 | tail -40`, plus `swiftformat --lint .` and `swiftlint` " +
+              "when those binaries are present. Fix reported errors at the named file:line. " +
+              "Never report Swift as passing on the basis that the Cortex gate does not apply " +
+              "to it — inapplicable is not passing. ") +
           "Return passed=true only when run_quality_gate() returns preflight_passed=true " +
-          "AND all CI parity scripts exit 0.",
+          "AND all CI parity scripts exit 0 " +
+          "AND (no .swift files changed OR `swift build` exited 0).",
         {
           agentType: "fix-quality",
           schema: QUALITY_SCHEMA
@@ -461,7 +472,12 @@ const DOCS_SCHEMA = {
             "passed=true, branch='skipped' (coverage handled by @fix-coverage). " +
             "Branch C (tests_failed == 0, subprocess crash): read results.tests.output " +
             "for build errors and fix at reported line. " +
-            "Return passed=true when run_quality_gate() reports results.tests.success=true.",
+            "Branch D (Swift): run_quality_gate() does NOT run .swift tests. If any changed " +
+            "file is .swift, you MUST run `swift test 2>&1 | tail -60` via Bash and debug " +
+            "any failures at the reported file:line. Report the actual test/suite counts. " +
+            "An inapplicable Cortex gate is not a passing test run. " +
+            "Return passed=true when run_quality_gate() reports results.tests.success=true " +
+            "AND (no .swift files changed OR `swift test` exited 0).",
           {
             agentType: "fix-tests",
             schema: TESTS_SCHEMA
