@@ -60,10 +60,11 @@ def main() -> None:
         RUNNER_CANDIDATES, project_root, env_override="PHP_TEST_RUNNER"
     )
     if tool is None or not Path(tool).exists():
-        skip(
+        msg = (
             "No PHP test runner installed, skipping "
             "(composer require --dev pestphp/pest)"
         )
+        skip(msg)
 
     coverage = os.environ.get("PHP_COVERAGE") == "1"
     cmd = build_test_cmd(tool, coverage)

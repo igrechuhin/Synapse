@@ -4,8 +4,9 @@
 from __future__ import annotations
 
 import unittest
+from typing import Any
 
-from check_test_naming import find_naming_violations
+from check_test_naming import find_naming_violations  # type: ignore[import-not-found]
 
 
 class PestNamingTests(unittest.TestCase):
@@ -61,9 +62,9 @@ class NamingViolationTests(unittest.TestCase):
             "    public function itWorks(): void {}\n}\n"
         )
 
-        violations = find_naming_violations(text)
+        violations: Any = find_naming_violations(text)  # type: ignore[assignment]
 
-        self.assertEqual(len(violations), 1)
+        self.assertEqual(len(violations), 1)  # type: ignore[arg-type]
         self.assertEqual(violations[0][1], "itWorks")
 
     def test_ignores_non_public_helper(self) -> None:
@@ -85,4 +86,4 @@ class NamingViolationTests(unittest.TestCase):
 
 
 if __name__ == "__main__":
-    unittest.main()
+    _ = unittest.main()

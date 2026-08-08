@@ -70,10 +70,11 @@ def run_formatter(write: bool) -> None:
         FORMATTER_CANDIDATES, project_root, env_override="PHP_FORMATTER"
     )
     if tool is None or not Path(tool).exists():
-        skip(
+        msg = (
             "No PHP formatter installed, skipping "
             "(composer require --dev laravel/pint)"
         )
+        skip(msg)
 
     paths = resolve_paths(project_root)
     if not paths:

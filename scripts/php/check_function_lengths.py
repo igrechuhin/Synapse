@@ -134,11 +134,8 @@ def main() -> None:
         print("❌ Function length violations detected:", file=sys.stderr)
         print(file=sys.stderr)
         for path, name, line_no, length in sorted(violations, key=lambda x: -x[3]):
-            print(
-                f"  {_relative(path, project_root)}:{line_no} {name}(): "
-                f"{length} lines (max: {MAX_FUNCTION_LINES})",
-                file=sys.stderr,
-            )
+            msg = f"  {_relative(path, project_root)}:{line_no} {name}(): {length} lines (max: {MAX_FUNCTION_LINES})"
+            print(msg, file=sys.stderr)
         print(file=sys.stderr)
         print(f"Total violations: {len(violations)} function(s)", file=sys.stderr)
         sys.exit(1)

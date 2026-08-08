@@ -20,18 +20,21 @@ from _php_toolchain import (
 class FindPhpToolTests(unittest.TestCase):
     """Probe order and override behavior."""
 
+    _tmp: tempfile.TemporaryDirectory[str]  # type: ignore[assignment]
+    root: Path  # type: ignore[assignment]
+
     def setUp(self) -> None:
         self._tmp = tempfile.TemporaryDirectory()
         self.root = Path(self._tmp.name)
         self.addCleanup(self._tmp.cleanup)
-        os.environ.pop("PHP_FORMATTER", None)
+        _ = os.environ.pop("PHP_FORMATTER", None)
 
     def _make_vendor_bin(self, name: str) -> Path:
         vendor = self.root / "vendor" / "bin"
-        vendor.mkdir(parents=True, exist_ok=True)
+        _ = vendor.mkdir(parents=True, exist_ok=True)
         tool = vendor / name
-        tool.write_text("#!/bin/sh\n")
-        tool.chmod(0o755)
+        _ = tool.write_text("#!/bin/sh\n")
+        _ = tool.chmod(0o755)
         return tool
 
     def test_vendor_bin_wins_over_path(self) -> None:
@@ -54,7 +57,7 @@ class FindPhpToolTests(unittest.TestCase):
         self.assertIsNone(result)
 
     def test_env_override_short_circuits_probe(self) -> None:
-        self._make_vendor_bin("pint")
+        _ = self._make_vendor_bin("pint")
         os.environ["PHP_FORMATTER"] = "/custom/pint"
         self.addCleanup(os.environ.pop, "PHP_FORMATTER", None)
 
@@ -66,17 +69,20 @@ class FindPhpToolTests(unittest.TestCase):
 class PhpSourceDirsTests(unittest.TestCase):
     """Laravel app/ versus PSR-4 src/ detection."""
 
+    _tmp: tempfile.TemporaryDirectory[str]  # type: ignore[assignment]
+    root: Path  # type: ignore[assignment]
+
     def setUp(self) -> None:
         self._tmp = tempfile.TemporaryDirectory()
         self.root = Path(self._tmp.name)
         self.addCleanup(self._tmp.cleanup)
         for key in ("PHP_SRC_DIR", "PHP_TESTS_DIR"):
-            os.environ.pop(key, None)
+            _ = os.environ.pop(key, None)
 
     def test_detects_laravel_app_directory(self) -> None:
         app = self.root / "app"
-        app.mkdir()
-        (app / "User.php").write_text("<?php\n")
+        _ = app.mkdir()
+        _ = (app / "User.php").write_text("<?php\n")
 
         result = php_source_dirs(self.root)
 
@@ -84,8 +90,8 @@ class PhpSourceDirsTests(unittest.TestCase):
 
     def test_detects_psr4_src_directory(self) -> None:
         src = self.root / "src"
-        src.mkdir()
-        (src / "Thing.php").write_text("<?php\n")
+        _ = src.mkdir()
+        _ = (src / "Thing.php").write_text("<?php\n")
 
         result = php_source_dirs(self.root)
 
@@ -94,8 +100,8 @@ class PhpSourceDirsTests(unittest.TestCase):
     def test_app_preferred_over_src_when_both_exist(self) -> None:
         for name in ("app", "src"):
             d = self.root / name
-            d.mkdir()
-            (d / "A.php").write_text("<?php\n")
+            _ = d.mkdir()
+            _ = (d / "A.php").write_text("<?php\n")
 
         result = php_source_dirs(self.root)
 
@@ -114,7 +120,7 @@ class PhpFilesFromEnvTests(unittest.TestCase):
     """FILES environment variable parsing."""
 
     def setUp(self) -> None:
-        os.environ.pop("FILES", None)
+        _ = os.environ.pop("FILES", None)
 
     def test_returns_none_when_unset(self) -> None:
         self.assertIsNone(php_files_from_env())
@@ -137,11 +143,14 @@ class PhpFilesFromEnvTests(unittest.TestCase):
 class PhpProjectRootTests(unittest.TestCase):
     """PROJECT_ROOT override takes precedence over filesystem walking."""
 
+    _tmp: tempfile.TemporaryDirectory[str]  # type: ignore[assignment]
+    root: Path  # type: ignore[assignment]
+
     def setUp(self) -> None:
         self._tmp = tempfile.TemporaryDirectory()
         self.root = Path(self._tmp.name)
         self.addCleanup(self._tmp.cleanup)
-        os.environ.pop("PROJECT_ROOT", None)
+        _ = os.environ.pop("PROJECT_ROOT", None)
 
     def test_env_override_wins(self) -> None:
         os.environ["PROJECT_ROOT"] = str(self.root)
@@ -179,4 +188,4 @@ class CountLogicalLinesTests(unittest.TestCase):
 
 
 if __name__ == "__main__":
-    unittest.main()
+    _ = unittest.main()

@@ -79,11 +79,8 @@ def main() -> None:
     if warnings_list:
         print("⚠️  File size warnings (approaching limit):", file=sys.stderr)
         for path, lines in sorted(warnings_list, key=lambda x: -x[1]):
-            print(
-                f"  {_relative(path, project_root)}: {lines} lines "
-                f"(warn above {WARN_LINES}, max {MAX_LINES})",
-                file=sys.stderr,
-            )
+            msg = f"  {_relative(path, project_root)}: {lines} lines (warn above {WARN_LINES}, max {MAX_LINES})"
+            print(msg, file=sys.stderr)
         print(file=sys.stderr)
 
     if violations:
@@ -91,11 +88,8 @@ def main() -> None:
         print(file=sys.stderr)
         for path, lines in sorted(violations, key=lambda x: -x[1]):
             excess = lines - MAX_LINES
-            print(
-                f"  {_relative(path, project_root)}: {lines} lines "
-                f"(max: {MAX_LINES}, excess: {excess})",
-                file=sys.stderr,
-            )
+            msg = f"  {_relative(path, project_root)}: {lines} lines (max: {MAX_LINES}, excess: {excess})"
+            print(msg, file=sys.stderr)
         print(file=sys.stderr)
         print(
             f"Total violations: {len(violations)} file(s) exceed {MAX_LINES} lines",

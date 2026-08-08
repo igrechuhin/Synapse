@@ -102,8 +102,7 @@ def main() -> None:
             print(f"  {path}:{line_no} {name}()", file=sys.stderr)
         print(file=sys.stderr)
         print(
-            "Test methods must start with 'test', carry #[Test], or use "
-            "the @test annotation.",
+            "Test methods must start with 'test', carry #[Test], or use the @test annotation.",
             file=sys.stderr,
         )
         sys.exit(1)

@@ -63,10 +63,11 @@ def main() -> None:
 
     tool = find_php_tool(ANALYZER_CANDIDATES, project_root, env_override="PHP_ANALYZER")
     if tool is None or not Path(tool).exists():
-        skip(
+        msg = (
             "No PHP static analyzer installed, skipping "
             "(composer require --dev phpstan/phpstan)"
         )
+        skip(msg)
 
     from_env = php_files_from_env()
     paths = [str(p) for p in from_env] if from_env is not None else []
