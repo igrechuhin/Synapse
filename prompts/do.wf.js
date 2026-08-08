@@ -39,7 +39,8 @@ export const meta = {
     },
     {
       title: "Verify",
-      detail: "roadmap + progress.md read-only checks; archive completed plans"
+      detail: "roadmap + progress.md read-only checks; archive completed plans",
+      model: "haiku"
     },
     {
       title: "Fix",
@@ -47,7 +48,8 @@ export const meta = {
     },
     {
       title: "Cleanup",
-      detail: "clear implement pipeline state"
+      detail: "clear implement pipeline state",
+      model: "haiku"
     },
     {
       title: "Post-Prompt Hook",
@@ -358,6 +360,9 @@ function mergeParallelResults(results) {
       "with status='passed', roadmap_check, progress_check, stray_complete_plans.",
     {
       agentType: "implement-code",
+      // AI: Mechanical read-only bookkeeping (file reads + archive_completed) — no code
+      // comprehension, so Haiku. Review Gate and Finalize stay on the default model.
+      model: "haiku",
       schema: {
         type: "object",
         properties: {
@@ -425,6 +430,8 @@ function mergeParallelResults(results) {
       "pipeline_handoff(operation='clear', pipeline='implement').",
     {
       agentType: "implement-code",
+      // AI: Single mechanical MCP call to clear pipeline state — no reasoning, so Haiku.
+      model: "haiku",
       schema: {
         type: "object",
         properties: { cleared: { type: "boolean" } },
@@ -445,6 +452,11 @@ function mergeParallelResults(results) {
         "if unavailable or MCP disconnects, record a note and consider the pipeline complete.",
       {
         agentType: "implement-code",
+        // AI: Stays on the default model. "Non-blocking" governs failure propagation, not
+        // output quality: this hook AUTHORS durable artifacts via write_artifact() (rules
+        // under .cortex/synapse/rules/*.mdc, skills JSON) and plan(create/register), which
+        // every later session loads. A weak rule is not an error, so try/catch never catches
+        // it. commit.wf.js tiers only its Push phase and leaves this same hook on default.
         schema: {
           type: "object",
           properties: {

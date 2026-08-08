@@ -5,7 +5,7 @@
  *
  * Key improvements over prose instructions:
  *   - Phase A retry loop: while (iterations < MAX_PHASE_A_ITERATIONS) — cannot over/under-run
- *   - Step 12 scope routing: if/else branches (source vs markdown_only vs none) — no mis-routing
+ *   - Step 12 final gate: single unconditional call; skip decisions live in run_quality_gate
  *   - resumeFromRunId: crashed mid-Phase B resumes from failed phase, not Preflight
  *   - Structured subagent returns via schema: typed objects, no string parsing in JS control flow
  *
@@ -40,7 +40,7 @@ export const meta = {
     },
     {
       title: "Final Gate",
-      detail: "Step 12: scope-routed final quality gate"
+      detail: "Step 12: final quality gate (per-check skips from Phase A fingerprint)"
     },
     {
       title: "Commit",
@@ -84,12 +84,6 @@ const PHASE_A_SCHEMA = {
     passed: { type: "boolean" },
     coverage: { type: ["number", "null"] },
     autofix_ran: { type: "boolean" },
-    // AI: scope is derived from what Phase A wrote/modified; commit-phase-a subagent
-    // determines this from git diff --name-only and reports it here for Step 12 routing.
-    scope: {
-      type: "string",
-      enum: ["source", "markdown_only", "none", "unknown"]
-    },
     fix_iterations: { type: "integer" },
     error: { type: "string" }
   },
@@ -208,7 +202,7 @@ const GATE_SCHEMA = {
   }
   log(
     `Phase A passed (attempt ${iterations}/${MAX_PHASE_A_ITERATIONS}). ` +
-      `coverage=${phaseA.coverage ?? "N/A"}, scope=${phaseA.scope}`
+      `coverage=${phaseA.coverage ?? "N/A"}`
   );
 
   // ── Wiki Staged Ingest (inline, after Phase A) ─────────────────────────────
@@ -254,8 +248,7 @@ const GATE_SCHEMA = {
       "timestamps pass (set roadmap_sync_warning=true and continue). " +
       // AI: Phase A summary injected so Phase B knows which files were changed and
       // what coverage is — avoids redundant git-diff calls and gate re-runs in Phase B.
-      `Phase A summary: scope=${phaseA.scope ?? "unknown"}, ` +
-      `coverage=${phaseA.coverage != null ? phaseA.coverage : "N/A"}.`,
+      `Phase A summary: coverage=${phaseA.coverage != null ? phaseA.coverage : "N/A"}.`,
     { agentType: "commit-phase-b", schema: PHASE_B_SCHEMA }
   );
   // AI: docs_phase_passed: false is only blocking for timestamp failures.
@@ -297,53 +290,35 @@ const GATE_SCHEMA = {
       `synapse_sha=${phaseC.synapse_commit_sha ?? "none"}`
   );
 
-  // ── Step 12: Final Gate (scope-routed) ────────────────────────────────────
+  // ── Step 12: Final Gate ────────────────────────────────────────────────────
   phase("Final Gate");
-  // AI: Three-branch if/else encodes Step 12 from commit.md deterministically.
-  // scope comes from Phase A; "none" skips all checks, "markdown_only" runs
-  // markdown lint only (tests trusted from Phase A), "source" runs full gate.
-  const scope = phaseA.scope ?? "unknown";
-  let finalGate = null;
-
-  if (scope === "none") {
-    log("Step 12: scope=none — no changes since Phase A, skipping final gate.");
-    finalGate = {
-      passed: true,
-      skipped_checks: ["all"],
-      fix_loops_executed: 0,
-      coverage: phaseA.coverage
-    };
-  } else if (scope === "markdown_only") {
-    log("Step 12: scope=markdown_only — running markdown-only final gate.");
-    finalGate = await agent(
-      "Run Step 12 markdown-only final gate: call autofix() then run_quality_gate() " +
-        "with force_fresh=true. Tests from Phase A are still valid — if tests timeout " +
-        "but all non-test checks pass, the gate passes (Phase A already proved tests green).",
-      { agentType: "commit-final-gate", schema: GATE_SCHEMA }
-    );
-  } else {
-    // scope === "source" or "unknown" — full gate including tests
-    log(`Step 12: scope=${scope} — running full source final gate including tests.`);
-    finalGate = await agent(
-      "Run Step 12 full source final gate: write force_fresh=true + test_timeout=600 " +
-        "to pipeline checks config, call run_quality_gate(). If any check fails call " +
-        "autofix() and retry (max 3 iterations). Then re-run CI parity checks. " +
-        "If any parity check fails, Step 12 is failed — do not commit.",
-      { agentType: "commit-final-gate", schema: GATE_SCHEMA }
-    );
-  }
+  // AI: Unconditional single call. Scope routing used to live here, derived from
+  // a whole-working-tree `git diff --name-only` that answered "what is changed?"
+  // rather than "what changed SINCE Phase A" — so any code session routed to the
+  // full branch regardless. run_quality_gate() now makes that decision itself at
+  // per-check granularity, from the Phase A fingerprint persisted for the
+  // detached worker, and reports what it skipped in skipped_checks.
+  const finalGate = await agent(
+    "Run Step 12 final gate: write force_fresh=true + test_timeout=600 " +
+      "to pipeline checks config, call run_quality_gate(). Checks whose inputs are " +
+      "unchanged since Phase A are skipped automatically and reported in " +
+      "skipped_checks — do not try to route around them. If any check fails call " +
+      "autofix() and retry (max 3 iterations). Then re-run CI parity checks. " +
+      "If any parity check fails, Step 12 is failed — do not commit.",
+    { agentType: "commit-final-gate", schema: GATE_SCHEMA }
+  );
 
   if (!finalGate || !finalGate.passed) {
     log(`Step 12 final gate failed: ${finalGate?.error ?? "agent returned no result"}`);
     return {
       success: false,
       phase: "final_gate",
-      scope,
       error: finalGate?.error ?? "agent_returned_null"
     };
   }
   log(
-    `Step 12 passed. scope=${scope}, coverage=${finalGate.coverage ?? "N/A"}, ` +
+    `Step 12 passed. coverage=${finalGate.coverage ?? "N/A"}, ` +
+      `skipped=${(finalGate.skipped_checks ?? []).join(",") || "none"}, ` +
       `fix_loops=${finalGate.fix_loops_executed ?? 0}`
   );
 
@@ -455,7 +430,6 @@ const GATE_SCHEMA = {
     commit_sha: commit.commit_sha,
     pushed: push.pushed,
     phase_a_iterations: iterations,
-    coverage: finalGate.coverage ?? phaseA.coverage,
-    scope
+    coverage: finalGate.coverage ?? phaseA.coverage
   };
 

@@ -99,6 +99,12 @@ const COVERAGE_SCHEMA = {
     // coverage pre-flight gate so downstream quality and tests agents can skip their
     // first gate call — they already know what's failing.
     prior_errors: { type: ["string", "null"] },
+    // AI: preflight_passed is the raw verdict of the step-1 pre-flight run_quality_gate().
+    // files_written=true if this phase (or @fix-coverage) touched ANY file, which makes
+    // the pre-flight verdict stale. Both must be DECLARED here or the agent will not
+    // return them and the Quality reuse below can never fire.
+    preflight_passed: { type: ["boolean", "null"] },
+    files_written: { type: ["boolean", "null"] },
     error: { type: "string" }
   },
   required: ["status"],
@@ -229,6 +235,13 @@ const DOCS_SCHEMA = {
   // AI: priorErrors is populated from the coverage pre-flight gate result so that quality
   // and tests agents receive known failures upfront, skipping their first gate call.
   let priorErrors = null;
+  // AI: freshGateSummary is non-null ONLY when the Coverage phase obtained a
+  // run_quality_gate() result that is still valid for the current working tree — i.e. the
+  // phase ran, reported an explicit preflight verdict, and wrote NO files. Any file write
+  // (new coverage tests) makes the result stale and this stays null, so the Quality loop
+  // behaves exactly as it does today: it runs the gate itself. Same when Coverage is
+  // skipped entirely (markdown_only scope, coverage not in targets).
+  let freshGateSummary = null;
 
   if (diagnosis.targets.includes("coverage")) {
     phase("Coverage");
@@ -246,7 +259,10 @@ const DOCS_SCHEMA = {
         "5. Build prior_errors: concatenate the first 20 lines from results.type_check.errors, " +
         "results.quality.errors, and results.tests.errors (each up to 20 lines, joined by newline). " +
         "Return prior_errors as a single string (null if gate passed or no errors). " +
-        "6. Return that result as your schema output (status, final_coverage, tests_added, prior_errors, etc.).",
+        "6. Return that result as your schema output (status, final_coverage, tests_added, prior_errors, etc.). " +
+        "7. Also return preflight_passed (the raw verdict of the pre-flight run_quality_gate()) " +
+        "and files_written=true if you or @fix-coverage created or edited ANY file during this " +
+        "phase (new tests, fixtures, source). If you are unsure, return files_written=true.",
       {
         agentType: "fix-coverage",
         schema: COVERAGE_SCHEMA
@@ -256,6 +272,25 @@ const DOCS_SCHEMA = {
     // AI: priorErrors carries the raw gate output from the coverage pre-flight so quality
     // and tests agents can skip their first gate call — they already know what's failing.
     priorErrors = cov.prior_errors ?? null;
+
+    // AI: Staleness rule decided in JS, not by the model. Reusable only when the agent
+    // explicitly reported a PASSING pre-flight AND explicitly reported writing no files.
+    // Anything else — undefined, null, false, unknown — falls through and re-runs the gate.
+    // preflight_passed=false is excluded on purpose: a red verdict carries no actionable
+    // detail on its own (that lives in priorErrors), so suppressing Quality's own gate call
+    // on a red-but-clean tree would leave it blind.
+    if (cov.preflight_passed === true && cov.files_written === false) {
+      freshGateSummary =
+        "preflight_passed=true" +
+        (typeof cov.final_coverage === "number"
+          ? `, coverage=${cov.final_coverage}`
+          : "");
+    } else {
+      log(
+        "Coverage: gate result not reusable (files written or verdict unreported) — " +
+          "Quality will run its own gate."
+      );
+    }
 
     coverageResult = cov;
     log(
@@ -339,6 +374,17 @@ const DOCS_SCHEMA = {
             ? `Prior gate output (skip re-running gate if these are the only failures — ` +
               `re-run after applying autofix):\n${priorErrors}\n`
             : "") +
+          // AI: First iteration only, and only when the Coverage phase handed us a gate
+          // result that is still valid for the current tree. run_quality_gate() takes
+          // ~100s; this removes one guaranteed back-to-back duplicate run. Later
+          // iterations always re-run the gate because fixes were applied in between.
+          (iterations === 0 && freshGateSummary
+            ? `A run_quality_gate() run just completed in the Coverage phase against this ` +
+              `exact working tree, with no files written since: ${freshGateSummary}. ` +
+              `Trust it for your initial assessment — do NOT call run_quality_gate() before ` +
+              `making changes. You MUST still call run_quality_gate() after applying any ` +
+              `fix, and before returning passed=true. `
+            : "") +
           (diagnosis.change_scope === "markdown_only"
             ? "Path A (markdown_only): call autofix(), then run_quality_gate(). " +
               "Fix markdown lint errors manually per rule code. Retry (max 3 iterations). "
@@ -380,6 +426,11 @@ const DOCS_SCHEMA = {
   let testsPassed = false;
   let testsResult = null;
 
+  // AI: Deliberately NO gate reuse from Quality into Tests. The Tests gate is the last
+  // verification before the tree is handed to commit, and the only evidence that Quality's
+  // final gate is still valid would be that agent's own self-report about which files it
+  // edited after its last gate call. A mis-report there turns tests_passed=true into an
+  // unverified claim and lets a broken tree through; the downside is one ~100s gate run.
   if (runTests) {
     phase("Tests");
 
