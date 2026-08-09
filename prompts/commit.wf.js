@@ -355,9 +355,16 @@ const GATE_SCHEMA = {
   // AI: Push failures are explicitly non-blocking per commit.md Step 14.
   // Safety-net: check for unpushed synapse commits before pushing superproject.
   const push = await agent(
-    "Run Step 14: safety-net synapse push check — `git log --oneline origin/main..HEAD` " +
-      "inside .cortex/synapse; push submodule first if unpushed commits exist. Then push " +
-      "the superproject branch including main. SSL errors: retry up to 2 times. " +
+    "Run Step 14 in two distinct parts. " +
+      "(1) Safety-net synapse push: `git log --oneline origin/main..HEAD` inside " +
+      ".cortex/synapse; push the submodule if unpushed commits exist. " +
+      "(2) Push the superproject branch itself (`git push origin <branch>` from the repo " +
+      "root) — this is a SEPARATE push and is the one that matters; pushing only the " +
+      "submodule is a FAILURE of this step. " +
+      "Then PROVE part 2 landed: run `git rev-parse HEAD` and " +
+      "`git ls-remote origin refs/heads/<branch>` and report both. Only set " +
+      "superproject_pushed=true when those two SHAs match. " +
+      "SSL errors: retry up to 2 times. " +
       "Push failures are non-blocking — record the error and continue.",
     {
       agentType: "commit-phase-c",
@@ -367,20 +374,37 @@ const GATE_SCHEMA = {
       schema: {
         type: "object",
         properties: {
-          pushed: { type: "boolean" },
+          // AI: Two separate booleans on purpose. A single `pushed` let an agent that
+          // pushed only the submodule report success while superproject commits sat
+          // local (observed 2026-08-09). local_head/remote_head are the proof.
+          superproject_pushed: { type: "boolean" },
+          synapse_pushed: { type: "boolean" },
+          local_head: { type: "string" },
+          remote_head: { type: "string" },
           remote: { type: "string" },
           error: { type: "string" }
         },
-        required: ["pushed"],
+        required: ["superproject_pushed", "local_head", "remote_head"],
         additionalProperties: true
       }
     }
   );
-  if (!push || !push.pushed) {
+  // AI: Trust the SHAs, not the boolean — the agent self-reporting success is what failed.
+  const superpushed = Boolean(
+    push &&
+      push.superproject_pushed &&
+      push.local_head &&
+      push.local_head === push.remote_head
+  );
+  if (!superpushed) {
     // AI: Non-blocking — pipeline continues to cleanup regardless of push outcome.
-    log(`Step 14 push failed (non-blocking): ${push?.error ?? "agent returned no result"}`);
+    log(
+      `Step 14 superproject push NOT confirmed (non-blocking): ` +
+        `${push?.error ?? "local " + (push?.local_head ?? "?") + " != remote " + (push?.remote_head ?? "?")}` +
+        ` — commits are still local; run \`git push\` manually.`
+    );
   } else {
-    log(`Step 14 pushed to ${push.remote ?? "remote"}.`);
+    log(`Step 14 pushed superproject to ${push.remote ?? "remote"} @ ${push.remote_head}.`);
   }
 
   // ── Step 15: Cleanup ───────────────────────────────────────────────────────
@@ -428,7 +452,8 @@ const GATE_SCHEMA = {
   return {
     success: true,
     commit_sha: commit.commit_sha,
-    pushed: push.pushed,
+    pushed: superpushed,
+    synapse_pushed: Boolean(push?.synapse_pushed),
     phase_a_iterations: iterations,
     coverage: finalGate.coverage ?? phaseA.coverage
   };
