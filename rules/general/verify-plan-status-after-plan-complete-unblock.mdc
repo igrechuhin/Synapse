@@ -1,0 +1,37 @@
+---
+description: After plan(operation="complete") reports "Unblocked N dependent plan(s)", re-check each affected plan's frontmatter status — the auto-unblock flips BLOCKED to READY even when the block was external, desyncing the plan from the roadmap and failing the docs gate.
+alwaysApply: false
+created_by: analyze-feedback-loop
+---
+
+# Verify plan status after a plan(complete) unblock
+
+`plan(operation="complete")` recomputes the dependency graph and flips dependent plans
+from `BLOCKED` to `READY`. It only knows about `depends_on` edges — it cannot see a plan
+that is blocked on something outside the graph (an unshipped backend contract, a
+third-party release, a decision the user has not made). Such a plan is typically recorded
+with `depends_on: []` and `status: BLOCKED`, so the unblock pass rewrites it to `READY`.
+
+Two things break when that happens:
+
+- The plan file's frontmatter now contradicts the roadmap entry, which still says BLOCKED.
+  The docs gate's roadmap-sync check flags the mismatch.
+- The next selection phase treats the plan as eligible work and can start an implementation
+  that is still externally blocked.
+
+## Rule
+
+When a `plan(operation="complete")` response contains `plans_unblocked > 0` or
+`"Unblocked N dependent plan(s)"`:
+
+1. Read the frontmatter `status` of every non-archived plan.
+2. For each plan now marked `READY`, confirm the block was actually a graph dependency.
+3. If the block was external, restore `status: BLOCKED` and keep the roadmap entry's
+   stated reason as the single source of truth.
+
+Do this before the Verify/Fix phases, so the docs gate sees a consistent state.
+
+## Anti-pattern
+
+Trusting the unblock message and moving on, then discovering a roadmap-sync failure later
+in the pipeline, or selecting an externally-blocked plan as the next work item.
