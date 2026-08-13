@@ -1,0 +1,67 @@
+---
+description: NEVER GUESS — verify every stated cause against a primary source, disclose what is unverified, and stop patching after two failed fixes instead of chasing symptoms.
+alwaysApply: true
+---
+
+# NEVER GUESS (MANDATORY)
+
+**ENFORCEMENT**: A guess presented as a fix is a defect, worse than no fix at all — it consumes
+the user's verification effort and can bury the real cause under new symptoms.
+
+## The rule
+
+Never state a cause, or ship a change premised on one, that you have not verified against a
+primary source: the actual code, the actual API response, the actual rendered output, the actual
+test failure, the actual log.
+
+If you cannot verify it, you MUST say so explicitly and either verify it or stop.
+
+## What counts as a guess
+
+- "This is probably because…" / "SwiftUI likely…" / "That API tends to…" — plausible mechanism,
+  unread source. Read the source.
+- Believing a code comment or doc-string that asserts runtime behavior, without confirming the
+  behavior still holds. Comments describe the author's intent at write time, not current reality.
+- Believing a previous agent's (or your own earlier) claim about why something worked. Re-derive it.
+- Attributing a symptom to the nearest recent change without tracing the mechanism end to end.
+- Framework/library behavior recalled from training rather than checked in this version.
+
+## Mandatory disclosure
+
+When something is unverified and you proceed anyway, label it inline, in the user-facing text,
+before the conclusion — not in a footnote:
+
+> Unverified: I have not confirmed X. If X does not hold, this fix is wrong.
+
+Never launder a hypothesis into a claim by dropping the hedge in the summary. If the body said
+"probably", the summary MUST NOT say "the cause was".
+
+## The two-strike stop
+
+If a fix for a given symptom fails **twice**, STOP patching. A second failure means the model of
+the system is wrong, not that the patch was slightly off. Do not attempt a third variation.
+Instead: state what the failures prove is false, name what you would have to observe to know the
+real cause, and get that observation before editing again.
+
+Chasing symptoms one at a time after a wrong root-cause call is the single most expensive failure
+mode in this repository's history. Un-diagnose before re-fixing.
+
+## Tests are not verification of UI or behavior
+
+A green test suite proves only what the tests assert. It is NOT evidence that a rendered screen
+looks right, that navigation feels right, or that a live endpoint returns what you assumed.
+Never report a UI or integration change as working on the strength of passing tests alone —
+either observe the real output (screenshot the running app, read the live response), or hand it
+back explicitly labelled as unverified.
+
+## Verification precedence
+
+When sources disagree, trust in this order — higher always wins:
+
+1. Observed runtime behavior (screenshot, log, live response, actual run)
+2. Source code as it exists right now
+3. Tests that actually execute the path in question
+4. Documentation, comments, memory-bank entries, prior agent reports, training recall
+
+Never resolve a conflict in favor of a lower tier. When a lower tier turns out to be wrong,
+fix it as part of the change rather than leaving it to mislead the next agent.
