@@ -1,0 +1,59 @@
+---
+description: Before launching any expensive or long-running job, verify its input data is COMPLETE, not merely present — presence checks pass on truncated data and the job fails hours later.
+alwaysApply: false
+created_by: analyze-feedback-loop
+---
+
+# Verify input completeness before long-running jobs
+
+**ENFORCEMENT**: A pre-flight that asks "does the data exist?" instead of "is the data complete?"
+is not a pre-flight. It converts a five-second check into an hours-long failure.
+
+## The rule
+
+Before starting a job whose cost is measured in hours (training runs, migrations, bulk imports,
+full-corpus analyses), verify that the input data is complete over the range the job will read.
+Existence, non-emptiness, and row-count-above-zero are NOT completeness.
+
+Completeness means: for every series, table, partition, or shard the job will consume, the data
+covers the range the job will actually request — and covers it uniformly across siblings that
+should agree.
+
+## What a real completeness check looks like
+
+Compare each input against its own siblings, not against a global expectation:
+
+- Series A runs to the present; series B in the same group stops years earlier → **incomplete**
+- All partitions report rows, but their ranges do not intersect → **incomplete**
+- Every shard is non-empty, but widths differ across records → **incomplete**
+
+Sibling comparison is what makes the check robust. A global date threshold produces false
+positives on inputs that legitimately warm up late, and false negatives on a whole group that is
+uniformly stale.
+
+## What does not count
+
+- "The directory exists" / "the file is non-zero" / "the table has rows"
+- "A previous run reported success" — a report that only checks the tail will pass data that
+  stopped long ago
+- "The upstream job logged 0 faults" — verify the fault definition covers this failure mode
+  before relying on it
+
+## When the check fails
+
+Stop and repair the input. Do NOT start the job and hope, and do NOT narrow the range to dodge
+the gap until you have confirmed the narrowed range is itself complete — a gap in the middle of
+the range makes every window over it equally unusable.
+
+## Why
+
+Long jobs fail late and expensively, and the failure surfaces as a confusing downstream symptom
+(no model produced, empty result set, ragged records) rather than as "your input was truncated".
+The cost asymmetry is extreme: the check is seconds, the failure is hours, and the wrong
+diagnosis afterwards costs hours more.
+
+## Relationship to other rules
+
+This complements `never-guess`: that rule governs how you diagnose a failure after it happens;
+this one governs the check that prevents it. When a long job does fail, measure the actual input
+state before proposing a cause — a plausible explanation for the failure is not evidence.
