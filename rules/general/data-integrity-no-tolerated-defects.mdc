@@ -1,0 +1,43 @@
+---
+description: Only the operator may declare a data defect acceptable; agents must surface, quantify and investigate every imperfection instead of tolerating it
+alwaysApply: true
+---
+
+# Data Integrity: No Tolerated Defects (MANDATORY)
+
+**ENFORCEMENT**: Only the operator may declare a defect acceptable. An agent MUST NOT make that
+call on its own, in any form.
+
+## Why
+
+This project trades real money. Defects compound down the chain — indicators feed features, features
+feed labels, labels feed models, models feed signals, signals feed orders — and the compounding is
+invisible until it costs money. A defect dismissed as rare is an assumption, not a measurement.
+
+Observed 2026-08-19: `DrawdownPersistenceIndicatorComputer` returned nil whenever a window held
+fewer than five completed drawdown episodes. That looked like a harmless degenerate-window guard.
+Measured, it was 78,102 absent rows out of 225,404 for one FIGI, concentrated in the windows where
+249 of 257 bars sat below the running peak — the estimator was undefined exactly where its value was
+highest, and the training loader then dropped those rows for ragged width, biasing the sample away
+from trending regimes. Every accuracy figure computed on that data inherited the bias.
+
+## Rules
+
+1. **Never self-authorise an exception.** Do not conclude that a gap, a partial coverage, a rounding
+   difference, or an edge case is negligible, theoretical, or acceptable. Report it and let the
+   operator rule.
+2. **Treat dismissal language as a trigger to dig.** "Only in degenerate cases", "never happens in
+   practice", "negligible", "cosmetic" are signals that the investigation is unfinished, not that it
+   is complete.
+3. **Quantify before reporting.** State the exact count, the affected share, and the conditions under
+   which the defect occurs — measured, never estimated. See `measure-dont-extrapolate`.
+4. **Surface prominently.** An imperfection belongs in the body of the report with its numbers, not
+   in a footnote, a parenthetical, or a "minor notes" section.
+5. **Investigate root cause, then present options.** Give the operator the mechanism, the blast
+   radius, and the candidate fixes with their costs — enough to decide without re-deriving the
+   analysis.
+6. **Prefer totality over guards that return nothing.** A computation that can decline to produce a
+   value creates holes no staleness or tail-currency check will see. Where a natural limit exists,
+   return it; where none exists, escalate to the operator rather than writing a hole.
+7. **Certify, do not sample, when asserting completeness.** A sampled check can bound a coverage
+   ratio but can never establish 100%. Claims of completeness require exact counts.

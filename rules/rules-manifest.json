@@ -7,61 +7,149 @@
         {
           "file": "agent-internal-communication.mdc",
           "priority": 88,
-          "keywords": ["agent-internal", "brevity", "sub-agent", "pipeline_handoff", "think", "token-efficiency"],
+          "keywords": [
+            "agent-internal",
+            "brevity",
+            "sub-agent",
+            "pipeline_handoff",
+            "think",
+            "token-efficiency"
+          ],
           "description": "Compact prose for agent-to-agent channels (sub-agent results, handoff text, think scratchpad)"
         },
         {
           "file": "agent-workflow.mdc",
           "priority": 90,
-          "keywords": ["agent", "workflow", "self-improvement", "self-audit", "quality", "execution"],
+          "keywords": [
+            "agent",
+            "workflow",
+            "self-improvement",
+            "self-audit",
+            "quality",
+            "execution"
+          ],
           "description": "Agent workflow and self-improvement loop (mandatory)"
         },
         {
           "file": "coding-standards.mdc",
           "priority": 90,
-          "keywords": ["coding", "standards", "readability", "DRY", "functions", "files", "type-hints", "validation"],
+          "keywords": [
+            "coding",
+            "standards",
+            "readability",
+            "DRY",
+            "functions",
+            "files",
+            "type-hints",
+            "validation"
+          ],
           "description": "Core coding standards: readable, DRY code with small units and explicit typing"
         },
         {
           "file": "commit-pipeline.mdc",
           "priority": 80,
-          "keywords": ["commit", "pipeline", "CI", "zero-errors", "testing", "quality", "pre-commit"],
+          "keywords": [
+            "commit",
+            "pipeline",
+            "CI",
+            "zero-errors",
+            "testing",
+            "quality",
+            "pre-commit"
+          ],
           "description": "Phase-based commit pipeline with zero-errors policy"
+        },
+        {
+          "file": "data-integrity-no-tolerated-defects.mdc",
+          "priority": 99,
+          "keywords": [
+            "data-integrity",
+            "defect",
+            "tolerance",
+            "operator-decision",
+            "completeness",
+            "totality",
+            "nil",
+            "coverage"
+          ],
+          "description": "Only the operator may declare a data defect acceptable; surface, quantify and investigate every imperfection"
         },
         {
           "file": "maintainability.mdc",
           "priority": 80,
-          "keywords": ["maintainability", "architecture", "memory-bank", "file-responsibilities", "synchronization", "planning"],
+          "keywords": [
+            "maintainability",
+            "architecture",
+            "memory-bank",
+            "file-responsibilities",
+            "synchronization",
+            "planning"
+          ],
           "description": "Maintainability and architecture rules for memory bank and file organization"
         },
         {
           "file": "memory-bank-workflow.mdc",
           "priority": 80,
-          "keywords": ["memory-bank", "activeContext", "roadmap", "workflow", "link-validation", "compound-engineering"],
+          "keywords": [
+            "memory-bank",
+            "activeContext",
+            "roadmap",
+            "workflow",
+            "link-validation",
+            "compound-engineering"
+          ],
           "description": "Memory bank workflow, file responsibilities, and link validation"
         },
         {
           "file": "no-test-skipping.mdc",
           "priority": 70,
-          "keywords": ["testing", "test-skipping", "pytest", "skip", "xfail", "environment"],
+          "keywords": [
+            "testing",
+            "test-skipping",
+            "pytest",
+            "skip",
+            "xfail",
+            "environment"
+          ],
           "description": "No blanket test skipping; every skip must be justified with linked ticket"
         },
         {
           "file": "real-time-references.mdc",
           "priority": 70,
-          "keywords": ["time", "timestamps", "real-time", "artifacts", "date"],
+          "keywords": [
+            "time",
+            "timestamps",
+            "real-time",
+            "artifacts",
+            "date"
+          ],
           "description": "All time references must use real time; never invent timestamps"
         },
         {
           "file": "testing-standards.mdc",
           "priority": 85,
-          "keywords": ["testing", "AAA", "arrange-act-assert", "deterministic", "coverage", "pytest", "performance"],
+          "keywords": [
+            "testing",
+            "AAA",
+            "arrange-act-assert",
+            "deterministic",
+            "coverage",
+            "pytest",
+            "performance"
+          ],
           "description": "Testing standards: AAA pattern, deterministic tests, 90%+ coverage"
         },
         {
           "file": "tools-subpackage-organization.mdc",
           "priority": 60,
-          "keywords": ["MCP", "tools", "subpackage", "organization", "domain-driven", "structure"],
+          "keywords": [
+            "MCP",
+            "tools",
+            "subpackage",
+            "organization",
+            "domain-driven",
+            "structure"
+          ],
           "description": "MCP tools subpackage organization by functional domain"
         }
       ]
@@ -72,49 +160,104 @@
         {
           "file": "python-async-patterns.mdc",
           "priority": 85,
-          "keywords": ["python", "async", "asyncio", "concurrency", "event-loop", "resource-management"],
+          "keywords": [
+            "python",
+            "async",
+            "asyncio",
+            "concurrency",
+            "event-loop",
+            "resource-management"
+          ],
           "description": "Python async patterns: all I/O must be async, structured concurrency"
         },
         {
           "file": "python-coding-standards.mdc",
           "priority": 90,
-          "keywords": ["python", "coding-standards", "PEP8", "readability", "clarity", "style"],
+          "keywords": [
+            "python",
+            "coding-standards",
+            "PEP8",
+            "readability",
+            "clarity",
+            "style"
+          ],
           "description": "Python coding standards: PEP 8, readability first, explicit over implicit"
         },
         {
           "file": "python-mcp-development.mdc",
           "priority": 80,
-          "keywords": ["python", "MCP", "development", "server", "architecture", "protocol"],
+          "keywords": [
+            "python",
+            "MCP",
+            "development",
+            "server",
+            "architecture",
+            "protocol"
+          ],
           "description": "Python MCP development standards and server architecture"
         },
         {
           "file": "python-package-structure.mdc",
           "priority": 70,
-          "keywords": ["python", "packaging", "structure", "layout", "pyproject", "dependencies"],
+          "keywords": [
+            "python",
+            "packaging",
+            "structure",
+            "layout",
+            "pyproject",
+            "dependencies"
+          ],
           "description": "Python package structure: project layout and dependency management"
         },
         {
           "file": "python-performance.mdc",
           "priority": 75,
-          "keywords": ["python", "performance", "algorithm", "complexity", "Big-O", "optimization"],
+          "keywords": [
+            "python",
+            "performance",
+            "algorithm",
+            "complexity",
+            "Big-O",
+            "optimization"
+          ],
           "description": "Python performance: algorithm complexity requirements and Big O analysis"
         },
         {
           "file": "python-pydantic-standards.mdc",
           "priority": 90,
-          "keywords": ["python", "pydantic", "BaseModel", "structured-data", "validation", "typing"],
+          "keywords": [
+            "python",
+            "pydantic",
+            "BaseModel",
+            "structured-data",
+            "validation",
+            "typing"
+          ],
           "description": "Pydantic 2 standards: all structured data must use BaseModel"
         },
         {
           "file": "python-security.mdc",
           "priority": 85,
-          "keywords": ["python", "security", "input-validation", "sanitization", "pydantic"],
+          "keywords": [
+            "python",
+            "security",
+            "input-validation",
+            "sanitization",
+            "pydantic"
+          ],
           "description": "Python security: comprehensive input validation and sanitization"
         },
         {
           "file": "python-testing-standards.mdc",
           "priority": 85,
-          "keywords": ["python", "testing", "pytest", "test-organization", "naming", "coverage"],
+          "keywords": [
+            "python",
+            "testing",
+            "pytest",
+            "test-organization",
+            "naming",
+            "coverage"
+          ],
           "description": "Python testing standards: pytest, naming conventions, test organization"
         }
       ]
@@ -125,19 +268,42 @@
         {
           "file": "php-coding-standards.mdc",
           "priority": 90,
-          "keywords": ["php", "coding-standards", "psr-12", "strict-types", "pint", "file-organization"],
+          "keywords": [
+            "php",
+            "coding-standards",
+            "psr-12",
+            "strict-types",
+            "pint",
+            "file-organization"
+          ],
           "description": "PHP coding standards: PSR-12, strict types, typed properties, 400/30-line limits"
         },
         {
           "file": "php-security.mdc",
           "priority": 90,
-          "keywords": ["php", "security", "sql-injection", "mass-assignment", "secrets", "escaping", "validation"],
+          "keywords": [
+            "php",
+            "security",
+            "sql-injection",
+            "mass-assignment",
+            "secrets",
+            "escaping",
+            "validation"
+          ],
           "description": "PHP security: parameter binding, mass-assignment guards, no secrets in source, escaped output"
         },
         {
           "file": "php-testing-standards.mdc",
           "priority": 85,
-          "keywords": ["php", "testing", "pest", "phpunit", "AAA", "factories", "no-skipping"],
+          "keywords": [
+            "php",
+            "testing",
+            "pest",
+            "phpunit",
+            "AAA",
+            "factories",
+            "no-skipping"
+          ],
           "description": "PHP testing: Pest preferred, PHPUnit acceptable, AAA, factories, no skipped tests"
         }
       ]
@@ -148,7 +314,13 @@
         {
           "file": "markdown-formatting.mdc",
           "priority": 60,
-          "keywords": ["markdown", "formatting", "CI", "lint", "documentation"],
+          "keywords": [
+            "markdown",
+            "formatting",
+            "CI",
+            "lint",
+            "documentation"
+          ],
           "description": "Markdown formatting rules enforced by CI"
         }
       ]
@@ -159,67 +331,158 @@
         {
           "file": "swift-coding-standards.mdc",
           "priority": 90,
-          "keywords": ["swift", "coding-standards", "SOLID", "DRY", "formatting", "swiftformat", "file-organization"],
+          "keywords": [
+            "swift",
+            "coding-standards",
+            "SOLID",
+            "DRY",
+            "formatting",
+            "swiftformat",
+            "file-organization"
+          ],
           "description": "Swift coding standards: SOLID, DRY, SwiftFormat, 400/30-line limits, one-type-per-file"
         },
         {
           "file": "swift-concurrency.mdc",
           "priority": 88,
-          "keywords": ["swift", "concurrency", "async", "await", "actor", "sendable", "taskgroup", "swift6"],
+          "keywords": [
+            "swift",
+            "concurrency",
+            "async",
+            "await",
+            "actor",
+            "sendable",
+            "taskgroup",
+            "swift6"
+          ],
           "description": "Swift 6 structured concurrency: actors, Sendable, cancellation, bounded parallelism"
         },
         {
           "file": "swift-reliability.mdc",
           "priority": 85,
-          "keywords": ["swift", "reliability", "errors", "timeouts", "retries", "circuit-breaker", "grdb"],
+          "keywords": [
+            "swift",
+            "reliability",
+            "errors",
+            "timeouts",
+            "retries",
+            "circuit-breaker",
+            "grdb"
+          ],
           "description": "Swift reliability: typed errors, timeouts, retries, circuit breaker, resource safety"
         },
         {
           "file": "swift-performance.mdc",
           "priority": 85,
-          "keywords": ["swift", "performance", "complexity", "allocations", "slices", "collection", "mlx", "accelerate"],
+          "keywords": [
+            "swift",
+            "performance",
+            "complexity",
+            "allocations",
+            "slices",
+            "collection",
+            "mlx",
+            "accelerate"
+          ],
           "description": "Swift performance: O(n) algorithms, slice over copy, no main-thread blocking"
         },
         {
           "file": "swift-testing-standards.mdc",
           "priority": 85,
-          "keywords": ["swift", "testing", "xctest", "swift-testing", "AAA", "testlogger", "coverage"],
+          "keywords": [
+            "swift",
+            "testing",
+            "xctest",
+            "swift-testing",
+            "AAA",
+            "testlogger",
+            "coverage"
+          ],
           "description": "Swift testing: Swift Testing preferred, XCTest acceptable, AAA, TestLogger, <10s tests"
         },
         {
           "file": "swift-observability.mdc",
           "priority": 80,
-          "keywords": ["swift", "logging", "sharedlogger", "observability", "emoji", "context", "metrics"],
+          "keywords": [
+            "swift",
+            "logging",
+            "sharedlogger",
+            "observability",
+            "emoji",
+            "context",
+            "metrics"
+          ],
           "description": "Swift observability: SharedLogger only, no print(), auto-emoji, structured context"
         },
         {
           "file": "swift-security.mdc",
           "priority": 90,
-          "keywords": ["swift", "security", "secrets", "tls", "grpc", "keychain", "input-validation"],
+          "keywords": [
+            "swift",
+            "security",
+            "secrets",
+            "tls",
+            "grpc",
+            "keychain",
+            "input-validation"
+          ],
           "description": "Swift security: zero-tolerance secrets, TLS, input validation, no try! on security ops"
         },
         {
           "file": "swift-style.mdc",
           "priority": 75,
-          "keywords": ["swift", "style", "self", "internal", "semicolons", "underscore", "type-inference", "parameters"],
+          "keywords": [
+            "swift",
+            "style",
+            "self",
+            "internal",
+            "semicolons",
+            "underscore",
+            "type-inference",
+            "parameters"
+          ],
           "description": "Swift style: no explicit internal, no redundant self, no semicolons, parameter ordering"
         },
         {
           "file": "swift-architecture.mdc",
           "priority": 80,
-          "keywords": ["swift", "architecture", "modules", "layering", "dependency-injection", "protocols", "spm"],
+          "keywords": [
+            "swift",
+            "architecture",
+            "modules",
+            "layering",
+            "dependency-injection",
+            "protocols",
+            "spm"
+          ],
           "description": "Swift architecture: module layering, DI, protocol abstractions, SPM Package.swift"
         },
         {
           "file": "swift-commit-procedure.mdc",
           "priority": 80,
-          "keywords": ["swift", "commit", "swiftformat", "docc", "no-auto-commit", "pre-commit"],
+          "keywords": [
+            "swift",
+            "commit",
+            "swiftformat",
+            "docc",
+            "no-auto-commit",
+            "pre-commit"
+          ],
           "description": "Swift commit procedure: SwiftFormat, unused params, DocC, tests, memory bank"
         },
         {
           "file": "swift-project-rules.mdc",
           "priority": 85,
-          "keywords": ["swift", "tradewing", "package", "protobuf", "mlx", "grdb", "memory-bank", "plans"],
+          "keywords": [
+            "swift",
+            "tradewing",
+            "package",
+            "protobuf",
+            "mlx",
+            "grdb",
+            "memory-bank",
+            "plans"
+          ],
           "description": "TradeWing project rules: Package.swift integrity, protobuf, MLX/Metal, memory bank"
         }
       ]
