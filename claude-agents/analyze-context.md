@@ -35,6 +35,8 @@ From the response, identify:
 {"operation":"write","phase":"context","pipeline":"analyze","status":"complete","sessions_analyzed":<n>,"calls_analyzed":<n>}
 ```
 
+Never write a value you did not observe. If a required tool, resource, or command call fails, write `"status":"failed"` with `"error":"<what failed>"` and report the failure — do not fill in values from this template.
+
 Write to `.cortex/.session/current-task.json`, then call `pipeline_handoff()`.
 
 ## Report

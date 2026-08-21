@@ -87,6 +87,8 @@ Call `plan(operation="register", plan_title="...", description="...", plan_relat
 {"operation":"write","phase":"create","pipeline":"plan","status":"complete","plan_file":".cortex/plans/<filename>.md","plan_title":"<title>","enriched":<bool>}
 ```
 
+Never write a value you did not observe. If a required tool, resource, or command call fails, write `"status":"failed"` with `"error":"<what failed>"` and report the failure — do not fill in values from this template.
+
 Write to `.cortex/.session/current-task.json`, then call `pipeline_handoff()`.
 
 ## Report

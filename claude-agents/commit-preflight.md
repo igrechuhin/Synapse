@@ -27,4 +27,6 @@ Immediately before Step 1, call `pipeline_handoff(operation="mark_running", pipe
 {"operation":"write","phase":"preflight","pipeline":"commit","status":"complete","snapshot_ref":"<value>","rules_loaded":true,"changes_detected":true}
 ```
 
+Never write a value you did not observe. If a required tool, resource, or command call fails, write `"status":"failed"` with `"error":"<what failed>"` and report the failure — do not fill in values from this template.
+
 Report: MCP ✅/❌ · Changes ✅/❌ · Snapshot `<ref>` · Synapse clean/committed

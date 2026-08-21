@@ -25,8 +25,10 @@ Immediately before Step 1, call `pipeline_handoff(operation="mark_running", pipe
 3. **Write result** to `.cortex/.session/current-task.json` then call `pipeline_handoff()`:
 
 ```json
-{"operation":"write","phase":"final-gate","pipeline":"commit","status":"passed","coverage":<actual>,"fix_loops_executed":<n>,"skipped_checks":<from gate result>}
+{"operation":"write","phase":"final-gate","pipeline":"commit","status":"<passed|failed>","coverage":<actual>,"fix_loops_executed":<n>,"skipped_checks":<from gate result>}
 ```
+
+Never write a value you did not observe. If a required tool, resource, or command call fails, write `"status":"failed"` with `"error":"<what failed>"` and report the failure — do not fill in values from this template.
 
 Gate rule: parse `phases.final-gate` status only — never infer from banners.
 

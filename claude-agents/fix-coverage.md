@@ -38,4 +38,6 @@ Immediately before Step 1, call `pipeline_handoff(operation="mark_running", pipe
 {"operation":"write","phase":"coverage","pipeline":"fix","status":"passed|failed|skipped|BLOCKED","iterations":<n>,"prior_coverage":<float>,"final_coverage":<float>,"coverage_delta":<float>,"tests_added":["<path>:<symbol>"],"files_covered":["<path>"],"blocker_reason":null}
 ```
 
+Never write a value you did not observe. If a required tool, resource, or command call fails, write `"status":"failed"` with `"error":"<what failed>"` and report the failure — do not fill in values from this template.
+
 Report: Scope · Prior `<n>%` → Final `<n>%` (Δ+`<n>%`) · Iterations `<n>` · Tests added: list

@@ -134,6 +134,8 @@ Call `autofix()` to fix any markdown lint issues in modified files and the newly
 {"operation":"write","phase":"compact","pipeline":"analyze","status":"complete","report_path":".cortex/reviews/session-optimization-<timestamp>.md","plan_created":<bool>,"rule_created":<bool>,"skill_updated":<bool>}
 ```
 
+Never write a value you did not observe. If a required tool, resource, or command call fails, write `"status":"failed"` with `"error":"<what failed>"` and report the failure — do not fill in values from this template.
+
 Write to `.cortex/.session/current-task.json`, then call `pipeline_handoff()`.
 
 ## Report

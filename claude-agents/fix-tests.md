@@ -33,4 +33,6 @@ Immediately before Step 1, call `pipeline_handoff(operation="mark_running", pipe
 {"operation":"write","phase":"tests","pipeline":"fix","status":"passed|failed|skipped|BLOCKED|redirect","fix_iterations":<n>,"pass_rate":<value>,"coverage":<value>,"blocker_reason":null}
 ```
 
+Never write a value you did not observe. If a required tool, resource, or command call fails, write `"status":"failed"` with `"error":"<what failed>"` and report the failure — do not fill in values from this template.
+
 Report: Scope · Diagnosis: `<symptom>` / `<cause>` · Tests ✅/❌ `<n>` failing · Fix iterations `<n>`

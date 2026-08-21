@@ -91,6 +91,8 @@ to the compact/report-assembly phase:
 {"operation":"write","phase":"session","pipeline":"analyze","status":"complete","patterns_found":<n>,"recommendations":<n>,"evidence_citations":[{"node_id":"<failed_node.id>","parent_id":"<parent_id>","failure_class":"<failed_node.label>"}]}
 ```
 
+Never write a value you did not observe. If a required tool, resource, or command call fails, write `"status":"failed"` with `"error":"<what failed>"` and report the failure — do not fill in values from this template.
+
 Write to `.cortex/.session/current-task.json`, then call `pipeline_handoff()`.
 
 ## Report

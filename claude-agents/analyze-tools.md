@@ -44,6 +44,8 @@ still show up here and can surface consolidation candidates in Step 2.5.
 {"operation":"write","phase":"tools","pipeline":"analyze","status":"complete","registered_count":<n>,"budget_ok":<bool>,"reduction_potential":<n>}
 ```
 
+Never write a value you did not observe. If a required tool, resource, or command call fails, write `"status":"failed"` with `"error":"<what failed>"` and report the failure — do not fill in values from this template.
+
 Write to `.cortex/.session/current-task.json`, then call `pipeline_handoff()`.
 
 ## Report

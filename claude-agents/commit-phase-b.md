@@ -32,4 +32,6 @@ Immediately before Step 1, call `pipeline_handoff(operation="mark_running", pipe
 {"operation":"write","phase":"docs","pipeline":"commit","status":"complete","memory_bank_updated":true,"docs_phase_passed":true,"plans_archived":<n>,"roadmap_sync_warning":false}
 ```
 
+Never write a value you did not observe. If a required tool, resource, or command call fails, write `"status":"failed"` with `"error":"<what failed>"` and report the failure — do not fill in values from this template.
+
 Report: Memory bank ✅/❌ · Plans archived `<n>` · Docs gate ✅/⚠️/❌

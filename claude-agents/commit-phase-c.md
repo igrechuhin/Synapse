@@ -1,7 +1,7 @@
 ---
 name: commit-phase-c
 description: Use when the /cortex/commit orchestrator reaches Phase C (validation) after Phase B completes. Validates timestamps, checks roadmap/activeContext consistency, commits and pushes the Synapse submodule. Pipeline must not continue if submodule commit fails.
-tools: mcp__cortex__*, Bash, Read, Edit, Grep
+tools: mcp__cortex__*, Bash, Read, Edit, Grep, ReadMcpResourceTool
 model: sonnet
 ---
 
@@ -25,7 +25,9 @@ Immediately before Step 1, call `pipeline_handoff(operation="mark_running", pipe
 4. **Write result** to `.cortex/.session/current-task.json` then call `pipeline_handoff()`:
 
 ```json
-{"operation":"write","phase":"validate","pipeline":"commit","status":"passed","timestamps_valid":true,"roadmap_sync_valid":true,"submodule_status":"clean","synapse_commit_sha":null,"synapse_push_succeeded":true}
+{"operation":"write","phase":"validate","pipeline":"commit","status":"<passed|failed>","timestamps_valid":<observed>,"roadmap_sync_valid":<observed>,"submodule_status":"<clean|committed>","synapse_commit_sha":<sha|null>,"synapse_push_succeeded":<observed>}
 ```
+
+Never write a value you did not observe. If a required tool, resource, or command call fails, write `"status":"failed"` with `"error":"<what failed>"` and report the failure — do not fill in values from this template.
 
 Report: Timestamps ✅/❌ · Consistency ✅/⚠️ · Synapse clean/committed `<sha>` · Push ✅/⚠️

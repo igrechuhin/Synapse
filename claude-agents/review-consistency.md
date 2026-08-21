@@ -38,6 +38,8 @@ Use `run_quality_gate()` results from the static-analysis phase (already in hand
 {"operation":"write","phase":"consistency","pipeline":"review","status":"complete","issues_found":<n>}
 ```
 
+Never write a value you did not observe. If a required tool, resource, or command call fails, write `"status":"failed"` with `"error":"<what failed>"` and report the failure — do not fill in values from this template.
+
 Write to `.cortex/.session/current-task.json`, then call `pipeline_handoff()`.
 
 ## Report

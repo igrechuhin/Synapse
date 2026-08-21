@@ -29,4 +29,6 @@ Immediately before Step 1, call `pipeline_handoff(operation="mark_running", pipe
 {"operation":"write","phase":"quality","pipeline":"fix","status":"passed or failed","fix_iterations":<n>,"preflight_passed":<bool>}
 ```
 
+Never write a value you did not observe. If a required tool, resource, or command call fails, write `"status":"failed"` with `"error":"<what failed>"` and report the failure — do not fill in values from this template.
+
 Report: Scope `<scope>` · Gate ✅/❌ · Fix iterations `<n>` · Issues fixed: `file:line — change`

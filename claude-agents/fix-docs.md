@@ -1,7 +1,7 @@
 ---
 name: fix-docs
 description: Use when the /cortex/fix orchestrator needs to fix the docs target (memory bank sync, timestamps, roadmap). Synchronises activeContext/progress/roadmap, fixes timestamps, validates with run_docs_gate(). Invoke for target=docs or as step 3 of target=all.
-tools: mcp__cortex__*, Bash, Read, Edit, Grep
+tools: mcp__cortex__*, Bash, Read, Edit, Grep, ReadMcpResourceTool
 model: sonnet
 ---
 
@@ -30,5 +30,7 @@ Immediately before Step 1, call `pipeline_handoff(operation="mark_running", pipe
 ```json
 {"operation":"write","phase":"docs","pipeline":"fix","status":"passed or failed","fix_iterations":<n>,"docs_phase_passed":<bool>,"roadmap_sync_warning":<bool>}
 ```
+
+Never write a value you did not observe. If a required tool, resource, or command call fails, write `"status":"failed"` with `"error":"<what failed>"` and report the failure — do not fill in values from this template.
 
 Report: Docs gate ✅/⚠️/❌ · Fix iterations `<n>` · Changes: list
