@@ -199,6 +199,14 @@ const DOCS_SCHEMA = {
       "support the changed language (e.g. Swift), still select quality and tests — the " +
       "target agents verify those natively (swift build / swift test). Only omit quality " +
       "and tests when no source file changed at all (markdown_only). " +
+      "This applies to the coverage target too. Do NOT drop coverage on the reasoning " +
+      "'not a Python project' — Cortex ships a Swift coverage adapter (llvm-cov / SwiftPM " +
+      "JSON export, tunable via .cortex/config/swift_coverage.json), so a Swift repo with a " +
+      "coverage threshold is measurable and the target is actionable. Select coverage " +
+      "whenever source changed and the project defines a coverage threshold, regardless of " +
+      "language. Omit coverage only when no source file changed (markdown_only), or when " +
+      "you have positively established that no coverage number can be produced for this " +
+      "project — and if you omit it, say which of those two applies in diagnosis_note. " +
       "Write diagnosis result to pipeline_handoff(phase='diagnosis', pipeline='fix').",
     {
       agentType: "fix-quality",
