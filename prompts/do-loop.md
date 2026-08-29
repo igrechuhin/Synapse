@@ -20,9 +20,15 @@ Same as `do.md`: embed `operation`, `phase`, and `pipeline` inside the data JSON
 ## Loop Initialization
 
 1. Call `session()` to verify MCP health. If unhealthy, STOP immediately and report.
-2. Read `.cortex/memory-bank/roadmap.md` directly.
-3. Scan for any PENDING or in-progress steps (Blockers, Active Work, Pending plans sections).
-   - If **no pending steps** exist at start, report "Roadmap already complete" and STOP.
+2. Read `.cortex/memory-bank/roadmap.md` directly, including its **Selection Contract** and
+   **Operator Queue** sections — both are binding on this loop.
+3. Scan for pending steps whose plan frontmatter says `execution: agent` (Blockers, Active Work,
+   Pending plans sections). A plan marked `execution: operator` is **not** loop work: its
+   remainder needs the live host or an operator decision.
+   - If **no `execution: agent` steps** exist at start, report "No agent-executable work remains",
+     then surface the top Operator Queue item and ask the operator for approval to run it
+     ("ask, don't park"). Do not spawn a subagent to manufacture in-repo work. This is the expected
+     outcome while the deploy backlog is unworked — it is not a stall and not a failure.
 4. Initialize loop state:
    - `iteration = 0`
    - `max_iterations = 10`
@@ -89,11 +95,16 @@ Read `pipeline_handoff(operation="read", pipeline="implement")` for the pass tha
 
 The subagent has returned. Now read `.cortex/memory-bank/roadmap.md` directly.
 
-Count remaining pending steps (lines starting with `- PENDING:` under Blockers, Active Work,
-or Pending plans sections). Record as `pending_after`.
+Count remaining pending steps whose plan is `execution: agent` (lines starting with `- PENDING:`
+under Blockers, Active Work, or Pending plans sections). Record as `pending_after`.
 
 - If `pending_after == 0`: set `roadmap_complete = true` → **exit loop**
 - If `iteration == max_iterations`: set stop reason `iteration_limit_reached` → **exit loop**
+- **If the pass did not archive its plan and the plan's remainder is still in-repo**: do NOT
+  advance to a different plan. Re-spawn on the SAME plan next iteration. Advancing to a new plan
+  while the previous one is unfinished is the exact failure this loop was rewritten to prevent
+  (2026-08-29). Only two things end a plan's turn: it is archived, or its remainder is
+  reclassified `execution: operator` and moved to the Operator Queue.
 
 ---
 

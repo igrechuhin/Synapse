@@ -1,6 +1,8 @@
 # Do
 
-**CRITICAL**: Execute ALL phases below AUTOMATICALLY. Do NOT pause, summarize, or ask for confirmation between phases. Start with Selection immediately. When a roadmap item is too large to finish in one session, make concrete, high-impact partial progress and update plans/status accordingly instead of stopping with no changes.
+**CRITICAL**: Execute ALL phases below AUTOMATICALLY. Do NOT pause, summarize, or ask for confirmation between phases. Start with Selection immediately.
+
+**Atomicity (binding, 2026-08-29 — see the Selection Contract in `roadmap.md`)**: a plan is an atomic unit of work. Finish it end to end or do not start it. Partial progress is **not** a success outcome and must never be the reason a pass ends. If the selected plan cannot be finished, stop and name the action that is owed — do not reach for a different plan, and do not manufacture work (a coverage gap, a stray test) to have something to report. Ending a pass with "no changes, here is what is owed" is a correct outcome; ending it with three plans nibbled is not.
 
 This is part of the **compound-engineering loop** (Plan → Work → Review → Compound). The Finalize phase is the Compound step.
 
@@ -107,16 +109,34 @@ Steps to run inline:
    - Increment `gate_iterations` in `pipeline_handoff` for the active `run_id`.
    - If the same `run_id` reaches 5 iterations, pause and report to the user instead of looping.
 3. Read the roadmap: `manage_file(file_name="roadmap.md", operation="read")`. If Cursor strips args, read `.cortex/memory-bank/roadmap.md` directly.
+3b. **Eligibility filter (apply before anything else).** A plan is selectable only when its
+   frontmatter says `execution: agent`. `execution: operator` means the remainder needs the live
+   host or an operator decision — **never select it**, not to make partial progress and not to
+   close a coverage gap. The roadmap's **Operator Queue** section is the authoritative list.
+
+3c. **Sticky selection.** Scan `.cortex/plans/*.md` with `execution: agent` for a
+   `## Partial Progress Log` whose remainder still names in-repo work. If one exists, **that plan
+   is the only selectable plan** — finish it before any other is eligible. Only when no such plan
+   remains may a fresh plan be selected. This is what stops the loop from spreading itself across
+   several plans and closing none.
+
 4. If the user provided an explicit plan hint (e.g. `/cortex/do @.cortex/plans/<slug>.md`):
    - Read the referenced plan file directly.
-   - Verify the plan exists and is not archived/COMPLETE.
+   - Verify the plan exists, is not archived/COMPLETE, and is `execution: agent`.
+   - If it is `execution: operator`, do NOT select it: report the owed operator action and STOP.
    - If eligible, use it as the selected step.
    - If ineligible, fall back to roadmap priority selection below.
-5. When no eligible explicit plan: identify the next pending step by priority:
-   - Blockers (ASAP Priority) — first item
-   - Active Work (in progress) — first item
-   - Pending plans — first item
-   - If no pending steps exist: report "Roadmap complete" and STOP.
+5. When no eligible explicit plan: identify the next pending step by priority, skipping every
+   `execution: operator` plan:
+   - The sticky in-flight plan from 3c, if any — this outranks everything below
+   - Blockers (ASAP Priority) — first `execution: agent` item
+   - Active Work (in progress) — first `execution: agent` item
+   - Pending plans — first `execution: agent` item
+   - If no selectable step exists: report **"No agent-executable work remains — N plans are in the
+     Operator Queue"**, then surface the **top** Operator Queue item with its exact command set and
+     verification metric and **ask the operator for approval to run it** (the standing "ask, don't
+     park" rule — most of these are agent-executable over `ssh intel`). Do not invent in-repo work
+     to avoid this, and do not file the item as "blocked on operator" and walk away.
 6. Read the `cortex://context` resource for implementation context (zero-arg, reads task from session config). Non-blocking if unavailable.
 7. Read the `cortex://rules` resource for coding standards. Non-blocking if unavailable.
 8. If the selected step references a plan file, read it directly. Extract implementation steps, success criteria, testing strategy, and which steps are already done.
