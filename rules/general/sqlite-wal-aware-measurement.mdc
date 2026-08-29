@@ -1,0 +1,30 @@
+---
+description: A SQLite measurement taken without the database's -wal sidecar understates its contents and must not be reported as a finding
+alwaysApply: false
+created_by: analyze-feedback-loop
+---
+
+# Measure SQLite With Its Write-Ahead Log, Or Do Not Measure It
+
+In WAL journal mode a database file holds only what has been checkpointed. Rows committed since
+the last checkpoint live in the `-wal` sidecar. A reader that opens the `.sqlite` file alone —
+because it was copied without its sidecar, restored from a mirror that excluded it, or read from a
+snapshot taken mid-transaction — sees an older database and reports it as the current one.
+
+The failure is silent and one-directional: it always understates. `COUNT(*)` comes back low,
+`MAX(time)` comes back early, and `PRAGMA integrity_check` returns `ok` for all of it, because the
+file it checked is internally consistent. The result reads exactly like data loss.
+
+## Rules
+
+- Before reporting row counts, min/max, or "this series stopped on <date>", confirm the `-wal` and
+  `-shm` sidecars are present next to the file and readable by the query process.
+- Copy or sync all three files together, or checkpoint first (`PRAGMA wal_checkpoint(TRUNCATE)`)
+  and copy the single file. Never copy the `.sqlite` alone from a live database.
+- `PRAGMA integrity_check` is not evidence that a measurement is current. It certifies structure,
+  not recency, and passes cleanly on a stale checkpoint.
+- State the reading conditions alongside any such measurement — which file was opened, whether the
+  sidecar was present, and whether the writer was running. A number without them is not
+  reproducible and cannot be compared against a later one.
+- When a database "stops" at an implausible date, re-read it with the sidecar before opening an
+  investigation. A stale checkpoint is far more common than years of lost data.
