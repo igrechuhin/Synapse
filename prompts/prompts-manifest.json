@@ -8,90 +8,196 @@
           "file": "commit.md",
           "name": "Commit",
           "description": "Execute the mandatory commit procedure with all required pre-commit checks",
-          "keywords": ["commit", "git", "pre-commit", "testing", "formatting"],
-          "superseded_by": "commit.wf.js"
+          "keywords": [
+            "commit",
+            "git",
+            "pre-commit",
+            "testing",
+            "formatting"
+          ],
+          "superseded_by": "commit.wf.js",
+          "refresh_roadmap_page": true
         },
         {
           "file": "fix.md",
           "name": "Fix",
           "description": "Unified helper for fixing quality issues, test failures, or documentation sync. Accepts target parameter: quality | tests | docs",
-          "keywords": ["fix", "quality", "tests", "docs", "lint", "format", "coverage", "sync", "memory-bank"],
-          "superseded_by": "fix.wf.js"
+          "keywords": [
+            "fix",
+            "quality",
+            "tests",
+            "docs",
+            "lint",
+            "format",
+            "coverage",
+            "sync",
+            "memory-bank"
+          ],
+          "superseded_by": "fix.wf.js",
+          "refresh_roadmap_page": true
         },
         {
           "file": "review.md",
           "name": "Review",
           "description": "Comprehensive code review to find bugs, inconsistencies, and incomplete implementations",
-          "keywords": ["review", "code-quality", "bugs", "consistency", "testing"]
+          "keywords": [
+            "review",
+            "code-quality",
+            "bugs",
+            "consistency",
+            "testing"
+          ]
         },
         {
           "file": "do.md",
           "name": "Do Single Step",
           "description": "Read the roadmap, identify the next pending step, and implement it completely",
           "internal": true,
-          "keywords": ["roadmap", "implementation", "tasks", "planning", "progress"],
+          "keywords": [
+            "roadmap",
+            "implementation",
+            "tasks",
+            "planning",
+            "progress"
+          ],
           "superseded_by": "do.wf.js"
         },
         {
           "file": "do-loop.md",
           "name": "Do",
           "description": "Read the roadmap and implement all pending steps via subagents until complete (max 5 iterations)",
-          "keywords": ["roadmap", "implementation", "tasks", "planning", "progress"]
+          "keywords": [
+            "roadmap",
+            "implementation",
+            "tasks",
+            "planning",
+            "progress"
+          ]
         },
         {
           "file": "explore.md",
           "name": "Explore",
           "description": "Brainstorm approaches before committing to a plan. Produces an ephemeral decision log without creating formal plan or roadmap entries.",
           "internal": true,
-          "keywords": ["explore", "brainstorm", "options", "trade-offs", "decision", "pre-plan"]
+          "keywords": [
+            "explore",
+            "brainstorm",
+            "options",
+            "trade-offs",
+            "decision",
+            "pre-plan"
+          ]
         },
         {
           "file": "shape.md",
           "name": "Shape",
           "description": "Interview the user one question at a time to resolve unknown requirements before planning. Produces an ephemeral shaping record without creating formal plan or roadmap entries.",
           "internal": true,
-          "keywords": ["shape", "shaping", "requirements", "interview", "decisions", "constraints", "pre-plan"]
+          "keywords": [
+            "shape",
+            "shaping",
+            "requirements",
+            "interview",
+            "decisions",
+            "constraints",
+            "pre-plan"
+          ]
         },
         {
           "file": "plan.md",
           "name": "Plan",
           "description": "Create a development plan based on user description, add it to plans directory, and update roadmap",
-          "keywords": ["plan", "planning", "roadmap", "development", "tasks", "milestones"]
+          "keywords": [
+            "plan",
+            "planning",
+            "roadmap",
+            "development",
+            "tasks",
+            "milestones"
+          ]
+        },
+        {
+          "file": "roadmap-page.md",
+          "name": "Roadmap Page",
+          "description": "Publish or refresh the visual roadmap artifact from roadmap.md, keeping the operator's link stable",
+          "keywords": [
+            "roadmap",
+            "artifact",
+            "page",
+            "plan",
+            "status",
+            "visual"
+          ]
         },
         {
           "file": "analyze.md",
           "name": "Analyze",
           "description": "End-of-session analysis: check all (context effectiveness and session optimization). Single entry point replacing analyze-context-effectiveness and analyze-session-optimization.",
           "internal": true,
-          "keywords": ["analyze", "end-of-session", "context", "effectiveness", "session", "optimization", "synapse", "reviews"]
+          "keywords": [
+            "analyze",
+            "end-of-session",
+            "context",
+            "effectiveness",
+            "session",
+            "optimization",
+            "synapse",
+            "reviews"
+          ]
         },
         {
           "file": "post-prompt-hook.md",
           "name": "Post-Prompt Hook",
-          "description": "Lightweight post-prompt self-improvement hook that runs analysis Steps 4–9 and emits Skills, Plans, or Rules as needed",
+          "description": "Lightweight post-prompt self-improvement hook that runs analysis Steps 4\u20139 and emits Skills, Plans, or Rules as needed",
           "internal": true,
-          "keywords": ["post-prompt", "self-improvement", "analysis", "feedback-loop"]
+          "keywords": [
+            "post-prompt",
+            "self-improvement",
+            "analysis",
+            "feedback-loop"
+          ]
         },
         {
           "file": "ingest.md",
           "name": "Ingest",
           "description": "Ingest external sources into the memory bank, synthesize key takeaways, update related pages, and log contradictions",
-          "keywords": ["ingest", "memory-bank", "knowledge-base", "source", "wiki", "summary"]
+          "keywords": [
+            "ingest",
+            "memory-bank",
+            "knowledge-base",
+            "source",
+            "wiki",
+            "summary"
+          ]
         },
         {
           "file": "init-wiki.md",
           "name": "Init Wiki",
           "description": "Seed .cortex/wiki from existing project docs, run ingest snapshots, write categorized wiki pages, and rebuild index.md",
-          "keywords": ["wiki", "init-wiki", "knowledge-base", "docs", "ingest", "index", "cortex-wiki"]
+          "keywords": [
+            "wiki",
+            "init-wiki",
+            "knowledge-base",
+            "docs",
+            "ingest",
+            "index",
+            "cortex-wiki"
+          ]
         },
         {
           "file": "ask.md",
           "name": "Ask",
-          "description": "Answer project questions from .cortex/wiki using index.md, read 3–5 relevant pages, cite sources, optionally file confirmed synthesis as a new page",
-          "keywords": ["wiki", "ask", "knowledge-base", "cortex-wiki", "index", "citations"]
+          "description": "Answer project questions from .cortex/wiki using index.md, read 3\u20135 relevant pages, cite sources, optionally file confirmed synthesis as a new page",
+          "keywords": [
+            "wiki",
+            "ask",
+            "knowledge-base",
+            "cortex-wiki",
+            "index",
+            "citations"
+          ]
         }
       ]
     }
   }
 }
-

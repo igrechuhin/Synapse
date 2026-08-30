@@ -270,3 +270,15 @@ After writing the final report for this plan-creation run, invoke the post-promp
 - Advisory terminology check ran and its result appears in the Terminology report row; plan creation succeeded regardless of findings
 - Plan registered in roadmap
 - All paths obtained dynamically via MCP tools
+
+## Refresh the Roadmap Page
+
+After the plan is registered in the roadmap, run the **Roadmap Page** procedure
+(`.cortex/synapse/prompts/roadmap-page.md`) to redeploy the operator's visual roadmap.
+
+Registering a plan changes the backlog, so a page published before it is stale from that moment.
+Refresh it in the same pass rather than leaving the operator to notice the drift: the page exists
+so they can see the plan without reading the markdown, and a page that lags the roadmap is worse
+than none, because it is trusted.
+
+Skip only when the plan was not registered (`step_skip`), and say so in the report.
