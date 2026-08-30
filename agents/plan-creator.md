@@ -46,11 +46,12 @@ All plan files MUST begin with YAML frontmatter containing these fields:
 ---
 title: "Fix TODO Scanner Exclusion Patterns"
 component: "validation/roadmap_sync"
-work_type: "fix"          # fix | refactor | feature | optimize | docs | infrastructure
-status: "PENDING"         # PENDING | IN_PROGRESS | COMPLETED | ARCHIVED
-priority: "Critical"      # Critical | High | Medium | Low
-created: "2026-03-07"
-depends_on: []            # list of plan file names (without .md)
+work_type: fix            # fix | refactor | feature | optimize | docs | infrastructure | migration | investigation | security
+status: PENDING           # PENDING | IN_PROGRESS | BLOCKED | READY | DONE
+priority: Critical        # Blocker | Critical | High | Medium | Low
+created: 2026-03-07       # unquoted ISO date: loads as a date, not a string
+depends_on: []            # plan slugs: no .md extension, no directory prefix
+execution: agent          # agent | operator - who executes the plan
 ---
 ```
 

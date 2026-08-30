@@ -122,11 +122,12 @@ Before writing the plan body, enforce finite scope:
 ---
 title: "<title>"
 component: "<component>"
-work_type: "fix | refactor | feature | optimize | docs | infrastructure"
-status: "PENDING"
-priority: "Critical | High | Medium | Low"
-created: "<YYYY-MM-DD>"
+work_type: fix              # fix | refactor | feature | optimize | docs | infrastructure | migration | investigation | security
+status: PENDING             # PENDING | IN_PROGRESS | BLOCKED | READY | DONE
+priority: Critical          # Blocker | Critical | High | Medium | Low
+created: <YYYY-MM-DD>
 depends_on: []
+execution: agent
 ---
 
 ## Goal
