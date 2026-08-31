@@ -1,0 +1,55 @@
+---
+alwaysApply: true
+---
+
+# Predict Before You Edit
+
+A paid action is refused unless it carries a falsifiable claim, and the next frame grades that claim. In Cortex the paid action is an edit batch, and the next frame is `run_quality_gate()`.
+
+## The rule
+
+Before an edit batch that you expect to change gate-visible behavior, open a prediction:
+
+```text
+session(operation="predict",
+        prediction="gate clean; touches src/cortex/a.py",
+        task_description="why you believe this")
+```
+
+The next `run_quality_gate()` grades every open claim automatically and records the verdicts. `session()` surfaces open claims and recent misses at start.
+
+## The seven forms
+
+Each form is decidable from a quality-gate result or a git diff. Join several with `;` — a compound claim is only as true as its weakest part.
+
+| Form | Claim | Graded from |
+|---|---|---|
+| `gate clean` | the next quality gate passes with zero errors | gate result |
+| `gate fails <check>` | that named check still fails | gate checks |
+| `error gone <check>@<path>` | that specific gate error disappears | gate error rows |
+| `test <nodeid> passes` \| `fails` | pytest node outcome | test check output |
+| `coverage >= <pct>` | coverage at or above the threshold | coverage check |
+| `touches <path>` \| `noop <path>` | that file changes / does not | git diff |
+| `change` \| `noop` | something / nothing in the diff | git diff |
+
+Free text is accepted and graded as an implied `change`. An empty prediction is rejected: an empty prediction predicts nothing.
+
+## Verdicts
+
+- `HIT` — the frame confirmed the claim.
+- `MISS` — the frame contradicted it. **This is the valuable outcome.** A miss dates the exact edit where your model of the code and reality came apart; record what you learned.
+- `UNGRADED` — the frame carried no evidence either way. Never a silent pass. A claim that grades `UNGRADED` repeatedly is a claim written against something the gate cannot see — rewrite it in a form the gate can.
+
+## Batch only verified mechanics
+
+Batch several steps behind one prediction **only** when every mechanic in the batch is already verified. Predict one step at a time while exploring: unbatched probes into unknown behavior miss far more often than sequences of already-confirmed mechanics, and a long batch hides which step broke.
+
+## The `Refuted` section convention
+
+`activeContext.md` carries three claim states, and they must stay honest across compaction:
+
+- **Verified** — graded `HIT` by a gate frame. Safe to batch on.
+- **Assumed** — believed, not yet graded. Predict it before you build on it.
+- **Refuted** — graded `MISS`. Keep the entry with the date and the frame that refuted it; a deleted miss is a lesson thrown away.
+
+Move an entry between sections only on evidence — a gate verdict, not a feeling.

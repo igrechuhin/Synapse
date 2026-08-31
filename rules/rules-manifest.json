@@ -114,6 +114,22 @@
           "description": "No blanket test skipping; every skip must be justified with linked ticket"
         },
         {
+          "file": "predict-before-you-edit.mdc",
+          "priority": 92,
+          "keywords": [
+            "prediction",
+            "predict",
+            "falsifiable",
+            "claim",
+            "verdict",
+            "miss",
+            "quality-gate",
+            "belief",
+            "refuted"
+          ],
+          "description": "Record a falsifiable claim before an edit batch; the next quality gate grades it as HIT/MISS/UNGRADED"
+        },
+        {
           "file": "real-time-references.mdc",
           "priority": 70,
           "keywords": [
