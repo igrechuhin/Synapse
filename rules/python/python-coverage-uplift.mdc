@@ -102,7 +102,7 @@ Tests that make real network or filesystem calls outside the project MUST:
 
 ## Null Coverage Rollback (MANDATORY)
 
-If `run_quality_gate()` returns `coverage=null`:
+If a terminal `run_quality_gate()` result returns `coverage=null` (first resume any `status: "running"` response without editing files):
 
 1. This means the test runner crashed or a collection error made the suite non-runnable.
 2. Roll back ALL test files written in that iteration by restoring original content.

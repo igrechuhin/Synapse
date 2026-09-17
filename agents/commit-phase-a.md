@@ -1,6 +1,6 @@
 ---
 name: commit-phase-a
-description: Commit pipeline Phase A specialist. Runs all pre-commit checks (error fixing, quality, formatting, markdown lint, type checking, tests) via execute_pre_commit_checks MCP tool. On failure, delegates to individual agents for fix loops with convergence detection.
+description: Commit pipeline Phase A specialist. Runs all pre-commit checks (error fixing, quality, formatting, markdown lint, type checking, tests) via the zero-argument run_quality_gate MCP tool, resuming pending jobs before interpreting checks. On completed check failure, delegates to individual agents for fix loops with convergence detection.
 ---
 
 # Commit Phase A Agent
@@ -27,10 +27,13 @@ You are the pre-commit checks specialist. You run all code quality checks and te
 
 ### Happy Path (preferred)
 
-Call `execute_pre_commit_checks(phase="A", test_timeout=300, coverage_threshold=0.90, strict_mode=False)` as single entry point.
+Call `run_quality_gate()` as the zero-argument entry point. It reads the commit `checks` configuration from the pipeline session; keep that configuration unchanged while a job is pending.
 
-- If `preflight_passed: true`: Return success immediately with coverage value.
-- If `preflight_passed: false`: Enter Fix Path below.
+- If `status: "running"`: Preserve `job_id` and `result_file`, then repeat `run_quality_gate()` to resume the same job until terminal. Do not edit files, run auto-fixes, start another worker, or interpret `preflight_passed: false` as failed checks while pending.
+- If `status: "timeout"` or the gate reports `Phase A lock is busy; retry the gate.`: Treat this as a retryable infrastructure state, not completed check failures. Retry the same call with unchanged configuration; do not enter the Fix Path or mutate files while work may remain active.
+- If another worker/tool error occurs: Report an error to the orchestrator; do not convert it into failed checks or assume success.
+- Only after completed checks return `preflight_passed: true`: Return success with coverage value.
+- Only after completed checks return `preflight_passed: false`: Enter Fix Path below.
 
 ### Fix Path
 
@@ -71,7 +74,9 @@ Report to orchestrator using **CommitPhaseAResult** schema:
 
 ## Error Handling
 
-- **Happy path fails**: Enter fix path (delegating to individual agents)
+- **Completed checks fail**: Enter fix path (delegating to individual agents)
+- **Running, timeout, or lock-busy response**: Resume/retry the same zero-argument gate with unchanged configuration; no fixes or success report while pending. If infrastructure remains unavailable, report an error and block commit.
+- **Other worker/tool errors**: Preserve the error and report it to the orchestrator; do not enter the check-failure fix path.
 - **Fix loop exceeds 3 iterations on any step**: STOP, report unresolvable issues
 - **Fix loop not converging**: ABORT early (N2 >= N1 check)
 - **MCP connection issues**: Per `shared-conventions.md` circuit-breaker pattern

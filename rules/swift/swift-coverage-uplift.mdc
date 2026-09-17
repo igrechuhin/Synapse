@@ -94,7 +94,7 @@ Tests that make real network calls MUST:
 
 ## Null Coverage Rollback (MANDATORY)
 
-If `run_quality_gate()` returns `coverage=null`:
+If a terminal `run_quality_gate()` result returns `coverage=null` (first resume any `status: "running"` response without editing files):
 
 1. **First, read the latest swift-test transcript** at `.cortex/.session/logs/swift-test-*.log`
    (newest by mtime). The transcript header reports the interpreted `outcome` field:

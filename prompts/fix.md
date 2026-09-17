@@ -78,6 +78,8 @@ All MCP tools work when called with empty `{}` arguments. Use these zero-arg too
 - `run_quality_gate()` — run Phase A quality gate end-to-end (includes tests; may be long-running)
 - `run_docs_gate()` — run Phase B docs/memory-bank validation (fast; does NOT run tests)
 
+For every `run_quality_gate()` call below, first handle `status: "running"` by preserving `job_id` / `result_file` and repeating the same call until terminal. Pending responses are neither failures nor passes: do not edit files, call `autofix`, interpret missing coverage, or count a fix iteration while checks remain active.
+
 **CRITICAL**: After calling any fix/gate tool (and after completing PHASE 0), you MUST apply all remaining fixes inline. Do NOT produce a list of "required fixes" and stop. Just apply them immediately.
 
 ## MCP Availability Precondition (MANDATORY — run first)

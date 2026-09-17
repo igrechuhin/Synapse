@@ -106,8 +106,8 @@ Then call `pipeline_handoff()`. **GATE**: check `pipeline_state.phases.preflight
 
 Use @commit-phase-a to handle this phase. If the subagent is unavailable, run these steps inline:
 
-1. Call `run_quality_gate()` — zero-arg MCP tool that runs Phase A end-to-end and returns full results. Do NOT use `start_quality_job` + `get_quality_job_status`; in Cursor's MCP bridge those calls receive empty `{}` args.
-2. Parse the result: check `preflight_passed` (bool) and extract coverage from `results.tests.coverage` when present.
+1. Call `run_quality_gate()` — zero-arg MCP tool that runs or resumes Phase A. For every quality-gate call in this workflow, if `status: "running"`, preserve `job_id` / `result_file` and repeat the same call until terminal; do not mutate files, launch another worker, or count pending responses as fix iterations. Do NOT use `start_quality_job` + `get_quality_job_status`; in Cursor's MCP bridge those calls receive empty `{}` args.
+2. Parse the terminal result: check `preflight_passed` (bool) and extract coverage from `results.tests.coverage` when present.
    - Coverage is optional and language-dependent. SwiftPM runs may populate a numeric fraction when ``swift test --enable-code-coverage`` produced artifacts and Cortex parsed them; the same configured threshold applies as for Python when a numeric value is present.
    - If coverage is unavailable (no parseable value), carry `coverage: null` in pipeline state and report coverage as `N/A` (do not coerce to `0.0`).
 3. If `preflight_passed: false`: **delegate to the fix workflow** — invoke `@fix-quality` subagent (or run `/cortex/fix quality` inline from `fix.md` if unavailable). Do NOT call `autofix()` and retry inline. After the fix workflow completes, call `run_quality_gate()` once to confirm. Repeat delegation up to 3 times if the gate still fails.
@@ -390,7 +390,7 @@ Then call `pipeline_handoff()`.
 - **Phase C Synapse commit fails** (e.g. merge conflict inside submodule): STOP, block commit, report the submodule error
 - **Phase C Synapse push fails** (auth/network/SSL): Non-blocking — record the error and `synapse_push_succeeded: false` in pipeline state. Step 14 will retry the push as a safety net. Provide the manual push command to the user.
 - **Step 12 fails after 3 iterations**: Block commit — unless failures are exclusively pytest timeouts and no source code (`src/`/`tests/`) changed since Phase A (see timeout-only rule above)
-- **MCP disconnects**: All phase checks use blocking zero-arg tools (`run_quality_gate`, `run_docs_gate`) that run end-to-end in a single call. On disconnect, simply retry the tool call.
+- **MCP disconnects**: Zero-arg `run_quality_gate` resumes detached checks with bounded waits; repeat the same call after reconnect and handle `status: "running"` before interpreting gate success or failure. `run_docs_gate` returns its terminal result directly.
 - **3 consecutive MCP failures**: Circuit-breaker per `shared-conventions.md`. Call `pipeline_handoff(operation="read", pipeline="commit")` to restore context after reconnect.
 - **On any pipeline failure**: Report phase and error. Offer rollback using `snapshot_ref` from `phases.preflight`. Do NOT auto-rollback.
 

@@ -37,6 +37,7 @@ When invoked:
 Key practices:
 
 - Use **only** Cortex MCP tool `run_quality_gate()` (zero-arg) or, as fallback, `.venv/bin/python .cortex/synapse/scripts/{language}/check_linting.py`, `check_file_sizes.py`, `check_function_lengths.py`, `check_test_naming.py` as needed. Do **NOT** run raw linter/check commands in a Shell. (`execute_pre_commit_checks` is deprecated — use `run_quality_gate()`.)
+- If `run_quality_gate()` returns `status: "running"`, preserve its job handle and repeat the same call until terminal before interpreting checks or changing files.
 - Auto-detect project language and source directories
 - Verify `results.quality.success` = true (PRIMARY indicator)
 - Verify `len(results.quality.file_size_violations)` = 0 (MUST be empty)
