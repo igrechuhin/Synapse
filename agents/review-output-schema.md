@@ -55,7 +55,7 @@ Each metric must include both a numeric **score** and an **evidence** string exp
   - **Evidence**: File structure examples, function sizes, and dependency layout
 - **Rules Compliance**
   - **Score**: X/10 — File size, function length, one-type-per-file adherence
-  - **Evidence**: Outputs from `execute_pre_commit_checks` and specific compliant/violating files
+  - **Evidence**: Outputs from `run_quality_gate()` and specific compliant/violating files
 
 ## Critical Issues (Must-Fix)
 

@@ -53,9 +53,9 @@ When any sub-step finds errors and you fix them, you MUST re-run dependent steps
 
 **Sequential execution required** — do NOT run 12.1.2 in parallel with Phase 3 or Phase 4.
 
-1. **12.1.1 — Format fix**: `execute_pre_commit_checks(checks=["format"], skip_if_clean=True)` (Phase 89: skip if no source changes since Phase A)
+1. **12.1.1 — Format fix**: `run_quality_gate()` (Phase 89: skip if no source changes since Phase A)
 2. **12.1.2 — Format check**: Run same tool again; verify `results.format` indicates passed or `skipped: true`
-3. **12.1.3 — CI parity** (PREFER): `execute_pre_commit_checks(checks=["format_ci_parity"])`
+3. **12.1.3 — CI parity** (PREFER): `run_quality_gate()`
 4. **CHECK**: Parse full output. Verify status success and no formatting violations.
 5. **GATE**: Block if any formatting violations remain
 
@@ -63,7 +63,7 @@ When any sub-step finds errors and you fix them, you MUST re-run dependent steps
 
 ### Phase 3: Type Checking (12.2)
 
-1. Run `execute_pre_commit_checks(checks=["type_check"], skip_if_clean=True)`
+1. Run `run_quality_gate()`
 2. **CHECK**: Parse `results.type_check` — verify success = true, errors list empty
 3. **GATE**: Block if ANY type errors or warnings exist
 4. This check covers both `src/` and `tests/` to match CI
@@ -73,13 +73,13 @@ When any sub-step finds errors and you fix them, you MUST re-run dependent steps
 
 **Step 12.3.1 — Quality check**:
 
-1. Run `execute_pre_commit_checks(checks=["quality"], skip_if_clean=True)`
+1. Run `run_quality_gate()`
 2. **CHECK**: Parse `results.quality` — verify success = true, no file_size_violations, no function_length_violations, no lint errors. Also verify `results.type_check` success (quality gate includes type_check).
 3. **GATE**: Block if ANY violations
 
 **Step 12.3.2 — Spelling check**:
 
-1. Run `execute_pre_commit_checks(checks=["spelling"])`
+1. Run `run_quality_gate()`
 2. **CHECK**: Parse `results.spelling` — verify success = true, errors list empty
 3. **GATE**: Block if ANY spelling violations
 
@@ -87,7 +87,7 @@ When any sub-step finds errors and you fix them, you MUST re-run dependent steps
 
 ### Phase 5: Test Naming (12.4)
 
-1. Run `execute_pre_commit_checks(checks=["test_naming"])`
+1. Run `run_quality_gate()`
 2. **CHECK**: Parse `results.test_naming` — verify passed, no violations
 3. **GATE**: Block if any test naming violations (pattern: `test_<name>` with underscore)
 
@@ -102,7 +102,7 @@ When any sub-step finds errors and you fix them, you MUST re-run dependent steps
 
 ### Phase 7: Quality Re-check (12.6)
 
-1. Run `execute_pre_commit_checks(checks=["quality"], skip_if_clean=True)`
+1. Run `run_quality_gate()`
 2. **CHECK**: Verify `results.quality.file_size_violations` empty AND `results.quality.function_length_violations` empty
 3. **GATE**: Block if ANY violations
 4. **Connection error fallback**: Use language-specific scripts `check_file_sizes.{ext}` and `check_function_lengths.{ext}`. Both must exit 0.
@@ -112,7 +112,7 @@ When any sub-step finds errors and you fix them, you MUST re-run dependent steps
 **Ordering**: Tests run LAST because the test suite can take minutes and cause MCP staleness.
 
 1. **Pre-test health check**: Call `health_check()`. **GATE**: If unhealthy after retry, block commit.
-2. Run `execute_pre_commit_checks(checks=["tests"], test_timeout=600, coverage_threshold=0.90, strict_mode=False, skip_if_clean=True)`
+2. Run `run_quality_gate()`
 3. **CHECK**: Verify `results.tests.success` = true, `results.tests.tests_failed` = 0, `results.tests.pass_rate` = 100.0, `results.tests.coverage` >= 0.90
 4. **GATE**: Block if tests fail OR coverage < 90%
 5. **Connection error with exponential backoff**: First retry after 2s, second after 5s. If both fail, **GATE**: block commit. NO fallback — tests cannot be skipped.

@@ -498,7 +498,7 @@ def create_user(data: dict[str, object]) -> User | None:
 
 ## Testing JSON Responses (MANDATORY)
 
-**CRITICAL**: When testing MCP tool responses or structured JSON from tools like `manage_file`, `rules`, and `execute_pre_commit_checks`, you MUST use Pydantic v2 models, not raw `dict` assertions.
+**CRITICAL**: When testing MCP tool responses or structured JSON from tools like `manage_file`, `rules`, and `run_quality_gate()`, you MUST use Pydantic v2 models, not raw `dict` assertions.
 
 **REQUIRED Pattern**:
 

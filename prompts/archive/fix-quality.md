@@ -1,6 +1,6 @@
 ## Fix Quality (Helper Command)
 
-**AI EXECUTION COMMAND**: Fix type errors, formatting, linting, and related quality issues using Cortex MCP tools, outside of the full commit pipeline. Typically called when `/cortex/commit` or `execute_pre_commit_checks(phase="A")` reports non-test quality failures.
+**AI EXECUTION COMMAND**: Fix type errors, formatting, linting, and related quality issues using Cortex MCP tools, outside of the full commit pipeline. Typically called when `/cortex/commit` or `run_quality_gate()` reports non-test quality failures.
 
 ### Severity Levels
 
@@ -17,8 +17,8 @@
 ### Tooling Requirements (MANDATORY)
 
 - Prefer these Cortex MCP tools:
-  - `execute_pre_commit_checks(checks=["fix_quality"], include_untracked_markdown=True)` for automated quality fixes.
-  - `execute_pre_commit_checks(checks=["type_check", "quality", "format"], test_timeout=300, coverage_threshold=0.90, strict_mode=False)` for targeted quality verification.
+  - `run_quality_gate()` for automated quality fixes.
+  - `run_quality_gate()` for targeted quality verification.
 - **Do NOT** run `black`, `ruff`, `isort`, or other formatters/linters directly; rely on Cortex MCP tools.
 
 ### Pre-Action Checklist
@@ -32,7 +32,7 @@ Before making changes, you MUST:
 2. ✅ **Understand current quality status**:
    - If recent Phase A preflight or `/cortex/commit` output is available, review which checks failed (type_check, quality, markdown_lint, format).
    - If no recent context is available, run:
-     - `execute_pre_commit_checks(checks=["type_check", "quality", "format"], test_timeout=300, coverage_threshold=0.90, strict_mode=False)`
+     - `run_quality_gate()`
      - And inspect the structured response for failures.
 
 3. ✅ **Scope changes**:
@@ -45,7 +45,7 @@ Before making changes, you MUST:
 Once the checklist above is satisfied, **move directly into these steps without pausing for user confirmation or waiting for an “ok, proceed” message.**
 
 1. **Run automatic quality fixes**
-   - Call `execute_pre_commit_checks(checks=["fix_quality"], include_untracked_markdown=True)` to apply automated fixes.
+   - Call `run_quality_gate()` to apply automated fixes.
    - Inspect the response:
      - Note which files were modified.
      - Note any remaining type errors or issues that could not be auto-fixed.
@@ -61,7 +61,7 @@ Once the checklist above is satisfied, **move directly into these steps without 
 3. **Re-run targeted quality checks**
 
    - After fixes, run:
-     `execute_pre_commit_checks(checks=["type_check", "quality", "format"], test_timeout=300, coverage_threshold=0.90, strict_mode=False)`
+     `run_quality_gate()`
    - Verify that:
      - Type errors are resolved.
      - Quality checks pass.

@@ -1,6 +1,6 @@
 ## Docs & Memory Bank Sync (Helper Command)
 
-**AI EXECUTION COMMAND**: Synchronize documentation and memory bank state using Cortex MCP tools, without running the full commit pipeline. Typically called when `/cortex/commit` or `execute_pre_commit_checks(phase="B")` reports Phase B failures.
+**AI EXECUTION COMMAND**: Synchronize documentation and memory bank state using Cortex MCP tools, without running the full commit pipeline. Typically called when `/cortex/commit` or `run_docs_gate()` reports Phase B failures.
 
 ### Severity Levels
 
@@ -17,7 +17,7 @@
 ### Tooling Requirements (MANDATORY)
 
 - Prefer these Cortex MCP tools:
-  - `execute_pre_commit_checks(phase="B")` for aggregated docs/memory validation.
+  - `run_docs_gate()` for aggregated docs/memory validation.
   - `validate(check_type="timestamps")` and `validate(check_type="roadmap_sync")` when deeper inspection is needed.
   - `manage_file()` for reading/writing memory bank and roadmap files via Cortex MCP.
 - Use `get_structure_info()` for resolving paths; do **not** hardcode `.cortex/` paths.
@@ -45,7 +45,7 @@ Before making changes, you MUST:
      - Which checks failed (`timestamps`, `roadmap_sync`, etc.).
      - Any detailed error information included in the response.
    - If no recent result is available, call:
-     - `execute_pre_commit_checks(phase="B")` and inspect its structured response.
+     - `run_docs_gate()` and inspect its structured response.
 
 ### Execution Steps
 
@@ -74,7 +74,7 @@ Before making changes, you MUST:
      - Ensure entries are in the correct sections and order as required by the project rules.
 
 4. **Re-run docs & memory sync helper**
-   - After applying fixes, call `execute_pre_commit_checks(phase="B")` again.
+   - After applying fixes, call `run_docs_gate()` again.
    - Confirm that:
      - `status="success"`.
      - `docs_phase_passed` is `True`.

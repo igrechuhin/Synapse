@@ -123,9 +123,9 @@ def _score_docstring(doc: str, module: str, name: str) -> ToolScore:
     )
 
 
-def _resolve_doc_overrides(tree: ast.Module, path: Path) -> dict[str, str]:
+def _resolve_doc_overrides(tree: ast.Module) -> dict[str, str]:
     """Resolve func.__doc__ = CONST assignments to actual docstrings."""
-    # Map: constant_name -> docstring value (from same file or imported module)
+    # Map: constant_name -> docstring value (same file)
     constants: dict[str, str] = {}
     # Map: func_name -> constant_name from __doc__ assignments
     overrides: dict[str, str] = {}
@@ -143,33 +143,6 @@ def _resolve_doc_overrides(tree: ast.Module, path: Path) -> dict[str, str]:
                         node.value.value, str
                     ):
                         constants[target.id] = node.value.value
-
-    # Resolve overrides via imports (same-package imports)
-    imports: dict[str, str] = {}
-    for node in tree.body:
-        if isinstance(node, ast.ImportFrom):
-            if node.module and "structure_docs" in node.module:
-                for alias in node.names:
-                    if alias.name:
-                        imports[alias.name] = alias.name
-
-    # Load constants from structure_docs if imported
-    if imports:
-        docs_path = path.parent / "structure_docs.py"
-        if docs_path.exists():
-            try:
-                docs_tree = ast.parse(docs_path.read_text(encoding="utf-8"))
-                for n in docs_tree.body:
-                    if (
-                        isinstance(n, ast.Assign)
-                        and len(n.targets) == 1
-                        and isinstance(n.targets[0], ast.Name)
-                        and isinstance(n.value, ast.Constant)
-                        and isinstance(n.value.value, str)
-                    ):
-                        constants[n.targets[0].id] = n.value.value
-            except Exception:
-                pass
 
     result: dict[str, str] = {}
     for func_name, const_name in overrides.items():
@@ -193,7 +166,7 @@ def _find_tools_in_file(path: Path, project_root: Path) -> list[ToolScore]:
     rel = path.relative_to(project_root)
     module = str(rel).replace("/", ".").replace("\\", ".").replace(".py", "")
 
-    doc_overrides = _resolve_doc_overrides(tree, path)
+    doc_overrides = _resolve_doc_overrides(tree)
 
     scores: list[ToolScore] = []
     for node in ast.walk(tree):

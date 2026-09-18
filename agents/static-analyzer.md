@@ -20,7 +20,7 @@ When invoked:
 
 Key practices:
 
-- Use Cortex MCP tool `execute_pre_commit_checks(checks=["quality"])` or, as fallback, `.venv/bin/python .cortex/synapse/scripts/{language}/check_linting.py`. Do **NOT** run raw linter commands (e.g., `ruff`, `eslint`) in a Shell.
+- Use Cortex MCP tool `run_quality_gate()` or, as fallback, `.venv/bin/python .cortex/synapse/scripts/{language}/check_linting.py`. Do **NOT** run raw linter commands (e.g., `ruff`, `eslint`) in a Shell.
 - **DO NOT** run type checker - that's handled by type-checker agent
 - Parse output to extract exact error and warning counts
 - Categorize issues by severity (errors vs warnings)

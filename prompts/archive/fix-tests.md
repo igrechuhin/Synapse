@@ -1,6 +1,6 @@
 ## Fix Tests (Helper Command)
 
-**AI EXECUTION COMMAND**: Diagnose and fix failing tests using Cortex MCP tools, without running the full commit pipeline. Typically called after `/cortex/commit` or `execute_pre_commit_checks(phase="A")` reports test failures.
+**AI EXECUTION COMMAND**: Diagnose and fix failing tests using Cortex MCP tools, without running the full commit pipeline. Typically called after `/cortex/commit` or `run_quality_gate()` reports test failures.
 
 ### Severity Levels
 
@@ -17,9 +17,9 @@
 ### Tooling Requirements (MANDATORY)
 
 - Use **Cortex MCP tools only** for tests and quality:
-  - `execute_pre_commit_checks(checks=["tests"], test_timeout=..., coverage_threshold=0.90, strict_mode=False)`
-  - `execute_pre_commit_checks(checks=["fix_errors", "format", "quality", "type_check"])` if type/quality issues block test fixes.
-- **Do NOT** run raw test commands in a Shell. Always use `execute_pre_commit_checks` for test execution.
+  - `run_quality_gate()`
+  - `run_quality_gate()` if type/quality issues block test fixes.
+- **Do NOT** run raw test commands in a Shell. Always use `run_quality_gate()` for test execution.
 
 ### Pre-Action Checklist
 
@@ -31,7 +31,7 @@ Before making changes, you MUST:
 
 2. ✅ **Understand recent failures**:
    - If available, inspect the most recent Phase A preflight or `/cortex/commit` output to see which tests failed.
-   - If that context is not available, run `execute_pre_commit_checks(checks=["tests"], test_timeout=600, coverage_threshold=0.90, strict_mode=False)` once to get a fresh baseline.
+   - If that context is not available, run `run_quality_gate()` once to get a fresh baseline.
 
 3. ✅ **Scope the task**:
    - Focus only on **test failures and coverage gaps** related to the current work.
@@ -42,8 +42,8 @@ Before making changes, you MUST:
 After you have identified failing tests from the checklist above, **proceed directly through these steps without pausing for user confirmation or waiting for an “ok, proceed” message.**
 
 1. **Run or reuse test results**
-   - If you already have recent structured results from `execute_pre_commit_checks(checks=["tests"], ...)`, reuse them.
-   - Otherwise, call `execute_pre_commit_checks(checks=["tests"], test_timeout=600, coverage_threshold=0.90, strict_mode=False)` to run tests.
+   - If you already have recent structured results from `run_quality_gate()`, reuse them.
+   - Otherwise, call `run_quality_gate()` to run tests.
    - Parse the structured response to identify:
      - Which tests failed.
      - Any coverage information provided (especially if below threshold).
@@ -63,7 +63,7 @@ After you have identified failing tests from the checklist above, **proceed dire
 
 4. **Re-run tests iteratively**
    - After a set of fixes, re-run tests with:
-     - `execute_pre_commit_checks(checks=["tests"], test_timeout=600, coverage_threshold=0.90, strict_mode=False)`.
+     - `run_quality_gate()`.
    - Repeat the fix → re-run loop until:
      - All relevant tests pass, and
      - Coverage meets or exceeds thresholds (≥90% global, ≥95% for new/modified code) where reported.

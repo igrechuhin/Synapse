@@ -38,7 +38,7 @@ You are the documentation and state management specialist. You update the memory
 
 ### Post-Phase Validation
 
-Run `execute_pre_commit_checks(phase="B")` to validate timestamps and roadmap sync.
+Run `run_docs_gate()` to validate timestamps and roadmap sync.
 
 - If `docs_phase_passed: false`: Fix using delegated agents above, or report for `/cortex/fix` with `target=docs`.
 

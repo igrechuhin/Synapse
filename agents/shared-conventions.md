@@ -49,7 +49,7 @@ After pre-flight passes, continue directly to execution steps without pausing fo
 
 - Use **Cortex MCP tools** for all memory bank, rules, validation, and structure operations.
 - Use **standard IDE tools** (`Read`, `Write`, `Glob`, `Grep`, `Edit`) for code and file operations. See Agent Tool Mapping below for per-agent equivalents.
-- **Do NOT** run language-specific formatters/linters/test runners directly (e.g., `black`, `ruff`, `pytest`). Use `execute_pre_commit_checks()` or `autofix()` instead.
+- **Do NOT** run language-specific formatters/linters/test runners directly (e.g., `black`, `ruff`, `pytest`). Use `run_quality_gate()` or `autofix()` instead.
 - Shell commands are a last resort when MCP tools and IDE tools are both unavailable.
 
 ## Agent Tool Mapping
@@ -107,8 +107,6 @@ This is a **second, independent** signal from the Circuit-Breaker Pattern above.
 
 - **Target changes** (different file/test): only the most recent 3 records count, so a switch to a new target starts a fresh streak.
 - **Outcome changes** on the same target (the fix had some effect, even if incomplete): this is progress, not a stuck loop, and does not trip.
-
-See `src/cortex/core/no_progress_monitor.py` (`AttemptRecord`, `detect_no_progress`) for the reference model and comparison logic.
 
 ## Memory Bank Contract
 

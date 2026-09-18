@@ -106,7 +106,7 @@ Then call `pipeline_handoff()`. **GATE**: check `pipeline_state.phases.preflight
 
 Use @commit-phase-a to handle this phase. If the subagent is unavailable, run these steps inline:
 
-1. Call `run_quality_gate()` — zero-arg MCP tool that runs or resumes Phase A. For every quality-gate call in this workflow, if `status: "running"`, preserve `job_id` / `result_file` and repeat the same call until terminal; do not mutate files, launch another worker, or count pending responses as fix iterations. Do NOT use `start_quality_job` + `get_quality_job_status`; in Cursor's MCP bridge those calls receive empty `{}` args.
+1. Call `run_quality_gate()` — zero-arg MCP tool that runs or resumes Phase A. For every quality-gate call in this workflow, if `status: "running"`, preserve `job_id` / `result_file` and repeat the same call until terminal; do not mutate files, launch another worker, or count pending responses as fix iterations.
 2. Parse the terminal result: check `preflight_passed` (bool) and extract coverage from `results.tests.coverage` when present.
    - Coverage is optional and language-dependent. SwiftPM runs may populate a numeric fraction when ``swift test --enable-code-coverage`` produced artifacts and Cortex parsed them; the same configured threshold applies as for Python when a numeric value is present.
    - If coverage is unavailable (no parseable value), carry `coverage: null` in pipeline state and report coverage as `N/A` (do not coerce to `0.0`).

@@ -48,7 +48,7 @@ When file size or function length exceeds project limits, use the **helper modul
    - **If file is already large** (≥ 350 lines): Extract to a `*_helpers.py` module
 2. **Keep main function as orchestrator** - The original function should become a clear orchestrator that calls helper functions, maintaining readability and single responsibility.
 3. **Move detailed logic to helpers** - Complex logic, nested conditionals, and detailed implementations should be moved to helper functions.
-4. **Re-run quality gate** - After extraction, run the full quality gate (`execute_pre_commit_checks(checks=["quality"])`) to verify violations are resolved.
+4. **Re-run quality gate** - After extraction, run the full quality gate (`run_quality_gate()`) to verify violations are resolved.
 
 ### General Guidelines
 

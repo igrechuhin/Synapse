@@ -72,7 +72,7 @@ Execute all implementation tasks:
 
 ### 3.2 Format Code (MANDATORY: Format code, before type checking)
 
-- **MANDATORY: Format code** before type checking. Use `execute_pre_commit_checks(checks=["format"])` to format all new/modified files
+- **MANDATORY: Format code** before type checking. Use `run_quality_gate()` to format all new/modified files
 - **BLOCKING**: All files MUST be formatted before proceeding to type checking
 
 ### 3.3 Type Check (MANDATORY: Run type checking, before writing tests)
@@ -86,11 +86,11 @@ Execute all implementation tasks:
   - Missing type annotations: Add explicit types to all functions/methods
   - Implicit concatenation: Fix reportImplicitStringConcatenation diagnostics (multi-line string / implicit concatenation)
 - Re-run type check until 0 errors, 0 warnings
-- **Async refactoring**: When making methods async, update all call sites in tests to await the coroutine. Run `execute_pre_commit_checks(checks=["check_async_tests"])` if async behavior changed.
+- **Async refactoring**: When making methods async, update all call sites in tests to await the coroutine. Run `run_quality_gate()` if async behavior changed.
 
 ### 3.4 Review Testing Standards (Before Step 3.5 / before writing tests)
 
-- **Before Step 3.5**: Run ReadLints or `execute_pre_commit_checks(checks=["quality"])` if needed
+- **Before Step 3.5**: Run ReadLints or `run_quality_gate()` if needed
 - Call `rules(operation="get_relevant", task_description="testing standards")` or read testing-standards.mdc
 - Do not test private functions (functions starting with `_`); test through public APIs only
 
@@ -116,11 +116,11 @@ Execute all implementation tasks:
 - **Load context before fixing**: Call `load_context(task_description="Fixing errors and issues during implementation", token_budget=15000)` (use 15000 for narrow steps, 20000 for larger steps) and load relevant rules before applying any fixes. If `load_context()` returns a validation error, use `manage_file(file_name="activeContext.md", operation="read")` as fallback to read context.
 - Fix linter issues, type errors, formatting issues
 - Ensure all tests pass
-- Run `execute_pre_commit_checks(checks=["fix_errors", "format", "quality", "type_check"])` and fix any reported issues
+- Run `run_quality_gate()` and fix any reported issues
 
 ## Phase 4: Verify Test Coverage (MANDATORY)
 
-1. Run `execute_pre_commit_checks(checks=["tests"], test_timeout=600, coverage_threshold=0.90, strict_mode=False)`
+1. Run `run_quality_gate()`
 2. Verify ALL new functionality meets required coverage threshold
 3. If below threshold: load context/rules, add missing tests, re-run until threshold met
 4. Document final coverage percentage
@@ -144,7 +144,7 @@ Execute all implementation tasks:
 
 **Purpose**: Ensure no rot code is left for the commit pipeline.
 
-1. Run `execute_pre_commit_checks(checks=["quality"])` — this runs both quality and type_check
+1. Run `run_quality_gate()` — this runs both quality and type_check
 2. **Verify**:
    - `status` = "success"
    - `results.quality.success` = true; no file_size_violations; no function_length_violations; no lint errors

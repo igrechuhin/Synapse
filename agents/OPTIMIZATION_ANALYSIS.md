@@ -143,7 +143,7 @@
 1. **Create `error-fixer.md`** (HIGH)
    - Fixes compiler errors, type errors, formatting issues, warnings
    - Runs BEFORE all other checks (Step 0)
-   - Uses `execute_pre_commit_checks(checks=["fix_errors"])`
+   - Uses `run_quality_gate()`
 
 2. **Clarify static-analyzer vs type-checker** (HIGH)
    - Remove type checking from `static-analyzer`

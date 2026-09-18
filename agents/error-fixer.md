@@ -39,7 +39,7 @@ When invoked:
 
 Key practices:
 
-- Use `execute_pre_commit_checks(checks=["fix_errors"], strict_mode=False)` MCP tool when available
+- Use `run_quality_gate()` MCP tool when available
 - Auto-detect project language and appropriate tools
 - Fix all compiler errors, type errors, formatting issues, and warnings
 - Return structured results with error counts and files modified
