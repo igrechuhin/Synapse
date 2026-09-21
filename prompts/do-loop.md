@@ -62,6 +62,18 @@ Spawn **one** subagent with this instruction:
 > signal — the pass is only done once Finalize has run. When complete, output the standard
 > Pipeline report, including the Finalize row (plan archived / updated / kept open)."
 
+Create and await the subagent in the **same host call**. Use that host's native blocking form:
+
+- Workflow runtime: `const result = await agent(instruction, options)`.
+- Handle runtime: `const handle = agent(instruction, options)`; verify that `handle.wait` is
+  callable, then call `const result = await handle.wait(600)` directly. If the check fails, STOP
+  immediately with `SUBAGENT_HANDLE_INVALID`.
+
+Never use a handle's JSON representation as a completion token: opaque handles can serialize as
+`{}`. Never pass serialized, missing, or reconstructed handles to batch `wait(...)`, and never use
+an unbounded `timeout: 0`. If the host cannot create and await the live handle in one call, STOP
+with `SUBAGENT_HANDLE_UNRECOVERABLE` instead of entering the roadmap loop.
+
 **STOP HERE. Do not proceed to C until this subagent has returned.**
 No other work happens while the subagent runs.
 
