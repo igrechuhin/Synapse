@@ -111,10 +111,28 @@ def check_file(path: Path, project_root: Path) -> list[str]:
             name_match = re.search(r"(?:func|init|subscript)\s+(\w*)", lines[i])
             func_name = name_match.group(1) if name_match else "(anonymous)"
 
-            # Find body start (opening brace may be on same or next line)
+            # Find body start (opening brace may be on same or next line).
+            # A bodyless declaration — a protocol requirement such as
+            # `func allows(_:at:) async -> Bool` — has no body at all. Detect it
+            # by its terminator: the scan stops at a closing brace or at the next
+            # declaration, so it cannot latch onto an unrelated body further down
+            # the file and report that body's length against this declaration.
+            # Do NOT bound the scan by a fixed line window — a wide parameter list
+            # can push the opening brace arbitrarily far below the `func` line, and
+            # bounding it would silently exclude those functions from the check.
             body_start = i
-            while body_start < min(i + 10, len(lines)) and "{" not in lines[body_start]:
+            bodyless = False
+            while body_start < len(lines) and "{" not in lines[body_start]:
+                if body_start > i and (
+                    "}" in lines[body_start] or _FUNC_START_RE.match(lines[body_start])
+                ):
+                    bodyless = True
+                    break
                 body_start += 1
+
+            if bodyless or body_start >= len(lines):
+                i += 1
+                continue
 
             logical = count_logical_lines_in_body(lines, body_start)
 
