@@ -71,22 +71,35 @@ _RAW_COVERAGE_SOURCES = os.getenv("COVERAGE_SOURCES", "Sources")
 COVERAGE_SOURCES: list[str] = [
     s.strip() for s in _RAW_COVERAGE_SOURCES.split(",") if s.strip()
 ]
+# AI: 2026-10-02 fix (carried REV-2026-05-14-1): anchor every summary regex to a line
+# start and use horizontal-only whitespace ([^\S\n]) so interleaved SwiftPM output cannot
+# stitch fragments from separate lines into a phantom failed/passed summary match.
+_H = r"[^\S\n]+"  # one-or-more horizontal whitespace; never crosses a newline
 _XCTEST_SUMMARY_RE = re.compile(
-    r"Executed\s+(?P<total>\d+)\s+tests?,\s+with\s+"
-    + r"(?:(?P<skipped>\d+)\s+tests\s+skipped\s+and\s+)?"
-    + r"(?P<failed>\d+)\s+failures",
-    re.IGNORECASE,
+    rf"^[^\S\n]*Executed{_H}(?P<total>\d+){_H}tests?,{_H}with{_H}"
+    + rf"(?:(?P<skipped>\d+){_H}tests{_H}skipped{_H}and{_H})?"
+    + rf"(?P<failed>\d+){_H}failures",
+    re.IGNORECASE | re.MULTILINE,
 )
 # AI: Require the Swift Testing terminal rollup shape (`… passed after` / `… failed after`) so
 # unrelated log lines that contain `suites` + `failed` as substrings cannot flip the parser.
 # AI: Swift prints `N suite` (singular) when N==1 and `N suites` otherwise — require `suites?`.
+# AI: The `✔`/`✘` rollup marker is optional so piped/non-TTY output without markers still matches.
+# AI: 2026-10-02 (review P1): on macOS Swift Testing prefixes the rollup with a Supplementary
+# Private Use Area glyph (observed U+10105B) followed by two spaces — the class also accepts
+# the PUA ranges so real terminal rollups match; anything else still requires a line start.
+_PUA_MARKER_CLASS = "[✔✘\U000F0000-\U0010FFFF]"
+_SWIFT_TESTING_ROLLUP_PREFIX = (
+    rf"^[^\S\n]*(?:{_PUA_MARKER_CLASS}[^\S\n]*)?Test{_H}run{_H}with{_H}"
+    + rf"(?P<total>\d+){_H}tests{_H}in{_H}\d+{_H}suites?{_H}"
+)
 _SWIFT_TESTING_PASSED_RE = re.compile(
-    r"Test\s+run\s+with\s+(?P<total>\d+)\s+tests\s+in\s+\d+\s+suites?\s+passed\s+after",
-    re.IGNORECASE,
+    _SWIFT_TESTING_ROLLUP_PREFIX + rf"passed{_H}after",
+    re.IGNORECASE | re.MULTILINE,
 )
 _SWIFT_TESTING_FAILED_RE = re.compile(
-    r"Test\s+run\s+with\s+(?P<total>\d+)\s+tests\s+in\s+\d+\s+suites?\s+failed\s+after",
-    re.IGNORECASE,
+    _SWIFT_TESTING_ROLLUP_PREFIX + rf"failed{_H}after",
+    re.IGNORECASE | re.MULTILINE,
 )
 
 

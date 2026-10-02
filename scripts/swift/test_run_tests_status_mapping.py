@@ -57,6 +57,35 @@ class SwiftRunTestsStatusMappingTests(unittest.TestCase):
         self.assertEqual(total, 11)
         self.assertEqual(failed, 0)
 
+    def test_parse_summary_accepts_macos_pua_glyph_rollup(self) -> None:
+        """Real macOS rollups open with a PUA glyph (U+10105B) + two spaces."""
+        output = (
+            "Test Suite 'All tests' started at 2026-10-02 10:03:31.108.\n"
+            "Test Suite 'All tests' passed at 2026-10-02 10:03:31.109.\n"
+            "\t\t Executed 0 tests, with 0 failures (0 unexpected) in 0.000 (0.001) seconds\n"
+            "\U0010105B  Test run with 250 tests in 32 suites passed after 5.0 seconds.\n"
+        )
+        total, failed = parse_swift_test_summary(output)
+
+        self.assertEqual(total, 250)
+        self.assertEqual(failed, 0)
+
+    def test_parse_summary_rejects_cross_line_stitched_fragment(self) -> None:
+        """A fragment stitched across a newline matches nothing on its own."""
+        output = "Test run with\n 4 tests in 2 suites failed after 1.0 seconds (garbage)\n"
+        total, failed = parse_swift_test_summary(output)
+
+        self.assertIsNone(total)
+        self.assertIsNone(failed)
+
+    def test_parse_summary_rejects_mid_line_prose_fragment(self) -> None:
+        """Prose mentioning a rollup mid-line matches nothing on its own."""
+        output = "note: previous attempt's test run with 5 tests in 1 suite failed after retry\n"
+        total, failed = parse_swift_test_summary(output)
+
+        self.assertIsNone(total)
+        self.assertIsNone(failed)
+
     def test_parse_summary_prefers_last_swift_testing_outcome_over_earlier_failed(
         self,
     ) -> None:
