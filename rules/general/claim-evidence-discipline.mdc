@@ -1,0 +1,21 @@
+---
+description: Every factual claim in reports and verdicts carries an explicit evidence label (MEASURED, INFERRED, UNRESOLVED); no causal attribution without a discriminating measurement; corrections supersede, never rewrite history.
+alwaysApply: true
+created_by: operator-directive-2026-10-03
+---
+
+# Claim Evidence Discipline
+
+Operator demand (2026-10-03): reports kept oscillating between confident claims and self-retractions. The fix is procedural, not stylistic.
+
+## Rules
+
+1. **Label every factual claim** in any report, verdict, completion record, or operator-facing summary:
+   - **[MEASURED]** — directly observed via a tool, with the artifact path, command, or log line and a timestamp. The claim names its evidence inline.
+   - **[INFERRED]** — derived from measurements but not itself observed. Must name the discriminating test that would falsify it.
+   - **[UNRESOLVED]** — open question. No completion, no cause, no promise attached.
+2. **No causal attribution without a discriminating measurement.** "X caused Y" requires evidence that excludes the alternatives, not just consistency with X.
+3. **Sample scope is stated.** N-of-M comparisons ("3 of 433 rows broker-compared") are labeled sample-level; set-level claims require set-level evidence.
+4. **Corrections supersede, never rewrite.** When a claim is retracted, the correction names what was wrong and where the corrected record lives; source artifacts keep their history.
+5. **Completion claims** cite the acceptance criterion they satisfy. A green format/sync gate validates formatting, not facts.
+6. **No promises of automatic behavior** without the mechanism that performs it being installed and observed.
