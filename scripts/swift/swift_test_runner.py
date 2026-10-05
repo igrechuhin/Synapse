@@ -299,19 +299,8 @@ def _find_xctest_binaries(build_dir: Path) -> list[Path]:
     return binaries
 
 
-def _measure_coverage(project_root: Path) -> float | None:
-    """Run llvm-cov against the most-recent profdata and return aggregate line coverage %.
-
-    Returns None when profdata or xctest binaries cannot be located.
-    """
-    # Locate the most-recently modified profdata produced by SwiftPM.
-    profdata_candidates = list((project_root / ".build").rglob("default.profdata"))
-    if not profdata_candidates:
-        print("⚠️  No profdata found after coverage run.", file=sys.stderr)
-        return None
-    profdata = max(profdata_candidates, key=lambda p: p.stat().st_mtime)
-
-    # Collect xctest binaries.
+def _coverage_binaries(project_root: Path, profdata: Path) -> list[Path]:
+    """Locate coverage binaries, falling back to the profdata build directory."""
     build_debug = project_root / ".build" / "arm64-apple-macosx" / "debug"
     if not build_debug.exists():
         build_debug = project_root / ".build" / "debug"
@@ -319,11 +308,11 @@ def _measure_coverage(project_root: Path) -> float | None:
     if not xctest_binaries:
         # Try searching from the profdata's parent codecov dir upward.
         xctest_binaries = _find_xctest_binaries(profdata.parent.parent)
-    if not xctest_binaries:
-        print("⚠️  No xctest binaries found for llvm-cov.", file=sys.stderr)
-        return None
+    return xctest_binaries
 
-    # Collect source files.
+
+def _coverage_source_files(project_root: Path) -> list[str]:
+    """Collect configured Swift sources, excluding generated files."""
     source_files: list[str] = []
     for src_dir in COVERAGE_SOURCES:
         src_path = project_root / src_dir
@@ -334,46 +323,25 @@ def _measure_coverage(project_root: Path) -> float | None:
                     for s in (".pb.swift", ".grpc.swift", ".generated.swift")
                 ):
                     source_files.append(str(sf))
-    if not source_files:
-        print("⚠️  No source files found for coverage measurement.", file=sys.stderr)
-        return None
+    return source_files
 
-    primary = xctest_binaries[0]
-    report_cmd = [
-        "xcrun",
-        "llvm-cov",
-        "report",
-        str(primary),
-        f"--instr-profile={profdata}",
-        "--ignore-filename-regex=\\.build|Tests/|Plugins/|.*\\.pb\\.swift|.*\\.grpc\\.swift",
-    ]
-    for extra in xctest_binaries[1:]:
-        report_cmd.extend(["-object", str(extra)])
-    report_cmd.extend(source_files)
 
-    result = subprocess.run(
-        report_cmd, capture_output=True, text=True, check=False, cwd=project_root
-    )
-    report_text = result.stdout + result.stderr
+def _coverage_command(
+    mode: str, binaries: list[Path], profdata: Path, source_files: list[str]
+) -> list[str]:
+    """Build report/export commands with the same objects and sources."""
+    cmd = ["xcrun", "llvm-cov", mode, str(binaries[0]), f"--instr-profile={profdata}"]
+    if mode == "export":
+        cmd.append("--summary-only")
+    cmd.append("--ignore-filename-regex=\\.build|Tests/|Plugins/|.*\\.pb\\.swift|.*\\.grpc\\.swift")
+    for extra in binaries[1:]:
+        cmd.extend(["-object", str(extra)])
+    cmd.extend(source_files)
+    return cmd
 
-    # Parse TOTAL line.
-    m = _TOTAL_COVERAGE_RE.search(report_text)
-    if m:
-        return float(m.group("line_pct"))
 
-    # Fallback: llvm-cov export --summary-only JSON.
-    export_cmd = [
-        "xcrun",
-        "llvm-cov",
-        "export",
-        str(primary),
-        f"--instr-profile={profdata}",
-        "--summary-only",
-        "--ignore-filename-regex=\\.build|Tests/|Plugins/|.*\\.pb\\.swift|.*\\.grpc\\.swift",
-    ]
-    for extra in xctest_binaries[1:]:
-        export_cmd.extend(["-object", str(extra)])
-    export_cmd.extend(source_files)
+def _export_coverage(export_cmd: list[str], project_root: Path) -> float | None:
+    """Read aggregate coverage from the llvm-cov JSON fallback."""
     ex = subprocess.run(
         export_cmd, capture_output=True, text=True, check=False, cwd=project_root
     )
@@ -388,7 +356,25 @@ def _measure_coverage(project_root: Path) -> float | None:
                 return covered / count * 100.0
         except (json.JSONDecodeError, KeyError, ZeroDivisionError, IndexError):
             pass
+    return None
 
+
+def _read_coverage_report(
+    project_root: Path, binaries: list[Path], profdata: Path, source_files: list[str]
+) -> float | None:
+    """Parse the TOTAL report line, falling back to the summary-only JSON export."""
+    report_cmd = _coverage_command("report", binaries, profdata, source_files)
+    result = subprocess.run(
+        report_cmd, capture_output=True, text=True, check=False, cwd=project_root
+    )
+    report_text = result.stdout + result.stderr
+    m = _TOTAL_COVERAGE_RE.search(report_text)
+    if m:
+        return float(m.group("line_pct"))
+    export_cmd = _coverage_command("export", binaries, profdata, source_files)
+    coverage = _export_coverage(export_cmd, project_root)
+    if coverage is not None:
+        return coverage
     print(
         "⚠️  Could not parse coverage percentage from llvm-cov output.", file=sys.stderr
     )
@@ -397,11 +383,26 @@ def _measure_coverage(project_root: Path) -> float | None:
     return None
 
 
-def main() -> None:
-    """Run swift test."""
-    project_root = get_project_root(Path(__file__))
-    ensure_developer_dir_for_swiftpm(project_root)
+def _measure_coverage(project_root: Path) -> float | None:
+    """Measure the most-recent profdata; return None when measurement is unavailable."""
+    profdata_candidates = list((project_root / ".build").rglob("default.profdata"))
+    if not profdata_candidates:
+        print("⚠️  No profdata found after coverage run.", file=sys.stderr)
+        return None
+    profdata = max(profdata_candidates, key=lambda p: p.stat().st_mtime)
+    xctest_binaries = _coverage_binaries(project_root, profdata)
+    if not xctest_binaries:
+        print("⚠️  No xctest binaries found for llvm-cov.", file=sys.stderr)
+        return None
+    source_files = _coverage_source_files(project_root)
+    if not source_files:
+        print("⚠️  No source files found for coverage measurement.", file=sys.stderr)
+        return None
+    return _read_coverage_report(project_root, xctest_binaries, profdata, source_files)
 
+
+def _cleanup_stuck_swiftpm(project_root: Path) -> None:
+    """Run optional SwiftPM cleanup without making cleanup errors fatal."""
     if KILL_STUCK:
         try:
             import kill_stuck_swiftpm
@@ -411,129 +412,128 @@ def main() -> None:
         except Exception as exc:
             print(f"⚠️  SwiftPM cleanup failed (non-fatal): {exc}", file=sys.stderr)
 
-    swift = find_swift()
-    ensure_default_metallib(project_root, swift=swift)
-    compile_cmd = build_compile_tests_cmd(swift)
-    cmd = build_test_cmd(swift)
 
-    print(f"Running: {' '.join(compile_cmd)}")
-    print(f"Then: {' '.join(cmd)}")
-    print(f"Timeout: {TEST_TIMEOUT}s")
+def _run_swift_process(
+    cmd: list[str], project_root: Path, env: dict[str, str]
+) -> tuple[subprocess.CompletedProcess[bytes], str, str]:
+    """Run one build/test phase and forward decoded output to its original streams."""
+    result = subprocess.run(
+        cmd,
+        cwd=project_root,
+        capture_output=True,
+        text=False,
+        check=False,
+        timeout=TEST_TIMEOUT,
+        env=env,
+    )
+    stdout = decode_process_output(result.stdout)
+    stderr = decode_process_output(result.stderr)
+    if stdout:
+        print(stdout)
+    if stderr:
+        print(stderr, file=sys.stderr)
+    return result, stdout, stderr
 
+
+def _check_coverage(project_root: Path) -> None:
+    """Require coverage measurement and the configured threshold when enabled."""
+    if COVERAGE_THRESHOLD is not None:
+        coverage_pct = _measure_coverage(project_root)
+        if coverage_pct is None:
+            print(
+                "❌ Coverage measurement failed — cannot verify threshold.",
+                file=sys.stderr,
+            )
+            sys.exit(1)
+        print(
+            f"Coverage: {coverage_pct:.2f}%  (threshold: {COVERAGE_THRESHOLD:.1f}%)"
+        )
+        if COVERAGE_THRESHOLD > 0 and coverage_pct < COVERAGE_THRESHOLD:
+            delta = COVERAGE_THRESHOLD - coverage_pct
+            print(
+                f"❌ Coverage {coverage_pct:.2f}% is below threshold {COVERAGE_THRESHOLD:.1f}% (gap: {delta:.2f}pp)",
+                file=sys.stderr,
+            )
+            sys.exit(1)
+        print(
+            f"✅ Coverage gate passed: {coverage_pct:.2f}% ≥ {COVERAGE_THRESHOLD:.1f}%"
+        )
+
+
+def _finish_success(
+    project_root: Path, total_tests: int | None, failed_tests: int | None
+) -> None:
+    """Report successful tests, apply coverage gating, and exit successfully."""
+    if total_tests is not None and failed_tests is not None:
+        # AI: Avoid the token ``failed=`` here — Cortex's Swift Testing
+        # failure regex is DOTALL and would match this line after the
+        # real ``… passed after`` summary when stdout is concatenated.
+        print(f"Test summary: total={total_tests}, failures={failed_tests}")
+    print("✅ All tests passed")
+    _check_coverage(project_root)
+    sys.exit(0)
+
+
+def _should_retry_tests(
+    returncode: int, failed_tests: int | None, output: str, attempt: int, max_attempts: int
+) -> bool:
+    """Report retryable SwiftPM/driver signals while attempts remain."""
+    transient_post_success = _transient_swiftpm_failure(returncode, failed_tests, output)
+    transient_driver_crash = _transient_swift_driver_crash_without_test_failures(
+        returncode, failed_tests, output
+    )
+    if attempt < max_attempts and (transient_post_success or transient_driver_crash):
+        reason = (
+            "post-success SwiftPM signal"
+            if transient_post_success
+            else "Swift driver signal without recorded test failures"
+        )
+        print(
+            f"⚠️ Transient test runner failure ({reason}, attempt {attempt}/{max_attempts}); rebuilding and retrying...",
+            file=sys.stderr,
+        )
+        return True
+    return False
+
+
+def _run_test_attempts(
+    swift: str, project_root: Path, compile_cmd: list[str], cmd: list[str], env: dict[str, str]
+) -> None:
+    """Build and run tests, preserving the bounded transient-failure retry policy."""
     max_attempts = 5
+    for attempt in range(1, max_attempts + 1):
+        compile_result, _, _ = _run_swift_process(compile_cmd, project_root, env)
+        if compile_result.returncode != 0:
+            print("❌ swift build --build-tests failed.", file=sys.stderr)
+            sys.exit(1)
+        # AI: SwiftPM creates/updates *.xctest hosts during --build-tests; refresh colocated
+        # mlx.metallib beside the test binary after tests change cwd mid-run.
+        ensure_default_metallib(project_root, swift=swift)
+        result, stdout, stderr = _run_swift_process(cmd, project_root, env)
+        combined_output = "\n".join(part for part in [stdout, stderr] if part)
+        total_tests, failed_tests = parse_swift_test_summary(combined_output)
+        normalized_success = did_tests_pass(
+            result.returncode, failed_tests, combined_output
+        )
+        if normalized_success:
+            _finish_success(project_root, total_tests, failed_tests)
+        if _should_retry_tests(
+            result.returncode, failed_tests, combined_output, attempt, max_attempts
+        ):
+            continue
+        print("❌ Tests failed.", file=sys.stderr)
+        sys.exit(1)
 
+
+def _run_isolated_tests(
+    swift: str, project_root: Path, compile_cmd: list[str], cmd: list[str]
+) -> None:
+    """Keep isolation alive through attempts and preserve runner exception mapping."""
     try:
         with tempfile.TemporaryDirectory(prefix="tradewing-swift-test-") as root:
             test_isolation_root = Path(root)
             env = _swift_test_child_environment(test_isolation_root)
-
-            for attempt in range(1, max_attempts + 1):
-                compile_result = subprocess.run(
-                    compile_cmd,
-                    cwd=project_root,
-                    capture_output=True,
-                    text=False,
-                    check=False,
-                    timeout=TEST_TIMEOUT,
-                    env=env,
-                )
-                compile_stdout = decode_process_output(compile_result.stdout)
-                compile_stderr = decode_process_output(compile_result.stderr)
-                if compile_stdout:
-                    print(compile_stdout)
-                if compile_stderr:
-                    print(compile_stderr, file=sys.stderr)
-                if compile_result.returncode != 0:
-                    print("❌ swift build --build-tests failed.", file=sys.stderr)
-                    sys.exit(1)
-
-                # AI: SwiftPM creates/updates *.xctest hosts during --build-tests; refresh colocated
-                # mlx.metallib beside the test binary after tests change cwd mid-run.
-                ensure_default_metallib(project_root, swift=swift)
-
-                result = subprocess.run(
-                    cmd,
-                    cwd=project_root,
-                    capture_output=True,
-                    text=False,
-                    check=False,
-                    timeout=TEST_TIMEOUT,
-                    env=env,
-                )
-
-                stdout = decode_process_output(result.stdout)
-                stderr = decode_process_output(result.stderr)
-
-                if stdout:
-                    print(stdout)
-                if stderr:
-                    print(stderr, file=sys.stderr)
-
-                combined_output = "\n".join(part for part in [stdout, stderr] if part)
-                total_tests, failed_tests = parse_swift_test_summary(combined_output)
-                normalized_success = did_tests_pass(
-                    result.returncode, failed_tests, combined_output
-                )
-
-                if normalized_success:
-                    if total_tests is not None and failed_tests is not None:
-                        # AI: Avoid the token ``failed=`` here — Cortex's Swift Testing
-                        # failure regex is DOTALL and would match this line after the
-                        # real ``… passed after`` summary when stdout is concatenated.
-                        print(
-                            f"Test summary: total={total_tests}, failures={failed_tests}"
-                        )
-                    print("✅ All tests passed")
-
-                    if COVERAGE_THRESHOLD is not None:
-                        coverage_pct = _measure_coverage(project_root)
-                        if coverage_pct is None:
-                            print(
-                                "❌ Coverage measurement failed — cannot verify threshold.",
-                                file=sys.stderr,
-                            )
-                            sys.exit(1)
-                        print(
-                            f"Coverage: {coverage_pct:.2f}%  (threshold: {COVERAGE_THRESHOLD:.1f}%)"
-                        )
-                        if COVERAGE_THRESHOLD > 0 and coverage_pct < COVERAGE_THRESHOLD:
-                            delta = COVERAGE_THRESHOLD - coverage_pct
-                            print(
-                                f"❌ Coverage {coverage_pct:.2f}% is below threshold {COVERAGE_THRESHOLD:.1f}% (gap: {delta:.2f}pp)",
-                                file=sys.stderr,
-                            )
-                            sys.exit(1)
-                        print(
-                            f"✅ Coverage gate passed: {coverage_pct:.2f}% ≥ {COVERAGE_THRESHOLD:.1f}%"
-                        )
-
-                    sys.exit(0)
-
-                transient_post_success = _transient_swiftpm_failure(
-                    result.returncode, failed_tests, combined_output
-                )
-                transient_driver_crash = (
-                    _transient_swift_driver_crash_without_test_failures(
-                        result.returncode, failed_tests, combined_output
-                    )
-                )
-                if attempt < max_attempts and (
-                    transient_post_success or transient_driver_crash
-                ):
-                    reason = (
-                        "post-success SwiftPM signal"
-                        if transient_post_success
-                        else "Swift driver signal without recorded test failures"
-                    )
-                    print(
-                        f"⚠️ Transient test runner failure ({reason}, attempt {attempt}/{max_attempts}); rebuilding and retrying...",
-                        file=sys.stderr,
-                    )
-                    continue
-
-                print("❌ Tests failed.", file=sys.stderr)
-                sys.exit(1)
-
+            _run_test_attempts(swift, project_root, compile_cmd, cmd, env)
     except subprocess.TimeoutExpired:
         print(f"❌ Tests timed out after {TEST_TIMEOUT}s.", file=sys.stderr)
         sys.exit(1)
@@ -546,6 +546,21 @@ def main() -> None:
     except Exception as e:
         print(f"❌ Error running tests: {e}", file=sys.stderr)
         sys.exit(1)
+
+
+def main() -> None:
+    """Run swift test."""
+    project_root = get_project_root(Path(__file__))
+    ensure_developer_dir_for_swiftpm(project_root)
+    _cleanup_stuck_swiftpm(project_root)
+    swift = find_swift()
+    ensure_default_metallib(project_root, swift=swift)
+    compile_cmd = build_compile_tests_cmd(swift)
+    cmd = build_test_cmd(swift)
+    print(f"Running: {' '.join(compile_cmd)}")
+    print(f"Then: {' '.join(cmd)}")
+    print(f"Timeout: {TEST_TIMEOUT}s")
+    _run_isolated_tests(swift, project_root, compile_cmd, cmd)
 
 
 if __name__ == "__main__":
