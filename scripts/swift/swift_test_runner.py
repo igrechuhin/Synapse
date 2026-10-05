@@ -10,13 +10,15 @@ Configuration:
     TEST_TIMEOUT:        Timeout in seconds (default: 2700, matching CI quality workflow)
     TEST_FILTER:         Filter pattern forwarded to --filter (default: empty)
     TEST_TARGET:         Specific target name forwarded to --target (default: empty)
-    PARALLEL:            Set to 0 to disable parallel test execution (default: 0).
-                         Parallel runs have provoked intermittent MLX/SIGBUS failures
-                         in the full TradeWing matrix; keep 1 only when stable.
-    SWIFT_TEST_NUM_WORKERS: When >0, adds ``swift test --parallel --num-workers N`` (requires SwiftPM
-                         ``--parallel``). Default ``0`` omits both flags for stable CLI/CI. For Cursor/VS Code,
-                         set ``swift.additionalTestArguments`` to ``--parallel`` / ``--num-workers`` ``1`` in
-                         ``.vscode/settings.json`` to reduce ``Test did not complete`` from worker oversubscription.
+    PARALLEL:            Set to 0 to emit --no-parallel (default: 0), or 1 for --parallel.
+                         Explicit --no-parallel disables independent Swift Testing test/case
+                         parallelism; omitting --parallel does not. Internal test task groups
+                         retain their concurrency. Parallel runs have provoked intermittent
+                         MLX/SIGBUS failures in the full TradeWing matrix; use 1 only when stable.
+    SWIFT_TEST_NUM_WORKERS: When >0, opts into --parallel --num-workers N even if PARALLEL=0.
+                         This bounds XCTest subprocess workers, not Swift Testing tasks.
+                         Swift Testing 6.2.4 has no global worker-count option. Default 0
+                         leaves the selected PARALLEL policy unchanged.
     COVERAGE_THRESHOLD:  When set to a number (e.g. "90"), enables --enable-code-coverage and
                          gates exit on aggregate Sources/ line coverage ≥ threshold (default: empty
                          = coverage gate disabled).  Set to "0" to collect coverage without gating.
@@ -131,9 +133,12 @@ def build_test_cmd(swift: str) -> list[str]:
         if SWIFT_TEST_NUM_WORKERS > 0:
             cmd.extend(["--num-workers", str(SWIFT_TEST_NUM_WORKERS)])
     elif SWIFT_TEST_NUM_WORKERS > 0:
-        # AI: SwiftPM requires `--parallel` with `--num-workers`; one worker limits concurrent
-        # Swift Testing tasks and avoids intermittent SIGBUS seen with Charts under load.
+        # AI: Preserve the worker-count opt-in; SwiftPM requires --parallel for XCTest workers.
+        # Swift Testing ignores --num-workers and remains parallel in this mode.
         cmd.extend(["--parallel", "--num-workers", str(SWIFT_TEST_NUM_WORKERS)])
+    else:
+        # AI: Swift Testing defaults to parallel execution when no policy flag is passed.
+        cmd.append("--no-parallel")
     if TEST_TARGET:
         cmd.extend(["--target", TEST_TARGET])
     if TEST_FILTER:
