@@ -90,7 +90,7 @@ _XCTEST_SUMMARY_RE = re.compile(
 # AI: 2026-10-02 (review P1): on macOS Swift Testing prefixes the rollup with a Supplementary
 # Private Use Area glyph (observed U+10105B) followed by two spaces — the class also accepts
 # the PUA ranges so real terminal rollups match; anything else still requires a line start.
-_PUA_MARKER_CLASS = "[✔✘\U000F0000-\U0010FFFF]"
+_PUA_MARKER_CLASS = "[✔✘\U000f0000-\U0010ffff]"
 _SWIFT_TESTING_ROLLUP_PREFIX = (
     rf"^[^\S\n]*(?:{_PUA_MARKER_CLASS}[^\S\n]*)?Test{_H}run{_H}with{_H}"
     + rf"(?P<total>\d+){_H}tests{_H}in{_H}\d+{_H}suites?{_H}"
@@ -333,7 +333,9 @@ def _coverage_command(
     cmd = ["xcrun", "llvm-cov", mode, str(binaries[0]), f"--instr-profile={profdata}"]
     if mode == "export":
         cmd.append("--summary-only")
-    cmd.append("--ignore-filename-regex=\\.build|Tests/|Plugins/|.*\\.pb\\.swift|.*\\.grpc\\.swift")
+    cmd.append(
+        "--ignore-filename-regex=\\.build|Tests/|Plugins/|.*\\.pb\\.swift|.*\\.grpc\\.swift"
+    )
     for extra in binaries[1:]:
         cmd.extend(["-object", str(extra)])
     cmd.extend(source_files)
@@ -445,9 +447,7 @@ def _check_coverage(project_root: Path) -> None:
                 file=sys.stderr,
             )
             sys.exit(1)
-        print(
-            f"Coverage: {coverage_pct:.2f}%  (threshold: {COVERAGE_THRESHOLD:.1f}%)"
-        )
+        print(f"Coverage: {coverage_pct:.2f}%  (threshold: {COVERAGE_THRESHOLD:.1f}%)")
         if COVERAGE_THRESHOLD > 0 and coverage_pct < COVERAGE_THRESHOLD:
             delta = COVERAGE_THRESHOLD - coverage_pct
             print(
@@ -475,10 +475,16 @@ def _finish_success(
 
 
 def _should_retry_tests(
-    returncode: int, failed_tests: int | None, output: str, attempt: int, max_attempts: int
+    returncode: int,
+    failed_tests: int | None,
+    output: str,
+    attempt: int,
+    max_attempts: int,
 ) -> bool:
     """Report retryable SwiftPM/driver signals while attempts remain."""
-    transient_post_success = _transient_swiftpm_failure(returncode, failed_tests, output)
+    transient_post_success = _transient_swiftpm_failure(
+        returncode, failed_tests, output
+    )
     transient_driver_crash = _transient_swift_driver_crash_without_test_failures(
         returncode, failed_tests, output
     )
@@ -497,7 +503,11 @@ def _should_retry_tests(
 
 
 def _run_test_attempts(
-    swift: str, project_root: Path, compile_cmd: list[str], cmd: list[str], env: dict[str, str]
+    swift: str,
+    project_root: Path,
+    compile_cmd: list[str],
+    cmd: list[str],
+    env: dict[str, str],
 ) -> None:
     """Build and run tests, preserving the bounded transient-failure retry policy."""
     max_attempts = 5

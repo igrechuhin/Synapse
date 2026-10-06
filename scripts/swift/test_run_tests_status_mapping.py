@@ -63,7 +63,7 @@ class SwiftRunTestsStatusMappingTests(unittest.TestCase):
             "Test Suite 'All tests' started at 2026-10-02 10:03:31.108.\n"
             "Test Suite 'All tests' passed at 2026-10-02 10:03:31.109.\n"
             "\t\t Executed 0 tests, with 0 failures (0 unexpected) in 0.000 (0.001) seconds\n"
-            "\U0010105B  Test run with 250 tests in 32 suites passed after 5.0 seconds.\n"
+            "\U0010105b  Test run with 250 tests in 32 suites passed after 5.0 seconds.\n"
         )
         total, failed = parse_swift_test_summary(output)
 
@@ -72,7 +72,9 @@ class SwiftRunTestsStatusMappingTests(unittest.TestCase):
 
     def test_parse_summary_rejects_cross_line_stitched_fragment(self) -> None:
         """A fragment stitched across a newline matches nothing on its own."""
-        output = "Test run with\n 4 tests in 2 suites failed after 1.0 seconds (garbage)\n"
+        output = (
+            "Test run with\n 4 tests in 2 suites failed after 1.0 seconds (garbage)\n"
+        )
         total, failed = parse_swift_test_summary(output)
 
         self.assertIsNone(total)
