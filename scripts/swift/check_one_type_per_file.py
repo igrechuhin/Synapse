@@ -42,13 +42,12 @@ def check_file(path: Path, project_root: Path) -> list[str]:
         project_root: Project root for relative paths in messages.
 
     Returns:
-        List of human-readable violation strings.
+        List of human-readable violation strings, including source-read failures.
     """
     try:
         lines = path.read_text(encoding="utf-8").splitlines()
-    except Exception as e:
-        print(f"Error reading {path}: {e}", file=sys.stderr)
-        return []
+    except (OSError, UnicodeError) as e:
+        return [f"Error reading {path}: {e}"]
 
     try:
         rel = path.relative_to(project_root)
