@@ -1,0 +1,27 @@
+---
+description: After plan(operation=complete) archives a plan in TradeWing, repair MD057 dangling links in plans/README.md, plans/dependency-graph.md and referencing analyses BEFORE running run_quality_gate
+alwaysApply: false
+created_by: analyze-feedback-loop
+---
+
+# Repair archive-dangling links before the quality gate
+
+Archiving a plan (plan operation=complete) moves `.cortex/plans/<slug>.md` to `.cortex/plans/archive/Other/` and breaks every relative link that still points at the old location. The markdown_lint stage of run_quality_gate fails on these (MD057), and a full gate cycle costs ~25-40 minutes.
+
+## When
+
+Immediately after any plan archive (or batch of archives), before invoking `run_quality_gate`.
+
+## Sweep
+
+1. Grep for the archived slug across index/canonical files: `grep -rn "<slug>.md" .cortex/plans/README.md .cortex/plans/dependency-graph.md .cortex/analyses/ .cortex/wiki/`.
+2. Repair through guarded `manage_file(operation="patch_document", ...)` only (targets are plans/analyses index files — never hand-edit):
+   - README entry: repoint target to `archive/Other/<slug>.md` and set `— agent; DONE (<one-line verdict>; archived YYYY-MM-DD).`
+   - dependency-graph node: `— agent; DONE.`; prerequisite edges: repoint link and append `(archive-resolved prerequisite)`.
+   - Analyses/wiki: repoint `](../plans/<slug>.md)` to `](../plans/archive/Other/<slug>.md)`, prose unchanged.
+3. Dry-run the patch first, verify project root, then apply; confirm after-sha256 equals the preview.
+4. Also sweep links dangling from PRIOR passes' archives — the gate fails on inherited dangles, not just your own.
+
+## Why
+
+Two consecutive do-passes each paid an extra full gate cycle because archive-time link repair was skipped or partial; the fix is a deterministic 5-minute sweep, not a debugging session.

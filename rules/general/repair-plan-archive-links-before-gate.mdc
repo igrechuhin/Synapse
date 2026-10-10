@@ -1,0 +1,29 @@
+---
+description: Repair canonical plan-index links immediately after plan(complete) archives a plan
+alwaysApply: false
+created_by: analyze-feedback-loop
+---
+
+# Plan-archive link repair before gate re-run
+
+`plan(operation="complete")` moves a plan file to `.cortex/plans/archive/Other/` but does not
+rewrite canonical index links. Every consumer of `.cortex/plans/README.md`,
+`.cortex/plans/dependency-graph.md` and dated `.cortex/analyses/*.md` that references the plan by
+its old relative path then breaks, and the quality gate's Markdown check fails on MD057 — after a
+possibly 20-minute full-suite run. This hit two consecutive do passes (2026-10-09: two archived
+plans, then one more).
+
+Required sequence when a pass archives a plan:
+
+1. Grep the three roots for the archived slug before running the gate:
+   `grep -rn "<plan-stem>.md" .cortex/plans/README.md .cortex/plans/dependency-graph.md .cortex/analyses/`
+2. Repair via `manage_file(operation="patch_document")` with `expected_sha256` from raw file
+   bytes, unique single-line literals, `dry_run: true` first, then the identical non-dry-run
+   payload. Mirror the established patterns: index links become
+   `(archive/Other/<slug>.md)` with `— agent; DONE (...)` status; analyses links become
+   `../plans/archive/Other/<slug>.md`; a dependent whose only prerequisite just archived flips
+   `BLOCKED` → `READY` with an `(archive-resolved prerequisite)` suffix on the edge line.
+3. Only then re-run `run_quality_gate` (force_fresh).
+
+Also check new-source function lengths (>30 lines fails the gate's quality check) before the
+first gate run; splitting helpers afterward wastes a full suite iteration.
