@@ -134,14 +134,15 @@ Use @commit-phase-a to handle this phase. If the subagent is unavailable, run th
 
    **Pass 3 — public API DocC count** (parity with the `Check public API DocC coverage` step in `.github/workflows/quality.yml`; must run from repository root).
 
-   **Applicability gate**: run Pass 3 only when the repo's CI actually defines that step and a root `Sources/` directory exists. Verify as subprocesses and keep the evidence:
+   **Applicability gate**: Pass 3 applies exactly when the repo's CI defines that step. Verify as a subprocess and keep the evidence:
 
    ```bash
    grep -q "check_public_docs" .github/workflows/quality.yml; echo "grep_rc=$?"
-   test -d Sources; echo "sources_rc=$?"
    ```
 
-   When either check fails (for example a Python-only repo whose workflow has no DocC step), record Pass 3 as `skipped: no DocC step in CI` with the recorded exit codes. A skip is neither a pass nor a failure and needs no per-commit operator waiver; never create a `Sources` directory just to make the check run. When the gate applies, run from the repository root:
+   When `grep_rc=1` (for example a Python-only repo whose workflow has no DocC step), record Pass 3 as `skipped: no DocC step in CI` with the exit code. A skip is neither a pass nor a failure and needs no per-commit operator waiver; never create a `Sources` directory just to make the check run.
+
+   When `grep_rc=0`, Pass 3 is required: run from the repository root. A missing `Sources` path makes the script exit non-zero and blocks Phase A until fixed or explicitly waived by the operator in the conversation:
 
    ```bash
    DOCC_PUBLIC_THRESHOLD="${DOCC_PUBLIC_THRESHOLD:-439}"
