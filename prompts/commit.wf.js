@@ -175,8 +175,9 @@ const GATE_SCHEMA = {
         `Preflight context: snapshot_ref=${preflight.snapshot_ref ?? "N/A"}, ` +
         `staged_count=${preflight.staged_count ?? "?"} files staged. ` +
         "call run_quality_gate(); if failed call autofix() and retry. Also run CI parity " +
-        "checks (check_file_sizes.py, check_function_lengths.py, build.py, " +
-        "check_public_docs.py). Handle markdown lint and submodule hygiene failures inline.",
+        "checks (check_file_sizes.py, check_function_lengths.py, build.py, and " +
+        "check_public_docs.py when the repo's quality.yml defines the DocC step). " +
+        "Handle markdown lint and submodule hygiene failures inline.",
       { agentType: "commit-phase-a", schema: PHASE_A_SCHEMA }
     );
     iterations++;
