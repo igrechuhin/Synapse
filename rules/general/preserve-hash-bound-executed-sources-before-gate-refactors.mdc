@@ -1,0 +1,16 @@
+---
+description: "Before editing a source file whose exact bytes are hash-bound as executed evidence, snapshot and verify the executed bytes; keep the binding record immutable and record the gate-fix successor separately"
+alwaysApply: false
+created_by: analyze-feedback-loop
+---
+
+# Preserve hash-bound executed sources before gate refactors
+
+When a lint, quality, or CI gate requires editing a source file whose exact bytes are already hash-bound as executed evidence (a frozen manifest recording per-file `executed_source_sha256`-style hashes, a reproducibility receipt, or any run record that pins source identity):
+
+1. **Restore and verify first.** If the file was already edited, reverse the edit and confirm `sha256(file) == <recorded hash>` before anything else. If the bytes cannot be restored, stop and report instead of proceeding.
+2. **Snapshot the executed bytes** into the evidence/run directory (alongside the manifest), so the bytes the frozen receipt points to survive later working-tree changes — especially for untracked files no VCS history protects.
+3. **Never mutate the frozen manifest or binding record** to match new bytes. The binding is evidence of what ran.
+4. **Record the gate-fix successor separately**: a small sidecar note carrying the executed hash, the snapshot path, the successor hash, and the reason (e.g. function-length gate). Behavior must be unchanged and proven by the file's focused tests.
+
+Why: overwriting an executed, hash-bound source silently orphans the receipt — a rerun cannot retroactively bind new bytes to an already-executed run, and for deterministic research endpoints a clean rerun cannot undo a prior look anyway. The cost of the snapshot is one copy; the cost of losing the binding is the entire evidence chain.
