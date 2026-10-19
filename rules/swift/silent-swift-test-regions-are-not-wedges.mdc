@@ -1,0 +1,30 @@
+---
+description: "A frozen swift-test log tail is buffered output, not wedge evidence — sample the helper before killing, and budget full-suite waits above the recorded ~101-minute wall-clock"
+alwaysApply: false
+---
+
+# Silent Swift-Test Regions Are Not Wedges
+
+Friction-earned 2026-10-19 (do-pass, data-trust backlog): two CI-parity
+`swift test --no-parallel` full-suite runs were killed as "wedged" after ~13 minutes of
+frozen log tail at the same test boundary — both were healthy. A 3-second
+`sample <helper-pid> 3` showed every sample inside a test fixture executing synchronous
+cross-validation fold loops (`PurgedCrossValidationFold.validateCausality` under
+`PooledFIGIComparisonFixture`/`GBMThresholdExperimentTests`). Such regions print nothing
+for many minutes; the tail is stale buffered output, not a boundary or a hang.
+
+## Rules
+
+1. A frozen `swift test` log tail is NOT wedge evidence. Before killing any helper, run
+   `sample <helper-pid> 3 -file /tmp/s.txt` and read the call graph: samples inside
+   test/fixture code (malloc, `contains(where:)`, validator loops) = healthy silent
+   region; every thread parked in mach_msg/RunLoop with no test frame = actual idle.
+2. Grep the sample for TEST and FIXTURE symbol names (`Threshold`, `Fixture`,
+   `CrossValidation`), not framework names — grepping `mlx|xctest` returns zero on a
+   busy fixture-only sample and produces a false idle verdict.
+3. Full-suite wait budgets must exceed the recorded wall-clock: measured 2026-10-19,
+   10804 tests / 1111 suites passed in 6051.496 s (~101 min; scratch path, coverage on,
+   `--no-parallel`). Budget >= 1.8x that before any wedge verdict.
+4. Never hand a self-aborted healthy run to the operator as a blocker; a mislabeled
+   "wedge" receipt poisons the unexplained-failure investigation. If a premature kill
+   happened, rename the receipt (KILLED-PREMATURELY) and record the correction openly.
