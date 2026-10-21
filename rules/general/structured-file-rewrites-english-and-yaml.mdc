@@ -1,0 +1,31 @@
+---
+description: Structured .cortex rewrites must be byte-exact via programmatic bridges, English-only, and YAML-quoted
+alwaysApply: false
+created_by: analyze-feedback-loop
+---
+
+# Structured file rewrites: byte-exact bridges, English-only, YAML quoting
+
+Learned 2026-10-19 (do-loop orchestrator session, verified failures):
+
+1. **Never hand-retranscribe large structured files through model context.** When a full-file
+   `manage_file(write)` is needed for roadmap.md/plans, build the exact target bytes on disk
+   first (scripted move/patch), then write them through a programmatic bridge (eval kernel
+   `readFileSync` → MCP write). A manual 50KB transcription produced three one-word drifts that
+   only a byte-diff caught; the diff-verify step is mandatory after every such write
+   (`diff` + `shasum -a 256` both sides must match).
+2. **Project language is English-only in ALL artifacts** (operator directive 2026-10-19): plans,
+   docs, memory-bank, wiki, code comments, proto and generated API comments. Russian is reserved
+   for direct operator communication. Operator quotes are translated with non-Cyrillic
+   attribution: "(operator's words, translated from Russian; original preserved in git history)" —
+   never embed the Russian original, not even in parentheticals. Data literals (instrument display
+   names, Russian-message test fixtures) are exempt.
+3. **Quote YAML frontmatter scalars containing ": "**. Unquoted colons in `title:`/`title_ru:`
+   values break strict YAML parsers (three plans broke in 2026-10-19; `set_execution` failed until
+   repaired). When writing or translating frontmatter values, quote any scalar containing a
+   colon, and validate with a YAML parser after bulk edits.
+4. Prefer targeted sanctioned mutations (`patch_document`, `set_execution`, `update_memory_bank`)
+   over full-file writes; `patch_document` supports multiline literals for plan bodies — its
+   single-line restriction applies only to activeContext.md/progress.md, and frontmatter/title
+   stay immutable there. Full-file `manage_file(write)` is the fallback when no targeted op fits
+   (e.g., section relocation of non-complete plan entries).
