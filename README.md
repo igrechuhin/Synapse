@@ -94,7 +94,31 @@ Rules in `rules/` directory can be:
 | `check_file_sizes.py` | Verify files ≤ 400 lines |
 | `check_function_lengths.py` | Verify functions ≤ 30 lines |
 | `check_test_naming.py` | Verify test functions follow `test_<name>` pattern |
+| `check_spelling.py` | Run the installed cspell 8.6.1 checker; preserve failures |
 | `run_tests.py` | Run test suite with coverage |
+
+### Spelling checker contract
+
+Install **cspell 8.6.1** before running the Python spelling gate. Resolution is
+`SPELL_CHECKER_CMD` (shell-style arguments, executed without a shell), then
+project-local `node_modules/.bin/cspell`, then `cspell` on `PATH`. The script
+never downloads tools or falls back to `npx`.
+
+The supported invocation is `cspell lint --no-progress <files>`, with project
+configuration discovery from the working directory. Only exit code zero is
+success; findings, invalid options, startup/permission/transport errors, and
+signals remain failures with their original diagnostics.
+
+`SPELL_CHECKER_PREFLIGHT_TIMEOUT` defaults to 10 seconds and
+`SPELL_CHECKER_TIMEOUT` defaults to 120 seconds per lint invocation. Overrides
+must be finite positive seconds. A timeout returns 124 after terminating the
+checker-owned POSIX process group: one second for termination, then one second
+for forced cleanup. Processes that deliberately leave that session are outside
+this ownership boundary.
+
+**2026-10-25 correction:** spelling failures are no longer converted into a
+count of Python-file diagnostics, and the unsupported `--files-only` option is
+removed. Existing dictionary findings remain failures, not automatic waivers.
 
 ## Available Scripts (PHP)
 

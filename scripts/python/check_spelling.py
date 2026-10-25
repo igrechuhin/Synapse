@@ -5,12 +5,24 @@ This script checks for spelling errors in Python files using cSpell-compatible
 word lists. It identifies unknown words that should be added to a dictionary
 or fixed.
 
+Requires cspell 8.6.1: bounded ``--version`` then ``lint --no-progress <files>``.
+The checker discovers .cspell.json from the project working directory.
+
 Configuration:
-    SPELL_CHECKER_CMD: Spell checker command (default: cspell)
+    SPELL_CHECKER_CMD: Installed cspell 8.6.1 command (shell-style argv, no shell)
+    SPELL_CHECKER_PREFLIGHT_TIMEOUT: Positive finite seconds (default: 10)
+    SPELL_CHECKER_TIMEOUT: Positive finite seconds per lint run (default: 120)
+    Commands never install/download tools. Timeouts terminate the owned process
+    group on POSIX: one second to exit, then one second to reap after SIGKILL.
     SRC_DIR: Source directory path (default: auto-detected)
     TESTS_DIR: Tests directory path (default: auto-detected)
 """
 
+import math
+import os
+import shlex
+import shutil
+import signal
 import subprocess
 import sys
 from pathlib import Path
@@ -34,36 +46,98 @@ except ImportError:
     )
 
 
-def get_spell_checker_command() -> list[str]:
-    """Get spell checker command to run.
+SUPPORTED_CSPELL_VERSION = "8.6.1"
 
-    Returns:
-        List of command parts to run
-    """
-    # Try cspell (cSpell CLI)
-    try:
-        _ = subprocess.run(
-            ["cspell", "--version"],
-            capture_output=True,
-            check=True,
+
+def get_spell_checker_command(project_root: Path) -> list[str]:
+    """Select one installed checker, without probing or downloading fallbacks."""
+    override = os.environ.get("SPELL_CHECKER_CMD")
+    if override is not None:
+        command = shlex.split(override)
+        if not command:
+            raise ValueError("SPELL_CHECKER_CMD must name an installed cspell command")
+        return command
+    local = project_root / "node_modules" / ".bin" / "cspell"
+    if local.exists() or local.is_symlink():
+        return [str(local)]
+    installed = shutil.which("cspell")
+    if installed is None:
+        raise FileNotFoundError(
+            "cspell 8.6.1 not found; install it locally or on PATH, "
+            + "or set SPELL_CHECKER_CMD to an installed checker"
         )
-        return ["cspell"]
-    except (subprocess.CalledProcessError, FileNotFoundError):
+    return [installed]
+
+
+def _timeout_seconds(name: str, default: float) -> float:
+    """Require finite positive bounds, including when supplied by the caller."""
+    value = float(os.environ.get(name, str(default)))
+    if not math.isfinite(value) or value <= 0:
+        raise ValueError(f"{name} must be a finite positive number of seconds")
+    return value
+
+
+def _signal_checker(process: subprocess.Popen[str], sig: signal.Signals) -> None:
+    """Signal only the session created for this checker."""
+    try:
+        if os.name == "posix":
+            os.killpg(process.pid, sig)
+        elif process.poll() is None:
+            process.kill()
+    except ProcessLookupError:
         pass
 
-    # Try npx cspell
-    try:
-        _ = subprocess.run(
-            ["npx", "--version"],
-            capture_output=True,
-            check=True,
-        )
-        return ["npx", "-y", "cspell"]
-    except (subprocess.CalledProcessError, FileNotFoundError):
-        pass
 
-    # Fallback: return command anyway, will fail with clear error
-    return ["cspell"]
+def _stop_checker(process: subprocess.Popen[str]) -> str:
+    """Reap the checker and terminate remaining members of its owned group."""
+    _signal_checker(process, signal.SIGTERM)
+    try:
+        output, _ = process.communicate(timeout=1)
+    except subprocess.TimeoutExpired:
+        _signal_checker(process, signal.SIGKILL)
+        output, _ = process.communicate(timeout=1)
+    finally:
+        _signal_checker(process, signal.SIGKILL)
+    return output
+
+
+def _run_checker(
+    command: list[str], project_root: Path, timeout: float
+) -> tuple[int, str]:
+    """Return the real checker status and combined diagnostics, bounded in time."""
+    try:
+        # AI: Isolate checker descendants so timeout cleanup cannot signal sibling jobs.
+        with subprocess.Popen(
+            command,
+            cwd=project_root,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+            errors="replace",
+            start_new_session=os.name == "posix",
+        ) as process:
+            try:
+                output, _ = process.communicate(timeout=timeout)
+            except subprocess.TimeoutExpired:
+                output = _stop_checker(process)
+                return 124, output + f"\ncspell timed out after {timeout:g} seconds"
+            return process.returncode, output
+    except OSError as error:
+        return 1, f"Error starting spell checker {command[0]}: {error}"
+
+
+def _preflight_checker(command: list[str], project_root: Path) -> tuple[int, str]:
+    """Require the pinned CI CLI contract before attempting lint."""
+    timeout = _timeout_seconds("SPELL_CHECKER_PREFLIGHT_TIMEOUT", 10)
+    returncode, output = _run_checker(command + ["--version"], project_root, timeout)
+    if returncode != 0:
+        return returncode, output
+    if output.strip() != SUPPORTED_CSPELL_VERSION:
+        return 1, (
+            f"Unsupported cspell version; require {SUPPORTED_CSPELL_VERSION}.\n"
+            + f"Checker --version output:\n{output}"
+        )
+    return 0, output
 
 
 def get_files_to_check(project_root: Path) -> list[Path]:
@@ -126,67 +200,24 @@ def get_files_to_check(project_root: Path) -> list[Path]:
 def check_spelling_with_cspell(
     files: list[Path], project_root: Path
 ) -> tuple[int, str]:
-    """Check spelling using cspell.
-
-    Args:
-        files: List of files to check
-        project_root: Path to project root
-
-    Returns:
-        Tuple of (error_count, output_text)
-    """
+    """Return the checker exit code (not a finding count) and its diagnostics."""
     if not files:
         return (0, "")
-
-    spell_checker_cmd = get_spell_checker_command()
-
-    # Create file list for cspell
-    file_paths = [str(f.relative_to(project_root)) for f in files]
-
-    # Run cspell
     try:
-        result = subprocess.run(
-            spell_checker_cmd + ["--files-only", "--no-progress"] + file_paths,
-            cwd=project_root,
-            capture_output=True,
-            text=True,
-            check=False,
+        command = get_spell_checker_command(project_root)
+        timeout = _timeout_seconds("SPELL_CHECKER_TIMEOUT", 120)
+        returncode, output = _preflight_checker(command, project_root)
+        if returncode != 0:
+            return returncode, output
+        file_paths = [str(path.relative_to(project_root)) for path in files]
+        return _run_checker(
+            command + ["lint", "--no-progress"] + file_paths, project_root, timeout
         )
-
-        output = result.stdout + result.stderr
-        error_count = result.returncode
-
-        # Count errors from output (cspell returns non-zero on errors)
-        if error_count != 0:
-            # Count unique files with errors
-            error_files: set[str] = set()
-            for line in output.split("\n"):
-                if line.strip() and not line.startswith("cspell"):
-                    # Extract file path from error line
-                    parts = line.split(":")
-                    if len(parts) >= 1:
-                        file_path = parts[0].strip()
-                        if file_path and file_path.endswith(".py"):
-                            error_files.add(file_path)
-
-            error_count = len(error_files)
-
-        return (error_count, output)
-
-    except FileNotFoundError:
-        return (
-            -1,
-            (
-                f"Error: Spell checker command not found: {spell_checker_cmd[0]}\n"
-                "Install cspell: npm install -g cspell\n"
-                "Or use: npx -y cspell"
-            ),
-        )
-    except Exception as e:
-        return (-1, f"Error running spell checker: {e}")
+    except (OSError, ValueError) as error:
+        return 1, f"Error configuring spell checker: {error}"
 
 
-def main():
+def main() -> None:
     """Check spelling in code files."""
     # Get project root
     script_path = Path(__file__)
@@ -204,27 +235,15 @@ def main():
         sys.exit(0)  # Not an error, just nothing to check
 
     # Check spelling
-    error_count, output = check_spelling_with_cspell(files_to_check, project_root)
-
-    if error_count < 0:
-        # Error running spell checker
-        print(output, file=sys.stderr)
-        sys.exit(1)
-
-    if error_count > 0:
-        # Print output
+    returncode, output = check_spelling_with_cspell(files_to_check, project_root)
+    if returncode != 0:
         if output:
             print(output, file=sys.stderr)
-
         print(
-            f"\n❌ Spelling errors detected in {error_count} file(s).",
+            f"\n❌ Spelling check failed (checker exit code {returncode}).",
             file=sys.stderr,
         )
-        print(
-            "Fix spelling errors or add words to .cspell.json dictionary.",
-            file=sys.stderr,
-        )
-        sys.exit(1)
+        sys.exit(returncode if returncode > 0 else min(255, 128 - returncode))
 
     print("✅ All spelling checks passed")
     sys.exit(0)
