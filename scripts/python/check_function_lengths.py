@@ -22,6 +22,7 @@ try:
         get_config_int,
         get_config_path,
         get_project_root,
+        is_frozen_research_import,
     )
 except ImportError:
     # Fallback if running from different location
@@ -31,6 +32,7 @@ except ImportError:
         get_config_int,
         get_config_path,
         get_project_root,
+        is_frozen_research_import,
     )
 
 MAX_FUNCTION_LINES = get_config_int("MAX_FUNCTION_LINES", 30)
@@ -212,6 +214,10 @@ def main() -> None:
             f for f in py_files if not _skip_split_manage_file_integration_tests(f)
         ]
 
+        py_files = [
+            f for f in py_files if not is_frozen_research_import(f, project_root)
+        ]
+
         for py_file in py_files:
             # Skip paths listed in FUNCTION_LENGTH_EXCLUDED_PATHS (src or tests).
             # Exclusions are explicit; listing a test path opts it out of length checks.
@@ -233,6 +239,8 @@ def main() -> None:
             if "__pycache__" in str(py_file) or py_file.name.startswith("test_"):
                 continue
             if _is_excluded(py_file):
+                continue
+            if is_frozen_research_import(py_file, project_root):
                 continue
 
             violations = check_function_length(py_file)

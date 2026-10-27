@@ -29,6 +29,23 @@ _CORTEX_DIR_NAME, _SYNAPSE_DIR_NAME = _get_cortex_dir_names()
 
 _SCRIPTS_DIR_NAME = "scripts"
 
+# Operator-approved carve-out (TradeWing 2026-10-27): study producers and
+# fixtures under these roots were imported VERBATIM from preserved research
+# worktrees; docs/research manifests seal their sourceSHA256 as
+# IMPORTED_BYTE_IDENTICAL receipts. Refactoring them to satisfy line limits
+# would break that evidence identity, and CI itself does not lint these paths.
+# New hand-written code must not rely on this exemption.
+FROZEN_RESEARCH_IMPORT_ROOTS: tuple[str, ...] = ("research/", "scripts/research/")
+
+
+def is_frozen_research_import(path: Path, project_root: Path) -> bool:
+    """Return True when path lies under a frozen verbatim research-import root."""
+    try:
+        rel = path.resolve().relative_to(project_root.resolve()).as_posix()
+    except ValueError:
+        return False
+    return rel.startswith(FROZEN_RESEARCH_IMPORT_ROOTS)
+
 
 def get_project_root(script_path: Path | None = None) -> Path:
     """Get the project root directory.

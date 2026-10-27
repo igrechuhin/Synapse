@@ -23,15 +23,16 @@ try:
         get_config_int,
         get_config_path,
         get_project_root,
+        is_frozen_research_import,
     )
 except ImportError:
-    # Fallback if running from different location
     sys.path.insert(0, str(Path(__file__).parent))
     from _utils import (
         find_src_directory,
         get_config_int,
         get_config_path,
         get_project_root,
+        is_frozen_research_import,
     )
 
 # Reuse cortex.core.constants when run from Cortex repo; else config or 400
@@ -130,7 +131,11 @@ def main() -> None:
     files_from_env = _get_files_from_env()
     if files_from_env is not None:
         # Dispatcher mode: check exactly these files with ".py" suffix.
-        py_files = [f for f in files_from_env if f.suffix == ".py"]
+        py_files = [
+            f
+            for f in files_from_env
+            if f.suffix == ".py" and not is_frozen_research_import(f, project_root)
+        ]
         for py_file in py_files:
             lines = count_lines(py_file)
             if lines > MAX_LINES:
@@ -150,6 +155,9 @@ def main() -> None:
         for py_file in src_dir.glob("**/*.py"):
             # Skip __pycache__ and test files
             if "__pycache__" in str(py_file) or py_file.name.startswith("test_"):
+                continue
+            # Skip verbatim frozen research imports (operator-approved carve-out)
+            if is_frozen_research_import(py_file, project_root):
                 continue
             # Skip excluded filenames (e.g. Pydantic model definitions)
             if py_file.name in EXCLUDED_FILENAMES:
