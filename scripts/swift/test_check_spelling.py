@@ -228,11 +228,11 @@ class SwiftSpellingCheckerTests(unittest.TestCase):
 
     def test_byte_limit_lints_every_file_once_and_failure_survives(self) -> None:
         """Byte-capped batches may not skip the remainder of a file slice."""
-        app_path = str(self.root / "Sources" / "App.swift")
-        for index in range(3):
-            (self.root / "Sources" / f"Part{index}.swift").write_text("x\n")
-        # One path per batch: byte cap fits exactly one argv entry.
-        byte_cap = len(app_path) + 1
+        names = ("App.swift", "Part0.swift", "Part1.swift", "Part2.swift")
+        for name in names[1:]:
+            (self.root / "Sources" / name).write_text("x\n")
+        longest = max(len(os.fsencode(str(self.root / "Sources" / n))) for n in names)
+        byte_cap = longest + 1
         (self.root / "second_batch_fail").write_text("")
         completed = self._run(
             SPELL_CHECKER_MAX_BATCH_FILES="512",
@@ -252,9 +252,10 @@ class SwiftSpellingCheckerTests(unittest.TestCase):
         self.assertEqual(len(checked), len(set(checked)), msg=lint_lines)
 
     def test_byte_limit_pass_reports_all_files(self) -> None:
-        app_path = str(self.root / "Sources" / "App.swift")
+        names = ("App.swift", "Extra.swift")
         (self.root / "Sources" / "Extra.swift").write_text("x\n")
-        byte_cap = len(app_path) + 1
+        longest = max(len(os.fsencode(str(self.root / "Sources" / n))) for n in names)
+        byte_cap = longest + 1
         completed = self._run(
             SPELL_CHECKER_MAX_BATCH_FILES="512",
             SPELL_CHECKER_MAX_BATCH_BYTES=str(byte_cap),
@@ -266,9 +267,45 @@ class SwiftSpellingCheckerTests(unittest.TestCase):
         checked = [arg for line in lint_lines for arg in line.split("\0")[2:]]
         self.assertEqual(
             sorted(checked),
-            sorted({app_path, str(self.root / "Sources" / "Extra.swift")}),
+            sorted({str(self.root / "Sources" / name) for name in names}),
             msg=lint_lines,
         )
+
+    def test_multibyte_path_uses_byte_not_char_bound(self) -> None:
+        """A char-sized cap below the byte size must fail, not silently fit."""
+        multibyte = self.root / "Sources" / "Файл.swift"
+        multibyte.write_text("x\n")
+        char_cap = len(str(multibyte)) + 1
+        self.assertLess(char_cap, len(os.fsencode(str(multibyte))) + 1)
+        completed = self._run(SPELL_CHECKER_MAX_BATCH_BYTES=str(char_cap))
+        self.assertEqual(completed.returncode, 1)
+        self.assertIn("exceeds SPELL_CHECKER_MAX_BATCH_BYTES", completed.stderr)
+        self.assertNotIn("passed", completed.stdout)
+
+    def test_multibyte_path_linted_when_cap_fits_bytes(self) -> None:
+        multibyte = self.root / "Sources" / "Файл.swift"
+        multibyte.write_text("x\n")
+        byte_cap = len(os.fsencode(str(multibyte))) + 1
+        completed = self._run(SPELL_CHECKER_MAX_BATCH_BYTES=str(byte_cap))
+        self.assertEqual(completed.returncode, 0)
+        self.assertIn("All Swift spelling checks passed", completed.stdout)
+        log = (self.root / "argv.log").read_text().rstrip("\n").split("\n")
+        lint_lines = [line for line in log if line.startswith("lint")]
+        checked = [arg for line in lint_lines for arg in line.split("\0")[2:]]
+        self.assertEqual(
+            sorted(checked),
+            sorted({str(self.root / "Sources" / "App.swift"), str(multibyte)}),
+            msg=lint_lines,
+        )
+
+    def test_oversized_first_path_fails_without_lint(self) -> None:
+        app_path = str(self.root / "Sources" / "App.swift")
+        completed = self._run(SPELL_CHECKER_MAX_BATCH_BYTES=str(len(app_path)))
+        self.assertEqual(completed.returncode, 1)
+        self.assertIn("exceeds SPELL_CHECKER_MAX_BATCH_BYTES", completed.stderr)
+        self.assertIn(app_path, completed.stderr)
+        log = self.root / "argv.log"
+        self.assertFalse(log.exists() and "lint" in log.read_text())
 
 
 if __name__ == "__main__":

@@ -196,10 +196,16 @@ def _lint_batches(
         batch, size = [], 0
         while index < len(file_paths) and len(batch) < max_files:
             path = file_paths[index]
-            if batch and size + len(path) + 1 > max_bytes:
+            path_bytes = len(os.fsencode(path)) + 1
+            if path_bytes > max_bytes:
+                raise ValueError(
+                    f"File path exceeds SPELL_CHECKER_MAX_BATCH_BYTES "
+                    f"({max_bytes}): {path}"
+                )
+            if batch and size + path_bytes > max_bytes:
                 break
             batch.append(path)
-            size += len(path) + 1
+            size += path_bytes
             index += 1
         if not batch:
             raise ValueError("Batch byte limit smaller than one file path")
