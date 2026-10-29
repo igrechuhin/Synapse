@@ -309,7 +309,7 @@ class SwiftSpellingCheckerTests(unittest.TestCase):
         log = self.root / "argv.log"
         self.assertFalse(log.exists() and "lint" in log.read_text())
 
-    def _run_runtime_with_fixture_root(self, with_config: bool):
+    def _run_runtime_with_fixture_root(self, with_config: bool, cmd_suffix: str = ""):
         """Call the real runtime against an isolated fixture project root."""
         fixture_root = self.root / "fixture-project"
         sources = fixture_root / "Sources"
@@ -326,7 +326,7 @@ class SwiftSpellingCheckerTests(unittest.TestCase):
             for key, value in os.environ.items()
             if not key.startswith("SPELL_CHECKER_")
         }
-        env["SPELL_CHECKER_CMD"] = str(self.stub)
+        env["SPELL_CHECKER_CMD"] = str(self.stub) + cmd_suffix
         original = dict(os.environ)
         os.environ.clear()
         os.environ.update(env)
@@ -372,6 +372,34 @@ class SwiftSpellingCheckerTests(unittest.TestCase):
         for line in lint_lines:
             self.assertEqual(line.split("\0").count("--config"), 1, msg=line)
             self.assertIn(caller_config, line, msg=line)
+
+    def test_caller_short_flag_wins_over_project_config(self) -> None:
+        """Caller -c config is honored even when a project config exists."""
+        caller_config = "/custom/project/cspell.json"
+        returncode, lint_lines = self._run_runtime_with_fixture_root(
+            with_config=True, cmd_suffix=f" -c {caller_config}"
+        )
+        self.assertEqual(returncode, 0, msg=lint_lines)
+        fixture_config = str(self.root / "fixture-project" / ".cspell.json")
+        for line in lint_lines:
+            tokens = line.split("\0")
+            self.assertIn(caller_config, tokens, msg=line)
+            self.assertNotIn(fixture_config, tokens, msg=line)
+            self.assertNotIn("--config", tokens, msg=line)
+
+    def test_caller_inline_config_form_wins_over_project_config(self) -> None:
+        """Caller --config=path form is honored over the project config."""
+        caller_config = "/custom/project/inline.json"
+        returncode, lint_lines = self._run_runtime_with_fixture_root(
+            with_config=True, cmd_suffix=f" --config={caller_config}"
+        )
+        self.assertEqual(returncode, 0, msg=lint_lines)
+        fixture_config = str(self.root / "fixture-project" / ".cspell.json")
+        for line in lint_lines:
+            tokens = line.split("\0")
+            self.assertIn(f"--config={caller_config}", tokens, msg=line)
+            self.assertNotIn(fixture_config, tokens, msg=line)
+            self.assertEqual(tokens.count("--config"), 0, msg=line)
 
     def test_config_error_not_replaced_by_typo(self) -> None:
         """A configuration failure keeps its status over finding diagnostics."""

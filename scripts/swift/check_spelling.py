@@ -179,13 +179,21 @@ def check_spelling_with_cspell(
         ]
         lint_prefix = ["lint", "--no-progress"]
         config_path = project_root / ".cspell.json"
-        if config_path.exists() and "--config" not in command:
+        if config_path.exists() and not _command_has_config(command):
             # Explicit config so malformed project configs fail loudly instead
             # of being silently ignored during config discovery.
             lint_prefix += ["--config", str(config_path)]
         return _lint_batches(command, lint_prefix, file_paths, project_root, timeout)
     except (OSError, ValueError) as error:
         return 1, f"Error configuring spell checker: {error}"
+
+
+def _command_has_config(command: list[str]) -> bool:
+    """Report whether the caller already selected a cspell configuration."""
+    return any(
+        token in ("-c", "--config") or token.startswith("--config=")
+        for token in command
+    )
 
 
 def _lint_batches(
