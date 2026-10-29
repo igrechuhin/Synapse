@@ -16,6 +16,8 @@ import tempfile
 import unittest
 from pathlib import Path
 
+from check_spelling import check_spelling_with_cspell, get_swift_files
+
 SCRIPT_PATH = Path(__file__).resolve().with_name("check_spelling.py")
 
 CSPELL_STUB = """#!{python}
@@ -23,7 +25,7 @@ import sys
 from pathlib import Path
 
 args = sys.argv[1:]
-if args == ["--version"]:
+if "--version" in args:
     print(Path(__file__).with_name("version.txt").read_text(), end="")
     sys.exit(0)
 log = Path(__file__).with_name("argv.log")
@@ -306,6 +308,87 @@ class SwiftSpellingCheckerTests(unittest.TestCase):
         self.assertIn(app_path, completed.stderr)
         log = self.root / "argv.log"
         self.assertFalse(log.exists() and "lint" in log.read_text())
+
+    def _run_runtime_with_fixture_root(self, with_config: bool):
+        """Call the real runtime against an isolated fixture project root."""
+        fixture_root = self.root / "fixture-project"
+        sources = fixture_root / "Sources"
+        sources.mkdir(parents=True)
+        (sources / "App.swift").write_text("public struct App {}\n")
+        if with_config:
+            (fixture_root / ".cspell.json").write_text(
+                '{"version": "0.2", "language": "en"}\n'
+            )
+        files = get_swift_files(fixture_root)
+        self.assertEqual(len(files), 1)
+        env = {
+            key: value
+            for key, value in os.environ.items()
+            if not key.startswith("SPELL_CHECKER_")
+        }
+        env["SPELL_CHECKER_CMD"] = str(self.stub)
+        original = dict(os.environ)
+        os.environ.clear()
+        os.environ.update(env)
+        try:
+            returncode, _ = check_spelling_with_cspell(files, fixture_root)
+        finally:
+            os.environ.clear()
+            os.environ.update(original)
+        lint_lines = [
+            line
+            for line in (self.root / "argv.log").read_text().rstrip("\n").split("\n")
+            if "lint" in line.split("\0")
+        ]
+        return returncode, lint_lines
+
+    def test_fixture_config_passed_explicitly_to_lint(self) -> None:
+        """A project .cspell.json is forwarded via --config to cspell."""
+        returncode, lint_lines = self._run_runtime_with_fixture_root(with_config=True)
+        self.assertEqual(returncode, 0, msg=lint_lines)
+        self.assertTrue(lint_lines)
+        expected_config = str(self.root / "fixture-project" / ".cspell.json")
+        forwarded = any(
+            "--config" in line.split("\0") and expected_config in line.split("\0")
+            for line in lint_lines
+        )
+        self.assertTrue(forwarded, msg=lint_lines)
+
+    def test_no_config_flag_without_fixture_config(self) -> None:
+        """Without a project .cspell.json the lint argv has no --config."""
+        returncode, lint_lines = self._run_runtime_with_fixture_root(with_config=False)
+        self.assertEqual(returncode, 0, msg=lint_lines)
+        self.assertTrue(lint_lines)
+        for line in lint_lines:
+            self.assertNotIn("--config", line.split("\0"), msg=line)
+
+    def test_caller_supplied_config_not_duplicated(self) -> None:
+        caller_config = "/custom/project/cspell.json"
+        completed = self._run(SPELL_CHECKER_CMD=f"{self.stub} --config {caller_config}")
+        self.assertEqual(completed.returncode, 0)
+        log = (self.root / "argv.log").read_text().rstrip("\n").split("\n")
+        lint_lines = [line for line in log if "lint" in line.split("\0")]
+        self.assertTrue(lint_lines)
+        for line in lint_lines:
+            self.assertEqual(line.split("\0").count("--config"), 1, msg=line)
+            self.assertIn(caller_config, line, msg=line)
+
+    def test_config_error_not_replaced_by_typo(self) -> None:
+        """A configuration failure keeps its status over finding diagnostics."""
+        self._set_stub_state(
+            exit_code="2",
+            diagnostic=(
+                "Configuration Error: Failed to read config file '.cspell.json'\n"
+                "Sources/App.swift:1:8 - Unknown word (appp)\n"
+            ),
+        )
+        completed = self._run()
+        self.assertEqual(completed.returncode, 2)
+        self.assertIn(
+            "Configuration Error: Failed to read config file", completed.stderr
+        )
+        self.assertIn("Unknown word (appp)", completed.stderr)
+        self.assertNotIn("passed", completed.stdout)
 
 
 if __name__ == "__main__":

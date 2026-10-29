@@ -177,13 +177,23 @@ def check_spelling_with_cspell(
             )
             for path in files
         ]
-        return _lint_batches(command, file_paths, project_root, timeout)
+        lint_prefix = ["lint", "--no-progress"]
+        config_path = project_root / ".cspell.json"
+        if config_path.exists() and "--config" not in command:
+            # Explicit config so malformed project configs fail loudly instead
+            # of being silently ignored during config discovery.
+            lint_prefix += ["--config", str(config_path)]
+        return _lint_batches(command, lint_prefix, file_paths, project_root, timeout)
     except (OSError, ValueError) as error:
         return 1, f"Error configuring spell checker: {error}"
 
 
 def _lint_batches(
-    command: list[str], file_paths: list[str], project_root: Path, timeout: float
+    command: list[str],
+    lint_prefix: list[str],
+    file_paths: list[str],
+    project_root: Path,
+    timeout: float,
 ) -> tuple[int, str]:
     """Lint every bounded batch; first nonzero status wins, all output kept."""
     max_files = int(os.environ.get("SPELL_CHECKER_MAX_BATCH_FILES", 512))
@@ -210,7 +220,7 @@ def _lint_batches(
         if not batch:
             raise ValueError("Batch byte limit smaller than one file path")
         returncode, output = _run_checker(
-            command + ["lint", "--no-progress"] + batch, project_root, timeout
+            command + lint_prefix + batch, project_root, timeout
         )
         if output:
             outputs.append(output)
