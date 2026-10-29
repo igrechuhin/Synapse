@@ -178,8 +178,8 @@ def check_spelling_with_cspell(
             for path in files
         ]
         lint_prefix = ["lint", "--no-progress"]
-        config_path = project_root / ".cspell.json"
-        if config_path.exists() and not _command_has_config(command):
+        config_path = _resolve_project_config(project_root)
+        if config_path is not None and not _command_has_config(command):
             # Explicit config so malformed project configs fail loudly instead
             # of being silently ignored during config discovery.
             lint_prefix += ["--config", str(config_path)]
@@ -188,12 +188,36 @@ def check_spelling_with_cspell(
         return 1, f"Error configuring spell checker: {error}"
 
 
+_CONFIG_FILENAMES = (".cspell.json", "cspell.json")
+
+
+def _resolve_project_config(project_root: Path) -> Path | None:
+    """Resolve the project cspell config, preferring .cspell.json.
+
+    ``lexists`` keeps broken symlinks and unreadable entries visible so they
+    reach cspell and fail closed instead of counting as "not configured".
+    """
+    for name in _CONFIG_FILENAMES:
+        candidate = project_root / name
+        if os.path.lexists(candidate):
+            return candidate
+    return None
+
+
 def _command_has_config(command: list[str]) -> bool:
     """Report whether the caller already selected a cspell configuration."""
     return any(
         token in ("-c", "--config") or token.startswith("--config=")
         for token in command
     )
+
+
+def _caller_spell_command() -> list[str]:
+    """Parse SPELL_CHECKER_CMD; malformed overrides must fail closed."""
+    override = os.environ.get("SPELL_CHECKER_CMD")
+    if not override:
+        return []
+    return shlex.split(override)
 
 
 def _lint_batches(
@@ -240,6 +264,21 @@ def _lint_batches(
 def main() -> None:
     """Check spelling in Swift sources."""
     project_root = get_project_root(Path(__file__))
+    try:
+        caller_config = _command_has_config(_caller_spell_command())
+    except ValueError as error:
+        print(f"Error: invalid SPELL_CHECKER_CMD: {error}", file=sys.stderr)
+        sys.exit(2)
+    if _resolve_project_config(project_root) is None and not caller_config:
+        # Documented project contract (quality.yml): spelling runs only when
+        # a cspell config is present or the caller selects one. Never "passed".
+        print(
+            "ℹ️  No cspell config found; spelling check skipped "
+            "(nothing to check against)",
+            file=sys.stderr,
+        )
+        print(f"Project root: {project_root}", file=sys.stderr)
+        sys.exit(0)
     files_to_check = get_swift_files(project_root)
 
     if not files_to_check:

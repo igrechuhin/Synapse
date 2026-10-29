@@ -12,6 +12,7 @@ import os
 import stat
 import subprocess
 import sys
+import shutil
 import tempfile
 import unittest
 from pathlib import Path
@@ -83,9 +84,40 @@ class SwiftSpellingCheckerTests(unittest.TestCase):
         if hang:
             (self.root / "hang").write_text("")
 
-    def _run(self, **env_overrides: str) -> subprocess.CompletedProcess[str]:
+    def _run(
+        self,
+        config_name: str | None = ".cspell.json",
+        broken_config: bool = False,
+        **env_overrides: str,
+    ) -> subprocess.CompletedProcess[str]:
+        """Run the CLI inside an isolated fixture project root.
+
+        The checker and _utils are copied byte-identical so project-root
+        resolution targets the fixture, never the real repository.
+        """
+        fixture_root = self.root / "cli-project"
+        swift_dir = fixture_root / "scripts" / "swift"
+        swift_dir.mkdir(parents=True, exist_ok=True)
+        (fixture_root / "scripts" / "python").mkdir(exist_ok=True)
+        shutil.copyfile(
+            Path(__file__).with_name("check_spelling.py"),
+            swift_dir / "check_spelling.py",
+        )
+        shutil.copyfile(
+            Path(__file__).resolve().parent.parent / "python" / "_utils.py",
+            fixture_root / "scripts" / "python" / "_utils.py",
+        )
+        (fixture_root / "README.md").write_text("# cli fixture project\n")
+        if config_name is not None:
+            config_path = fixture_root / config_name
+            if broken_config:
+                os.symlink("/nonexistent/cspell-target.json", config_path)
+            else:
+                config_path.write_text('{"version": "0.2", "language": "en"}\n')
         env = {
-            k: v for k, v in os.environ.items() if not k.startswith("SPELL_CHECKER_")
+            key: value
+            for key, value in os.environ.items()
+            if not key.startswith("SPELL_CHECKER_")
         }
         env.update(
             {
@@ -96,13 +128,24 @@ class SwiftSpellingCheckerTests(unittest.TestCase):
         )
         env.update(env_overrides)
         return subprocess.run(
-            [sys.executable, str(SCRIPT_PATH)],
+            [sys.executable, str(swift_dir / "check_spelling.py")],
             env=env,
+            cwd=fixture_root,
             check=False,
             capture_output=True,
             text=True,
             timeout=120,
         )
+
+    def _lint_lines(self) -> list[list[str]]:
+        log = self.root / "argv.log"
+        if not log.exists():
+            return []
+        return [
+            line.split("\0")
+            for line in log.read_text().rstrip("\n").split("\n")
+            if "lint" in line.split("\0")
+        ]
 
     def test_checker_failure_is_failure_not_false_green(self) -> None:
         """Original false-green case: nonzero checker exit stays a failure."""
@@ -245,7 +288,12 @@ class SwiftSpellingCheckerTests(unittest.TestCase):
         log = (self.root / "argv.log").read_text().rstrip("\n").split("\n")
         lint_lines = [line for line in log if line.startswith("lint")]
         self.assertEqual(len(lint_lines), 4, msg=lint_lines)
-        checked = [arg for line in lint_lines for arg in line.split("\0")[2:]]
+        checked = [
+            arg
+            for line in lint_lines
+            for arg in line.split("\0")
+            if arg.endswith(".swift")
+        ]
         expected = {
             str(self.root / "Sources" / name)
             for name in ("App.swift", "Part0.swift", "Part1.swift", "Part2.swift")
@@ -266,7 +314,12 @@ class SwiftSpellingCheckerTests(unittest.TestCase):
         self.assertIn("All Swift spelling checks passed", completed.stdout)
         log = (self.root / "argv.log").read_text().rstrip("\n").split("\n")
         lint_lines = [line for line in log if line.startswith("lint")]
-        checked = [arg for line in lint_lines for arg in line.split("\0")[2:]]
+        checked = [
+            arg
+            for line in lint_lines
+            for arg in line.split("\0")
+            if arg.endswith(".swift")
+        ]
         self.assertEqual(
             sorted(checked),
             sorted({str(self.root / "Sources" / name) for name in names}),
@@ -293,7 +346,12 @@ class SwiftSpellingCheckerTests(unittest.TestCase):
         self.assertIn("All Swift spelling checks passed", completed.stdout)
         log = (self.root / "argv.log").read_text().rstrip("\n").split("\n")
         lint_lines = [line for line in log if line.startswith("lint")]
-        checked = [arg for line in lint_lines for arg in line.split("\0")[2:]]
+        checked = [
+            arg
+            for line in lint_lines
+            for arg in line.split("\0")
+            if arg.endswith(".swift")
+        ]
         self.assertEqual(
             sorted(checked),
             sorted({str(self.root / "Sources" / "App.swift"), str(multibyte)}),
@@ -417,6 +475,64 @@ class SwiftSpellingCheckerTests(unittest.TestCase):
         )
         self.assertIn("Unknown word (appp)", completed.stderr)
         self.assertNotIn("passed", completed.stdout)
+
+    def test_cli_not_configured_skips_never_passes(self) -> None:
+        """Absent project config and caller config => explicit skip, no pass."""
+        completed = self._run(config_name=None)
+        self.assertEqual(completed.returncode, 0)
+        self.assertIn(
+            "No cspell config found; spelling check skipped", completed.stderr
+        )
+        self.assertNotIn("passed", completed.stdout)
+        self.assertFalse((self.root / "argv.log").exists())
+
+    def test_cli_malformed_spell_cmd_with_absent_config_fails(self) -> None:
+        """A malformed SPELL_CHECKER_CMD must fail closed, never skip."""
+        completed = self._run(
+            config_name=None, SPELL_CHECKER_CMD="cspell-stub 'unbalanced-quote"
+        )
+        self.assertNotEqual(completed.returncode, 0)
+        self.assertIn("invalid SPELL_CHECKER_CMD", completed.stderr)
+        self.assertNotIn("No cspell config found", completed.stderr)
+        self.assertNotIn("passed", completed.stdout)
+        self.assertFalse((self.root / "argv.log").exists())
+
+    def test_cli_cspell_json_name_forwarded(self) -> None:
+        """The alternate supported filename is forwarded explicitly."""
+        completed = self._run(config_name="cspell.json")
+        self.assertEqual(completed.returncode, 0)
+        expected = str((self.root / "cli-project" / "cspell.json").resolve())
+        forwarded = any(
+            "--config" in tokens and expected in tokens for tokens in self._lint_lines()
+        )
+        self.assertTrue(forwarded, msg=self._lint_lines())
+
+    def test_cli_broken_symlink_config_is_not_absence(self) -> None:
+        """A broken symlink config reaches cspell instead of skipping."""
+        completed = self._run(broken_config=True)
+        self.assertEqual(completed.returncode, 0, msg=completed.stderr)
+        expected = str((self.root / "cli-project").resolve() / ".cspell.json")
+        forwarded = any(
+            "--config" in tokens and expected in tokens for tokens in self._lint_lines()
+        )
+        self.assertTrue(forwarded, msg=self._lint_lines())
+        self.assertNotIn("No cspell config found", completed.stderr)
+
+    def test_cli_dot_cspell_json_takes_precedence(self) -> None:
+        """When both names exist, .cspell.json is the one forwarded."""
+        fixture_root = self.root / "cli-project"
+        self._run()
+        (fixture_root / "cspell.json").write_text('{"version": "0.2"}\n')
+        (self.root / "argv.log").unlink()
+        completed = self._run()
+        self.assertEqual(completed.returncode, 0)
+        expected = str((fixture_root / ".cspell.json").resolve())
+        alternate = str((fixture_root / "cspell.json").resolve())
+        for tokens in self._lint_lines():
+            if "--config" in tokens:
+                forwarded_path = tokens[tokens.index("--config") + 1]
+                self.assertEqual(forwarded_path, expected, msg=tokens)
+                self.assertNotEqual(forwarded_path, alternate, msg=tokens)
 
 
 if __name__ == "__main__":
