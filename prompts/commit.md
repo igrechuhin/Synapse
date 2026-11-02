@@ -10,7 +10,7 @@ For `/cortex/commit`, **clean** means **git-clean** for the commit scope:
 
 - Superproject and required submodules have no unresolved working-tree drift for files included in the commit path.
 - Submodule pointer (gitlink) is in sync with the intended submodule commit.
-- Local edits are not considered clean until they are either committed (where required) or intentionally discarded/staged per workflow.
+- Preserve unrelated local edits; never discard them to make the commit scope clean.
 
 ## Session Discipline
 
@@ -84,11 +84,11 @@ Use @commit-preflight to handle this phase. If the subagent is unavailable, run 
 
 1. Call `session()` to verify MCP health. If unhealthy, STOP.
 2. Read `cortex://rules` resource for coding standards. Non-blocking if unavailable.
-3. Run `git status` to confirm changes exist. If no changes, STOP.
-4. Run `git stash create`. If a hash is returned, run `git stash store -m "cortex-commit-pipeline-snapshot" <hash>` and record it as `snapshot_ref`. If empty (clean tree), record `snapshot_ref = "HEAD"`. **Symlink fallback**: if `git stash create` fails with "beyond a symbolic link" (common when `.cortex/memory-bank` or `.cortex/plans` are symlinked in local workflows), record `snapshot_ref = "HEAD"` and continue — this is non-blocking.
+3. **Checkpoint before any staging or mutation**: call `session(operation="checkpoint")`. Require `status: "success"` and `state: "created"`, and record its exact durable `snapshot_ref`. If `state: "clean"`, STOP — no changes to commit. On `status: "error"` (including symlink or timeout errors), STOP and record the failure; never substitute `"HEAD"` or shell stash commands. An orientation response from `session()` is not a checkpoint, including when a bridge strips arguments.
+4. **Checkpoint scope**: the operation preserves tracked staged/unstaged content independently without changing the original index or worktree. It creates a shared `refs/cortex/checkpoints/*` ref (visible to linked worktrees), not a `refs/stash` entry. Untracked/ignored files and submodule contents are not captured: preserve excluded work separately before touching it. Do not discard user changes or automatically restore/delete checkpoint refs.
 5. **Synapse pre-stage (required before Phase A)**: Run `git -C .cortex/synapse status --short` (or `git submodule status`). If the synapse submodule shows `+` (OUT_OF_SYNC / pointer mismatch) or any dirty state:
    a. Run `git -C .cortex/synapse status --porcelain -- :/ :(exclude).cache` to check for real uncommitted changes.
-   b. If dirty (excluding `.cache`): commit inside — `git -C .cortex/synapse add -A -- :/ :(exclude).cache && git -C .cortex/synapse commit -m "chore: update usage analytics"`.
+   b. If dirty (excluding `.cache`): preserve the submodule's own work before mutation, then selectively stage only the intended files and commit them inside the submodule. Do not stage or discard unrelated user changes.
    c. Stage the updated gitlink in the superproject: `git add .cortex/synapse`.
    This ensures Phase A's submodule hygiene check sees a clean, in-sync submodule.
 6. Write result:
@@ -389,7 +389,7 @@ Then call `pipeline_handoff()`.
 
 - **Preflight fails (MCP unhealthy)**: STOP — MCP required for all phases
 - **Preflight fails (no changes)**: STOP — nothing to commit
-- **Preflight `git stash create` fails with "beyond a symbolic link"**: Non-blocking — use `snapshot_ref = "HEAD"` and continue. This is expected in TradeWing because `.cortex/memory-bank` and `.cortex/plans` may be symlinked in local workflows.
+- **Preflight checkpoint fails**: STOP and record the error. Symlink errors are real failures, not permission to substitute HEAD. Preserve all user changes; do not run a shell stash fallback.
 - **Phase A fails after 3 fix-workflow delegations**: STOP, report unresolvable issues
 - **Phase A fails due to project build failure** (step 5 exits non-zero): fix compilation/build errors, re-run both `run_quality_gate()` and the language-specific build script. Do NOT create the commit until the build succeeds.
 - **Phase A fails due to markdown lint**: Delegate to `@fix-quality` subagent (which calls `autofix()` and handles manual fixes per rule code). Do NOT fix inline. Zero markdown errors required before Phase A can pass.
@@ -402,7 +402,7 @@ Then call `pipeline_handoff()`.
 - **Step 12 fails after 3 iterations**: Block commit — unless failures are exclusively pytest timeouts and no source code (`src/`/`tests/`) changed since Phase A (see timeout-only rule above)
 - **MCP disconnects**: Zero-arg `run_quality_gate` resumes detached checks with bounded waits; repeat the same call after reconnect and handle `status: "running"` before interpreting gate success or failure. `run_docs_gate` returns its terminal result directly.
 - **3 consecutive MCP failures**: Circuit-breaker per `shared-conventions.md`. Call `pipeline_handoff(operation="read", pipeline="commit")` to restore context after reconnect.
-- **On any pipeline failure**: Report phase and error. Offer rollback using `snapshot_ref` from `phases.preflight`. Do NOT auto-rollback.
+- **On any pipeline failure**: Report phase and error and retain `snapshot_ref` from `phases.preflight`. Restoration requires a separate explicit user decision and must preserve newer/unrelated work. Do NOT auto-rollback or drop the shared checkpoint ref.
 
 ## Resuming After Context Compression
 

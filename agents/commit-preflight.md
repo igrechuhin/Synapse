@@ -1,6 +1,6 @@
 ---
 name: commit-preflight
-description: Commit pipeline preflight specialist. Handles interrupted state resume, standard pre-flight protocol (structure, memory bank, rules, language detection), MCP health check, rollback snapshot creation, and initial pipeline state checkpoint.
+description: Commit pipeline preflight specialist. Handles interrupted state resume, standard pre-flight protocol (structure, memory bank, rules, language detection), MCP health check, supported Git checkpoint creation before staging, and initial pipeline state checkpoint.
 ---
 
 # Commit Preflight Agent
@@ -39,11 +39,12 @@ Per `shared-conventions.md`:
 3. **CHECK**: Confirm changes exist to commit (`git status`). If no changes, STOP — nothing to commit.
 4. **PREFER**: Use `think` tool to plan which checks apply to current changes.
 
-### Step 4: Create Rollback Snapshot
+### Step 4: Create Git Checkpoint Before Staging
 
-1. Run `git stash create` to create a stash object without modifying index or working tree.
-2. If a stash hash is returned: run `git stash store -m "cortex-commit-pipeline-snapshot" <hash>` to persist it. Record `snapshot_ref: "<hash>"`.
-3. If `git stash create` returns empty (clean working tree): record `snapshot_ref: "HEAD"`.
+1. Call `session(operation="checkpoint")`. Require `status:"success"` and `state:"created"`; record the exact returned durable `snapshot_ref`.
+2. On `state:"clean"`, STOP — nothing to commit. On error, STOP and record the failure. Never substitute HEAD, shell stash commands, or a session orientation response.
+3. The operation preserves tracked staged/unstaged content independently without changing the original index, worktree, or `refs/stash`. It creates a shared `refs/cortex/checkpoints/*` ref visible to linked worktrees.
+4. Untracked/ignored files and submodule contents are not captured. Preserve excluded work separately before any staging or mutation. Never discard user changes, automatically restore, or delete checkpoint refs.
 
 ### Step 5: Initialize Pipeline State
 
@@ -59,7 +60,7 @@ Report to orchestrator using **CommitPreflightResult** schema:
   "status": "complete | error",
   "rules_loaded": true,
   "primary_language": "Python 3.13",
-  "snapshot_ref": "<hash>",
+  "snapshot_ref": "<returned refs/cortex/checkpoints/...>",
   "resumed_from_step": null,
   "error": null
 }

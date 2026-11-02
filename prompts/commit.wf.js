@@ -140,9 +140,13 @@ const GATE_SCHEMA = {
   // ── Preflight ──────────────────────────────────────────────────────────────
   phase("Preflight");
   const preflight = await agent(
-    "Run commit preflight: verify MCP health via session(), check git status, create " +
-      "stash snapshot (git stash create + store), pre-stage synapse submodule if " +
-      "OUT_OF_SYNC. Write result to pipeline state.",
+    "Run commit preflight: verify MCP health via session(), then explicitly call " +
+      'session(operation="checkpoint") before staging. Require state=created and ' +
+      "its durable snapshot_ref; stop on clean or error, never fall back to HEAD " +
+      "or shell stash commands. The shared checkpoint ref saves only tracked " +
+      "staged/unstaged content; preserve excluded/submodule work before mutation. " +
+      "Then pre-stage synapse if OUT_OF_SYNC without discarding unrelated edits. " +
+      "Write result to pipeline state; never automatically restore or delete refs.",
     { agentType: "commit-preflight", schema: PREFLIGHT_SCHEMA }
   );
 
