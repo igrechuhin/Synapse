@@ -232,17 +232,19 @@ def _lint_batches(
     max_bytes = int(os.environ.get("SPELL_CHECKER_MAX_BATCH_BYTES", 65536))
     if max_files <= 0 or max_bytes <= 1:
         raise ValueError("Batch limits must be positive")
-    first_nonzero, outputs = 0, []
+    first_nonzero = 0
+    outputs: list[str] = []
     index = 0
     while index < len(file_paths):
-        batch, size = [], 0
+        batch: list[str] = []
+        size = 0
         while index < len(file_paths) and len(batch) < max_files:
             path = file_paths[index]
             path_bytes = len(os.fsencode(path)) + 1
             if path_bytes > max_bytes:
                 raise ValueError(
-                    f"File path exceeds SPELL_CHECKER_MAX_BATCH_BYTES "
-                    f"({max_bytes}): {path}"
+                    "File path exceeds SPELL_CHECKER_MAX_BATCH_BYTES "
+                    + f"({max_bytes}): {path}"
                 )
             if batch and size + path_bytes > max_bytes:
                 break
@@ -274,7 +276,7 @@ def main() -> None:
         # a cspell config is present or the caller selects one. Never "passed".
         print(
             "ℹ️  No cspell config found; spelling check skipped "
-            "(nothing to check against)",
+            + "(nothing to check against)",
             file=sys.stderr,
         )
         print(f"Project root: {project_root}", file=sys.stderr)

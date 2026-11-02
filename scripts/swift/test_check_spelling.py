@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# cspell:ignore appp batchtwo
 """Behavioral tests for the Swift spelling checker.
 
 Covers the false-green regression (checker failures must stay failures),
@@ -17,7 +18,11 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from check_spelling import check_spelling_with_cspell, get_swift_files
+if not __package__:
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+    __package__ = "swift"
+
+from .check_spelling import check_spelling_with_cspell, get_swift_files
 
 SCRIPT_PATH = Path(__file__).resolve().with_name("check_spelling.py")
 
@@ -50,15 +55,18 @@ sys.exit(int(Path(__file__).with_name("exit_code.txt").read_text()))
 class SwiftSpellingCheckerTests(unittest.TestCase):
     """Real behavior branches of check_spelling.py for Swift."""
 
-    def setUp(self) -> None:
-        self._tmp = tempfile.TemporaryDirectory()
+    def __init__(self, methodName: str = "runTest") -> None:
+        super().__init__(methodName)
+        self._tmp: tempfile.TemporaryDirectory[str] = tempfile.TemporaryDirectory()
         self.addCleanup(self._tmp.cleanup)
         self.root = Path(self._tmp.name)
+        self.stub = self.root / "cspell-stub"
+
+    def setUp(self) -> None:
         (self.root / "Sources").mkdir()
         (self.root / "Tests").mkdir()
-        (self.root / "Sources" / "App.swift").write_text("public struct App {}\n")
-        self.stub = self.root / "cspell-stub"
-        self.stub.write_text(CSPELL_STUB.format(python=sys.executable))
+        _ = (self.root / "Sources" / "App.swift").write_text("public struct App {}\n")
+        _ = self.stub.write_text(CSPELL_STUB.format(python=sys.executable))
         self.stub.chmod(self.stub.stat().st_mode | stat.S_IXUSR)
         self._set_stub_state(version="8.6.1\n", exit_code="0")
 
@@ -70,8 +78,8 @@ class SwiftSpellingCheckerTests(unittest.TestCase):
         diagnostic: str | None = None,
         hang: bool = False,
     ) -> None:
-        (self.root / "version.txt").write_text(version)
-        (self.root / "exit_code.txt").write_text(exit_code)
+        _ = (self.root / "version.txt").write_text(version)
+        _ = (self.root / "exit_code.txt").write_text(exit_code)
         log = self.root / "argv.log"
         if log.exists():
             log.unlink()
@@ -79,10 +87,10 @@ class SwiftSpellingCheckerTests(unittest.TestCase):
         if diagnostic is None:
             diag.unlink(missing_ok=True)
         else:
-            diag.write_text(diagnostic)
+            _ = diag.write_text(diagnostic)
         (self.root / "hang").unlink(missing_ok=True)
         if hang:
-            (self.root / "hang").write_text("")
+            _ = (self.root / "hang").write_text("")
 
     def _run(
         self,
@@ -99,21 +107,21 @@ class SwiftSpellingCheckerTests(unittest.TestCase):
         swift_dir = fixture_root / "scripts" / "swift"
         swift_dir.mkdir(parents=True, exist_ok=True)
         (fixture_root / "scripts" / "python").mkdir(exist_ok=True)
-        shutil.copyfile(
+        _ = shutil.copyfile(
             Path(__file__).with_name("check_spelling.py"),
             swift_dir / "check_spelling.py",
         )
-        shutil.copyfile(
+        _ = shutil.copyfile(
             Path(__file__).resolve().parent.parent / "python" / "_utils.py",
             fixture_root / "scripts" / "python" / "_utils.py",
         )
-        (fixture_root / "README.md").write_text("# cli fixture project\n")
+        _ = (fixture_root / "README.md").write_text("# cli fixture project\n")
         if config_name is not None:
             config_path = fixture_root / config_name
             if broken_config:
                 os.symlink("/nonexistent/cspell-target.json", config_path)
             else:
-                config_path.write_text('{"version": "0.2", "language": "en"}\n')
+                _ = config_path.write_text('{"version": "0.2", "language": "en"}\n')
         env = {
             key: value
             for key, value in os.environ.items()
@@ -152,7 +160,7 @@ class SwiftSpellingCheckerTests(unittest.TestCase):
         self._set_stub_state(
             exit_code="1",
             diagnostic=(
-                "Sources/App.swift:1:8 - Unknown word (appp)\n" "1/1 files checked.\n"
+                "Sources/App.swift:1:8 - Unknown word (appp)\n" + "1/1 files checked.\n"
             ),
         )
         completed = self._run()
@@ -167,7 +175,7 @@ class SwiftSpellingCheckerTests(unittest.TestCase):
             exit_code="2",
             diagnostic=(
                 "Failed to read config file '.cspell.json': "
-                "Unexpected token in JSON\n"
+                + "Unexpected token in JSON\n"
             ),
         )
         completed = self._run()
@@ -210,12 +218,12 @@ class SwiftSpellingCheckerTests(unittest.TestCase):
         self.assertNotIn("All Swift spelling checks passed", completed.stdout)
 
     def test_only_swift_files_in_documented_scope(self) -> None:
-        (self.root / "Sources" / "helper.py").write_text("pyt = 1\n")
+        _ = (self.root / "Sources" / "helper.py").write_text("pyt = 1\n")
         (self.root / "Elsewhere").mkdir()
-        (self.root / "Elsewhere" / "Outside.swift").write_text("x\n")
+        _ = (self.root / "Elsewhere" / "Outside.swift").write_text("x\n")
         (self.root / "Sources" / "Sub").mkdir()
-        (self.root / "Sources" / "Sub" / "Inner.swift").write_text("y\n")
-        (self.root / "Tests" / "AppTests.swift").write_text("struct AppTests {}\n")
+        _ = (self.root / "Sources" / "Sub" / "Inner.swift").write_text("y\n")
+        _ = (self.root / "Tests" / "AppTests.swift").write_text("struct AppTests {}\n")
         completed = self._run()
         self.assertEqual(completed.returncode, 0)
         logged = (self.root / "argv.log").read_text()
@@ -238,14 +246,14 @@ class SwiftSpellingCheckerTests(unittest.TestCase):
     def test_build_artifacts_excluded(self) -> None:
         build_dir = self.root / "Sources" / ".build"
         build_dir.mkdir()
-        (build_dir / "Generated.swift").write_text("z\n")
+        _ = (build_dir / "Generated.swift").write_text("z\n")
         completed = self._run()
         self.assertEqual(completed.returncode, 0)
         self.assertNotIn(".build", (self.root / "argv.log").read_text())
 
     def test_batches_split_and_pass(self) -> None:
         for index in range(4):
-            (self.root / "Sources" / f"Part{index}.swift").write_text("x\n")
+            _ = (self.root / "Sources" / f"Part{index}.swift").write_text("x\n")
         completed = self._run(SPELL_CHECKER_MAX_BATCH_FILES="2")
         self.assertEqual(completed.returncode, 0)
         self.assertIn("All Swift spelling checks passed", completed.stdout)
@@ -258,8 +266,8 @@ class SwiftSpellingCheckerTests(unittest.TestCase):
 
     def test_failure_from_second_batch_survives(self) -> None:
         for index in range(3):
-            (self.root / "Sources" / f"Part{index}.swift").write_text("x\n")
-        (self.root / "second_batch_fail").write_text("")
+            _ = (self.root / "Sources" / f"Part{index}.swift").write_text("x\n")
+        _ = (self.root / "second_batch_fail").write_text("")
         completed = self._run(SPELL_CHECKER_MAX_BATCH_FILES="2")
         self.assertEqual(completed.returncode, 1)
         self.assertIn("Unknown word (batchtwo)", completed.stderr)
@@ -275,10 +283,10 @@ class SwiftSpellingCheckerTests(unittest.TestCase):
         """Byte-capped batches may not skip the remainder of a file slice."""
         names = ("App.swift", "Part0.swift", "Part1.swift", "Part2.swift")
         for name in names[1:]:
-            (self.root / "Sources" / name).write_text("x\n")
+            _ = (self.root / "Sources" / name).write_text("x\n")
         longest = max(len(os.fsencode(str(self.root / "Sources" / n))) for n in names)
         byte_cap = longest + 1
-        (self.root / "second_batch_fail").write_text("")
+        _ = (self.root / "second_batch_fail").write_text("")
         completed = self._run(
             SPELL_CHECKER_MAX_BATCH_FILES="512",
             SPELL_CHECKER_MAX_BATCH_BYTES=str(byte_cap),
@@ -303,7 +311,7 @@ class SwiftSpellingCheckerTests(unittest.TestCase):
 
     def test_byte_limit_pass_reports_all_files(self) -> None:
         names = ("App.swift", "Extra.swift")
-        (self.root / "Sources" / "Extra.swift").write_text("x\n")
+        _ = (self.root / "Sources" / "Extra.swift").write_text("x\n")
         longest = max(len(os.fsencode(str(self.root / "Sources" / n))) for n in names)
         byte_cap = longest + 1
         completed = self._run(
@@ -329,7 +337,7 @@ class SwiftSpellingCheckerTests(unittest.TestCase):
     def test_multibyte_path_uses_byte_not_char_bound(self) -> None:
         """A char-sized cap below the byte size must fail, not silently fit."""
         multibyte = self.root / "Sources" / "Файл.swift"
-        multibyte.write_text("x\n")
+        _ = multibyte.write_text("x\n")
         char_cap = len(str(multibyte)) + 1
         self.assertLess(char_cap, len(os.fsencode(str(multibyte))) + 1)
         completed = self._run(SPELL_CHECKER_MAX_BATCH_BYTES=str(char_cap))
@@ -339,7 +347,7 @@ class SwiftSpellingCheckerTests(unittest.TestCase):
 
     def test_multibyte_path_linted_when_cap_fits_bytes(self) -> None:
         multibyte = self.root / "Sources" / "Файл.swift"
-        multibyte.write_text("x\n")
+        _ = multibyte.write_text("x\n")
         byte_cap = len(os.fsencode(str(multibyte))) + 1
         completed = self._run(SPELL_CHECKER_MAX_BATCH_BYTES=str(byte_cap))
         self.assertEqual(completed.returncode, 0)
@@ -367,14 +375,16 @@ class SwiftSpellingCheckerTests(unittest.TestCase):
         log = self.root / "argv.log"
         self.assertFalse(log.exists() and "lint" in log.read_text())
 
-    def _run_runtime_with_fixture_root(self, with_config: bool, cmd_suffix: str = ""):
+    def _run_runtime_with_fixture_root(
+        self, with_config: bool, cmd_suffix: str = ""
+    ) -> tuple[int, list[str]]:
         """Call the real runtime against an isolated fixture project root."""
         fixture_root = self.root / "fixture-project"
         sources = fixture_root / "Sources"
         sources.mkdir(parents=True)
-        (sources / "App.swift").write_text("public struct App {}\n")
+        _ = (sources / "App.swift").write_text("public struct App {}\n")
         if with_config:
-            (fixture_root / ".cspell.json").write_text(
+            _ = (fixture_root / ".cspell.json").write_text(
                 '{"version": "0.2", "language": "en"}\n'
             )
         files = get_swift_files(fixture_root)
@@ -465,7 +475,7 @@ class SwiftSpellingCheckerTests(unittest.TestCase):
             exit_code="2",
             diagnostic=(
                 "Configuration Error: Failed to read config file '.cspell.json'\n"
-                "Sources/App.swift:1:8 - Unknown word (appp)\n"
+                + "Sources/App.swift:1:8 - Unknown word (appp)\n"
             ),
         )
         completed = self._run()
@@ -521,8 +531,8 @@ class SwiftSpellingCheckerTests(unittest.TestCase):
     def test_cli_dot_cspell_json_takes_precedence(self) -> None:
         """When both names exist, .cspell.json is the one forwarded."""
         fixture_root = self.root / "cli-project"
-        self._run()
-        (fixture_root / "cspell.json").write_text('{"version": "0.2"}\n')
+        _ = self._run()
+        _ = (fixture_root / "cspell.json").write_text('{"version": "0.2"}\n')
         (self.root / "argv.log").unlink()
         completed = self._run()
         self.assertEqual(completed.returncode, 0)
@@ -536,4 +546,4 @@ class SwiftSpellingCheckerTests(unittest.TestCase):
 
 
 if __name__ == "__main__":
-    unittest.main()
+    _ = unittest.main()
