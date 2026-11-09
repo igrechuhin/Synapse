@@ -168,6 +168,8 @@ When planning implementation work, note that agents should use `# AI:` comments 
 
 **If enriching existing**: Read the existing plan, merge new requirements, update steps and priorities. Write back using `Write` or `Edit`.
 
+For work based on a user request, retain a concise account of the requested acceptance conditions and relevant clarifications in Context, separate from the proposed steps and checklist. If several plans share the request, state which conditions each plan owns and which require another plan.
+
 ### Terminology check (ADVISORY — never blocks)
 
 After the plan body is written and **before** Step 8 registration, check the plan's vocabulary against the canonical domain glossary at `.cortex/wiki/glossary.md`.

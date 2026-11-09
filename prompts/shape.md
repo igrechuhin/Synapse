@@ -46,6 +46,8 @@ The loop terminates when this binary check passes:
 
 Decisions that survive the check but remain unresolved are not questions — record them under **Assumptions** (with the assumed value) or **Open Risks**. Do not continue the loop to resolve cosmetic or implementation-detail choices.
 
+When an assumption determines a consequential decision, record an observable trigger and name the decision to revisit if the trigger occurs. A trigger calls for reassessment of the affected decision and dependent checks. Changes to user-approved constraints still require user authorization.
+
 ## Guardrails
 
 - Do not create `.cortex/plans/*.md` formal plan files from this command.
@@ -71,7 +73,8 @@ Decisions that survive the check but remain unresolved are not questions — rec
 
 ## Assumptions
 
-- <assumed value, and what would invalidate it>
+- <assumed value>
+  - Revisit <dependent decision> if <observable condition>, when the assumption determines that decision.
 
 ## Explicitly Out of Scope
 
