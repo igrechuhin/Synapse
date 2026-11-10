@@ -12,6 +12,8 @@ Configuration:
 
 from __future__ import annotations
 
+# cspell:ignore BNDL
+
 import hashlib
 import os
 import plistlib
@@ -30,19 +32,19 @@ from swift_toolchain import ensure_developer_dir_for_swiftpm
 
 METALLIB_BUILD_TIMEOUT = get_config_int("METALLIB_BUILD_TIMEOUT", 900)
 _MLX_CHECKOUT_REL = Path(".build/checkouts/mlx-swift/Source/Cmlx/mlx")
-_BUILT_METALLIB_REL = Path("mlx/backend/metal/kernels/mlx.metallib")
+BUILT_METALLIB_REL = Path("mlx/backend/metal/kernels/mlx.metallib")
 _CACHE_ROOT_REL = Path(".build/mlx-metallib-cache")
 # Match mlx-swift's JIT backend while retaining its precompiled base kernels.
-_CMAKE_METALLIB_OPTIONS = (
+CMAKE_METALLIB_OPTIONS = (
     "-DCMAKE_BUILD_TYPE=Release",
     "-DMLX_BUILD_METAL=ON",
     "-DMLX_METAL_JIT=ON",
 )
 
 
-def _fingerprint_inputs(project_root: Path) -> str:
+def metallib_cache_fingerprint(project_root: Path) -> str:
     """Hash inputs that should invalidate a cached metallib build."""
-    parts: list[bytes] = ["\0".join(_CMAKE_METALLIB_OPTIONS).encode()]
+    parts: list[bytes] = ["\0".join(CMAKE_METALLIB_OPTIONS).encode()]
     resolved = project_root / "Package.resolved"
     if resolved.is_file():
         parts.append(resolved.read_bytes())
@@ -119,7 +121,7 @@ def _install_metallib_copy(built_metallib: Path, target: Path) -> None:
     _ = shutil.copy2(built_metallib, target)
 
 
-def _sync_metallib_installs(project_root: Path, built_metallib: Path) -> None:
+def sync_metallib_installs(project_root: Path, built_metallib: Path) -> None:
     """Install root and resource-bundle copies for MLX runtime loading."""
     root_default = project_root / "default.metallib"
     _install_metallib_copy(built_metallib, root_default)
@@ -130,7 +132,7 @@ def _sync_metallib_installs(project_root: Path, built_metallib: Path) -> None:
         _install_metallib_copy(built_metallib, target)
         info = resource_dir.parent / "Info.plist"
         if not info.is_file():
-            info.write_bytes(
+            _ = info.write_bytes(
                 plistlib.dumps(
                     {
                         "CFBundleIdentifier": "mlx-swift.Cmlx.resources",
@@ -143,13 +145,13 @@ def _sync_metallib_installs(project_root: Path, built_metallib: Path) -> None:
         print(f"✅ Installed MLX resource metallib at {target}")
 
 
-def _run_cmake_metallib_build(mlx_root: Path, build_dir: Path) -> Path:
+def build_cmake_metallib(mlx_root: Path, build_dir: Path) -> Path:
     """Configure and build the ``mlx-metallib`` CMake target."""
     build_dir.mkdir(parents=True, exist_ok=True)
     configure = [
         "cmake",
         str(mlx_root),
-        *_CMAKE_METALLIB_OPTIONS,
+        *CMAKE_METALLIB_OPTIONS,
     ]
     print(f"Running: {' '.join(configure)}", file=sys.stderr)
     _ = subprocess.run(
@@ -176,7 +178,7 @@ def _run_cmake_metallib_build(mlx_root: Path, build_dir: Path) -> Path:
         timeout=METALLIB_BUILD_TIMEOUT,
         env=os.environ,
     )
-    built = build_dir / _BUILT_METALLIB_REL
+    built = build_dir / BUILT_METALLIB_REL
     if not built.is_file():
         print(f"❌ Expected metallib at {built}", file=sys.stderr)
         sys.exit(1)
@@ -201,12 +203,14 @@ def ensure_default_metallib(project_root: Path, swift: str | None = None) -> Non
         swift = find_swift()
 
     mlx_root = _resolve_mlx_checkout(project_root, swift)
-    cache_dir = project_root / _CACHE_ROOT_REL / _fingerprint_inputs(project_root)
-    built_metallib = cache_dir / _BUILT_METALLIB_REL
+    cache_dir = (
+        project_root / _CACHE_ROOT_REL / metallib_cache_fingerprint(project_root)
+    )
+    built_metallib = cache_dir / BUILT_METALLIB_REL
 
     if not built_metallib.is_file():
         print(f"Building MLX metallib in {cache_dir}...", file=sys.stderr)
-        built = _run_cmake_metallib_build(mlx_root, cache_dir)
+        built = build_cmake_metallib(mlx_root, cache_dir)
         built_metallib = built
 
     root_default = project_root / "default.metallib"
@@ -221,7 +225,7 @@ def ensure_default_metallib(project_root: Path, swift: str | None = None) -> Non
         print("✅ MLX metallib installs are up to date")
         return
 
-    _sync_metallib_installs(project_root, built_metallib)
+    sync_metallib_installs(project_root, built_metallib)
 
 
 def main() -> None:

@@ -3,6 +3,8 @@
 
 from __future__ import annotations
 
+# cspell:ignore BNDL
+
 import hashlib
 import plistlib
 import tempfile
@@ -44,7 +46,7 @@ class EnsureMlxMetallibTests(unittest.TestCase):
                 ],
             )
 
-    def test_install_uses_resource_bundles_for_swiftbuild_without_touching_code(
+    def test_install_uses_resource_bundles_for_swift_build_without_touching_code(
         self,
     ) -> None:
         with tempfile.TemporaryDirectory() as root_name:
@@ -54,7 +56,7 @@ class EnsureMlxMetallibTests(unittest.TestCase):
             macos.mkdir(parents=True)
             built = root / "built.metallib"
             _ = built.write_bytes(b"metal")
-            metallib._sync_metallib_installs(root, built)
+            metallib.sync_metallib_installs(root, built)
             resource = (
                 host
                 / "Contents"
@@ -82,12 +84,12 @@ class EnsureMlxMetallibTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as root_name:
             root = Path(root_name)
             build = root / "build"
-            built = build / metallib._BUILT_METALLIB_REL
+            built = build / metallib.BUILT_METALLIB_REL
             built.parent.mkdir(parents=True)
             _ = built.write_bytes(b"metal")
 
             with patch.object(metallib.subprocess, "run") as run:
-                result = metallib._run_cmake_metallib_build(root / "mlx", build)
+                result = metallib.build_cmake_metallib(root / "mlx", build)
 
             self.assertEqual(result, built)
             self.assertEqual(run.call_count, 2)
@@ -112,12 +114,14 @@ class EnsureMlxMetallibTests(unittest.TestCase):
             root = Path(root_name)
             _ = (root / "Package.resolved").write_bytes(b"resolved")
             with patch.dict(metallib.os.environ, {"DEVELOPER_DIR": "/xcode"}):
-                current = metallib._fingerprint_inputs(root)
+                current = metallib.metallib_cache_fingerprint(root)
                 legacy = hashlib.sha256(b"resolved/xcode").hexdigest()[:16]
                 self.assertNotEqual(current, legacy)
-                self.assertEqual(current, metallib._fingerprint_inputs(root))
-                with patch.object(metallib, "_CMAKE_METALLIB_OPTIONS", ("changed",)):
-                    self.assertNotEqual(current, metallib._fingerprint_inputs(root))
+                self.assertEqual(current, metallib.metallib_cache_fingerprint(root))
+                with patch.object(metallib, "CMAKE_METALLIB_OPTIONS", ("changed",)):
+                    self.assertNotEqual(
+                        current, metallib.metallib_cache_fingerprint(root)
+                    )
 
     def test_fingerprint_tracks_dependency_and_toolchain_inputs(self) -> None:
         with tempfile.TemporaryDirectory() as root_name:
@@ -125,12 +129,14 @@ class EnsureMlxMetallibTests(unittest.TestCase):
             resolved = root / "Package.resolved"
             _ = resolved.write_bytes(b"original")
             with patch.dict(metallib.os.environ, {"DEVELOPER_DIR": "/xcode"}):
-                original = metallib._fingerprint_inputs(root)
+                original = metallib.metallib_cache_fingerprint(root)
                 _ = resolved.write_bytes(b"updated")
-                self.assertNotEqual(original, metallib._fingerprint_inputs(root))
+                self.assertNotEqual(original, metallib.metallib_cache_fingerprint(root))
                 _ = resolved.write_bytes(b"original")
                 with patch.dict(metallib.os.environ, {"DEVELOPER_DIR": "/other"}):
-                    self.assertNotEqual(original, metallib._fingerprint_inputs(root))
+                    self.assertNotEqual(
+                        original, metallib.metallib_cache_fingerprint(root)
+                    )
 
 
 if __name__ == "__main__":
