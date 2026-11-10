@@ -1,11 +1,10 @@
 #!/usr/bin/env python3
 """Ensure MLX metallib artifacts exist for TradeWing build and test runs.
 
-MLX loads ``mlx.metallib`` colocated with the test host binary (``current_binary_dir()``),
-then SwiftPM bundles, then ``default.metallib`` relative to the process working directory.
-Tests that call ``FileManager.changeCurrentDirectoryPath`` break the cwd-relative fallback,
-so this script installs ``mlx.metallib`` beside SwiftPM ``*.xctest`` hosts and copies
-``default.metallib`` at the repository root.
+MLX searches loaded bundles for ``mlx-swift_Cmlx.bundle/default.metallib``
+via each bundle's resource URL, before its working-directory fallback. Install
+that resource bundle inside test hosts' Resources directories, never their
+code-signed MacOS directories, and retain the repository-root fallback.
 
 Configuration:
     METALLIB_BUILD_TIMEOUT: CMake build timeout in seconds (default: 900)
@@ -15,6 +14,7 @@ from __future__ import annotations
 
 import hashlib
 import os
+import plistlib
 import shutil
 import subprocess
 import sys
@@ -32,11 +32,17 @@ METALLIB_BUILD_TIMEOUT = get_config_int("METALLIB_BUILD_TIMEOUT", 900)
 _MLX_CHECKOUT_REL = Path(".build/checkouts/mlx-swift/Source/Cmlx/mlx")
 _BUILT_METALLIB_REL = Path("mlx/backend/metal/kernels/mlx.metallib")
 _CACHE_ROOT_REL = Path(".build/mlx-metallib-cache")
+# Match mlx-swift's JIT backend while retaining its precompiled base kernels.
+_CMAKE_METALLIB_OPTIONS = (
+    "-DCMAKE_BUILD_TYPE=Release",
+    "-DMLX_BUILD_METAL=ON",
+    "-DMLX_METAL_JIT=ON",
+)
 
 
 def _fingerprint_inputs(project_root: Path) -> str:
     """Hash inputs that should invalidate a cached metallib build."""
-    parts: list[bytes] = []
+    parts: list[bytes] = ["\0".join(_CMAKE_METALLIB_OPTIONS).encode()]
     resolved = project_root / "Package.resolved"
     if resolved.is_file():
         parts.append(resolved.read_bytes())
@@ -84,16 +90,24 @@ def copy_is_fresh(target: Path, built_metallib: Path) -> bool:
     return target.stat().st_mtime >= built_metallib.stat().st_mtime
 
 
-def colocated_metallib_dirs(project_root: Path) -> list[Path]:
-    """Return MacOS directories for SwiftPM test bundles that may load MLX."""
+def xctest_metallib_resource_dirs(project_root: Path) -> list[Path]:
+    """Return MLX resource directories for native and SwiftBuild debug tests."""
     build_root = project_root / ".build"
     if not build_root.is_dir():
         return []
     dirs: list[Path] = []
-    for xctest in build_root.glob("**/debug/*.xctest"):
-        macos_dir = xctest / "Contents" / "MacOS"
-        if macos_dir.is_dir():
-            dirs.append(macos_dir)
+    for xctest in build_root.rglob("*.xctest"):
+        if xctest.parent.name.lower() != "debug":
+            continue
+        if (xctest / "Contents" / "MacOS").is_dir():
+            dirs.append(
+                xctest
+                / "Contents"
+                / "Resources"
+                / "mlx-swift_Cmlx.bundle"
+                / "Contents"
+                / "Resources"
+            )
     return sorted(set(dirs))
 
 
@@ -106,15 +120,27 @@ def _install_metallib_copy(built_metallib: Path, target: Path) -> None:
 
 
 def _sync_metallib_installs(project_root: Path, built_metallib: Path) -> None:
-    """Install root and colocated metallib copies for MLX runtime loading."""
+    """Install root and resource-bundle copies for MLX runtime loading."""
     root_default = project_root / "default.metallib"
     _install_metallib_copy(built_metallib, root_default)
     print(f"✅ Installed MLX default metallib at {root_default}")
 
-    for macos_dir in colocated_metallib_dirs(project_root):
-        colocated_mlx = macos_dir / "mlx.metallib"
-        _install_metallib_copy(built_metallib, colocated_mlx)
-        print(f"✅ Installed MLX colocated metallib at {colocated_mlx}")
+    for resource_dir in xctest_metallib_resource_dirs(project_root):
+        target = resource_dir / "default.metallib"
+        _install_metallib_copy(built_metallib, target)
+        info = resource_dir.parent / "Info.plist"
+        if not info.is_file():
+            info.write_bytes(
+                plistlib.dumps(
+                    {
+                        "CFBundleIdentifier": "mlx-swift.Cmlx.resources",
+                        "CFBundleName": "mlx-swift_Cmlx",
+                        "CFBundlePackageType": "BNDL",
+                        "CFBundleInfoDictionaryVersion": "6.0",
+                    }
+                )
+            )
+        print(f"✅ Installed MLX resource metallib at {target}")
 
 
 def _run_cmake_metallib_build(mlx_root: Path, build_dir: Path) -> Path:
@@ -123,8 +149,7 @@ def _run_cmake_metallib_build(mlx_root: Path, build_dir: Path) -> Path:
     configure = [
         "cmake",
         str(mlx_root),
-        "-DCMAKE_BUILD_TYPE=Release",
-        "-DMLX_BUILD_METAL=ON",
+        *_CMAKE_METALLIB_OPTIONS,
     ]
     print(f"Running: {' '.join(configure)}", file=sys.stderr)
     _ = subprocess.run(
@@ -185,14 +210,14 @@ def ensure_default_metallib(project_root: Path, swift: str | None = None) -> Non
         built_metallib = built
 
     root_default = project_root / "default.metallib"
-    colocated_targets = [
-        macos_dir / "mlx.metallib"
-        for macos_dir in colocated_metallib_dirs(project_root)
+    resource_dirs = xctest_metallib_resource_dirs(project_root)
+    all_targets = [
+        root_default,
+        *(directory / "default.metallib" for directory in resource_dirs),
     ]
-    all_targets = [root_default, *colocated_targets]
-    if all_targets and all(
-        copy_is_fresh(target, built_metallib) for target in all_targets
-    ):
+    if all(
+        directory.parent.joinpath("Info.plist").is_file() for directory in resource_dirs
+    ) and all(copy_is_fresh(target, built_metallib) for target in all_targets):
         print("✅ MLX metallib installs are up to date")
         return
 
