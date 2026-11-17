@@ -18,7 +18,8 @@ Before Step 1, call `pipeline_handoff(operation="status", pipeline="commit")`.
 Immediately before Step 1, call `pipeline_handoff(operation="mark_running", pipeline="commit", phase="final-gate")`.
 
 1. **Run gate** (unconditional — do not pre-classify what changed):
-   - Write `{"operation":"write","phase":"checks","pipeline":"commit","force_fresh":true,"test_timeout":600}` to `.cortex/.session/current-task.json`, call `pipeline_handoff()`, then `run_quality_gate()`.
+   - Write `{"operation":"write","phase":"checks","pipeline":"commit","force_fresh":true}` to `.cortex/.session/current-task.json`, call `pipeline_handoff()`, then `run_quality_gate()`.
+   - Omit `test_timeout` so Cortex uses the project test timeout, or its default when unset.
    - `run_quality_gate()` compares the current tree against the fingerprint Phase A persisted and skips only the checks whose inputs are unchanged, reporting them in `skipped_checks`. Do not attempt to route around checks yourself — a check that runs is a check the tracker judged necessary.
    - If the gate fails, delegate fixes to the fix workflow: spawn `@fix-quality` (or `@fix-tests` for test failures) rather than fixing inline. After the fix workflow completes, confirm with `run_quality_gate()`. Max 3 total fix-workflow invocations.
 2. **Re-run CI parity checks**. If any parity check fails, Step 12 is failed — do not commit.

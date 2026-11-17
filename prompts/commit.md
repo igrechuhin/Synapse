@@ -297,10 +297,10 @@ Use @commit-final-gate to handle this phase. If the subagent is unavailable, run
 
    ```json
    // Write to: .cortex/.session/current-task.json
-   {"operation":"write","phase":"checks","pipeline":"commit","force_fresh":true,"test_timeout":600}
+   {"operation":"write","phase":"checks","pipeline":"commit","force_fresh":true}
    ```
 
-   Then call `pipeline_handoff()` and `run_quality_gate()`.
+   Then call `pipeline_handoff()` and `run_quality_gate()`. Omit `test_timeout` so Cortex uses the project test timeout, or its default when unset.
 
    Full re-run including tests, types, lint, format, markdown. If any check fails: **delegate to the fix workflow** — spawn `@fix-quality` (or `@fix-tests` for test failures) rather than fixing inline. After the fix workflow completes, confirm with `run_quality_gate()` (max 3 total fix-workflow invocations).
    After a green result, re-run CI parity checks (same discovery as Phase A step 4). If any fails, Step 12 is failed (do not commit).
@@ -308,10 +308,10 @@ Use @commit-final-gate to handle this phase. If the subagent is unavailable, run
 
    ```json
    // Write to: .cortex/.session/current-task.json
-   {"operation":"write","phase":"checks","pipeline":"commit","force_fresh":true,"test_timeout":600}
+   {"operation":"write","phase":"checks","pipeline":"commit","force_fresh":true}
    ```
 
-   Then call `pipeline_handoff()` and `run_quality_gate()`.
+   Then call `pipeline_handoff()` and `run_quality_gate()`. Omit `test_timeout` so Cortex uses the project test timeout, or its default when unset.
 
    Since no source code changed, test/type/lint/format results from Phase A are still valid — only markdown lint needs verification. If tests timeout but all non-test checks pass, Step 12 passes (Phase A already proved tests are green and no source changed).
 4. **If nothing changed**: skip re-run, write success with `skipped_checks` list.

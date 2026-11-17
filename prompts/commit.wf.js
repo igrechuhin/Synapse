@@ -304,8 +304,9 @@ const GATE_SCHEMA = {
   // per-check granularity, from the Phase A fingerprint persisted for the
   // detached worker, and reports what it skipped in skipped_checks.
   const finalGate = await agent(
-    "Run Step 12 final gate: write force_fresh=true + test_timeout=600 " +
-      "to pipeline checks config, call run_quality_gate(). Checks whose inputs are " +
+    "Run Step 12 final gate: write force_fresh=true to pipeline checks config. " +
+      "Omit test_timeout to inherit the project budget or Cortex default, then " +
+      "call run_quality_gate(). Checks whose inputs are " +
       "unchanged since Phase A are skipped automatically and reported in " +
       "skipped_checks — do not try to route around them. If any check fails call " +
       "autofix() and retry (max 3 iterations). Then re-run CI parity checks. " +
