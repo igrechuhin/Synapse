@@ -30,6 +30,26 @@ Each phase must complete before the next begins:
 
 ---
 
+## Optional staged-final Swift mode
+
+The standard two-gate pipeline below remains the default. Use the staged-final
+path only when the operator explicitly requests it for this invocation and the
+read-only `pipeline_handoff(operation="configure_quality_gate", pipeline="commit")`
+response reports `config.staged_final_swiftpm_commit: true`. The native,
+argument-capable MCP connection must remain uninterrupted. Do not set a tracked
+project flag to make an invocation eligible.
+
+For a dry run, use `.cortex/synapse/prompts/staged-final-pilot.wf.js` when
+Workflow is available, or follow `.cortex/synapse/prompts/staged-final-pilot.md`
+in the current native MCP connection. For a real commit, follow the same
+preparation and verification instructions inline on one native connection, then
+the authenticated commit step in that prompt. Never use the legacy Workflow
+workers for staged-final mode: a new server does not own the final receipt.
+
+Do not run Phase A in this mode or record an early quality verdict. Never
+create a commit during a dry run, substitute a previous result, or fall back
+to ordinary Git if staged-final authorization fails.
+
 ## Cursor Arg-Stripping Protocol
 
 Cursor's MCP bridge strips all tool arguments to `{}`. Use these patterns:
