@@ -62,17 +62,25 @@ Spawn **one** subagent with this instruction:
 > signal — the pass is only done once Finalize has run. When complete, output the standard
 > Pipeline report, including the Finalize row (plan archived / updated / kept open)."
 
-Create and await the subagent in the **same host call**. Use that host's native blocking form:
+Use the host's supported launch-and-wait interface. Launch and wait may be separate tool
+calls if the host returns a stable agent ID. There must be exactly one outstanding subagent,
+and it must reach a confirmed terminal state before this iteration proceeds.
 
 - Workflow runtime: `const result = await agent(instruction, options)`.
 - Handle runtime: `const handle = agent(instruction, options)`; verify that `handle.wait` is
   callable, then call `const result = await handle.wait(600)` directly. If the check fails, STOP
-  immediately with `SUBAGENT_HANDLE_INVALID`.
+  with `SUBAGENT_HANDLE_INVALID`.
+- Codex or another ID-based host: launch once with the native spawn tool, record the exact
+  agent ID returned by that tool, and wait for **that same ID** using the host's native wait
+  tool with a finite timeout. If the wait times out or the agent is still running, wait again
+  for the same ID or report it pending. Do not spawn a replacement or advance. If the agent
+  fails or is interrupted, report the failure; do not treat it as a completed pass.
 
 Never use a handle's JSON representation as a completion token: opaque handles can serialize as
 `{}`. Never pass serialized, missing, or reconstructed handles to batch `wait(...)`, and never use
-an unbounded `timeout: 0`. If the host cannot create and await the live handle in one call, STOP
-with `SUBAGENT_HANDLE_UNRECOVERABLE` instead of entering the roadmap loop.
+an unbounded `timeout: 0`. A stable ID returned by the native spawn tool is not an opaque handle.
+If the host cannot wait for the same subagent via a supported interface, STOP with
+`SUBAGENT_HANDLE_UNRECOVERABLE` instead of entering or advancing the roadmap loop.
 
 **STOP HERE. Do not proceed to C until this subagent has returned.**
 No other work happens while the subagent runs.
